@@ -1,0 +1,22 @@
+[Unit]
+Description=CubieCloud Backend API
+After=network.target
+
+[Service]
+Type=simple
+User=cubie
+Group=cubie
+WorkingDirectory=/opt/cubie/backend
+ExecStart=/opt/cubie/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8443
+Restart=always
+RestartSec=5
+
+# Environment overrides (edit as needed)
+Environment=CUBIE_JWT_SECRET=your-secure-secret-here
+Environment=CUBIE_DEVICE_SERIAL=CUBIE-A7A-2025-001
+Environment=CUBIE_PAIRING_KEY=your-pairing-key
+Environment=CUBIE_NAS_ROOT=/srv/nas
+Environment=CUBIE_DATA_DIR=/var/lib/cubie
+
+[Install]
+WantedBy=multi-user.target
