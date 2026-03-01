@@ -147,7 +147,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ElevatedButton(
             onPressed: () async {
               await ref
-                  .read(mockApiServiceProvider)
+                  .read(apiServiceProvider)
                   .renameFile(file.path, ctrl.text);
               ref.invalidate(fileListProvider(_currentPath));
               if (ctx.mounted) Navigator.pop(ctx);
@@ -182,7 +182,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
             onPressed: () async {
               await ref
-                  .read(mockApiServiceProvider)
+                  .read(apiServiceProvider)
                   .deleteFile(file.path);
               ref.invalidate(fileListProvider(_currentPath));
               if (ctx.mounted) Navigator.pop(ctx);
@@ -286,7 +286,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ElevatedButton(
             onPressed: () async {
               await ref
-                  .read(mockApiServiceProvider)
+                  .read(apiServiceProvider)
                   .createFolder(_currentPath, ctrl.text);
               ref.invalidate(fileListProvider(_currentPath));
               if (ctx.mounted) Navigator.pop(ctx);
@@ -313,7 +313,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
         .read(uploadTasksProvider.notifier)
         .updateTask(task.id, status: UploadStatus.uploading);
 
-    final api = ref.read(mockApiServiceProvider);
+    final api = ref.read(apiServiceProvider);
     final stream = api.uploadFile(_currentPath, task.fileName, task.totalBytes);
 
     stream.listen(

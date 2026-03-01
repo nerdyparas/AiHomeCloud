@@ -138,7 +138,7 @@ class FamilyScreen extends ConsumerWidget {
             onPressed: () async {
               if (ctrl.text.trim().isNotEmpty) {
                 await ref
-                    .read(mockApiServiceProvider)
+                    .read(apiServiceProvider)
                     .addFamilyUser(ctrl.text.trim());
                 ref.invalidate(familyUsersProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
@@ -176,7 +176,7 @@ class FamilyScreen extends ConsumerWidget {
                 ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
             onPressed: () async {
               await ref
-                  .read(mockApiServiceProvider)
+                  .read(apiServiceProvider)
                   .removeFamilyUser(user.id);
               ref.invalidate(familyUsersProvider);
               if (ctx.mounted) Navigator.pop(ctx);

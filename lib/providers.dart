@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/constants.dart';
 import 'models/models.dart';
 import 'services/discovery_service.dart';
-import 'services/mock_api_service.dart';
+import 'services/api_service.dart';
 
 // ─── Core singletons ───────────────────────────────────────────────────────
 
@@ -12,8 +12,8 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Override in ProviderScope at app start');
 });
 
-final mockApiServiceProvider = Provider<MockApiService>((ref) {
-  return MockApiService.instance;
+final apiServiceProvider = Provider<ApiService>((ref) {
+  return ApiService.instance;
 });
 
 final discoveryServiceProvider = Provider<DiscoveryService>((ref) {
@@ -50,21 +50,21 @@ final deviceSerialProvider = StateProvider<String?>((ref) {
 // ─── Device info ────────────────────────────────────────────────────────────
 
 final deviceInfoProvider = FutureProvider<CubieDevice>((ref) async {
-  final api = ref.read(mockApiServiceProvider);
+  final api = ref.read(apiServiceProvider);
   return api.getDeviceInfo();
 });
 
 // ─── System stats (live stream) ─────────────────────────────────────────────
 
 final systemStatsStreamProvider = StreamProvider<SystemStats>((ref) {
-  final api = ref.read(mockApiServiceProvider);
+  final api = ref.read(apiServiceProvider);
   return api.monitorSystemStats();
 });
 
 // ─── Storage ────────────────────────────────────────────────────────────────
 
 final storageStatsProvider = FutureProvider<StorageStats>((ref) async {
-  final api = ref.read(mockApiServiceProvider);
+  final api = ref.read(apiServiceProvider);
   return api.getStorageStats();
 });
 
@@ -72,21 +72,21 @@ final storageStatsProvider = FutureProvider<StorageStats>((ref) async {
 
 final fileListProvider =
     FutureProvider.family<List<FileItem>, String>((ref, path) async {
-  final api = ref.read(mockApiServiceProvider);
+  final api = ref.read(apiServiceProvider);
   return api.listFiles(path);
 });
 
 // ─── Family ─────────────────────────────────────────────────────────────────
 
 final familyUsersProvider = FutureProvider<List<FamilyUser>>((ref) async {
-  final api = ref.read(mockApiServiceProvider);
+  final api = ref.read(apiServiceProvider);
   return api.getFamilyUsers();
 });
 
 // ─── Services ───────────────────────────────────────────────────────────────
 
 final servicesProvider = FutureProvider<List<ServiceInfo>>((ref) async {
-  final api = ref.read(mockApiServiceProvider);
+  final api = ref.read(apiServiceProvider);
   return api.getServices();
 });
 
@@ -169,7 +169,7 @@ class DiscoveryState {
 
 class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
   final DiscoveryService _discovery;
-  final MockApiService _api;
+  final ApiService _api;
 
   DiscoveryNotifier(this._discovery, this._api)
       : super(const DiscoveryState());
@@ -211,6 +211,6 @@ final discoveryNotifierProvider =
     StateNotifierProvider<DiscoveryNotifier, DiscoveryState>((ref) {
   return DiscoveryNotifier(
     ref.read(discoveryServiceProvider),
-    ref.read(mockApiServiceProvider),
+    ref.read(apiServiceProvider),
   );
 });

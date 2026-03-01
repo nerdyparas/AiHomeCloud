@@ -95,7 +95,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         service: services[i],
                         onToggle: (v) async {
                           await ref
-                              .read(mockApiServiceProvider)
+                              .read(apiServiceProvider)
                               .toggleService(services[i].id, v);
                           ref.invalidate(servicesProvider);
                         },
@@ -200,7 +200,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               : () async {
                   setState(() => _checkingUpdate = true);
                   final info = await ref
-                      .read(mockApiServiceProvider)
+                      .read(apiServiceProvider)
                       .checkFirmwareUpdate();
                   setState(() {
                     _updateInfo = info;
@@ -256,7 +256,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
-                await ref.read(mockApiServiceProvider).triggerOtaUpdate();
+                await ref.read(apiServiceProvider).triggerOtaUpdate();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text(
@@ -294,7 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ElevatedButton(
             onPressed: () async {
               await ref
-                  .read(mockApiServiceProvider)
+                  .read(apiServiceProvider)
                   .updateDeviceName(ctrl.text);
               ref.invalidate(deviceInfoProvider);
               if (ctx.mounted) Navigator.pop(ctx);
@@ -354,7 +354,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               try {
                 await ref
-                    .read(mockApiServiceProvider)
+                    .read(apiServiceProvider)
                     .changePin(oldCtrl.text, newCtrl.text);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
@@ -396,7 +396,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style:
                 ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
             onPressed: () async {
-              await ref.read(mockApiServiceProvider).logout();
+              await ref.read(apiServiceProvider).logout();
               final prefs = ref.read(sharedPreferencesProvider);
               await prefs.clear();
               ref.read(isSetupDoneProvider.notifier).state = false;

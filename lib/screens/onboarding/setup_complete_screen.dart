@@ -34,11 +34,15 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
     setState(() => _loading = true);
 
     try {
-      final api = ref.read(mockApiServiceProvider);
+      final api = ref.read(apiServiceProvider);
       await api.createUser(
         _nameCtrl.text.trim(),
         _pinCtrl.text.isEmpty ? null : _pinCtrl.text,
       );
+
+      // Get discovery state for the real device IP
+      final discovery = ref.read(discoveryNotifierProvider);
+      final deviceIp = discovery.deviceIp ?? '192.168.0.212';
 
       // Persist to SharedPreferences
       final prefs = ref.read(sharedPreferencesProvider);
@@ -46,17 +50,16 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
       if (_pinCtrl.text.isNotEmpty) {
         await prefs.setString(CubieConstants.prefUserPin, _pinCtrl.text);
       }
-      await prefs.setString(CubieConstants.prefDeviceIp, '192.168.1.42');
-      await prefs.setString(
-          CubieConstants.prefDeviceSerial, 'CUBIE-A5E-2024-001');
+      await prefs.setString(CubieConstants.prefDeviceIp, deviceIp);
+      final serial = ref.read(deviceSerialProvider) ?? 'CUBIE-A7A-2025-001';
+      await prefs.setString(CubieConstants.prefDeviceSerial, serial);
       await prefs.setString(CubieConstants.prefDeviceName, 'My CubieCloud');
-      await prefs.setString(CubieConstants.prefAuthToken, 'mock_jwt_token');
+      // Token is already set in ApiService from the pairing step
       await prefs.setBool(CubieConstants.prefIsSetupDone, true);
 
       // Update in-memory providers
       ref.read(currentUserNameProvider.notifier).state = _nameCtrl.text.trim();
-      ref.read(authTokenProvider.notifier).state = 'mock_jwt_token';
-      ref.read(deviceIpProvider.notifier).state = '192.168.1.42';
+      ref.read(deviceIpProvider.notifier).state = deviceIp;
       ref.read(isSetupDoneProvider.notifier).state = true;
 
       if (mounted) context.go('/dashboard');

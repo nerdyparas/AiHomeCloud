@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/constants.dart';
 import 'core/theme.dart';
 import 'navigation/app_router.dart';
 import 'providers.dart';
+import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,13 @@ void main() async {
   ));
 
   final prefs = await SharedPreferences.getInstance();
+
+  // Configure the real API service with saved host/token if available
+  final savedHost = prefs.getString(CubieConstants.prefDeviceIp);
+  final savedToken = prefs.getString(CubieConstants.prefAuthToken);
+  if (savedHost != null) {
+    ApiService.instance.configure(host: savedHost, token: savedToken);
+  }
 
   runApp(
     ProviderScope(
