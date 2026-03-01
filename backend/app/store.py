@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from .config import settings
 
@@ -26,19 +26,19 @@ def _write_json(path: Path, data: Any) -> None:
 
 # ─── Users ────────────────────────────────────────────────────────────────────
 
-def get_users() -> list[dict]:
+def get_users() -> List[dict]:
     return _read_json(settings.users_file, [])
 
 
-def save_users(users: list[dict]) -> None:
+def save_users(users: List[dict]) -> None:
     _write_json(settings.users_file, users)
 
 
-def find_user(user_id: str) -> dict | None:
+def find_user(user_id: str) -> Optional[dict]:
     return next((u for u in get_users() if u["id"] == user_id), None)
 
 
-def add_user(name: str, pin: str | None = None, is_admin: bool = False) -> dict:
+def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False) -> dict:
     users = get_users()
     user = {
         "id": f"user_{uuid.uuid4().hex[:8]}",
@@ -105,7 +105,7 @@ _DEFAULT_SERVICES = [
 ]
 
 
-def get_services() -> list[dict]:
+def get_services() -> List[dict]:
     services = _read_json(settings.services_file, None)
     if services is None:
         _write_json(settings.services_file, _DEFAULT_SERVICES)

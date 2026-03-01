@@ -14,7 +14,7 @@ from .config import settings
 _bearer_scheme = HTTPBearer()
 
 
-def create_token(subject: str, extra: dict | None = None) -> str:
+def create_token(subject: str, extra: Optional[dict] = None) -> str:
     """Create a signed JWT for the given subject (user id / device serial)."""
     now = datetime.now(timezone.utc)
     payload = {
