@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8443
 
+    # ── TLS ────────────────────────────────────────────────────────────────────
+    tls_enabled: bool = True
+    tls_cert_file: str = ""  # auto-resolved to cert_dir/cert.pem if empty
+    tls_key_file: str = ""   # auto-resolved to cert_dir/key.pem if empty
+
     # ── JWT ────────────────────────────────────────────────────────────────────
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
@@ -52,6 +57,22 @@ class Settings(BaseSettings):
     @property
     def services_file(self) -> Path:
         return self.data_dir / "services.json"
+
+    @property
+    def storage_file(self) -> Path:
+        return self.data_dir / "storage.json"
+
+    @property
+    def cert_dir(self) -> Path:
+        return self.data_dir / "tls"
+
+    @property
+    def tls_cert_path(self) -> Path:
+        return Path(self.tls_cert_file) if self.tls_cert_file else self.cert_dir / "cert.pem"
+
+    @property
+    def tls_key_path(self) -> Path:
+        return Path(self.tls_key_file) if self.tls_key_file else self.cert_dir / "key.pem"
 
 
 settings = Settings()

@@ -5,7 +5,7 @@ Family / user management routes.
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
 from ..config import settings
 from ..models import AddFamilyUserRequest, FamilyUser
 from .. import store
@@ -52,7 +52,7 @@ async def list_family(user: dict = Depends(get_current_user)):
 
 
 @router.post("/family", response_model=FamilyUser, status_code=status.HTTP_201_CREATED)
-async def add_family(body: AddFamilyUserRequest, user: dict = Depends(get_current_user)):
+async def add_family(body: AddFamilyUserRequest, user: dict = Depends(require_admin)):
     """Add a new family member."""
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
@@ -71,7 +71,7 @@ async def add_family(body: AddFamilyUserRequest, user: dict = Depends(get_curren
 
 
 @router.delete("/family/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_family(user_id: str, user: dict = Depends(get_current_user)):
+async def remove_family(user_id: str, user: dict = Depends(require_admin)):
     """Remove a family member."""
     if not store.remove_user(user_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")

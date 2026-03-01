@@ -7,7 +7,7 @@ Type=simple
 User=cubie
 Group=cubie
 WorkingDirectory=/opt/cubie/backend
-ExecStart=/opt/cubie/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8443
+ExecStart=/opt/cubie/backend/venv/bin/python -m app.main
 Restart=always
 RestartSec=5
 
@@ -17,6 +17,7 @@ Environment=CUBIE_DEVICE_SERIAL=CUBIE-A7A-2025-001
 Environment=CUBIE_PAIRING_KEY=your-pairing-key
 Environment=CUBIE_NAS_ROOT=/srv/nas
 Environment=CUBIE_DATA_DIR=/var/lib/cubie
+Environment=CUBIE_TLS_ENABLED=true
 
 [Install]
 WantedBy=multi-user.target

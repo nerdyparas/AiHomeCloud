@@ -90,6 +90,47 @@ class ServiceInfo(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+# ─── StorageDevice ───────────────────────────────────────────────────────────
+
+class StorageDevice(BaseModel):
+    """A block device (partition) detected on the system."""
+    name: str                                          # "sda1", "nvme0n1p1"
+    path: str                                          # "/dev/sda1"
+    size_bytes: int = Field(alias="sizeBytes")          # raw byte count
+    size_display: str = Field(alias="sizeDisplay")      # "64.0 GB"
+    fstype: Optional[str] = None                        # "ext4", None if unformatted
+    label: Optional[str] = None                         # partition label
+    model: Optional[str] = None                         # "SanDisk Ultra"
+    transport: str                                      # "usb", "nvme", "sd"
+    mounted: bool = False
+    mount_point: Optional[str] = Field(None, alias="mountPoint")
+    is_nas_active: bool = Field(False, alias="isNasActive")
+    is_os_disk: bool = Field(False, alias="isOsDisk")   # True for SD card OS
+
+    model_config = {"populate_by_name": True}
+
+
+# ─── Storage Requests ────────────────────────────────────────────────────────
+
+class FormatRequest(BaseModel):
+    """Format a block device. confirmDevice must match device for safety."""
+    device: str                                         # "/dev/sda1"
+    label: str = "CubieNAS"                             # ext4 label
+    confirm_device: str = Field(alias="confirmDevice")  # must match device
+
+    model_config = {"populate_by_name": True}
+
+
+class MountRequest(BaseModel):
+    """Mount a block device at the NAS root."""
+    device: str                                         # "/dev/sda1"
+
+
+class EjectRequest(BaseModel):
+    """Eject a specific device (unmount + power off)."""
+    device: str                                         # "/dev/sda1"
+
+
 # ─── Request / Response helpers ──────────────────────────────────────────────
 
 class PairRequest(BaseModel):
@@ -142,3 +183,26 @@ class FirmwareInfo(BaseModel):
     update_available: bool
     changelog: str
     size_mb: float
+
+
+# ─── Network ─────────────────────────────────────────────────────────────────
+
+class NetworkStatus(BaseModel):
+    """Aggregated network state for the Cubie device."""
+    wifi_enabled: bool = Field(alias="wifiEnabled")
+    wifi_connected: bool = Field(alias="wifiConnected")
+    wifi_ssid: Optional[str] = Field(None, alias="wifiSsid")
+    wifi_ip: Optional[str] = Field(None, alias="wifiIp")
+    hotspot_enabled: bool = Field(alias="hotspotEnabled")
+    hotspot_ssid: Optional[str] = Field(None, alias="hotspotSsid")
+    bluetooth_enabled: bool = Field(alias="bluetoothEnabled")
+    lan_connected: bool = Field(alias="lanConnected")
+    lan_ip: Optional[str] = Field(None, alias="lanIp")
+    lan_speed: Optional[str] = Field(None, alias="lanSpeed")  # "1000Mb/s"
+
+    model_config = {"populate_by_name": True}
+
+
+class ToggleRequest(BaseModel):
+    """Generic enable/disable toggle for wifi, hotspot, bluetooth."""
+    enabled: bool

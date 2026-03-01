@@ -45,3 +45,23 @@ async def get_current_user(
 ) -> dict:
     """FastAPI dependency — extracts & validates the Bearer token."""
     return decode_token(credentials.credentials)
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """FastAPI dependency — ensures the user has admin privileges.
+    Works by looking up the user in the store by subject (serial/user_id).
+    Device-type tokens (from pairing) are always treated as admin.
+    """
+    from . import store
+
+    if user.get("type") == "device":
+        return user  # Device tokens are admin-level
+
+    user_id = user.get("sub", "")
+    found = store.find_user(user_id)
+    if found and not found.get("is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return user

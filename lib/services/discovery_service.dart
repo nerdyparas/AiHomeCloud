@@ -1,4 +1,11 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:multicast_dns/multicast_dns.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import '../core/constants.dart';
 
 /// How the device was discovered.
 enum DiscoveryMethod { mdns, ble, manual }
@@ -11,9 +18,6 @@ class DiscoveryResult {
 }
 
 /// Handles mDNS and BLE device discovery.
-///
-/// Each private method contains a comprehensive TODO showing exactly
-/// where the real implementation plugs in.
 class DiscoveryService {
   DiscoveryService._();
   static final DiscoveryService instance = DiscoveryService._();
@@ -38,7 +42,7 @@ class DiscoveryService {
     onStatus('mDNS timed out. Trying Bluetooth…');
     await Future.delayed(const Duration(seconds: 1));
 
-    final bleResult = await _tryBle(serial);
+    final bleResult = await _tryBle(serial, onStatus);
     if (bleResult != null) {
       onStatus('Found device via Bluetooth!');
       return DiscoveryResult(ip: bleResult, method: DiscoveryMethod.ble);
@@ -51,82 +55,143 @@ class DiscoveryService {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // mDNS
+  // mDNS — real implementation using multicast_dns package
   // ────────────────────────────────────────────────────────────────────────────
 
-  /// TODO: Replace with real mDNS discovery using the `multicast_dns` package.
-  ///
-  /// Real implementation sketch:
-  /// ```dart
-  /// import 'package:multicast_dns/multicast_dns.dart';
-  ///
-  /// final MDnsClient client = MDnsClient();
-  /// await client.start();
-  ///
-  /// await for (final PtrResourceRecord ptr in client
-  ///     .lookup<PtrResourceRecord>(
-  ///         ResourceRecordQuery.serverPointer(CubieConstants.mdnsType))) {
-  ///   await for (final SrvResourceRecord srv in client
-  ///       .lookup<SrvResourceRecord>(
-  ///           ResourceRecordQuery.service(ptr.domainName))) {
-  ///     await for (final IPAddressResourceRecord ip in client
-  ///         .lookup<IPAddressResourceRecord>(
-  ///             ResourceRecordQuery.addressIPv4(srv.target))) {
-  ///       client.stop();
-  ///       return ip.address.address;   // e.g. '192.168.1.42'
-  ///     }
-  ///   }
-  /// }
-  /// client.stop();
-  /// return null;   // not found within timeout
-  /// ```
   Future<String?> _tryMdns(String serial) async {
-    // Simulate mDNS lookup time
-    await Future.delayed(const Duration(seconds: 3));
-    // Mock: always succeeds
-    return '192.168.1.42';
+    final MDnsClient client = MDnsClient();
+    try {
+      await client.start();
+
+      // Look for CubieCloud service type: _cubie-nas._tcp
+      await for (final PtrResourceRecord ptr in client
+          .lookup<PtrResourceRecord>(
+            ResourceRecordQuery.serverPointer(CubieConstants.mdnsType),
+          )
+          .timeout(CubieConstants.mdnsTimeout, onTimeout: (sink) {
+        sink.close();
+      })) {
+        // Optionally match by serial in the service name
+        // Service name is typically "cubie-<SERIAL>._cubie-nas._tcp"
+        await for (final SrvResourceRecord srv in client
+            .lookup<SrvResourceRecord>(
+              ResourceRecordQuery.service(ptr.domainName),
+            )
+            .timeout(const Duration(seconds: 3), onTimeout: (sink) {
+          sink.close();
+        })) {
+          await for (final IPAddressResourceRecord ip in client
+              .lookup<IPAddressResourceRecord>(
+                ResourceRecordQuery.addressIPv4(srv.target),
+              )
+              .timeout(const Duration(seconds: 3), onTimeout: (sink) {
+            sink.close();
+          })) {
+            client.stop();
+            return ip.address.address; // e.g. '192.168.0.212'
+          }
+        }
+      }
+
+      client.stop();
+      return null; // Not found within timeout
+    } catch (_) {
+      try {
+        client.stop();
+      } catch (_) {}
+      return null;
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // BLE
+  // BLE — real implementation using flutter_blue_plus package
   // ────────────────────────────────────────────────────────────────────────────
 
-  /// TODO: Replace with real BLE discovery using the `flutter_blue_plus` package.
-  ///
-  /// Real implementation sketch:
-  /// ```dart
-  /// import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-  ///
-  /// FlutterBluePlus.startScan(
-  ///   withServices: [Guid(CubieConstants.bleServiceUuid)],
-  ///   timeout: const Duration(seconds: 15),
-  /// );
-  ///
-  /// await for (final results in FlutterBluePlus.scanResults) {
-  ///   for (final r in results) {
-  ///     if (r.device.platformName
-  ///         .startsWith(CubieConstants.bleDevicePrefix)) {
-  ///       await r.device.connect();
-  ///       final services = await r.device.discoverServices();
-  ///       for (final s in services) {
-  ///         if (s.uuid == Guid(CubieConstants.bleServiceUuid)) {
-  ///           for (final c in s.characteristics) {
-  ///             if (c.uuid == Guid(CubieConstants.bleCharUuid)) {
-  ///               final value = await c.read();
-  ///               await r.device.disconnect();
-  ///               return String.fromCharCodes(value); // device IP
-  ///             }
-  ///           }
-  ///         }
-  ///       }
-  ///     }
-  ///   }
-  /// }
-  /// return null;
-  /// ```
-  Future<String?> _tryBle(String serial) async {
-    // Simulate BLE scanning time
-    await Future.delayed(const Duration(seconds: 4));
-    return '192.168.1.42';
+  Future<String?> _tryBle(
+    String serial,
+    void Function(String) onStatus,
+  ) async {
+    // Request BLE permissions on Android
+    if (Platform.isAndroid) {
+      final btScan = await Permission.bluetoothScan.request();
+      final btConnect = await Permission.bluetoothConnect.request();
+      final location = await Permission.locationWhenInUse.request();
+
+      if (!btScan.isGranted || !btConnect.isGranted || !location.isGranted) {
+        onStatus('Bluetooth permissions not granted');
+        return null;
+      }
+    }
+
+    // Check if Bluetooth is on
+    final adapterState = await FlutterBluePlus.adapterState.first;
+    if (adapterState != BluetoothAdapterState.on) {
+      onStatus('Bluetooth is not enabled');
+      return null;
+    }
+
+    onStatus('Scanning for CubieCloud via Bluetooth…');
+
+    try {
+      // Start scanning for devices with our service UUID
+      await FlutterBluePlus.startScan(
+        withServices: [Guid(CubieConstants.bleServiceUuid)],
+        timeout: const Duration(seconds: 15),
+      );
+
+      // Listen for scan results
+      BluetoothDevice? cubieDevice;
+
+      await for (final results in FlutterBluePlus.onScanResults) {
+        for (final r in results) {
+          final name = r.device.platformName;
+          if (name.startsWith(CubieConstants.bleDevicePrefix)) {
+            cubieDevice = r.device;
+            break;
+          }
+        }
+        if (cubieDevice != null) break;
+      }
+
+      await FlutterBluePlus.stopScan();
+
+      if (cubieDevice == null) {
+        onStatus('No CubieCloud device found via Bluetooth');
+        return null;
+      }
+
+      onStatus('Connecting to ${cubieDevice.platformName}…');
+
+      // Connect and read the IP characteristic
+      await cubieDevice.connect(timeout: const Duration(seconds: 10));
+
+      try {
+        final services = await cubieDevice.discoverServices();
+        for (final s in services) {
+          if (s.uuid == Guid(CubieConstants.bleServiceUuid)) {
+            for (final c in s.characteristics) {
+              if (c.uuid == Guid(CubieConstants.bleCharUuid)) {
+                final value = await c.read();
+                final ip = String.fromCharCodes(value);
+                await cubieDevice.disconnect();
+                return ip; // e.g. '192.168.0.212'
+              }
+            }
+          }
+        }
+        await cubieDevice.disconnect();
+      } catch (e) {
+        try {
+          await cubieDevice.disconnect();
+        } catch (_) {}
+        onStatus('BLE read failed: $e');
+      }
+
+      return null;
+    } catch (e) {
+      await FlutterBluePlus.stopScan();
+      onStatus('BLE scan error: $e');
+      return null;
+    }
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme.dart';
+import '../widgets/notification_listener.dart';
 
 /// Persistent bottom navigation bar shell used by the main app routes.
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
@@ -19,12 +21,13 @@ class MainShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final idx = _indexOf(context);
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
+    return CubieNotificationOverlay(
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(
             top: BorderSide(color: CubieColors.cardBorder, width: 1),
@@ -65,6 +68,7 @@ class MainShell extends StatelessWidget {
                 idx == 4),
           ],
         ),
+      ),
       ),
     );
   }

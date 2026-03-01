@@ -24,6 +24,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final deviceAsync = ref.watch(deviceInfoProvider);
     final servicesAsync = ref.watch(servicesProvider);
+    final networkAsync = ref.watch(networkStatusProvider);
 
     return Scaffold(
       backgroundColor: CubieColors.background,
@@ -39,6 +40,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         fontWeight: FontWeight.w700))
                 .animate()
                 .fadeIn(duration: 400.ms),
+
+            // ── Network ─────────────────────────────────────────────────────
+            const SizedBox(height: 24),
+            _sectionLabel('Network'),
+            const SizedBox(height: 12),
+            networkAsync.when(
+              data: (n) => CubieCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    // WiFi toggle
+                    _NetworkToggleRow(
+                      icon: Icons.wifi_rounded,
+                      label: 'Wi-Fi',
+                      subtitle: n.wifiConnected
+                          ? n.wifiSsid ?? 'Connected'
+                          : (n.wifiEnabled ? 'Not connected' : 'Off'),
+                      value: n.wifiEnabled,
+                      onChanged: (v) async {
+                        await ref.read(apiServiceProvider).toggleWifi(v);
+                        ref.invalidate(networkStatusProvider);
+                      },
+                    ),
+                    _divider(),
+                    // Hotspot toggle
+                    _NetworkToggleRow(
+                      icon: Icons.wifi_tethering_rounded,
+                      label: 'Hotspot',
+                      subtitle: n.hotspotEnabled
+                          ? n.hotspotSsid ?? 'Active'
+                          : 'Off',
+                      value: n.hotspotEnabled,
+                      onChanged: (v) async {
+                        await ref.read(apiServiceProvider).toggleHotspot(v);
+                        ref.invalidate(networkStatusProvider);
+                      },
+                    ),
+                    _divider(),
+                    // Bluetooth toggle
+                    _NetworkToggleRow(
+                      icon: Icons.bluetooth_rounded,
+                      label: 'Bluetooth',
+                      subtitle: n.bluetoothEnabled ? 'On' : 'Off',
+                      value: n.bluetoothEnabled,
+                      onChanged: (v) async {
+                        await ref.read(apiServiceProvider).toggleBluetooth(v);
+                        ref.invalidate(networkStatusProvider);
+                      },
+                    ),
+                    _divider(),
+                    // LAN status (read-only)
+                    _LanStatusRow(
+                      connected: n.lanConnected,
+                      ip: n.lanIp,
+                      speed: n.lanSpeed,
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(delay: 50.ms),
+              loading: () => const CubieCard(
+                  child: SizedBox(
+                      height: 200,
+                      child: Center(
+                          child: CircularProgressIndicator(
+                              color: CubieColors.primary)))),
+              error: (e, _) => CubieCard(
+                  child: Text('Network error: $e',
+                      style: const TextStyle(color: CubieColors.error))),
+            ),
 
             // ── Device info ─────────────────────────────────────────────────
             const SizedBox(height: 24),
@@ -473,6 +543,219 @@ class _ServiceToggleState extends State<_ServiceToggle> {
               widget.onToggle(v);
             },
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Network toggle row ─────────────────────────────────────────────────────
+
+class _NetworkToggleRow extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool value;
+  final Future<void> Function(bool) onChanged;
+
+  const _NetworkToggleRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  State<_NetworkToggleRow> createState() => _NetworkToggleRowState();
+}
+
+class _NetworkToggleRowState extends State<_NetworkToggleRow> {
+  late bool _on;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _on = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant _NetworkToggleRow old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) _on = widget.value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: (_on ? CubieColors.primary : CubieColors.textMuted)
+                  .withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(widget.icon,
+                color: _on ? CubieColors.primary : CubieColors.textMuted,
+                size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.label,
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500)),
+                Text(widget.subtitle,
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          if (_busy)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: CubieColors.primary),
+            )
+          else
+            Switch(
+              value: _on,
+              onChanged: (v) async {
+                setState(() {
+                  _on = v;
+                  _busy = true;
+                });
+                try {
+                  await widget.onChanged(v);
+                } catch (e) {
+                  if (mounted) {
+                    setState(() => _on = !v);
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                } finally {
+                  if (mounted) setState(() => _busy = false);
+                }
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── LAN status row (read-only with safety note) ────────────────────────────
+
+class _LanStatusRow extends StatelessWidget {
+  final bool connected;
+  final String? ip;
+  final String? speed;
+
+  const _LanStatusRow({
+    required this.connected,
+    this.ip,
+    this.speed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: (connected
+                          ? CubieColors.success
+                          : CubieColors.textMuted)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.settings_ethernet_rounded,
+                    color: connected
+                        ? CubieColors.success
+                        : CubieColors.textMuted,
+                    size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Ethernet',
+                        style: GoogleFonts.dmSans(
+                            color: CubieColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500)),
+                    Text(
+                      connected
+                          ? '${ip ?? "No IP"}'
+                              '${speed != null ? "  •  $speed" : ""}'
+                          : 'Cable not connected',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (connected
+                          ? CubieColors.success
+                          : CubieColors.textMuted)
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  connected ? 'Connected' : 'Disconnected',
+                  style: GoogleFonts.dmSans(
+                      color: connected
+                          ? CubieColors.success
+                          : CubieColors.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          // Safety note (2E.5)
+          if (connected)
+            Padding(
+              padding: const EdgeInsets.only(left: 48, top: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      size: 14, color: CubieColors.textMuted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Changing the LAN IP may make this device unreachable.',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textMuted,
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

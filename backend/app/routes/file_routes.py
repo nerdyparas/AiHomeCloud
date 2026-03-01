@@ -1,5 +1,5 @@
 """
-File management routes — list, mkdir, delete, rename, upload.
+File management routes — list, mkdir, delete, rename, upload, download.
 All paths are sandboxed under settings.nas_root.
 """
 
@@ -9,10 +9,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
+from fastapi.responses import FileResponse
 
 from ..auth import get_current_user
 from ..config import settings
 from ..models import CreateFolderRequest, FileItem, RenameRequest
+from .event_routes import emit_upload_complete
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -144,8 +146,37 @@ async def upload_file(
             f.write(chunk)
             total += len(chunk)
 
+    # Notify connected clients
+    user_name = user.get("sub", "unknown")
+    await emit_upload_complete(file.filename, user_name)
+
     return {
         "name": file.filename,
         "path": "/" + str(dest_file.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
         "sizeBytes": total,
     }
+
+
+@router.get("/download")
+async def download_file(
+    path: str = Query(..., description="NAS path to the file to download"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Download a file from the NAS.
+    Returns the raw file with appropriate Content-Disposition header.
+    """
+    resolved = _safe_resolve(path)
+
+    if not resolved.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    if resolved.is_dir():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot download a directory")
+
+    mime, _ = mimetypes.guess_type(resolved.name)
+
+    return FileResponse(
+        path=str(resolved),
+        filename=resolved.name,
+        media_type=mime or "application/octet-stream",
+    )

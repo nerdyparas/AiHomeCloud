@@ -1,6 +1,8 @@
 """
-Auth routes — pairing, user creation, logout, PIN management.
+Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
+
+import socket
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -15,6 +17,45 @@ from ..models import (
 from .. import store
 
 router = APIRouter(prefix="/api", tags=["auth"])
+
+
+def _get_local_ip() -> str:
+    """Get the device's local IP address."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
+
+
+@router.get("/pair/qr")
+async def get_pairing_qr():
+    """
+    Return the QR payload string that the Flutter app needs to scan.
+    The Cubie displays this as a QR code on its screen or web UI.
+    Format: cubie://pair?serial=...&key=...&host=...
+    """
+    ip = _get_local_ip()
+    serial = settings.device_serial
+    key = settings.pairing_key
+    host = f"cubie-{serial}.local"
+
+    qr_value = (
+        f"cubie://pair"
+        f"?serial={serial}"
+        f"&key={key}"
+        f"&host={host}"
+    )
+
+    return {
+        "qrValue": qr_value,
+        "serial": serial,
+        "ip": ip,
+        "host": host,
+    }
 
 
 @router.post("/pair", response_model=TokenResponse)
@@ -34,11 +75,19 @@ async def pair_device(body: PairRequest):
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user(body: CreateUserRequest):
-    """Create a new user on the device."""
+    """Create a new user on the device. First user is automatically admin."""
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
-    user = store.add_user(body.name, body.pin)
-    return {"id": user["id"], "name": user["name"]}
+
+    existing = store.get_users()
+    is_admin = len(existing) == 0  # First user is admin
+
+    user = store.add_user(body.name, body.pin, is_admin=is_admin)
+    return {
+        "id": user["id"],
+        "name": user["name"],
+        "isAdmin": user.get("is_admin", False),
+    }
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

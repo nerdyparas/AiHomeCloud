@@ -68,6 +68,14 @@ final storageStatsProvider = FutureProvider<StorageStats>((ref) async {
   return api.getStorageStats();
 });
 
+// ─── Storage devices ────────────────────────────────────────────────────────
+
+final storageDevicesProvider =
+    FutureProvider<List<StorageDevice>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  return api.getStorageDevices();
+});
+
 // ─── Files (parameterised by path) ──────────────────────────────────────────
 
 final fileListProvider =
@@ -83,12 +91,42 @@ final familyUsersProvider = FutureProvider<List<FamilyUser>>((ref) async {
   return api.getFamilyUsers();
 });
 
+// ─── Network ────────────────────────────────────────────────────────────────
+
+final networkStatusProvider = FutureProvider<NetworkStatus>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  return api.getNetworkStatus();
+});
+
 // ─── Services ───────────────────────────────────────────────────────────────
 
 final servicesProvider = FutureProvider<List<ServiceInfo>>((ref) async {
   final api = ref.read(apiServiceProvider);
   return api.getServices();
 });
+
+// ─── Notifications (real-time from backend) ─────────────────────────────────
+
+final notificationStreamProvider = StreamProvider<AppNotification>((ref) {
+  final api = ref.read(apiServiceProvider);
+  return api.notificationStream();
+});
+
+/// Keeps a list of recent notifications for the bell icon / history.
+class NotificationHistoryNotifier extends StateNotifier<List<AppNotification>> {
+  NotificationHistoryNotifier() : super([]);
+
+  void add(AppNotification n) {
+    state = [n, ...state].take(50).toList();
+  }
+
+  void clear() => state = [];
+}
+
+final notificationHistoryProvider =
+    StateNotifierProvider<NotificationHistoryNotifier, List<AppNotification>>(
+  (ref) => NotificationHistoryNotifier(),
+);
 
 // ─── Upload tasks ───────────────────────────────────────────────────────────
 

@@ -219,3 +219,169 @@ class ServiceInfo {
     );
   }
 }
+
+// ─── StorageDevice ──────────────────────────────────────────────────────────
+
+/// A block device (partition) detected on the Cubie hardware.
+class StorageDevice {
+  final String name;         // "sda1", "nvme0n1p1"
+  final String path;         // "/dev/sda1"
+  final int sizeBytes;
+  final String sizeDisplay;  // "64.0 GB"
+  final String? fstype;      // "ext4", null if unformatted
+  final String? label;
+  final String? model;       // "SanDisk Ultra"
+  final String transport;    // "usb", "nvme", "sd"
+  final bool mounted;
+  final String? mountPoint;
+  final bool isNasActive;    // currently used as NAS storage
+  final bool isOsDisk;       // SD card OS partition
+
+  const StorageDevice({
+    required this.name,
+    required this.path,
+    required this.sizeBytes,
+    required this.sizeDisplay,
+    this.fstype,
+    this.label,
+    this.model,
+    required this.transport,
+    required this.mounted,
+    this.mountPoint,
+    required this.isNasActive,
+    required this.isOsDisk,
+  });
+
+  factory StorageDevice.fromJson(Map<String, dynamic> json) {
+    return StorageDevice(
+      name: json['name'] as String,
+      path: json['path'] as String,
+      sizeBytes: json['sizeBytes'] as int,
+      sizeDisplay: json['sizeDisplay'] as String,
+      fstype: json['fstype'] as String?,
+      label: json['label'] as String?,
+      model: json['model'] as String?,
+      transport: json['transport'] as String,
+      mounted: json['mounted'] as bool,
+      mountPoint: json['mountPoint'] as String?,
+      isNasActive: json['isNasActive'] as bool,
+      isOsDisk: json['isOsDisk'] as bool,
+    );
+  }
+
+  /// Human-readable device type label.
+  String get typeLabel => switch (transport) {
+    'usb'  => 'USB Drive',
+    'nvme' => 'NVMe SSD',
+    'sd'   => 'SD Card',
+    _      => transport.toUpperCase(),
+  };
+
+  /// Icon for this device type.
+  IconData get icon => switch (transport) {
+    'usb'  => Icons.usb_rounded,
+    'nvme' => Icons.speed_rounded,
+    'sd'   => Icons.sd_card_rounded,
+    _      => Icons.storage_rounded,
+  };
+}
+
+// ─── NetworkStatus ──────────────────────────────────────────────────────────
+
+/// Severity level for in-app notifications.
+enum NotificationSeverity { info, success, warning, error }
+
+/// A real-time notification pushed from the backend via /ws/events.
+class AppNotification {
+  final String type;
+  final String title;
+  final String body;
+  final NotificationSeverity severity;
+  final DateTime timestamp;
+  final Map<String, dynamic>? data;
+
+  const AppNotification({
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.severity,
+    required this.timestamp,
+    this.data,
+  });
+
+  factory AppNotification.fromJson(Map<String, dynamic> json) {
+    return AppNotification(
+      type: json['type'] as String,
+      title: json['title'] as String,
+      body: json['body'] as String,
+      severity: NotificationSeverity.values.firstWhere(
+        (s) => s.name == json['severity'],
+        orElse: () => NotificationSeverity.info,
+      ),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        ((json['timestamp'] as num) * 1000).toInt(),
+      ),
+      data: json['data'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// Color accent for this severity.
+  Color get color => switch (severity) {
+        NotificationSeverity.info => const Color(0xFF4C9BE8),
+        NotificationSeverity.success => const Color(0xFF4CE88A),
+        NotificationSeverity.warning => const Color(0xFFE8A84C),
+        NotificationSeverity.error => const Color(0xFFE85C5C),
+      };
+
+  /// Icon for this severity.
+  IconData get icon => switch (severity) {
+        NotificationSeverity.info => Icons.info_outline_rounded,
+        NotificationSeverity.success => Icons.check_circle_outline_rounded,
+        NotificationSeverity.warning => Icons.warning_amber_rounded,
+        NotificationSeverity.error => Icons.error_outline_rounded,
+      };
+}
+
+// ─── NetworkStatus (existing) ───────────────────────────────────────────────
+
+/// Aggregated network state from the Cubie device.
+class NetworkStatus {
+  final bool wifiEnabled;
+  final bool wifiConnected;
+  final String? wifiSsid;
+  final String? wifiIp;
+  final bool hotspotEnabled;
+  final String? hotspotSsid;
+  final bool bluetoothEnabled;
+  final bool lanConnected;
+  final String? lanIp;
+  final String? lanSpeed;
+
+  const NetworkStatus({
+    required this.wifiEnabled,
+    required this.wifiConnected,
+    this.wifiSsid,
+    this.wifiIp,
+    required this.hotspotEnabled,
+    this.hotspotSsid,
+    required this.bluetoothEnabled,
+    required this.lanConnected,
+    this.lanIp,
+    this.lanSpeed,
+  });
+
+  factory NetworkStatus.fromJson(Map<String, dynamic> json) {
+    return NetworkStatus(
+      wifiEnabled: json['wifiEnabled'] as bool,
+      wifiConnected: json['wifiConnected'] as bool,
+      wifiSsid: json['wifiSsid'] as String?,
+      wifiIp: json['wifiIp'] as String?,
+      hotspotEnabled: json['hotspotEnabled'] as bool,
+      hotspotSsid: json['hotspotSsid'] as String?,
+      bluetoothEnabled: json['bluetoothEnabled'] as bool,
+      lanConnected: json['lanConnected'] as bool,
+      lanIp: json['lanIp'] as String?,
+      lanSpeed: json['lanSpeed'] as String?,
+    );
+  }
+}

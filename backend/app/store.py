@@ -139,3 +139,20 @@ def update_device_name(name: str) -> None:
     state = get_device_state()
     state["name"] = name
     _write_json(_device_state_file, state)
+
+
+# ─── Storage state ────────────────────────────────────────────────────────────
+
+def get_storage_state() -> dict:
+    """Read persisted storage mount info (activeDevice, mountedAt, etc.)."""
+    return _read_json(settings.storage_file, {})
+
+
+def save_storage_state(state: dict) -> None:
+    """Persist storage mount info to disk."""
+    _write_json(settings.storage_file, state)
+
+
+def clear_storage_state() -> None:
+    """Clear persisted storage state (after unmount)."""
+    _write_json(settings.storage_file, {})

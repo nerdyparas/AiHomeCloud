@@ -12,6 +12,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from shutil import disk_usage
 
 from ..config import settings
+from .event_routes import emit_storage_warning
 
 router = APIRouter(tags=["monitor"])
 
@@ -92,10 +93,26 @@ async def monitor_ws(ws: WebSocket):
     # Prime the CPU meter (first call always returns 0)
     psutil.cpu_percent(interval=None)
 
+    # Throttle storage warnings (at most once per 5 minutes)
+    _last_storage_warn = 0
+
     try:
         while True:
             stats = _read_system_stats()
             await ws.send_text(json.dumps(stats))
+
+            # Check storage thresholds periodically
+            storage = stats["storage"]
+            total = storage["totalGB"]
+            used = storage["usedGB"]
+            if total > 0:
+                pct = (used / total) * 100
+                free = total - used
+                now = time.time()
+                if pct >= 85 and (now - _last_storage_warn) > 300:
+                    _last_storage_warn = now
+                    await emit_storage_warning(pct, free)
+
             await asyncio.sleep(2)
     except WebSocketDisconnect:
         pass

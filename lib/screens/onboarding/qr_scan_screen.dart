@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme.dart';
 import '../../models/models.dart';
@@ -88,39 +89,16 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // TODO: Replace with MobileScanner widget:
-                    //   MobileScanner(onDetect: (capture) {
-                    //     final barcode = capture.barcodes.first;
-                    //     if (barcode.rawValue != null)
-                    //       _onQrDetected(barcode.rawValue!);
-                    //   })
+                    // Real camera scanner using mobile_scanner package
                     ClipRRect(
                       borderRadius: BorderRadius.circular(23),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.camera_alt_rounded,
-                              color: CubieColors.textMuted,
-                              size: 48,
-                            )
-                                .animate(
-                                    onPlay: (c) => c.repeat(reverse: true))
-                                .fadeIn(duration: 1.seconds)
-                                .then()
-                                .fadeOut(duration: 1.seconds),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Camera preview\n(will activate on device)',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.dmSans(
-                                color: CubieColors.textMuted,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: MobileScanner(
+                        onDetect: (capture) {
+                          final barcode = capture.barcodes.firstOrNull;
+                          if (barcode?.rawValue != null) {
+                            _onQrDetected(barcode!.rawValue!);
+                          }
+                        },
                       ),
                     ),
 

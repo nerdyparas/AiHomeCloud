@@ -1,15 +1,19 @@
 """
 CubieCloud Backend — FastAPI application.
-Run with: uvicorn app.main:app --host 0.0.0.0 --port 8443
+Run with: python -m app.main (auto-configures TLS)
 """
 
+import logging
+import ssl
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .tls import ensure_tls_cert
 from .routes import (
     auth_routes,
     system_routes,
@@ -18,18 +22,39 @@ from .routes import (
     family_routes,
     service_routes,
     storage_routes,
+    network_routes,
+    event_routes,
 )
+
+logger = logging.getLogger("cubie.main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: ensure required directories exist."""
+    """Startup: ensure dirs exist, generate TLS cert, auto-remount saved storage device."""
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
     settings.shared_path.mkdir(parents=True, exist_ok=True)
+
+    # Auto-generate self-signed TLS cert if needed
+    if settings.tls_enabled:
+        try:
+            cert, key = ensure_tls_cert()
+            logger.info("TLS enabled — cert=%s key=%s", cert, key)
+        except Exception as e:
+            logger.warning("TLS cert generation failed, will run without TLS: %s", e)
+
     print(f"CubieCloud backend starting on {settings.host}:{settings.port}")
     print(f"  NAS root : {settings.nas_root}")
     print(f"  Data dir : {settings.data_dir}")
+    print(f"  TLS      : {'enabled' if settings.tls_enabled else 'disabled'}")
+
+    # Auto-remount previously-mounted storage device
+    try:
+        await storage_routes.try_auto_remount()
+    except Exception as e:
+        logger.error("Auto-remount failed: %s", e)
+
     yield
 
 
@@ -57,8 +82,56 @@ app.include_router(file_routes.router)
 app.include_router(family_routes.router)
 app.include_router(service_routes.router)
 app.include_router(storage_routes.router)
+app.include_router(network_routes.router)
+app.include_router(event_routes.router)
 
 
 @app.get("/")
 async def root():
     return {"service": "CubieCloud", "version": "0.1.0"}
+
+
+@app.get("/api/tls/fingerprint")
+async def tls_fingerprint():
+    """Return the SHA-256 fingerprint of the server certificate.
+    Called once by the Flutter app to pin the self-signed cert."""
+    import hashlib
+    try:
+        cert_bytes = settings.tls_cert_path.read_bytes()
+        # Parse PEM → DER for fingerprint
+        from base64 import b64decode
+        lines = cert_bytes.decode().splitlines()
+        der_lines = []
+        inside = False
+        for line in lines:
+            if "BEGIN CERTIFICATE" in line:
+                inside = True
+                continue
+            if "END CERTIFICATE" in line:
+                break
+            if inside:
+                der_lines.append(line)
+        der = b64decode("".join(der_lines))
+        fp = hashlib.sha256(der).hexdigest()
+        return {"fingerprint": fp, "algorithm": "sha256"}
+    except FileNotFoundError:
+        return {"fingerprint": None, "algorithm": "sha256"}
+
+
+# ── Entry point for python -m app.main ──────────────────────────────────────
+
+if __name__ == "__main__":
+    kwargs = {
+        "app": "app.main:app",
+        "host": settings.host,
+        "port": settings.port,
+        "log_level": "info",
+    }
+    if settings.tls_enabled:
+        try:
+            cert, key = ensure_tls_cert()
+            kwargs["ssl_certfile"] = str(cert)
+            kwargs["ssl_keyfile"] = str(key)
+        except Exception:
+            logger.warning("Starting without TLS")
+    uvicorn.run(**kwargs)

@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/models.dart';
 import '../screens/main/dashboard_screen.dart';
 import '../screens/main/family_screen.dart';
+import '../screens/main/file_preview_screen.dart';
 import '../screens/main/folder_view_screen.dart';
 import '../screens/main/my_folder_screen.dart';
 import '../screens/main/settings_screen.dart';
 import '../screens/main/shared_folder_screen.dart';
+import '../screens/main/storage_explorer_screen.dart';
 import '../screens/onboarding/discovery_screen.dart';
 import '../screens/onboarding/qr_scan_screen.dart';
 import '../screens/onboarding/setup_complete_screen.dart';
@@ -68,6 +71,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             folderPath: extra['folderPath'] as String,
             readOnly: extra['readOnly'] as bool? ?? false,
           );
+        },
+      ),
+
+      // ── Storage explorer (pushed on top, no bottom nav) ───────────────────
+      GoRoute(
+        path: '/storage-explorer',
+        builder: (_, __) => const StorageExplorerScreen(),
+      ),
+
+      // ── File preview (pushed on top, no bottom nav) ────────────────────────
+      GoRoute(
+        path: '/file-preview',
+        builder: (_, state) {
+          final file = state.extra as FileItem;
+          return FilePreviewScreen(file: file);
         },
       ),
     ],

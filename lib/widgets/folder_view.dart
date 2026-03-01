@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
@@ -300,76 +301,71 @@ class _FolderViewState extends ConsumerState<FolderView> {
     );
   }
 
-  /// Pick a real file from the device and upload it to the Cubie.
+  /// Pick one or more files from the device and upload them to the Cubie.
   void _uploadFile() async {
-    final result = await FilePicker.platform.pickFiles();
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result == null || result.files.isEmpty) return;
 
-    final pickedFile = result.files.first;
-    final fileName = pickedFile.name;
-    final filePath = pickedFile.path;
-    final totalBytes = pickedFile.size;
-
-    if (filePath == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not access the selected file')),
-        );
-      }
-      return;
-    }
-
-    final task = UploadTask(
-      id: 'upload_${DateTime.now().millisecondsSinceEpoch}',
-      fileName: fileName,
-      totalBytes: totalBytes,
-    );
-
-    ref.read(uploadTasksProvider.notifier).addTask(task);
-    ref
-        .read(uploadTasksProvider.notifier)
-        .updateTask(task.id, status: UploadStatus.uploading);
-
     final api = ref.read(apiServiceProvider);
-    final stream = api.uploadFile(
-      _currentPath,
-      fileName,
-      totalBytes,
-      filePath: filePath,
-    );
 
-    stream.listen(
-      (bytes) {
-        ref
-            .read(uploadTasksProvider.notifier)
-            .updateTask(task.id, uploadedBytes: bytes);
-      },
-      onDone: () {
-        ref
-            .read(uploadTasksProvider.notifier)
-            .updateTask(task.id, status: UploadStatus.completed);
-        ref.invalidate(fileListProvider(_currentPath));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('${task.fileName} uploaded successfully')),
-          );
-        }
-        // Auto-remove completed card after 3 s
-        Future.delayed(const Duration(seconds: 3), () {
+    for (final pickedFile in result.files) {
+      final fileName = pickedFile.name;
+      final filePath = pickedFile.path;
+      final totalBytes = pickedFile.size;
+
+      if (filePath == null) continue;
+
+      final task = UploadTask(
+        id: 'upload_${DateTime.now().millisecondsSinceEpoch}_${fileName.hashCode}',
+        fileName: fileName,
+        totalBytes: totalBytes,
+      );
+
+      ref.read(uploadTasksProvider.notifier).addTask(task);
+      ref
+          .read(uploadTasksProvider.notifier)
+          .updateTask(task.id, status: UploadStatus.uploading);
+
+      final stream = api.uploadFile(
+        _currentPath,
+        fileName,
+        totalBytes,
+        filePath: filePath,
+      );
+
+      stream.listen(
+        (bytes) {
+          ref
+              .read(uploadTasksProvider.notifier)
+              .updateTask(task.id, uploadedBytes: bytes);
+        },
+        onDone: () {
+          ref
+              .read(uploadTasksProvider.notifier)
+              .updateTask(task.id, status: UploadStatus.completed);
+          ref.invalidate(fileListProvider(_currentPath));
           if (mounted) {
-            ref.read(uploadTasksProvider.notifier).removeTask(task.id);
-          }
-        });
-      },
-      onError: (e) {
-        ref.read(uploadTasksProvider.notifier).updateTask(
-              task.id,
-              status: UploadStatus.failed,
-              error: e.toString(),
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text('${task.fileName} uploaded successfully')),
             );
-      },
-    );
+          }
+          // Auto-remove completed card after 3 s
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) {
+              ref.read(uploadTasksProvider.notifier).removeTask(task.id);
+            }
+          });
+        },
+        onError: (e) {
+          ref.read(uploadTasksProvider.notifier).updateTask(
+                task.id,
+                status: UploadStatus.failed,
+                error: e.toString(),
+              );
+        },
+      );
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -538,7 +534,9 @@ class _FolderViewState extends ConsumerState<FolderView> {
           return FileListTile(
             file: file,
             readOnly: widget.readOnly,
-            onTap: file.isDirectory ? () => _navigateInto(file) : null,
+            onTap: file.isDirectory
+                ? () => _navigateInto(file)
+                : () => context.push('/file-preview', extra: file),
             onLongPress:
                 widget.readOnly ? null : () => _showFileActions(file),
           ).animate().fadeIn(delay: (40 * i).ms);
