@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from shutil import disk_usage
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -104,7 +104,7 @@ async def _list_block_devices() -> List[dict]:
         return []
 
 
-def _flatten_devices(devices: list, parent: dict | None = None) -> list:
+def _flatten_devices(devices: list, parent: Optional[dict] = None) -> list:
     """Flatten nested lsblk tree into a list of partitions."""
     result = []
     for dev in devices:
@@ -130,7 +130,7 @@ def _flatten_devices(devices: list, parent: dict | None = None) -> list:
     return result
 
 
-async def _find_partition(device_path: str) -> dict | None:
+async def _find_partition(device_path: str) -> Optional[dict]:
     """Look up a specific device by path (e.g. '/dev/sda1')."""
     raw_devices = await _list_block_devices()
     partitions = _flatten_devices(raw_devices)
