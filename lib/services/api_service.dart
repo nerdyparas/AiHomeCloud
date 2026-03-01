@@ -240,9 +240,11 @@ class ApiService {
   }
 
   /// POST /api/files/upload (multipart)
+  /// Uploads a real file from [filePath] to [destinationPath] on the NAS.
   /// Returns a stream of uploaded byte counts for progress tracking.
   Stream<int> uploadFile(
-      String destinationPath, String fileName, int totalBytes) {
+      String destinationPath, String fileName, int totalBytes,
+      {String? filePath}) {
     final ctrl = StreamController<int>();
 
     () async {
@@ -253,20 +255,27 @@ class ApiService {
         final request = http.MultipartRequest('POST', uri);
         request.headers['Authorization'] = 'Bearer $_token';
 
-        // TODO: Replace with real file bytes from file_picker.
-        // For now, send dummy bytes matching totalBytes.
-        request.files.add(http.MultipartFile.fromBytes(
-          'file',
-          List.filled(totalBytes, 0),
-          filename: fileName,
-        ));
+        if (filePath != null) {
+          // Real file from device
+          request.files.add(
+            await http.MultipartFile.fromPath('file', filePath,
+                filename: fileName),
+          );
+        } else {
+          // Fallback: empty bytes (shouldn't happen in production)
+          request.files.add(http.MultipartFile.fromBytes(
+            'file',
+            [],
+            filename: fileName,
+          ));
+        }
 
         final response = await request.send();
         if (response.statusCode >= 200 && response.statusCode < 300) {
           ctrl.add(totalBytes);
           await ctrl.close();
         } else {
-          ctrl.addError(Exception('Upload failed: ${response.statusCode}'));
+          ctrl.addError(Exception('Upload failed: \${response.statusCode}'));
           await ctrl.close();
         }
       } catch (e) {

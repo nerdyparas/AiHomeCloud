@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -299,13 +300,29 @@ class _FolderViewState extends ConsumerState<FolderView> {
     );
   }
 
-  /// Simulates a file upload with chunked progress.
-  /// TODO: Replace with real file_picker + multipart upload.
-  void _uploadFile() {
+  /// Pick a real file from the device and upload it to the Cubie.
+  void _uploadFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result == null || result.files.isEmpty) return;
+
+    final pickedFile = result.files.first;
+    final fileName = pickedFile.name;
+    final filePath = pickedFile.path;
+    final totalBytes = pickedFile.size;
+
+    if (filePath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not access the selected file')),
+        );
+      }
+      return;
+    }
+
     final task = UploadTask(
       id: 'upload_${DateTime.now().millisecondsSinceEpoch}',
-      fileName: 'photo_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      totalBytes: 5 * 1024 * 1024, // 5 MB mock file
+      fileName: fileName,
+      totalBytes: totalBytes,
     );
 
     ref.read(uploadTasksProvider.notifier).addTask(task);
@@ -314,7 +331,12 @@ class _FolderViewState extends ConsumerState<FolderView> {
         .updateTask(task.id, status: UploadStatus.uploading);
 
     final api = ref.read(apiServiceProvider);
-    final stream = api.uploadFile(_currentPath, task.fileName, task.totalBytes);
+    final stream = api.uploadFile(
+      _currentPath,
+      fileName,
+      totalBytes,
+      filePath: filePath,
+    );
 
     stream.listen(
       (bytes) {
