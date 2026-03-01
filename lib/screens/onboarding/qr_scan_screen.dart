@@ -1,0 +1,213 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/theme.dart';
+import '../../models/models.dart';
+import '../../providers.dart';
+
+class QrScanScreen extends ConsumerStatefulWidget {
+  const QrScanScreen({super.key});
+
+  @override
+  ConsumerState<QrScanScreen> createState() => _QrScanScreenState();
+}
+
+class _QrScanScreenState extends ConsumerState<QrScanScreen> {
+  bool _processing = false;
+
+  /// Called when a QR barcode is detected (or when the demo button is pressed).
+  void _onQrDetected(String rawValue) {
+    if (_processing) return;
+    setState(() => _processing = true);
+
+    try {
+      final uri = Uri.parse(rawValue);
+      if (uri.scheme != 'cubie' || uri.host != 'pair') {
+        _error('Invalid QR code. Scan the code on your CubieCloud box.');
+        return;
+      }
+
+      final payload = QrPairPayload.fromUri(uri);
+      if (payload.serial.isEmpty || payload.key.isEmpty) {
+        _error('QR code is missing required data.');
+        return;
+      }
+
+      ref.read(qrPayloadProvider.notifier).state = payload;
+      context.go('/discovery');
+    } catch (_) {
+      _error('Could not read QR code. Please try again.');
+    }
+  }
+
+  void _error(String msg) {
+    setState(() => _processing = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Injects a realistic demo QR value for emulator testing.
+  void _useDemoQr() {
+    _onQrDetected(
+      'cubie://pair?serial=CUBIE-A5E-2024-001'
+      '&key=demo_pairing_key_12345'
+      '&host=cubie-CUBIE-A5E-2024-001.local',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: CubieColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/welcome'),
+        ),
+        title: Text('Scan QR Code',
+            style:
+                GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),
+      ),
+      body: Column(
+        children: [
+          const SizedBox(height: 24),
+
+          // ── Camera preview placeholder ────────────────────────────────────
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: CubieColors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: CubieColors.cardBorder),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // TODO: Replace with MobileScanner widget:
+                    //   MobileScanner(onDetect: (capture) {
+                    //     final barcode = capture.barcodes.first;
+                    //     if (barcode.rawValue != null)
+                    //       _onQrDetected(barcode.rawValue!);
+                    //   })
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(23),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.camera_alt_rounded,
+                              color: CubieColors.textMuted,
+                              size: 48,
+                            )
+                                .animate(
+                                    onPlay: (c) => c.repeat(reverse: true))
+                                .fadeIn(duration: 1.seconds)
+                                .then()
+                                .fadeOut(duration: 1.seconds),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Camera preview\n(will activate on device)',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.dmSans(
+                                color: CubieColors.textMuted,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Scanner-corner overlay
+                    _ScannerOverlay(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // ── Instructions ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              children: [
+                Text(
+                  'Point your camera at the QR code\n'
+                  'on the bottom of your CubieCloud box',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(
+                    color: CubieColors.textSecondary,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Demo button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _processing ? null : _useDemoQr,
+                    icon: const Icon(Icons.bug_report_rounded, size: 18),
+                    label: Text(
+                      'Use Demo QR (Testing)',
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Scanner corner overlay ─────────────────────────────────────────────────
+
+class _ScannerOverlay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    const s = 32.0;
+    const w = 3.0;
+    const c = CubieColors.primary;
+
+    return SizedBox(
+      width: 200,
+      height: 200,
+      child: Stack(
+        children: [
+          _corner(Alignment.topLeft,
+              const Border(top: BorderSide(color: c, width: w), left: BorderSide(color: c, width: w)), s),
+          _corner(Alignment.topRight,
+              const Border(top: BorderSide(color: c, width: w), right: BorderSide(color: c, width: w)), s),
+          _corner(Alignment.bottomLeft,
+              const Border(bottom: BorderSide(color: c, width: w), left: BorderSide(color: c, width: w)), s),
+          _corner(Alignment.bottomRight,
+              const Border(bottom: BorderSide(color: c, width: w), right: BorderSide(color: c, width: w)), s),
+        ],
+      ),
+    )
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .scaleXY(begin: 0.95, end: 1.05, duration: 1500.ms, curve: Curves.easeInOut);
+  }
+
+  Widget _corner(Alignment align, Border border, double size) {
+    return Align(
+      alignment: align,
+      child: Container(width: size, height: size, decoration: BoxDecoration(border: border)),
+    );
+  }
+}
