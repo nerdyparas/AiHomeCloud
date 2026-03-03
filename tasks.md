@@ -197,13 +197,13 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5A.1 | Add `python-json-logger` to `requirements.txt` | 🟢 | ⬚ todo | |
-| 5A.2 | Create `backend/app/logging_config.py` with `configure_logging(log_level: str)` using `JsonFormatter` | 🟢 | ⬚ todo | Output: `{"ts":..., "level":..., "msg":..., "module":...}` |
-| 5A.3 | Add `log_level: str = "INFO"` to `config.py` with `CUBIE_LOG_LEVEL` env var | 🟢 | ⬚ todo | |
-| 5A.4 | Call `configure_logging(settings.log_level)` at top of `main.py` lifespan, before first log line | 🟢 | ⬚ todo | |
-| 5A.5 | Replace all `print()` calls in backend with `logger = logging.getLogger(__name__)` + proper level | 🟢 | ⬚ todo | Grep for `print(` in `backend/app/` |
-| 5A.6 | Add `request_id` middleware: generate `uuid4` per request, add to `request.state` and log context | 🔵 | ⬚ todo | Use `contextvars.ContextVar` |
-| 5A.7 | Add startup log: `logger.info("backend_start", version="0.1", data_dir=..., nas_root=..., port=...)` | 🟢 | ⬚ todo | |
+| 5A.1 | Add `python-json-logger` to `requirements.txt` | 🟢 | ✅ done | Added dependency to backend requirements |
+| 5A.2 | Create `backend/app/logging_config.py` with `configure_logging(log_level: str)` using `JsonFormatter` | 🟢 | ✅ done | Added structured JSON logger config with `ts/level/msg/module/request_id` |
+| 5A.3 | Add `log_level: str = "INFO"` to `config.py` with `CUBIE_LOG_LEVEL` env var | 🟢 | ✅ done | Added `log_level` to `Settings` (env-prefixed by `CUBIE_`) |
+| 5A.4 | Call `configure_logging(settings.log_level)` at top of `main.py` lifespan, before first log line | 🟢 | ✅ done | Configured at start of lifespan before startup logs |
+| 5A.5 | Replace all `print()` calls in backend with `logger = logging.getLogger(__name__)` + proper level | 🟢 | ✅ done | Grep on `backend/app/` found no active `print(` calls to replace |
+| 5A.6 | Add `request_id` middleware: generate `uuid4` per request, add to `request.state` and log context | 🔵 | ✅ done | Added HTTP middleware + `contextvars` request-id propagation |
+| 5A.7 | Add startup log: `logger.info("backend_start", version="0.1", data_dir=..., nas_root=..., port=...)` | 🟢 | ✅ done | Added structured `backend_start` log in lifespan |
 
 ### 5B — 1-Second Read Cache for JSON Store (Critique A1)
 

@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Intentional for appliance-style LAN service exposure.
     host: str = "0.0.0.0"  # nosec B104
     port: int = 8443
+    log_level: str = "INFO"
     cors_origins: list[str] = DEFAULT_CORS_ORIGINS.copy()
 
     # ── TLS ────────────────────────────────────────────────────────────────────

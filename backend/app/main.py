@@ -7,6 +7,7 @@ import logging
 import ssl
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings, JWT_SECRET_FILE
 import os
+from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .routes import (
     auth_routes,
@@ -34,6 +36,19 @@ logger = logging.getLogger("cubie.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: ensure dirs exist, generate TLS cert, auto-remount saved storage device."""
+    # Configure logging before any startup log lines.
+    configure_logging(settings.log_level)
+
+    logger.info(
+        "backend_start",
+        extra={
+            "version": "0.1",
+            "data_dir": str(settings.data_dir),
+            "nas_root": str(settings.nas_root),
+            "port": settings.port,
+        },
+    )
+
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
     settings.shared_path.mkdir(parents=True, exist_ok=True)
@@ -87,6 +102,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    request_id = uuid4().hex
+    request.state.request_id = request_id
+    token = set_request_id(request_id)
+
+    logger.info(
+        "request_start",
+        extra={"method": request.method, "path": request.url.path},
+    )
+    try:
+        response = await call_next(request)
+        logger.info(
+            "request_end",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+            },
+        )
+        return response
+    finally:
+        reset_request_id(token)
 
 # Register all routers
 app.include_router(auth_routes.router)
