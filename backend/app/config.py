@@ -3,8 +3,25 @@ CubieCloud backend configuration.
 All settings can be overridden via environment variables prefixed with CUBIE_.
 """
 
+import secrets
+import stat
 from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+JWT_SECRET_FILE = Path("/var/lib/cubie/jwt_secret")
+
+
+def generate_jwt_secret(secret_file: Path = JWT_SECRET_FILE) -> str:
+    """Return the existing JWT secret or generate one and persist it."""
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
+    if secret_file.exists():
+        return secret_file.read_text().strip()
+
+    secret = secrets.token_hex(32)
+    secret_file.write_text(secret)
+    secret_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    return secret
 
 
 class Settings(BaseSettings):
