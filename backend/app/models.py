@@ -147,6 +147,21 @@ class PairRequest(BaseModel):
     key: str
 
 
+class PairCompleteRequest(BaseModel):
+    serial: str
+    key: str
+    otp: str
+
+    model_config = {"populate_by_name": True}
+
+
+class OtpRecord(BaseModel):
+    otp_hash: str = Field(alias="otpHash")
+    expires_at: int = Field(alias="expiresAt")
+
+    model_config = {"populate_by_name": True}
+
+
 class LoginRequest(BaseModel):
     name: str
     pin: str

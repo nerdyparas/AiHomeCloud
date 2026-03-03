@@ -97,6 +97,19 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Token purge skipped or failed")
 
+    # Clear expired pairing OTPs on startup
+    try:
+        from . import store as _store_module
+        from datetime import datetime
+
+        otp = await _store_module.get_otp()
+        if otp and otp.get("expires_at"):
+            if int(otp.get("expires_at", 0)) < int(datetime.utcnow().timestamp()):
+                await _store_module.clear_otp()
+                logger.info("Cleared expired pairing OTP on startup")
+    except Exception:
+        logger.debug("Pairing OTP cleanup skipped or failed")
+
     yield
 
 

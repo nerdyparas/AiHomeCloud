@@ -317,3 +317,42 @@ async def purge_expired_tokens(older_than_ts: int) -> int:
     if removed > 0:
         await save_tokens(kept)
     return removed
+
+
+# ─── Pairing / OTP persistence ───────────────────────────────────────────────
+
+_pairing_file = settings.data_dir / "pairing.json"
+
+
+async def get_otp() -> dict | None:
+    """Return the OTP record stored in pairing.json or None if missing/expired.
+
+    The record shape is: {"otp_hash": str, "expires_at": int}
+    """
+    cached = _get_cached("pairing_otp")
+    if cached is not None:
+        return cached
+
+    async with _store_lock:
+        data = _read_json(_pairing_file, None)
+        if not data:
+            _set_cached("pairing_otp", None)
+            return None
+        _set_cached("pairing_otp", data)
+        return data
+
+
+async def save_otp(otp_hash: str, expires_at: int) -> None:
+    """Persist an OTP record (hash + expiry) to pairing.json under lock."""
+    _set_cached("pairing_otp", None)
+    async with _store_lock:
+        record = {"otp_hash": otp_hash, "expires_at": int(expires_at)}
+        _write_json(_pairing_file, record)
+
+
+async def clear_otp() -> None:
+    """Clear any stored OTP (remove pairing.json)."""
+    _set_cached("pairing_otp", None)
+    async with _store_lock:
+        # Remove file if it exists; write empty dict for atomicity.
+        _write_json(_pairing_file, {})

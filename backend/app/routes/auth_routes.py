@@ -22,6 +22,7 @@ from ..models import (
     LoginRequest,
     RefreshRequest,
     PairRequest,
+    PairCompleteRequest,
     TokenResponse,
 )
 from .. import store
@@ -60,11 +61,35 @@ async def get_pairing_qr():
         f"&host={host}"
     )
 
+    # Ensure a persistent OTP exists for pairing (survives restarts).
+    # OTP plaintext is not returned here; the device UI is expected to display it.
+    import hashlib
+    import secrets
+    from datetime import datetime, timedelta
+
+    now = int(datetime.utcnow().timestamp())
+    otp_record = await store.get_otp()
+    expires_at = None
+    if otp_record and otp_record.get("expires_at"):
+        try:
+            if int(otp_record.get("expires_at", 0)) > now:
+                expires_at = int(otp_record.get("expires_at"))
+        except Exception:
+            expires_at = None
+
+    if not expires_at:
+        # Generate a short-lived 6-digit OTP and persist its hash + expiry.
+        otp = f"{secrets.randbelow(10**6):06d}"
+        otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+        expires_at = int((datetime.utcnow() + timedelta(seconds=300)).timestamp())
+        await store.save_otp(otp_hash, expires_at)
+
     return {
         "qrValue": qr_value,
         "serial": serial,
         "ip": ip,
         "host": host,
+        "expiresAt": expires_at,
     }
 
 
@@ -79,6 +104,41 @@ async def pair_device(body: PairRequest):
     if body.key != settings.pairing_key:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid pairing key")
 
+    token = create_token(subject=body.serial, extra={"type": "device"})
+    return TokenResponse(token=token)
+
+
+@router.post("/pair/complete", response_model=TokenResponse)
+async def pair_complete(body: PairCompleteRequest):
+    """
+    Complete pairing by validating serial, pairing key, and OTP.
+    On success, clears stored OTP and returns a device JWT.
+    """
+    if body.serial != settings.device_serial:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Unknown serial")
+    if body.key != settings.pairing_key:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid pairing key")
+
+    # Validate OTP
+    import hashlib
+    import hmac
+    from datetime import datetime
+
+    otp_rec = await store.get_otp()
+    now = int(datetime.utcnow().timestamp())
+    if not otp_rec or not otp_rec.get("otp_hash") or not otp_rec.get("expires_at"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No active OTP for pairing")
+    if int(otp_rec.get("expires_at", 0)) < now:
+        # Clear expired OTP
+        await store.clear_otp()
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "OTP expired")
+
+    provided_hash = hashlib.sha256(body.otp.encode()).hexdigest()
+    if not hmac.compare_digest(provided_hash, otp_rec.get("otp_hash")):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid OTP")
+
+    # OTP valid — clear it and issue device token
+    await store.clear_otp()
     token = create_token(subject=body.serial, extra={"type": "device"})
     return TokenResponse(token=token)
 
