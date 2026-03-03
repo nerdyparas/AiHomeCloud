@@ -8,9 +8,11 @@ import secrets
 import stat
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 JWT_SECRET_FILE = Path("/var/lib/cubie/jwt_secret")
+DEFAULT_CORS_ORIGINS = ["http://localhost", "http://localhost:3000"]
 
 
 def generate_jwt_secret(secret_file: Path = JWT_SECRET_FILE) -> str:
@@ -32,6 +34,7 @@ class Settings(BaseSettings):
     # Intentional for appliance-style LAN service exposure.
     host: str = "0.0.0.0"  # nosec B104
     port: int = 8443
+    cors_origins: list[str] = DEFAULT_CORS_ORIGINS.copy()
 
     # ── TLS ────────────────────────────────────────────────────────────────────
     tls_enabled: bool = True
@@ -92,6 +95,22 @@ class Settings(BaseSettings):
     @property
     def tls_key_path(self) -> Path:
         return Path(self.tls_key_file) if self.tls_key_file else self.cert_dir / "key.pem"
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value):
+        """Accept comma-separated env var values for CORS origins."""
+        if value is None:
+            return DEFAULT_CORS_ORIGINS.copy()
+
+        if isinstance(value, str):
+            origins = [item.strip() for item in value.split(",") if item.strip()]
+            return origins or DEFAULT_CORS_ORIGINS.copy()
+
+        if isinstance(value, list):
+            return value or DEFAULT_CORS_ORIGINS.copy()
+
+        return DEFAULT_CORS_ORIGINS.copy()
 
 
 settings = Settings()

@@ -172,10 +172,10 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 4E.1 | In `config.py`, add `cors_origins: list[str]` field with env var `CUBIE_CORS_ORIGINS` (comma-separated) | 🟢 | ⬚ todo | Default: `["http://localhost", "http://localhost:3000"]` |
-| 4E.2 | In `main.py`, replace `allow_origins=["*"]` with `allow_origins=settings.cors_origins` | 🟢 | ⬚ todo | |
-| 4E.3 | In `cubie-backend.service`, add `CUBIE_CORS_ORIGINS=` line with comment; leave empty for no extra origins | 🟢 | ⬚ todo | |
-| 4E.4 | Add startup log: `logger.info("CORS origins configured", origins=settings.cors_origins)` | 🟢 | ⬚ todo | |
+| 4E.1 | In `config.py`, add `cors_origins: list[str]` field with env var `CUBIE_CORS_ORIGINS` (comma-separated) | 🟢 | ✅ done | Added `cors_origins` with comma-separated parser and localhost defaults |
+| 4E.2 | In `main.py`, replace `allow_origins=["*"]` with `allow_origins=settings.cors_origins` | 🟢 | ✅ done | CORS middleware now uses `settings.cors_origins` |
+| 4E.3 | In `cubie-backend.service`, add `CUBIE_CORS_ORIGINS=` line with comment; leave empty for no extra origins | 🟢 | ✅ done | Added service env line and usage comment |
+| 4E.4 | Add startup log: `logger.info("CORS origins configured", origins=settings.cors_origins)` | 🟢 | ✅ done | Startup logs configured CORS origin list |
 
 ### 4F — systemd Service Hardening
 

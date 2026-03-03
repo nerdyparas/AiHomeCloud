@@ -50,6 +50,7 @@ async def lifespan(app: FastAPI):
     logger.info("  NAS root : %s", settings.nas_root)
     logger.info("  Data dir : %s", settings.data_dir)
     logger.info("  TLS      : %s", 'enabled' if settings.tls_enabled else 'disabled')
+    logger.info("CORS origins configured: %s", settings.cors_origins)
 
     # Log JWT secret provenance without revealing the secret value
     try:
@@ -78,10 +79,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow the Flutter app to connect from any origin during development
+# Restrict CORS to configured origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

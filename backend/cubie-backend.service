@@ -22,6 +22,9 @@ Environment=CUBIE_PAIRING_KEY=your-pairing-key
 Environment=CUBIE_NAS_ROOT=/srv/nas
 Environment=CUBIE_DATA_DIR=/var/lib/cubie
 Environment=CUBIE_TLS_ENABLED=true
+# Optional extra CORS origins (comma-separated). Leave empty to keep defaults:
+# http://localhost,http://localhost:3000
+Environment=CUBIE_CORS_ORIGINS=
 
 [Install]
 WantedBy=multi-user.target
