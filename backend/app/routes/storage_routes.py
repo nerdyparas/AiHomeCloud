@@ -23,6 +23,7 @@ from ..models import (
     StorageStats,
 )
 from .. import store
+from ..subprocess_runner import run_command
 from .event_routes import emit_device_mounted, emit_device_ejected
 
 logger = logging.getLogger("cubie.storage")
@@ -82,23 +83,18 @@ def _is_os_partition(device: dict) -> bool:
 async def _list_block_devices() -> List[dict]:
     """Run lsblk -J -b and return the raw JSON device list."""
     try:
-        proc = await asyncio.create_subprocess_exec(
+        rc, out, err = await run_command([
             "lsblk", "-J", "-b",
             "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,LABEL,MODEL,TRAN,SERIAL",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-
-        if proc.returncode != 0:
-            logger.error("lsblk failed: %s", stderr.decode())
+        ])
+        if rc != 0:
+            logger.error("lsblk failed: %s", err)
             return []
-
-        data = json.loads(stdout.decode())
+        data = json.loads(out or "{}")
         return data.get("blockdevices", [])
-
-    except FileNotFoundError:
-        logger.warning("lsblk not found — not running on Linux?")
+    except ValueError:
+        # Validation error from run_command
+        logger.warning("lsblk validation failed")
         return []
     except Exception as e:
         logger.error("Failed to list block devices: %s", e)
@@ -176,12 +172,7 @@ async def _stop_nas_services():
     """Best-effort stop of NAS-related services before unmount."""
     for svc in ("smbd", "nmbd", "nfs-kernel-server", "minidlnad"):
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "systemctl", "stop", svc,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await proc.communicate()
+            await run_command(["systemctl", "stop", svc])
         except Exception:
             pass  # service may not be installed
 
@@ -190,12 +181,7 @@ async def _start_nas_services():
     """Best-effort start of NAS services after mount."""
     for svc in ("smbd", "nmbd"):
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "systemctl", "start", svc,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await proc.communicate()
+            await run_command(["systemctl", "start", svc])
         except Exception:
             pass
 
@@ -212,16 +198,9 @@ async def _check_open_handles() -> list[dict]:
 
     # Try lsof first (more detail)
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "lsof", "+D", nas_root,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, _ = await proc.communicate()
-
-        if proc.returncode == 0 and stdout:
-            lines = stdout.decode().strip().split("\n")
-            # Skip header line
+        rc, out, _ = await run_command(["lsof", "+D", nas_root])
+        if rc == 0 and out:
+            lines = out.strip().split("\n")
             for line in lines[1:]:
                 parts = line.split()
                 if len(parts) >= 9:
@@ -232,23 +211,15 @@ async def _check_open_handles() -> list[dict]:
                         "path": parts[8] if len(parts) > 8 else nas_root,
                     })
         return blockers
-
-    except FileNotFoundError:
+    except Exception:
         pass
 
     # Fallback to fuser
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "fuser", "-v", "-m", nas_root,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-
-        # fuser outputs to stderr
+        rc, _, stderr = await run_command(["fuser", "-v", "-m", nas_root])
         if stderr:
-            lines = stderr.decode().strip().split("\n")
-            for line in lines[1:]:  # Skip header
+            lines = stderr.strip().split("\n")
+            for line in lines[1:]:
                 parts = line.split()
                 if len(parts) >= 4:
                     blockers.append({
@@ -257,8 +228,7 @@ async def _check_open_handles() -> list[dict]:
                         "user": parts[0] if parts else "?",
                         "path": nas_root,
                     })
-
-    except FileNotFoundError:
+    except Exception:
         logger.warning("Neither lsof nor fuser available for handle check")
 
     return blockers
@@ -272,7 +242,7 @@ async def _do_unmount(force: bool = False) -> str:
     Returns the device path that was unmounted.
     Raises HTTPException on failure.
     """
-    storage_state = store.get_storage_state()
+    storage_state = await store.get_storage_state()
 
     if not storage_state.get("activeDevice"):
         raise HTTPException(400, "No device is currently mounted")
@@ -304,40 +274,24 @@ async def _do_unmount(force: bool = False) -> str:
 
     # 2. Sync filesystem
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "sync",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        await proc.communicate()
+        await run_command(["sync"])
     except Exception:
         pass
 
     # 3. Unmount
-    proc = await asyncio.create_subprocess_exec(
-        "umount", nas_root,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-
-    if proc.returncode != 0:
+    rc, _, stderr = await run_command(["umount", nas_root])
+    if rc != 0:
         # Fallback: lazy unmount
-        logger.warning("Normal unmount failed, trying lazy unmount: %s", stderr.decode())
-        proc = await asyncio.create_subprocess_exec(
-            "umount", "-l", nas_root,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
+        logger.warning("Normal unmount failed, trying lazy unmount: %s", stderr)
+        rc2, _, stderr2 = await run_command(["umount", "-l", nas_root])
+        if rc2 != 0:
             raise HTTPException(
                 500,
-                f"Unmount failed (files may be in use): {stderr.decode().strip()}",
+                f"Unmount failed (files may be in use): {stderr2}",
             )
 
     # 4. Clear persisted state
-    store.clear_storage_state()
+    await store.clear_storage_state()
 
     logger.info("Unmounted %s from %s", device_path, nas_root)
     return device_path
@@ -365,19 +319,8 @@ async def scan_devices(user: dict = Depends(get_current_user)):
     Triggers udev to re-detect, waits for settle, then returns fresh list.
     """
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "udevadm", "trigger", "--subsystem-match=block",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        await proc.communicate()
-
-        proc = await asyncio.create_subprocess_exec(
-            "udevadm", "settle", "--timeout=3",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        await proc.communicate()
+        await run_command(["udevadm", "trigger", "--subsystem-match=block"])
+        await run_command(["udevadm", "settle", "--timeout=3"])
     except Exception as e:
         logger.warning("udevadm not available: %s", e)
 
@@ -396,7 +339,7 @@ async def check_usage(user: dict = Depends(get_current_user)):
     Call before unmount to show the user what's blocking.
     Returns {blockers: [...], safe: bool}.
     """
-    storage_state = store.get_storage_state()
+    storage_state = await store.get_storage_state()
     if not storage_state.get("activeDevice"):
         return {"blockers": [], "safe": True, "message": "No device mounted"}
 
@@ -451,15 +394,12 @@ async def format_device(
 
     logger.warning("FORMATTING %s as ext4 (label=%s)", req.device, req.label)
 
-    proc = await asyncio.create_subprocess_exec(
-        "mkfs.ext4", "-F", "-L", req.label, req.device,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
+    rc, _, stderr = await run_command([
+        "mkfs.ext4", "-F", "-L", req.label, req.device
+    ], timeout=600)
 
-    if proc.returncode != 0:
-        raise HTTPException(500, f"Format failed: {stderr.decode().strip()}")
+    if rc != 0:
+        raise HTTPException(500, f"Format failed: {stderr}")
 
     logger.info("Formatted %s successfully", req.device)
     return {
@@ -481,7 +421,7 @@ async def mount_device(
     nas_root = str(settings.nas_root)
 
     # Check if something is already active
-    storage_state = store.get_storage_state()
+    storage_state = await store.get_storage_state()
     if storage_state.get("activeDevice"):
         raise HTTPException(
             409,
@@ -501,22 +441,16 @@ async def mount_device(
     settings.nas_root.mkdir(parents=True, exist_ok=True)
 
     # Mount
-    proc = await asyncio.create_subprocess_exec(
-        "mount", req.device, nas_root,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-
-    if proc.returncode != 0:
-        raise HTTPException(500, f"Mount failed: {stderr.decode().strip()}")
+    rc, _, stderr = await run_command(["mount", req.device, nas_root])
+    if rc != 0:
+        raise HTTPException(500, f"Mount failed: {stderr}")
 
     # Create standard NAS directories
     settings.personal_path.mkdir(parents=True, exist_ok=True)
     settings.shared_path.mkdir(parents=True, exist_ok=True)
 
     # Persist mount state
-    store.save_storage_state({
+    await store.save_storage_state({
         "activeDevice": req.device,
         "mountedAt": nas_root,
         "fstype": target.get("fstype", ""),
@@ -560,7 +494,7 @@ async def eject_device(
     Safely eject a USB device: unmount → power off USB port.
     Only works for USB-connected storage.
     """
-    storage_state = store.get_storage_state()
+    storage_state = await store.get_storage_state()
     active_device = storage_state.get("activeDevice", "")
 
     # If the device to eject is currently mounted, unmount first (force=True)
@@ -575,27 +509,28 @@ async def eject_device(
     delete_path = Path(f"/sys/block/{disk_name}/device/delete")
     try:
         if delete_path.exists():
-            proc = await asyncio.create_subprocess_shell(
-                f"echo 1 > {delete_path}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await proc.communicate()
-            logger.info("Ejected USB device %s via sysfs", disk_name)
+            try:
+                delete_path.write_text("1")
+                logger.info("Ejected USB device %s via sysfs", disk_name)
+            except Exception:
+                # Try udisksctl as fallback
+                rc, _, stderr = await run_command(["udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
+                if rc == 0:
+                    logger.info("Ejected USB device %s via udisksctl", disk_name)
+                else:
+                    logger.warning(
+                        "Could not power off %s — device may need manual removal: %s",
+                        disk_name, stderr,
+                    )
         else:
             # Try udisksctl as fallback
-            proc = await asyncio.create_subprocess_exec(
-                "udisksctl", "power-off", "-b", f"/dev/{disk_name}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await proc.communicate()
-            if proc.returncode == 0:
+            rc, _, stderr = await run_command(["udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
+            if rc == 0:
                 logger.info("Ejected USB device %s via udisksctl", disk_name)
             else:
                 logger.warning(
-                    "Could not power off %s — device may need manual removal",
-                    disk_name,
+                    "Could not power off %s — device may need manual removal: %s",
+                    disk_name, stderr,
                 )
     except Exception as e:
         logger.warning("Could not power off USB device: %s", e)
@@ -631,7 +566,7 @@ async def try_auto_remount():
     On startup, check storage.json for a previously-mounted device.
     If the device is still present and not yet mounted, remount it.
     """
-    state = store.get_storage_state()
+    state = await store.get_storage_state()
     device_path = state.get("activeDevice")
 
     if not device_path:
@@ -646,7 +581,7 @@ async def try_auto_remount():
         logger.warning(
             "Auto-remount: device %s not found — was it removed?", device_path
         )
-        store.clear_storage_state()
+        await store.clear_storage_state()
         return
 
     # Check if already mounted at NAS root
@@ -684,4 +619,4 @@ async def try_auto_remount():
         logger.error(
             "Auto-remount: failed to mount %s — %s", device_path, stderr.decode().strip()
         )
-        store.clear_storage_state()
+        await store.clear_storage_state()

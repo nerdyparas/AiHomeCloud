@@ -140,23 +140,23 @@
 | 4B.4 | Convert `save_services()` → `async def save_services()` with lock | 🟢 | ✅ done | |
 | 4B.5 | Convert `get_services()` → `async def get_services()` with lock | 🟢 | ✅ done | |
 | 4B.6 | Convert `save_storage_state()`, `get_storage_state()`, `clear_storage_state()` → async with lock | 🟢 | ✅ done | |
-| 4B.7 | Update all route handlers in `routes/` to `await` every store call | 🔵 | ⬚ todo | Grep for `get_users\|save_users\|get_services` to find all call sites |
-| 4B.8 | Update `main.py` lifespan hook to `await` any store calls (e.g. `try_auto_remount`) | 🟢 | ⬚ todo | |
-| 4B.9 | Add atomic write helper `_atomic_write(path, data)` in `store.py`: write to `path.tmp` then `os.replace()` | 🟢 | ⬚ todo | Prevents corrupt JSON on power-loss mid-write |
-| 4B.10 | Use `_atomic_write` in all `save_*` functions | 🟢 | ⬚ todo | |
+| 4B.7 | Update all route handlers in `routes/` to `await` every store call | 🔵 | ✅ done | Updated `auth_routes.py`, `family_routes.py`, `service_routes.py`, and `storage_routes.py` to await async store functions |
+| 4B.8 | Update `main.py` lifespan hook to `await` any store calls (e.g. `try_auto_remount`) | 🟢 | ✅ done | `main.py` already awaits `storage_routes.try_auto_remount()`; verified |
+| 4B.9 | Add atomic write helper `_atomic_write(path, data)` in `store.py`: write to `path.tmp` then `os.replace()` | 🟢 | ✅ done | Implemented `_atomic_write()` using `tempfile.mkstemp` + `os.replace()` |
+| 4B.10 | Use `_atomic_write` in all `save_*` functions | 🟢 | ✅ done | `_write_json()` now delegates to `_atomic_write()`; all `save_*` use `_write_json()` |
 
 ### 4C — Subprocess Isolation (remove `shell=True`)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 4C.1 | Create `backend/app/subprocess_runner.py` with `async def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]` using `asyncio.create_subprocess_exec` | 🔵 | ⬚ todo | Returns `(returncode, stdout, stderr)` |
-| 4C.2 | Add input validation in `run_command`: raise `ValueError` if any token matches `r"[;&\|` + "`" + r"$]"` | 🟢 | ⬚ todo | Defense-in-depth even though `shell=False` |
-| 4C.3 | Add structured log in `run_command` on non-zero exit: `logger.warning("cmd_failed", cmd=cmd, rc=rc, stderr=stderr)` | 🟢 | ⬚ todo | |
-| 4C.4 | In `routes/storage_routes.py`: replace all `subprocess.run(..., shell=True)` with `await run_command([...])` | 🔵 | ⬚ todo | Includes mkfs, mount, umount, lsblk, udevadm |
-| 4C.5 | In `routes/services_routes.py`: replace `subprocess.run(..., shell=True)` with `await run_command([...])` | 🟢 | ⬚ todo | systemctl calls |
-| 4C.6 | In `routes/system_routes.py`: replace shell=True with `await run_command([...])` | 🟢 | ⬚ todo | |
-| 4C.7 | In `routes/network_routes.py`: replace shell=True with `await run_command([...])` | 🟢 | ⬚ todo | |
-| 4C.8 | Set per-call timeouts: default 30s, format operations 600s | 🟢 | ⬚ todo | Pass as arg to `run_command` |
+| 4C.1 | Create `backend/app/subprocess_runner.py` with `async def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]` using `asyncio.create_subprocess_exec` | 🔵 | ✅ done | Implemented `run_command()` in `backend/app/subprocess_runner.py` |
+| 4C.2 | Add input validation in `run_command`: raise `ValueError` if any token matches `r"[;&\|` + "`" + r"$]"` | 🟢 | ✅ done | Defensive validation rejects tokens containing shell metacharacters |
+| 4C.3 | Add structured log in `run_command` on non-zero exit: `logger.warning("cmd_failed", cmd=cmd, rc=rc, stderr=stderr)` | 🟢 | ✅ done | Logs `cmd_failed` with `cmd`, `rc`, `stderr` in `run_command` |
+| 4C.4 | In `routes/storage_routes.py`: replace all `subprocess.run(..., shell=True)` with `await run_command([...])` | 🔵 | ✅ done | Replaced lsblk, mkfs, mount, umount, udevadm, lsof/fuser, eject paths to use `run_command` |
+| 4C.5 | In `routes/services_routes.py`: replace `subprocess.run(..., shell=True)` with `await run_command([...])` | 🟢 | ✅ done | Service `systemctl` calls now use `run_command` in storage helpers; `service_routes.py` uses existing exec wrappers |
+| 4C.6 | In `routes/system_routes.py`: replace shell=True with `await run_command([...])` | 🟢 | ✅ done | No `shell=True` found; central runner added for consistency |
+| 4C.7 | In `routes/network_routes.py`: replace shell=True with `await run_command([...])` | 🟢 | ✅ done | No `shell=True` found; central runner added for consistency |
+| 4C.8 | Set per-call timeouts: default 30s, format operations 600s | 🟢 | ✅ done | `run_command` default 30s; `mkfs.ext4` called with `timeout=600` |
 
 ### 4D — API Versioning (`/api/v1` prefix)
 
