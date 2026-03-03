@@ -23,7 +23,7 @@ def _get_local_ip() -> str:
         s.close()
         return ip
     except Exception:
-        return "0.0.0.0"
+        return "127.0.0.1"
 
 
 @router.get("/info", response_model=CubieDevice)

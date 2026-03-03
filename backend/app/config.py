@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     model_config = {"env_prefix": "CUBIE_"}
 
     # ── Server ────────────────────────────────────────────────────────────────
-    host: str = "0.0.0.0"
+    # Intentional for appliance-style LAN service exposure.
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 8443
 
     # ── TLS ────────────────────────────────────────────────────────────────────

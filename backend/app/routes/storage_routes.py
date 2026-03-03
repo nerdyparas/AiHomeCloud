@@ -5,6 +5,7 @@ Storage routes — device listing, scan, format, mount, unmount, eject, stats.
 import asyncio
 import json
 import logging
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from shutil import disk_usage
@@ -69,7 +70,7 @@ def _is_os_partition(device: dict) -> bool:
     if name.startswith("mmcblk"):
         return True
 
-    system_mounts = {"/", "/boot", "/boot/firmware", "/var", "/tmp", "/home"}
+    system_mounts = {"/", "/boot", "/boot/firmware", "/var", tempfile.gettempdir(), "/home"}
     if mountpoint in system_mounts:
         return True
 
