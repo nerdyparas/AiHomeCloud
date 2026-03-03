@@ -8,9 +8,14 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from .config import settings
+
+
+# Async lock to protect concurrent access to JSON files from async handlers
+_store_lock = asyncio.Lock()
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
