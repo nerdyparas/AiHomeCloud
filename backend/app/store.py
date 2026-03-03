@@ -31,8 +31,10 @@ def _write_json(path: Path, data: Any) -> None:
 
 # ─── Users ────────────────────────────────────────────────────────────────────
 
-def get_users() -> List[dict]:
-    return _read_json(settings.users_file, [])
+async def get_users() -> List[dict]:
+    """Return the list of users, protected by the store lock."""
+    async with _store_lock:
+        return _read_json(settings.users_file, [])
 
 
 async def save_users(users: List[dict]) -> None:
