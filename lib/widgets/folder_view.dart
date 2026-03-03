@@ -34,11 +34,67 @@ class FolderView extends ConsumerStatefulWidget {
 class _FolderViewState extends ConsumerState<FolderView> {
   late String _currentPath;
   final List<String> _pathStack = [];
+  final int _pageSize = 50;
+  int _currentPage = 0;
+  int _totalCount = 0;
+  bool _initialLoading = true;
+  bool _loadingMore = false;
+  String? _error;
+  List<FileItem> _items = [];
 
   @override
   void initState() {
     super.initState();
     _currentPath = widget.folderPath;
+    _loadFiles(reset: true);
+  }
+
+  Future<void> _loadFiles({required bool reset}) async {
+    try {
+      if (reset) {
+        setState(() {
+          _currentPage = 0;
+          _items = [];
+          _totalCount = 0;
+          _error = null;
+          _initialLoading = true;
+        });
+      }
+
+      final response = await ref.read(apiServiceProvider).listFiles(
+            _currentPath,
+            page: _currentPage,
+            pageSize: _pageSize,
+            sortBy: 'name',
+            sortDir: 'asc',
+          );
+
+      if (!mounted) return;
+      setState(() {
+        if (_currentPage == 0) {
+          _items = response.items;
+        } else {
+          _items = [..._items, ...response.items];
+        }
+        _totalCount = response.totalCount;
+        _error = null;
+        _initialLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _initialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || _items.length >= _totalCount) return;
+    setState(() => _loadingMore = true);
+    _currentPage += 1;
+    await _loadFiles(reset: false);
+    if (mounted) setState(() => _loadingMore = false);
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -48,17 +104,18 @@ class _FolderViewState extends ConsumerState<FolderView> {
       _pathStack.add(_currentPath);
       _currentPath = folder.path;
     });
-    ref.invalidate(fileListProvider(_currentPath));
+    _loadFiles(reset: true);
   }
 
   void _navigateBack() {
     if (_pathStack.isNotEmpty) {
       setState(() => _currentPath = _pathStack.removeLast());
+      _loadFiles(reset: true);
     }
   }
 
   Future<void> _refresh() async {
-    ref.invalidate(fileListProvider(_currentPath));
+    await _loadFiles(reset: true);
   }
 
   // ── File actions ──────────────────────────────────────────────────────────
@@ -151,7 +208,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               await ref
                   .read(apiServiceProvider)
                   .renameFile(file.path, ctrl.text);
-              ref.invalidate(fileListProvider(_currentPath));
+              await _loadFiles(reset: true);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: Text('Rename',
@@ -186,7 +243,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               await ref
                   .read(apiServiceProvider)
                   .deleteFile(file.path);
-              ref.invalidate(fileListProvider(_currentPath));
+              await _loadFiles(reset: true);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: Text('Delete',
@@ -290,7 +347,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               await ref
                   .read(apiServiceProvider)
                   .createFolder(_currentPath, ctrl.text);
-              ref.invalidate(fileListProvider(_currentPath));
+              await _loadFiles(reset: true);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: Text('Create',
@@ -343,7 +400,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ref
               .read(uploadTasksProvider.notifier)
               .updateTask(task.id, status: UploadStatus.completed);
-          ref.invalidate(fileListProvider(_currentPath));
+          _loadFiles(reset: true);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -384,7 +441,6 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   @override
   Widget build(BuildContext context) {
-    final filesAsync = ref.watch(fileListProvider(_currentPath));
     final uploads = ref.watch(uploadTasksProvider);
 
     return Stack(
@@ -451,27 +507,27 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
             // File list
             Expanded(
-              child: filesAsync.when(
-                data: (files) => _buildFileList(files),
-                loading: () => const Center(
+              child: _initialLoading
+                  ? const Center(
                   child: CircularProgressIndicator(color: CubieColors.primary),
-                ),
-                error: (e, _) => Center(
+                )
+                  : _error != null
+                      ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.error_outline_rounded,
                           size: 48, color: CubieColors.error),
                       const SizedBox(height: 12),
-                      Text('Error: $e',
+                      Text('Error: $_error',
                           style: GoogleFonts.dmSans(color: CubieColors.error)),
                       const SizedBox(height: 12),
                       OutlinedButton(
                           onPressed: _refresh, child: const Text('Retry')),
                     ],
                   ),
-                ),
-              ),
+                )
+                      : _buildFileList(_items),
             ),
           ],
         ),
@@ -515,12 +571,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
       );
     }
 
-    // Sort: directories first, then alphabetically
-    final sorted = [...files]..sort((a, b) {
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+    final sorted = [...files];
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -528,8 +579,29 @@ class _FolderViewState extends ConsumerState<FolderView> {
       backgroundColor: CubieColors.card,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
-        itemCount: sorted.length,
+        itemCount: sorted.length + 1,
         itemBuilder: (_, i) {
+          if (i == sorted.length) {
+            final canLoadMore = sorted.length < _totalCount;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: canLoadMore && !_loadingMore ? _loadMore : null,
+                  child: _loadingMore
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(canLoadMore
+                          ? 'Load more (${sorted.length}/$_totalCount)'
+                          : 'All items loaded ($_totalCount)'),
+                ),
+              ),
+            );
+          }
           final file = sorted[i];
           return FileListTile(
             file: file,

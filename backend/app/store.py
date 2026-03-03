@@ -12,12 +12,35 @@ import asyncio
 from typing import Any, Dict, List, Optional
 import os
 import tempfile
+import time
 
 from .config import settings
 
 
 # Async lock to protect concurrent access to JSON files from async handlers
 _store_lock = asyncio.Lock()
+
+_CACHE_TTL = 1.0
+_cache: dict[str, tuple[Any, float]] = {}
+
+
+def _get_cached(key: str) -> Any:
+    item = _cache.get(key)
+    if item is None:
+        return None
+
+    value, expires_at = item
+    if time.monotonic() > expires_at:
+        _cache.pop(key, None)
+        return None
+    return value
+
+
+def _set_cached(key: str, value: Any) -> None:
+    if value is None:
+        _cache.pop(key, None)
+        return
+    _cache[key] = (value, time.monotonic() + _CACHE_TTL)
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -61,12 +84,19 @@ def _write_json(path: Path, data: Any) -> None:
 
 async def get_users() -> List[dict]:
     """Return the list of users, protected by the store lock."""
+    cached = _get_cached("users")
+    if cached is not None:
+        return cached
+
     async with _store_lock:
-        return _read_json(settings.users_file, [])
+        users = _read_json(settings.users_file, [])
+        _set_cached("users", users)
+        return users
 
 
 async def save_users(users: List[dict]) -> None:
     """Persist users to disk using an async lock to prevent concurrent writes."""
+    _set_cached("users", None)
     async with _store_lock:
         _write_json(settings.users_file, users)
 
@@ -145,16 +175,23 @@ _DEFAULT_SERVICES = [
 
 async def get_services() -> List[dict]:
     """Return services list, creating defaults if missing."""
+    cached = _get_cached("services")
+    if cached is not None:
+        return cached
+
     async with _store_lock:
         services = _read_json(settings.services_file, None)
         if services is None:
             _write_json(settings.services_file, _DEFAULT_SERVICES)
+            _set_cached("services", _DEFAULT_SERVICES)
             return _DEFAULT_SERVICES
+        _set_cached("services", services)
         return services
 
 
 async def save_services(services: List[dict]) -> None:
     """Persist services list to disk under lock."""
+    _set_cached("services", None)
     async with _store_lock:
         _write_json(settings.services_file, services)
 
@@ -191,17 +228,25 @@ def update_device_name(name: str) -> None:
 
 async def get_storage_state() -> dict:
     """Read persisted storage mount info (activeDevice, mountedAt, etc.)."""
+    cached = _get_cached("storage_state")
+    if cached is not None:
+        return cached
+
     async with _store_lock:
-        return _read_json(settings.storage_file, {})
+        state = _read_json(settings.storage_file, {})
+        _set_cached("storage_state", state)
+        return state
 
 
 async def save_storage_state(state: dict) -> None:
     """Persist storage mount info to disk."""
+    _set_cached("storage_state", None)
     async with _store_lock:
         _write_json(settings.storage_file, state)
 
 
 async def clear_storage_state() -> None:
     """Clear persisted storage state (after unmount)."""
+    _set_cached("storage_state", None)
     async with _store_lock:
         _write_json(settings.storage_file, {})

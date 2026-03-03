@@ -22,6 +22,7 @@ from ..models import (
     StorageDevice,
     StorageStats,
 )
+from ..job_store import JobStatus, create_job, update_job
 from .. import store
 from ..subprocess_runner import run_command
 from .event_routes import emit_device_mounted, emit_device_ejected
@@ -392,22 +393,43 @@ async def format_device(
     if target.get("mountpoint"):
         raise HTTPException(409, "Device is currently mounted — unmount first")
 
-    logger.warning("FORMATTING %s as ext4 (label=%s)", req.device, req.label)
+    job = create_job()
+    update_job(job.id, status=JobStatus.running)
 
-    rc, _, stderr = await run_command([
-        "mkfs.ext4", "-F", "-L", req.label, req.device
-    ], timeout=600)
+    async def _run_format_job() -> None:
+        try:
+            logger.warning("FORMATTING %s as ext4 (label=%s)", req.device, req.label)
 
-    if rc != 0:
-        raise HTTPException(500, f"Format failed: {stderr}")
+            rc, _, stderr = await run_command([
+                "mkfs.ext4", "-F", "-L", req.label, req.device
+            ], timeout=600)
 
-    logger.info("Formatted %s successfully", req.device)
-    return {
-        "status": "formatted",
-        "device": req.device,
-        "fstype": "ext4",
-        "label": req.label,
-    }
+            if rc != 0:
+                update_job(job.id, status=JobStatus.failed, error=f"Format failed: {stderr}")
+                return
+
+            update_job(
+                job.id,
+                status=JobStatus.completed,
+                result={
+                    "status": "formatted",
+                    "device": req.device,
+                    "fstype": "ext4",
+                    "label": req.label,
+                },
+            )
+            logger.info("Formatted %s successfully", req.device)
+        except Exception as e:
+            update_job(job.id, status=JobStatus.failed, error=str(e))
+
+    async def _run_with_timeout() -> None:
+        try:
+            await asyncio.wait_for(_run_format_job(), timeout=600)
+        except asyncio.TimeoutError:
+            update_job(job.id, status=JobStatus.failed, error="Format job timed out after 10 minutes")
+
+    asyncio.create_task(_run_with_timeout())
+    return {"jobId": job.id}
 
 
 # ── 2A.4  Mount ──────────────────────────────────────────────────────────────

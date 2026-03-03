@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,11 +25,25 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   List<StorageDevice>? _devices;
   String? _error;
   String? _busyDevice; // device currently being acted on
+  String? _formatJobId;
+  DateTime? _formatStartedAt;
+  String _formatStatus = '';
+  Timer? _jobPollTimer;
+  Timer? _elapsedTimer;
+
+  bool get _formatInProgress => _formatJobId != null;
 
   @override
   void initState() {
     super.initState();
     _loadDevices();
+  }
+
+  @override
+  void dispose() {
+    _jobPollTimer?.cancel();
+    _elapsedTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDevices() async {
@@ -128,6 +144,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
+          if (_formatInProgress) ...[
+            _buildFormatProgressCard(),
+            const SizedBox(height: 12),
+          ],
+
           // ── External storage ───────────────────────────────────────────
           if (external_.isEmpty)
             _emptyExternalBanner()
@@ -352,19 +373,116 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       if (confirmed != true || !mounted) return;
       setState(() => _busyDevice = dev.path);
       try {
-        await ref.read(apiServiceProvider).formatDevice(
+        final started = await ref.read(apiServiceProvider).startFormatJob(
               dev.path,
               labelCtrl.text.trim().isEmpty ? 'CubieNAS' : labelCtrl.text.trim(),
               dev.path,
             );
-        _showSnack('${dev.name} formatted as ext4');
-        await _loadDevices();
+
+        final jobId = started['jobId'] as String?;
+        if (jobId == null || jobId.isEmpty) {
+          throw Exception('Format job start returned no jobId');
+        }
+
+        _startFormatPolling(jobId);
+        _showSnack('Format started for ${dev.name}. Tracking progress…');
       } catch (e) {
         _showSnack('Format failed: $e', isError: true);
       } finally {
         if (mounted) setState(() => _busyDevice = null);
       }
     });
+  }
+
+  void _startFormatPolling(String jobId) {
+    _jobPollTimer?.cancel();
+    _elapsedTimer?.cancel();
+
+    setState(() {
+      _formatJobId = jobId;
+      _formatStartedAt = DateTime.now();
+      _formatStatus = 'running';
+    });
+
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _formatInProgress) {
+        setState(() {});
+      }
+    });
+
+    _jobPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final id = _formatJobId;
+      if (id == null) return;
+      try {
+        final status = await ref.read(apiServiceProvider).getJobStatus(id);
+        if (!mounted) return;
+
+        setState(() {
+          _formatStatus = status.status;
+          _formatStartedAt ??= status.startedAt;
+        });
+
+        if (status.status == 'completed') {
+          _jobPollTimer?.cancel();
+          _elapsedTimer?.cancel();
+          setState(() {
+            _formatJobId = null;
+            _formatStatus = '';
+          });
+          _showSnack('Format completed successfully');
+          await _loadDevices();
+          return;
+        }
+
+        if (status.status == 'failed') {
+          _jobPollTimer?.cancel();
+          _elapsedTimer?.cancel();
+          setState(() {
+            _formatJobId = null;
+            _formatStatus = '';
+          });
+          _showSnack('Format failed: ${status.error ?? 'Unknown error'}',
+              isError: true);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        _showSnack('Job polling error: $e', isError: true);
+      }
+    });
+  }
+
+  Widget _buildFormatProgressCard() {
+    final started = _formatStartedAt;
+    final elapsed =
+        started == null ? Duration.zero : DateTime.now().difference(started);
+    final mm = elapsed.inMinutes.toString().padLeft(2, '0');
+    final ss = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+
+    return CubieCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Formatting in progress',
+            style: GoogleFonts.sora(
+              color: CubieColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Status: ${_formatStatus.isEmpty ? 'running' : _formatStatus} • Elapsed: $mm:$ss',
+            style: GoogleFonts.dmSans(
+              color: CubieColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const LinearProgressIndicator(minHeight: 4),
+        ],
+      ),
+    );
   }
 
   Future<bool?> _showBlockerDialog(List blockers) {

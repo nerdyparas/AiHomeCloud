@@ -29,6 +29,9 @@ class CubieConstants {
   static const String prefUserPin = 'user_pin';
   static const String prefIsSetupDone = 'is_setup_done';
   static const String prefAuthToken = 'auth_token';
+  static const String prefRefreshToken = 'refresh_token';
+  static const String prefDevicePort = 'device_port';
+  static const String prefIsAdmin = 'is_admin';
 
   // ── Storage ────────────────────────────────────────────────────────────────
   static const double totalStorageGB = 500.0;

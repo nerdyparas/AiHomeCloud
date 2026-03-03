@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -5,6 +7,7 @@ import 'core/constants.dart';
 import 'models/models.dart';
 import 'services/discovery_service.dart';
 import 'services/api_service.dart';
+import 'services/auth_session.dart';
 
 // ─── Core singletons ───────────────────────────────────────────────────────
 
@@ -12,8 +15,18 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Override in ProviderScope at app start');
 });
 
+final authSessionProvider =
+    StateNotifierProvider<AuthSessionNotifier, AuthSession?>((ref) {
+  final prefs = ref.read(sharedPreferencesProvider);
+  return AuthSessionNotifier(prefs);
+});
+
 final apiServiceProvider = Provider<ApiService>((ref) {
-  return ApiService.instance;
+  final api = ApiService.instance;
+  api.bindSessionResolver(() => ref.read(authSessionProvider));
+  api.bindConnectionStatusCallback(
+      (status) => ref.read(connectionProvider.notifier).setStatus(status));
+  return api;
 });
 
 final discoveryServiceProvider = Provider<DiscoveryService>((ref) {
@@ -25,26 +38,6 @@ final discoveryServiceProvider = Provider<DiscoveryService>((ref) {
 final isSetupDoneProvider = StateProvider<bool>((ref) {
   final prefs = ref.read(sharedPreferencesProvider);
   return prefs.getBool(CubieConstants.prefIsSetupDone) ?? false;
-});
-
-final authTokenProvider = StateProvider<String?>((ref) {
-  final prefs = ref.read(sharedPreferencesProvider);
-  return prefs.getString(CubieConstants.prefAuthToken);
-});
-
-final currentUserNameProvider = StateProvider<String?>((ref) {
-  final prefs = ref.read(sharedPreferencesProvider);
-  return prefs.getString(CubieConstants.prefUserName);
-});
-
-final deviceIpProvider = StateProvider<String?>((ref) {
-  final prefs = ref.read(sharedPreferencesProvider);
-  return prefs.getString(CubieConstants.prefDeviceIp);
-});
-
-final deviceSerialProvider = StateProvider<String?>((ref) {
-  final prefs = ref.read(sharedPreferencesProvider);
-  return prefs.getString(CubieConstants.prefDeviceSerial);
 });
 
 // ─── Device info ────────────────────────────────────────────────────────────
@@ -59,6 +52,54 @@ final deviceInfoProvider = FutureProvider<CubieDevice>((ref) async {
 final systemStatsStreamProvider = StreamProvider<SystemStats>((ref) {
   final api = ref.read(apiServiceProvider);
   return api.monitorSystemStats();
+});
+
+class ConnectionNotifier extends StateNotifier<ConnectionStatus> {
+  ConnectionNotifier() : super(ConnectionStatus.connected);
+
+  Timer? _debounceTimer;
+  final List<int> reconnectBackoff = [2, 4, 8, 16, 30];
+  int _attempt = 0;
+
+  int get currentBackoffSeconds => reconnectBackoff[_attempt.clamp(0, reconnectBackoff.length - 1)];
+
+  void markConnected() {
+    _debounceTimer?.cancel();
+    _attempt = 0;
+    state = ConnectionStatus.connected;
+  }
+
+  void markReconnectStart() {
+    _debounceTimer?.cancel();
+    state = ConnectionStatus.reconnecting;
+    _debounceTimer = Timer(const Duration(seconds: 10), () {
+      state = ConnectionStatus.disconnected;
+      if (_attempt < reconnectBackoff.length - 1) {
+        _attempt += 1;
+      }
+    });
+  }
+
+  void setStatus(ConnectionStatus status) {
+    if (status == ConnectionStatus.connected) {
+      markConnected();
+    } else if (status == ConnectionStatus.reconnecting) {
+      markReconnectStart();
+    } else {
+      state = ConnectionStatus.disconnected;
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+}
+
+final connectionProvider =
+    StateNotifierProvider<ConnectionNotifier, ConnectionStatus>((ref) {
+  return ConnectionNotifier();
 });
 
 // ─── Storage ────────────────────────────────────────────────────────────────
@@ -78,10 +119,32 @@ final storageDevicesProvider =
 
 // ─── Files (parameterised by path) ──────────────────────────────────────────
 
+class FileListQuery {
+  final String path;
+  final int page;
+  final int pageSize;
+  final String sortBy;
+  final String sortDir;
+
+  const FileListQuery({
+    required this.path,
+    this.page = 0,
+    this.pageSize = 50,
+    this.sortBy = 'name',
+    this.sortDir = 'asc',
+  });
+}
+
 final fileListProvider =
-    FutureProvider.family<List<FileItem>, String>((ref, path) async {
+    FutureProvider.family<FileListResponse, FileListQuery>((ref, q) async {
   final api = ref.read(apiServiceProvider);
-  return api.listFiles(path);
+  return api.listFiles(
+    q.path,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortDir: q.sortDir,
+  );
 });
 
 // ─── Family ─────────────────────────────────────────────────────────────────
@@ -206,10 +269,11 @@ class DiscoveryState {
 }
 
 class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
+  final Ref _ref;
   final DiscoveryService _discovery;
   final ApiService _api;
 
-  DiscoveryNotifier(this._discovery, this._api)
+  DiscoveryNotifier(this._ref, this._discovery, this._api)
       : super(const DiscoveryState());
 
   Future<void> startDiscovery(String serial, String key) async {
@@ -226,7 +290,16 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
       state = state.copyWith(statusMessage: 'Pairing with device…');
 
       // Pair with device
-      await _api.pairDevice(serial, key);
+      final token = await _api.pairDevice(serial, key, hostOverride: result.ip);
+
+      await _ref.read(authSessionProvider.notifier).login(
+            host: result.ip,
+            port: CubieConstants.apiPort,
+            token: token,
+            refreshToken: null,
+            username: '',
+            isAdmin: true,
+          );
 
       state = state.copyWith(
         status: DiscoveryStatus.found,
@@ -248,6 +321,7 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
 final discoveryNotifierProvider =
     StateNotifierProvider<DiscoveryNotifier, DiscoveryState>((ref) {
   return DiscoveryNotifier(
+    ref,
     ref.read(discoveryServiceProvider),
     ref.read(apiServiceProvider),
   );

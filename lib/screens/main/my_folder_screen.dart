@@ -11,7 +11,10 @@ class MyFolderScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserNameProvider) ?? 'user';
+    final session = ref.watch(authSessionProvider);
+    final user = (session?.username.isNotEmpty ?? false)
+      ? session!.username
+      : 'user';
     final path = '${CubieConstants.personalBasePath}$user/';
 
     return FolderView(

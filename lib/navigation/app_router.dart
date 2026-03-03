@@ -15,11 +15,29 @@ import '../screens/onboarding/qr_scan_screen.dart';
 import '../screens/onboarding/setup_complete_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
 import '../screens/onboarding/welcome_screen.dart';
+import '../providers.dart';
 import 'main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final authSession = ref.watch(authSessionProvider);
+
   return GoRouter(
     initialLocation: '/',
+    redirect: (_, state) {
+      final loc = state.matchedLocation;
+      final onOnboarding =
+          loc == '/' || loc == '/welcome' || loc == '/qr-scan' || loc == '/discovery' || loc == '/setup';
+
+      if (authSession == null && !onOnboarding) {
+        return '/welcome';
+      }
+
+      if (authSession != null && onOnboarding) {
+        return '/dashboard';
+      }
+
+      return null;
+    },
     routes: [
       // ── Onboarding ────────────────────────────────────────────────────────
       GoRoute(path: '/', builder: (_, __) => const SplashScreen()),

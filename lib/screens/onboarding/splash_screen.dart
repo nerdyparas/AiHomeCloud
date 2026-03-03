@@ -24,8 +24,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _navigate() async {
     await Future.delayed(const Duration(milliseconds: 2500));
     if (!mounted) return;
-    final done = ref.read(isSetupDoneProvider);
-    if (done) {
+    final session = ref.read(authSessionProvider);
+    if (session != null) {
       context.go('/dashboard');
     } else {
       context.go('/welcome');

@@ -9,6 +9,7 @@ import 'package:web_socket_channel/io.dart';
 
 import '../core/constants.dart';
 import '../models/models.dart';
+import 'auth_session.dart';
 
 /// Real API service — talks to the CubieCloud backend running on the device.
 ///
@@ -18,9 +19,8 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
-  /// Set after pairing / loaded from SharedPreferences.
-  String? _host;
-  String? _token;
+  AuthSession? Function()? _sessionResolver;
+  void Function(ConnectionStatus status)? _connectionStatusCallback;
 
   /// HTTP client that trusts self-signed certificates.
   late final http.Client _client = _createTlsClient();
@@ -32,22 +32,32 @@ class ApiService {
     return IOClient(httpClient);
   }
 
-  /// Call once after discovery or on app start from saved prefs.
-  void configure({required String host, String? token}) {
-    _host = host;
-    _token = token;
+  void bindSessionResolver(AuthSession? Function() resolver) {
+    _sessionResolver = resolver;
   }
 
-  void setToken(String token) => _token = token;
+  void bindConnectionStatusCallback(
+      void Function(ConnectionStatus status) callback) {
+    _connectionStatusCallback = callback;
+  }
 
   /// Connection timeout for all HTTP requests.
   static const _timeout = Duration(seconds: 10);
 
-  String get _baseUrl => 'https://$_host:${CubieConstants.apiPort}';
+  AuthSession? get _session => _sessionResolver?.call();
+
+  String get _baseUrl {
+    final host = _session?.host;
+    final port = _session?.port ?? CubieConstants.apiPort;
+    if (host == null || host.isEmpty) {
+      throw StateError('Host is not configured in auth session');
+    }
+    return 'https://$host:$port';
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
+        if (_session?.token != null) 'Authorization': 'Bearer ${_session!.token}',
       };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -70,16 +80,20 @@ class ApiService {
   // ──────────────────────────────────────────────────────────────────────────
 
   /// POST /api/v1/pair  body: {serial, key}
-  Future<String> pairDevice(String serial, String key) async {
+  Future<String> pairDevice(String serial, String key, {String? hostOverride}) async {
+    final host = hostOverride ?? _session?.host;
+    if (host == null || host.isEmpty) {
+      throw StateError('Host is required to pair device');
+    }
+    final base = 'https://$host:${CubieConstants.apiPort}';
     final res = await _client.post(
-      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/pair'),
+      Uri.parse('$base${CubieConstants.apiVersion}/pair'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'serial': serial, 'key': key}),
     ).timeout(_timeout);
     _check(res);
     final data = jsonDecode(res.body);
-    _token = data['token'];
-    return _token!;
+    return data['token'] as String;
   }
 
   /// POST /api/v1/users  body: {name, pin}
@@ -99,7 +113,6 @@ class ApiService {
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
-    _token = null;
   }
 
   /// PUT /api/v1/users/pin  body: {oldPin, newPin}
@@ -134,41 +147,80 @@ class ApiService {
 
   /// WebSocket /ws/monitor — streams SystemStats every 2 s.
   Stream<SystemStats> monitorSystemStats() {
-    final uri = Uri.parse('wss://$_host:${CubieConstants.apiPort}/ws/monitor');
+    final host = _session?.host;
+    final port = _session?.port ?? CubieConstants.apiPort;
+    if (host == null || host.isEmpty) {
+      throw StateError('Host is not configured in auth session');
+    }
+    final uri = Uri.parse('wss://$host:$port/ws/monitor');
     final channel = IOWebSocketChannel.connect(
       uri,
       customClient: HttpClient()..badCertificateCallback = (_, __, ___) => true,
     );
 
-    return channel.stream.map((raw) {
-      final data = jsonDecode(raw as String);
-      return SystemStats(
-        cpuPercent: (data['cpuPercent'] as num).toDouble(),
-        ramPercent: (data['ramPercent'] as num).toDouble(),
-        tempCelsius: (data['tempCelsius'] as num).toDouble(),
-        uptime: Duration(seconds: data['uptimeSeconds'] as int),
-        networkUpMbps: (data['networkUpMbps'] as num).toDouble(),
-        networkDownMbps: (data['networkDownMbps'] as num).toDouble(),
-        storage: StorageStats(
-          totalGB: (data['storage']['totalGB'] as num).toDouble(),
-          usedGB: (data['storage']['usedGB'] as num).toDouble(),
-        ),
-      );
-    });
+    _connectionStatusCallback?.call(ConnectionStatus.connected);
+    final ctrl = StreamController<SystemStats>();
+    channel.stream.listen(
+      (raw) {
+        _connectionStatusCallback?.call(ConnectionStatus.connected);
+        final data = jsonDecode(raw as String);
+        ctrl.add(SystemStats(
+          cpuPercent: (data['cpuPercent'] as num).toDouble(),
+          ramPercent: (data['ramPercent'] as num).toDouble(),
+          tempCelsius: (data['tempCelsius'] as num).toDouble(),
+          uptime: Duration(seconds: data['uptimeSeconds'] as int),
+          networkUpMbps: (data['networkUpMbps'] as num).toDouble(),
+          networkDownMbps: (data['networkDownMbps'] as num).toDouble(),
+          storage: StorageStats(
+            totalGB: (data['storage']['totalGB'] as num).toDouble(),
+            usedGB: (data['storage']['usedGB'] as num).toDouble(),
+          ),
+        ));
+      },
+      onError: (e, st) {
+        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        ctrl.addError(e, st);
+      },
+      onDone: () {
+        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        ctrl.close();
+      },
+      cancelOnError: false,
+    );
+    return ctrl.stream;
   }
 
   /// WebSocket /ws/events — real-time notification stream from the backend.
   Stream<AppNotification> notificationStream() {
-    final uri = Uri.parse('wss://$_host:${CubieConstants.apiPort}/ws/events');
+    final host = _session?.host;
+    final port = _session?.port ?? CubieConstants.apiPort;
+    if (host == null || host.isEmpty) {
+      throw StateError('Host is not configured in auth session');
+    }
+    final uri = Uri.parse('wss://$host:$port/ws/events');
     final channel = IOWebSocketChannel.connect(
       uri,
       customClient: HttpClient()..badCertificateCallback = (_, __, ___) => true,
     );
 
-    return channel.stream.map((raw) {
-      final data = jsonDecode(raw as String);
-      return AppNotification.fromJson(data);
-    });
+    final ctrl = StreamController<AppNotification>();
+    channel.stream.listen(
+      (raw) {
+        _connectionStatusCallback?.call(ConnectionStatus.connected);
+        final data = jsonDecode(raw as String);
+        ctrl.add(AppNotification.fromJson(data));
+      },
+      onError: (e, st) {
+        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        ctrl.addError(e, st);
+      },
+      onDone: () {
+        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        ctrl.close();
+      },
+      cancelOnError: false,
+    );
+    return ctrl.stream;
   }
 
   /// GET /api/v1/storage/stats
@@ -208,7 +260,7 @@ class ApiService {
   }
 
   /// POST /api/v1/storage/format  body: {device, label, confirmDevice}
-  Future<Map<String, dynamic>> formatDevice(
+  Future<Map<String, dynamic>> startFormatJob(
       String device, String label, String confirmDevice) async {
     final res = await _client.post(
       Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/format'),
@@ -221,6 +273,16 @@ class ApiService {
     ).timeout(const Duration(seconds: 120));
     _check(res);
     return jsonDecode(res.body);
+  }
+
+  /// GET /api/v1/jobs/<id>
+  Future<JobStatus> getJobStatus(String jobId) async {
+    final res = await _client.get(
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/jobs/$jobId'),
+      headers: _headers,
+    ).timeout(_timeout);
+    _check(res);
+    return JobStatus.fromJson(jsonDecode(res.body));
   }
 
   /// POST /api/v1/storage/mount  body: {device}
@@ -299,15 +361,28 @@ class ApiService {
   // ──────────────────────────────────────────────────────────────────────────
 
   /// GET /api/v1/files/list?path=<path>
-  Future<List<FileItem>> listFiles(String path) async {
+  Future<FileListResponse> listFiles(
+    String path, {
+    int page = 0,
+    int pageSize = 50,
+    String sortBy = 'name',
+    String sortDir = 'asc',
+  }) async {
     final res = await _client.get(
       Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/list')
-          .replace(queryParameters: {'path': path}),
+          .replace(queryParameters: {
+        'path': path,
+        'page': '$page',
+        'page_size': '$pageSize',
+        'sort_by': sortBy,
+        'sort_dir': sortDir,
+      }),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
-    final List<dynamic> list = jsonDecode(res.body);
-    return list.map((item) {
+    final Map<String, dynamic> body = jsonDecode(res.body);
+    final List<dynamic> list = body['items'] as List<dynamic>;
+    final items = list.map((item) {
       return FileItem(
         name: item['name'],
         path: item['path'],
@@ -317,6 +392,13 @@ class ApiService {
         mimeType: item['mimeType'],
       );
     }).toList();
+
+    return FileListResponse(
+      items: items,
+      totalCount: (body['totalCount'] as num?)?.toInt() ?? items.length,
+      page: (body['page'] as num?)?.toInt() ?? page,
+      pageSize: (body['pageSize'] as num?)?.toInt() ?? pageSize,
+    );
   }
 
   /// POST /api/v1/files/mkdir  body: {path}
@@ -385,7 +467,10 @@ class ApiService {
             .replace(queryParameters: {'path': destinationPath});
 
         final request = http.MultipartRequest('POST', uri);
-        request.headers['Authorization'] = 'Bearer $_token';
+        final token = _session?.token;
+        if (token != null) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
 
         if (filePath != null) {
           // Real file from device

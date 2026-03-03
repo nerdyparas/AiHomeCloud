@@ -23,6 +23,7 @@ from .routes import (
     system_routes,
     monitor_routes,
     file_routes,
+    jobs_routes,
     family_routes,
     service_routes,
     storage_routes,
@@ -133,6 +134,7 @@ app.include_router(auth_routes.router)
 app.include_router(system_routes.router)
 app.include_router(monitor_routes.router)
 app.include_router(file_routes.router)
+app.include_router(jobs_routes.router)
 app.include_router(family_routes.router)
 app.include_router(service_routes.router)
 app.include_router(storage_routes.router)

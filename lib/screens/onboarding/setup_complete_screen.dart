@@ -43,23 +43,27 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
       // Get discovery state for the real device IP
       final discovery = ref.read(discoveryNotifierProvider);
       final deviceIp = discovery.deviceIp ?? '192.168.0.212';
+      final previous = ref.read(authSessionProvider);
 
-      // Persist to SharedPreferences
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString(CubieConstants.prefUserName, _nameCtrl.text.trim());
       if (_pinCtrl.text.isNotEmpty) {
         await prefs.setString(CubieConstants.prefUserPin, _pinCtrl.text);
       }
-      await prefs.setString(CubieConstants.prefDeviceIp, deviceIp);
-      final serial = ref.read(deviceSerialProvider) ?? 'CUBIE-A7A-2025-001';
-      await prefs.setString(CubieConstants.prefDeviceSerial, serial);
+      await prefs.setString(
+          CubieConstants.prefDeviceSerial,
+          prefs.getString(CubieConstants.prefDeviceSerial) ??
+              'CUBIE-A7A-2025-001');
       await prefs.setString(CubieConstants.prefDeviceName, 'My CubieCloud');
-      // Token is already set in ApiService from the pairing step
-      await prefs.setBool(CubieConstants.prefIsSetupDone, true);
 
-      // Update in-memory providers
-      ref.read(currentUserNameProvider.notifier).state = _nameCtrl.text.trim();
-      ref.read(deviceIpProvider.notifier).state = deviceIp;
+      await ref.read(authSessionProvider.notifier).login(
+            host: deviceIp,
+            port: previous?.port ?? CubieConstants.apiPort,
+            token: previous?.token ?? '',
+            refreshToken: previous?.refreshToken,
+            username: _nameCtrl.text.trim(),
+            isAdmin: true,
+          );
+
       ref.read(isSetupDoneProvider.notifier).state = true;
 
       if (mounted) context.go('/dashboard');

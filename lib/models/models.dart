@@ -63,6 +63,8 @@ class SystemStats {
   });
 }
 
+enum ConnectionStatus { connected, reconnecting, disconnected }
+
 // ─── FileItem ───────────────────────────────────────────────────────────────
 
 class FileItem {
@@ -125,6 +127,20 @@ class FileItem {
       _ => const Color(0xFF7A8499),
     };
   }
+}
+
+class FileListResponse {
+  final List<FileItem> items;
+  final int totalCount;
+  final int page;
+  final int pageSize;
+
+  const FileListResponse({
+    required this.items,
+    required this.totalCount,
+    required this.page,
+    required this.pageSize,
+  });
 }
 
 // ─── FamilyUser ─────────────────────────────────────────────────────────────
@@ -382,6 +398,34 @@ class NetworkStatus {
       lanConnected: json['lanConnected'] as bool,
       lanIp: json['lanIp'] as String?,
       lanSpeed: json['lanSpeed'] as String?,
+    );
+  }
+}
+
+class JobStatus {
+  final String id;
+  final String status;
+  final DateTime startedAt;
+  final Map<String, dynamic>? result;
+  final String? error;
+
+  const JobStatus({
+    required this.id,
+    required this.status,
+    required this.startedAt,
+    this.result,
+    this.error,
+  });
+
+  bool get isTerminal => status == 'completed' || status == 'failed';
+
+  factory JobStatus.fromJson(Map<String, dynamic> json) {
+    return JobStatus(
+      id: json['id'] as String,
+      status: json['status'] as String,
+      startedAt: DateTime.parse(json['startedAt'] as String),
+      result: json['result'] as Map<String, dynamic>?,
+      error: json['error'] as String?,
     );
   }
 }

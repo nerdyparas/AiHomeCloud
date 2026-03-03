@@ -27,7 +27,10 @@ class DashboardScreen extends ConsumerWidget {
     final deviceAsync = ref.watch(deviceInfoProvider);
     final statsAsync = ref.watch(systemStatsStreamProvider);
     final storageAsync = ref.watch(storageDevicesProvider);
-    final userName = ref.watch(currentUserNameProvider) ?? 'User';
+    final session = ref.watch(authSessionProvider);
+    final userName = (session?.username.isNotEmpty ?? false)
+      ? session!.username
+      : 'User';
 
     return Scaffold(
       backgroundColor: CubieColors.background,

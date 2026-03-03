@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme.dart';
+import '../models/models.dart';
+import '../providers.dart';
 import '../widgets/notification_listener.dart';
 
 /// Persistent bottom navigation bar shell used by the main app routes.
@@ -23,10 +25,39 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final idx = _indexOf(context);
+    final connection = ref.watch(connectionProvider);
 
     return CubieNotificationOverlay(
       child: Scaffold(
-        body: child,
+        body: Column(
+          children: [
+            if (connection == ConnectionStatus.reconnecting)
+              Container(
+                width: double.infinity,
+                color: CubieColors.primary.withValues(alpha: 0.18),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Reconnecting…'),
+                  ],
+                ),
+              ),
+            if (connection == ConnectionStatus.disconnected)
+              Container(
+                width: double.infinity,
+                color: CubieColors.error.withValues(alpha: 0.2),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: const Text('Disconnected from device'),
+              ),
+            Expanded(child: child),
+          ],
+        ),
         bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(

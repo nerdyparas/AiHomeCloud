@@ -48,16 +48,17 @@ void main() async {
   const devMode = true;
   if (devMode && !prefs.containsKey(CubieConstants.prefIsSetupDone)) {
     const cubieIp = '192.168.0.212';
-    ApiService.instance.configure(host: cubieIp);
     // Pair to get a real JWT
     try {
       debugPrint('[DEV] Pairing with Cubie at $cubieIp:${CubieConstants.apiPort}…');
       final token = await ApiService.instance
-          .pairDevice('CUBIE-A7A-2025-001', 'your-pairing-key');
+        .pairDevice('CUBIE-A7A-2025-001', 'your-pairing-key', hostOverride: cubieIp);
       debugPrint('[DEV] ✅ Paired! Token: ${token.substring(0, 20)}…');
       await prefs.setString(CubieConstants.prefDeviceIp, cubieIp);
+      await prefs.setInt(CubieConstants.prefDevicePort, CubieConstants.apiPort);
       await prefs.setString(CubieConstants.prefAuthToken, token);
       await prefs.setString(CubieConstants.prefUserName, 'paras');
+      await prefs.setBool(CubieConstants.prefIsAdmin, true);
       await prefs.setString(
           CubieConstants.prefDeviceSerial, 'CUBIE-A7A-2025-001');
       await prefs.setString(CubieConstants.prefDeviceName, 'My CubieCloud');
@@ -68,13 +69,6 @@ void main() async {
     }
   }
   // ── END DEV SHORTCUT ──────────────────────────────────────────────────
-
-  // Configure the real API service with saved host/token if available
-  final savedHost = prefs.getString(CubieConstants.prefDeviceIp);
-  final savedToken = prefs.getString(CubieConstants.prefAuthToken);
-  if (savedHost != null) {
-    ApiService.instance.configure(host: savedHost, token: savedToken);
-  }
 
   runApp(
     ProviderScope(

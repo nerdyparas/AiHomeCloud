@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 
 from ..auth import get_current_user
 from ..config import settings
-from ..models import CreateFolderRequest, FileItem, RenameRequest
+from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest
 from .event_routes import emit_upload_complete
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
@@ -56,9 +56,13 @@ def _file_item(p: Path, rel_prefix: str) -> dict:
     }
 
 
-@router.get("/list")
+@router.get("/list", response_model=FileListResponse)
 async def list_files(
     path: str = Query("/srv/nas/shared/"),
+    page: int = Query(0, ge=0),
+    page_size: int = Query(50, ge=1, le=500, alias="page_size"),
+    sort_by: str = Query("name"),
+    sort_dir: str = Query("asc"),
     user: dict = Depends(get_current_user),
 ):
     """List files and folders at the given NAS path."""
@@ -72,13 +76,44 @@ async def list_files(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path is not a directory")
 
     items = []
-    for child in sorted(resolved.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+    for child in resolved.iterdir():
         try:
             items.append(_file_item(child, path))
         except PermissionError:
             continue
 
-    return items
+    # Sort with stability guarantees for pagination.
+    reverse = sort_dir.lower() == "desc"
+    sort_key = sort_by.lower()
+
+    def _key_name(item: dict):
+        return ((item["name"] or "").casefold(), item["name"] or "")
+
+    def _key_modified(item: dict):
+        return item.get("modified") or ""
+
+    def _key_size(item: dict):
+        return item.get("sizeBytes") or 0
+
+    if sort_key == "modified":
+        items.sort(key=_key_modified, reverse=reverse)
+    elif sort_key == "size":
+        items.sort(key=_key_size, reverse=reverse)
+    else:
+        # 5E.3 requirement: stable tuple sort for names
+        items.sort(key=_key_name, reverse=reverse)
+
+    total_count = len(items)
+    start = page * page_size
+    end = start + page_size
+    paged = items[start:end]
+
+    return FileListResponse(
+        items=[FileItem(**i) for i in paged],
+        totalCount=total_count,
+        page=page,
+        pageSize=page_size,
+    )
 
 
 @router.post("/mkdir", status_code=status.HTTP_201_CREATED)
