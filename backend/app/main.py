@@ -12,7 +12,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
+from .config import settings, JWT_SECRET_FILE
+import os
 from .tls import ensure_tls_cert
 from .routes import (
     auth_routes,
@@ -44,10 +45,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("TLS cert generation failed, will run without TLS: %s", e)
 
-    print(f"CubieCloud backend starting on {settings.host}:{settings.port}")
-    print(f"  NAS root : {settings.nas_root}")
-    print(f"  Data dir : {settings.data_dir}")
-    print(f"  TLS      : {'enabled' if settings.tls_enabled else 'disabled'}")
+    logger.info("CubieCloud backend starting on %s:%s", settings.host, settings.port)
+    logger.info("  NAS root : %s", settings.nas_root)
+    logger.info("  Data dir : %s", settings.data_dir)
+    logger.info("  TLS      : %s", 'enabled' if settings.tls_enabled else 'disabled')
+
+    # Log JWT secret provenance without revealing the secret value
+    try:
+        if JWT_SECRET_FILE.exists():
+            logger.info("JWT secret loaded from %s", JWT_SECRET_FILE)
+        elif os.getenv("CUBIE_JWT_SECRET"):
+            logger.info("JWT secret provided via environment variable")
+        else:
+            logger.info("JWT secret: using default placeholder (insecure)")
+    except Exception:
+        logger.debug("Unable to check JWT secret file existence")
 
     # Auto-remount previously-mounted storage device
     try:
