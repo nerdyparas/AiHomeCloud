@@ -32,6 +32,7 @@ class CubieConstants {
   static const String prefRefreshToken = 'refresh_token';
   static const String prefDevicePort = 'device_port';
   static const String prefIsAdmin = 'is_admin';
+  static const String kCertFingerprintPrefKey = 'cubieFingerprint';
 
   // ── Storage ────────────────────────────────────────────────────────────────
   static const double totalStorageGB = 500.0;
