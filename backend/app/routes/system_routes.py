@@ -11,7 +11,7 @@ from ..config import settings
 from ..models import CubieDevice, FirmwareInfo, UpdateNameRequest
 from .. import store
 
-router = APIRouter(prefix="/api/system", tags=["system"])
+router = APIRouter(prefix="/api/v1/system", tags=["system"])
 
 
 def _get_local_ip() -> str:

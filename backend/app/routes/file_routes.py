@@ -16,7 +16,7 @@ from ..config import settings
 from ..models import CreateFolderRequest, FileItem, RenameRequest
 from .event_routes import emit_upload_complete
 
-router = APIRouter(prefix="/api/files", tags=["files"])
+router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
 
 def _safe_resolve(raw_path: str) -> Path:

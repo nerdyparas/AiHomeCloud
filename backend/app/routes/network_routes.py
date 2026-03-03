@@ -14,7 +14,7 @@ from ..models import NetworkStatus, ToggleRequest
 
 logger = logging.getLogger("cubie.network")
 
-router = APIRouter(prefix="/api/network", tags=["network"])
+router = APIRouter(prefix="/api/v1/network", tags=["network"]) 
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ class CubieConstants {
   // ── API ────────────────────────────────────────────────────────────────────
   static const int apiPort = 8443;
   static const String apiScheme = 'https';
+  static const String apiVersion = '/api/v1';
 
   // ── BLE ────────────────────────────────────────────────────────────────────
   static const String bleServiceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';

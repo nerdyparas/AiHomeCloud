@@ -10,7 +10,7 @@ from ..config import settings
 from ..models import AddFamilyUserRequest, FamilyUser
 from .. import store
 
-router = APIRouter(prefix="/api/users", tags=["users"])
+router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
 def _folder_size_gb(path: str) -> float:
@@ -35,7 +35,7 @@ _COLORS = ["FFE8A84C", "FF4C9BE8", "FF4CE88A", "FFE84CA8", "FF9B59B6", "FF1ABC9C
 @router.get("/family", response_model=list[FamilyUser])
 async def list_family(user: dict = Depends(get_current_user)):
     """List all family users on this Cubie."""
-    users = store.get_users()
+    users = await store.get_users()
     result = []
     for i, u in enumerate(users):
         personal_dir = settings.personal_path / u["name"]
@@ -57,8 +57,8 @@ async def add_family(body: AddFamilyUserRequest, user: dict = Depends(require_ad
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
 
-    new_user = store.add_user(body.name)
-    users = store.get_users()
+    new_user = await store.add_user(body.name)
+    users = await store.get_users()
     idx = len(users) - 1
 
     return FamilyUser(
@@ -73,5 +73,5 @@ async def add_family(body: AddFamilyUserRequest, user: dict = Depends(require_ad
 @router.delete("/family/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_family(user_id: str, user: dict = Depends(require_admin)):
     """Remove a family member."""
-    if not store.remove_user(user_id):
+    if not await store.remove_user(user_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")

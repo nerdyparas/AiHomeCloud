@@ -28,7 +28,7 @@ from .event_routes import emit_device_mounted, emit_device_ejected
 
 logger = logging.getLogger("cubie.storage")
 
-router = APIRouter(prefix="/api/storage", tags=["storage"])
+router = APIRouter(prefix="/api/v1/storage", tags=["storage"])
 
 # ── Size helpers ─────────────────────────────────────────────────────────────
 

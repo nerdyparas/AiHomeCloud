@@ -45,7 +45,7 @@ grep CUBIE_ /etc/systemd/system/cubie-backend.service
 TOKEN=$(curl -sk https://localhost:8443/api/pair \
   -H "Content-Type: application/json" \
   -d '{"serial":"CUBIE-A7A-2025-001","key":"your-pairing-key"}' \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+TOKEN=$(curl -sk https://localhost:8443/api/v1/pair \
 echo "Token: $TOKEN"
 ```
 
@@ -55,12 +55,12 @@ echo "Token: $TOKEN"
 # Check what network tools are available
 which nmcli bluetoothctl ip ethtool
 
-# Test GET /api/network/status
-curl -sk https://localhost:8443/api/network/status \
+# Test GET /api/v1/network/status
+curl -sk https://localhost:8443/api/v1/network/status \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 
 # Test WiFi toggle
-curl -sk -X POST https://localhost:8443/api/network/wifi \
+curl -sk -X POST https://localhost:8443/api/v1/network/wifi \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"enabled": false}' -w "\nHTTP %{http_code}\n"
@@ -71,10 +71,9 @@ nmcli general status
 nmcli device status
 
 # Test Bluetooth toggle
-curl -sk -X POST https://localhost:8443/api/network/bluetooth \
+curl -sk -X POST https://localhost:8443/api/v1/network/bluetooth \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"enabled": false}' -w "\nHTTP %{http_code}\n"
 
 # Check bluetoothctl directly
 bluetoothctl show
@@ -86,19 +85,18 @@ bluetoothctl show
 # What block devices exist?
 lsblk -J -b -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,LABEL,MODEL,TRAN,SERIAL
 
-# Test GET /api/storage/devices
-curl -sk https://localhost:8443/api/storage/devices \
+# Test GET /api/v1/storage/devices
+curl -sk https://localhost:8443/api/v1/storage/devices \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 
 # Test scan
-curl -sk https://localhost:8443/api/storage/scan \
+curl -sk https://localhost:8443/api/v1/storage/scan \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 
-# Identify a USB device to test with (e.g. /dev/sda1)
 # REPLACE /dev/sda1 with the actual device from lsblk output
 
 # Test format (DESTRUCTIVE — only on test USB!)
-curl -sk -X POST https://localhost:8443/api/storage/format \
+curl -sk -X POST https://localhost:8443/api/v1/storage/format \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"device":"/dev/sda1","label":"CubieNAS","confirmDevice":"/dev/sda1"}' \
@@ -108,7 +106,7 @@ curl -sk -X POST https://localhost:8443/api/storage/format \
 sudo mkfs.ext4 -F -L CubieNAS /dev/sda1
 
 # Test mount
-curl -sk -X POST https://localhost:8443/api/storage/mount \
+curl -sk -X POST https://localhost:8443/api/v1/storage/mount \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"device":"/dev/sda1"}' \
@@ -125,11 +123,11 @@ cat /var/lib/cubie/storage.json
 
 ```bash
 # List services
-curl -sk https://localhost:8443/api/services \
+curl -sk https://localhost:8443/api/v1/services \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 
 # Toggle samba
-curl -sk -X POST https://localhost:8443/api/services/samba/toggle \
+curl -sk -X POST https://localhost:8443/api/v1/services/samba/toggle \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"enabled": true}' -w "\nHTTP %{http_code}\n"
@@ -149,10 +147,10 @@ grep User /etc/systemd/system/cubie-backend.service
 
 # Check if cubie user has passwordless sudo
 sudo -l -U cubie
-
+curl -sk https://localhost:8443/api/v1/tls/fingerprint
 # If cubie can't run mount/umount/mkfs/systemctl without sudo,
 # that's why storage/service ops fail! Fix:
-sudo visudo -f /etc/sudoers.d/cubie
+curl -sk https://localhost:8443/api/v1/system/info \
 ```
 
 Add this line:
@@ -177,10 +175,10 @@ Files that need `sudo` prepended:
 ls -la /var/lib/cubie/tls/
 
 # Check TLS fingerprint endpoint
-curl -sk https://localhost:8443/api/tls/fingerprint
+curl -sk https://localhost:8443/api/v1/tls/fingerprint
 
 # Verify HTTPS works
-curl -sk https://localhost:8443/api/system/info \
+curl -sk https://localhost:8443/api/v1/system/info \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 ```
 

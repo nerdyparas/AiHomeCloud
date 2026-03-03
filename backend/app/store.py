@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 import asyncio
 from typing import Any, Dict, List, Optional
+import os
+import tempfile
 
 from .config import settings
 
@@ -24,9 +26,35 @@ def _read_json(path: Path, default: Any = None) -> Any:
     return json.loads(path.read_text())
 
 
-def _write_json(path: Path, data: Any) -> None:
+def _atomic_write(path: Path, data: Any) -> None:
+    """Write JSON to `path` atomically by writing to a temp file then moving it.
+
+    This prevents partially-written JSON files on crash/power-loss.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
+
+    # Use the same directory to ensure os.replace is atomic on the same filesystem.
+    fd, tmp_path = tempfile.mkstemp(prefix=path.name, dir=str(path.parent))
+    try:
+        # Write bytes to fd, flush and fsync to ensure durability.
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, indent=2))
+            f.flush()
+            os.fsync(f.fileno())
+
+        # Atomically replace target
+        os.replace(tmp_path, str(path))
+    except Exception:
+        # Best-effort cleanup on error
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        raise
+
+
+def _write_json(path: Path, data: Any) -> None:
+    _atomic_write(path, data)
 
 
 # ─── Users ────────────────────────────────────────────────────────────────────

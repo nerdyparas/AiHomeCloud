@@ -61,7 +61,7 @@ lsblk -J -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL,TRAN
 User plugs in USB drive
         │
         ▼
-App: "Scan for devices" (GET /api/storage/scan)
+App: "Scan for devices" (GET /api/v1/storage/scan)
         │
         ▼
 Backend detects /dev/sda1 (USB, ext4, 64GB)
@@ -69,10 +69,10 @@ Backend detects /dev/sda1 (USB, ext4, 64GB)
         ▼
 App shows: "USB Drive 64GB — ext4 — Not mounted"
         │
-        ├── [Format] → POST /api/storage/format {device, fstype}
+        ├── [Format] → POST /api/v1/storage/format {device, fstype}
         │               wipes & creates ext4 filesystem
         │
-        └── [Mount as NAS] → POST /api/storage/mount {device}
+        └── [Mount as NAS] → POST /api/v1/storage/mount {device}
                               mount /dev/sda1 /srv/nas
                               creates personal/ + shared/ dirs
                               updates config
@@ -83,7 +83,7 @@ NAS storage active on external drive
         ▼
 User wants to unplug USB
         │
-        ├── App: "Safe Remove" → POST /api/storage/eject {device}
+        ├── App: "Safe Remove" → POST /api/v1/storage/eject {device}
         │     1. Stop SMB service (if running)
         │     2. Stop DLNA, NFS if using NAS root
         │     3. sync filesystem
@@ -140,13 +140,13 @@ nas_fallback_to_sd: bool = True
 ```
 
 ### New Routes (`storage_routes.py` — expanded)
-- `GET /api/storage/devices` — list all block devices via `lsblk`
-- `GET /api/storage/scan` — re-scan (trigger kernel re-probe)
-- `POST /api/storage/format` — format device (DANGEROUS — requires confirmation token)
-- `POST /api/storage/mount` — mount device at NAS root
-- `POST /api/storage/unmount` — safe unmount (stops services first)
-- `POST /api/storage/eject` — unmount + power off USB port
-- `GET /api/storage/stats` — (existing, updated to show correct device)
+        - `GET /api/v1/storage/devices` — list all block devices via `lsblk`
+        - `GET /api/v1/storage/scan` — re-scan (trigger kernel re-probe)
+        - `POST /api/v1/storage/format` — format device (DANGEROUS — requires confirmation token)
+        - `POST /api/v1/storage/mount` — mount device at NAS root
+        - `POST /api/v1/storage/unmount` — safe unmount (stops services first)
+        - `POST /api/v1/storage/eject` — unmount + power off USB port
+        - `GET /api/v1/storage/stats` — (existing, updated to show correct device)
 
 ### New Models (`models.py`)
 ```python

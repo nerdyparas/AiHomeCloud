@@ -15,7 +15,7 @@ from .event_routes import emit_service_toggled
 
 logger = logging.getLogger("cubie.services")
 
-router = APIRouter(prefix="/api/services", tags=["services"])
+router = APIRouter(prefix="/api/v1/services", tags=["services"])
 
 # Map our service IDs → systemd unit names
 _SERVICE_UNITS: dict[str, list[str]] = {
@@ -45,7 +45,7 @@ async def _systemctl(action: str, unit: str) -> tuple[bool, str]:
 @router.get("", response_model=list[ServiceInfo])
 async def list_services(user: dict = Depends(get_current_user)):
     """List all configurable NAS services."""
-    return [ServiceInfo(**svc) for svc in store.get_services()]
+    return [ServiceInfo(**svc) for svc in await store.get_services()]
 
 
 @router.post("/{service_id}/toggle", status_code=status.HTTP_204_NO_CONTENT)
@@ -55,7 +55,7 @@ async def toggle(
     user: dict = Depends(require_admin),
 ):
     """Enable or disable a NAS service (persists + runs systemctl)."""
-    if not store.toggle_service(service_id, body.enabled):
+    if not await store.toggle_service(service_id, body.enabled):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Service not found")
 
     # Run real systemctl start/stop

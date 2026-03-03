@@ -16,7 +16,7 @@ from ..models import (
 )
 from .. import store
 
-router = APIRouter(prefix="/api", tags=["auth"])
+router = APIRouter(prefix="/api/v1", tags=["auth"])
 
 
 def _get_local_ip() -> str:
@@ -79,10 +79,10 @@ async def create_user(body: CreateUserRequest):
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
 
-    existing = store.get_users()
+    existing = await store.get_users()
     is_admin = len(existing) == 0  # First user is admin
 
-    user = store.add_user(body.name, body.pin, is_admin=is_admin)
+    user = await store.add_user(body.name, body.pin, is_admin=is_admin)
     return {
         "id": user["id"],
         "name": user["name"],
@@ -103,8 +103,8 @@ async def change_pin(body: ChangePinRequest, user: dict = Depends(get_current_us
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "PIN must be at least 4 digits")
 
     user_id = user.get("sub", "")
-    found = store.find_user(user_id)
+    found = await store.find_user(user_id)
     if found and found.get("pin") != body.old_pin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
 
-    store.update_user_pin(user_id, body.new_pin)
+    await store.update_user_pin(user_id, body.new_pin)

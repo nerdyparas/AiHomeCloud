@@ -9,7 +9,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings, JWT_SECRET_FILE
@@ -103,7 +104,7 @@ async def root():
     return {"service": "CubieCloud", "version": "0.1.0"}
 
 
-@app.get("/api/tls/fingerprint")
+@app.get("/api/v1/tls/fingerprint")
 async def tls_fingerprint():
     """Return the SHA-256 fingerprint of the server certificate.
     Called once by the Flutter app to pin the self-signed cert."""
@@ -128,6 +129,14 @@ async def tls_fingerprint():
         return {"fingerprint": fp, "algorithm": "sha256"}
     except FileNotFoundError:
         return {"fingerprint": None, "algorithm": "sha256"}
+
+
+# Backward-compatible redirect: /api/... -> /api/v1/...
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def redirect_api(path: str, request: Request):
+    target = f"/api/v1/{path}"
+    # Preserve method semantics with 308 Permanent Redirect
+    return RedirectResponse(url=target, status_code=308)
 
 
 # ── Entry point for python -m app.main ──────────────────────────────────────

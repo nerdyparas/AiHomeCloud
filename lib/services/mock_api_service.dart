@@ -24,7 +24,7 @@ class MockApiService {
   // AUTH
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// TODO: POST https://<host>:8443/api/pair  body: {serial, key}
+  /// TODO: POST https://<host>:8443/api/v1/pair  body: {serial, key}
   /// Returns a JWT token on success.
   Future<String> pairDevice(String serial, String key) async {
     await _delay();
@@ -34,18 +34,18 @@ class MockApiService {
     return 'mock_jwt_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// TODO: POST https://<host>:8443/api/users  body: {name, pin}
+  /// TODO: POST https://<host>:8443/api/v1/users  body: {name, pin}
   Future<void> createUser(String name, String? pin) async {
     await _delay();
     if (name.trim().isEmpty) throw Exception('Name cannot be empty');
   }
 
-  /// TODO: POST https://<host>:8443/api/auth/logout
+  /// TODO: POST https://<host>:8443/api/v1/auth/logout
   Future<void> logout() async {
     await _delay(200, 400);
   }
 
-  /// TODO: PUT https://<host>:8443/api/users/pin  body: {old_pin, new_pin}
+  /// TODO: PUT https://<host>:8443/api/v1/users/pin  body: {old_pin, new_pin}
   Future<void> changePin(String? oldPin, String newPin) async {
     await _delay();
     if (newPin.length < 4) throw Exception('PIN must be at least 4 digits');
@@ -55,7 +55,7 @@ class MockApiService {
   // SYSTEM / MONITORING
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// TODO: GET https://<host>:8443/api/system/info
+  /// TODO: GET https://<host>:8443/api/v1/system/info
   Future<CubieDevice> getDeviceInfo() async {
     await _delay();
     return const CubieDevice(
@@ -85,7 +85,7 @@ class MockApiService {
     });
   }
 
-  /// TODO: GET https://<host>:8443/api/storage/stats
+  /// TODO: GET https://<host>:8443/api/v1/storage/stats
   Future<StorageStats> getStorageStats() async {
     await _delay();
     return StorageStats(
@@ -94,7 +94,7 @@ class MockApiService {
     );
   }
 
-  /// TODO: GET https://<host>:8443/api/system/firmware
+  /// TODO: GET https://<host>:8443/api/v1/system/firmware
   Future<Map<String, dynamic>> checkFirmwareUpdate() async {
     await _delay(500, 1500);
     return {
@@ -107,12 +107,12 @@ class MockApiService {
     };
   }
 
-  /// TODO: POST https://<host>:8443/api/system/update
+  /// TODO: POST https://<host>:8443/api/v1/system/update
   Future<void> triggerOtaUpdate() async {
     await _delay(1000, 2000);
   }
 
-  /// TODO: PUT https://<host>:8443/api/system/name  body: {name}
+  /// TODO: PUT https://<host>:8443/api/v1/system/name  body: {name}
   Future<void> updateDeviceName(String name) async {
     await _delay();
     if (name.trim().isEmpty) throw Exception('Name cannot be empty');
@@ -122,7 +122,7 @@ class MockApiService {
   // FILES
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// TODO: GET https://<host>:8443/api/files/list?path=<path>
+  /// TODO: GET https://<host>:8443/api/v1/files/list?path=<path>
   Future<List<FileItem>> listFiles(String path) async {
     await _delay();
     if (path == CubieConstants.sharedPath) return _sharedFiles();
@@ -132,24 +132,24 @@ class MockApiService {
     return _genericFiles(path);
   }
 
-  /// TODO: POST https://<host>:8443/api/files/mkdir  body: {path}
+  /// TODO: POST https://<host>:8443/api/v1/files/mkdir  body: {path}
   Future<void> createFolder(String parentPath, String name) async {
     await _delay();
     if (name.trim().isEmpty) throw Exception('Folder name cannot be empty');
   }
 
-  /// TODO: DELETE https://<host>:8443/api/files/delete?path=<path>
+  /// TODO: DELETE https://<host>:8443/api/v1/files/delete?path=<path>
   Future<void> deleteFile(String path) async {
     await _delay();
   }
 
-  /// TODO: PUT https://<host>:8443/api/files/rename  body: {old_path, new_name}
+  /// TODO: PUT https://<host>:8443/api/v1/files/rename  body: {old_path, new_name}
   Future<void> renameFile(String path, String newName) async {
     await _delay();
     if (newName.trim().isEmpty) throw Exception('Name cannot be empty');
   }
 
-  /// TODO: POST https://<host>:8443/api/files/upload (multipart, chunked 1 MB)
+  /// TODO: POST https://<host>:8443/api/v1/files/upload (multipart, chunked 1 MB)
   /// Emits cumulative uploaded bytes until complete.
   Stream<int> uploadFile(
       String destinationPath, String fileName, int totalBytes) {
@@ -174,7 +174,7 @@ class MockApiService {
   // FAMILY / USERS
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// TODO: GET https://<host>:8443/api/users/family
+  /// TODO: GET https://<host>:8443/api/v1/users/family
   Future<List<FamilyUser>> getFamilyUsers() async {
     await _delay();
     return const [
@@ -205,7 +205,7 @@ class MockApiService {
     ];
   }
 
-  /// TODO: POST https://<host>:8443/api/users/family  body: {name}
+  /// TODO: POST https://<host>:8443/api/v1/users/family  body: {name}
   Future<FamilyUser> addFamilyUser(String name) async {
     await _delay();
     if (name.trim().isEmpty) throw Exception('Name cannot be empty');
@@ -218,7 +218,7 @@ class MockApiService {
     );
   }
 
-  /// TODO: DELETE https://<host>:8443/api/users/family/<id>
+  /// TODO: DELETE https://<host>:8443/api/v1/users/family/<id>
   Future<void> removeFamilyUser(String userId) async {
     await _delay();
   }
@@ -227,7 +227,7 @@ class MockApiService {
   // SERVICES
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// TODO: GET https://<host>:8443/api/services
+  /// TODO: GET https://<host>:8443/api/v1/services
   Future<List<ServiceInfo>> getServices() async {
     await _delay();
     return const [
@@ -258,7 +258,7 @@ class MockApiService {
     ];
   }
 
-  /// TODO: POST https://<host>:8443/api/services/<name>/toggle  body: {enabled}
+  /// TODO: POST https://<host>:8443/api/v1/services/<name>/toggle  body: {enabled}
   Future<void> toggleService(String serviceId, bool enabled) async {
     await _delay();
   }

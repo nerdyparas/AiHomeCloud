@@ -69,10 +69,10 @@ class ApiService {
   // AUTH
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// POST /api/pair  body: {serial, key}
+  /// POST /api/v1/pair  body: {serial, key}
   Future<String> pairDevice(String serial, String key) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/pair'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/pair'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'serial': serial, 'key': key}),
     ).timeout(_timeout);
@@ -82,30 +82,30 @@ class ApiService {
     return _token!;
   }
 
-  /// POST /api/users  body: {name, pin}
+  /// POST /api/v1/users  body: {name, pin}
   Future<void> createUser(String name, String? pin) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/users'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users'),
       headers: _headers,
       body: jsonEncode({'name': name, if (pin != null) 'pin': pin}),
     ).timeout(_timeout);
     _check(res);
   }
 
-  /// POST /api/auth/logout
+  /// POST /api/v1/auth/logout
   Future<void> logout() async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/auth/logout'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/auth/logout'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
     _token = null;
   }
 
-  /// PUT /api/users/pin  body: {oldPin, newPin}
+  /// PUT /api/v1/users/pin  body: {oldPin, newPin}
   Future<void> changePin(String? oldPin, String newPin) async {
     final res = await _client.put(
-      Uri.parse('$_baseUrl/api/users/pin'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/pin'),
       headers: _headers,
       body: jsonEncode({'oldPin': oldPin, 'newPin': newPin}),
     ).timeout(_timeout);
@@ -116,10 +116,10 @@ class ApiService {
   // SYSTEM / MONITORING
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/system/info
+  /// GET /api/v1/system/info
   Future<CubieDevice> getDeviceInfo() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/system/info'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/info'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
@@ -171,10 +171,10 @@ class ApiService {
     });
   }
 
-  /// GET /api/storage/stats
+  /// GET /api/v1/storage/stats
   Future<StorageStats> getStorageStats() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/storage/stats'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/stats'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
@@ -185,10 +185,10 @@ class ApiService {
     );
   }
 
-  /// GET /api/storage/devices
+  /// GET /api/v1/storage/devices
   Future<List<StorageDevice>> getStorageDevices() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/storage/devices'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/devices'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
@@ -196,10 +196,10 @@ class ApiService {
     return list.map((item) => StorageDevice.fromJson(item)).toList();
   }
 
-  /// GET /api/storage/scan — re-scan for newly connected devices
+  /// GET /api/v1/storage/scan — re-scan for newly connected devices
   Future<List<StorageDevice>> scanDevices() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/storage/scan'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/scan'),
       headers: _headers,
     ).timeout(const Duration(seconds: 15));
     _check(res);
@@ -207,11 +207,11 @@ class ApiService {
     return list.map((item) => StorageDevice.fromJson(item)).toList();
   }
 
-  /// POST /api/storage/format  body: {device, label, confirmDevice}
+  /// POST /api/v1/storage/format  body: {device, label, confirmDevice}
   Future<Map<String, dynamic>> formatDevice(
       String device, String label, String confirmDevice) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/storage/format'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/format'),
       headers: _headers,
       body: jsonEncode({
         'device': device,
@@ -223,10 +223,10 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  /// POST /api/storage/mount  body: {device}
+  /// POST /api/v1/storage/mount  body: {device}
   Future<Map<String, dynamic>> mountDevice(String device) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/storage/mount'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/mount'),
       headers: _headers,
       body: jsonEncode({'device': device}),
     ).timeout(const Duration(seconds: 30));
@@ -234,20 +234,20 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  /// POST /api/storage/unmount?force=<bool>
+  /// POST /api/v1/storage/unmount?force=<bool>
   Future<Map<String, dynamic>> unmountDevice({bool force = false}) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/storage/unmount?force=$force'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/unmount?force=$force'),
       headers: _headers,
     ).timeout(const Duration(seconds: 30));
     _check(res);
     return jsonDecode(res.body);
   }
 
-  /// POST /api/storage/eject  body: {device}
+  /// POST /api/v1/storage/eject  body: {device}
   Future<Map<String, dynamic>> ejectDevice(String device) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/storage/eject'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/eject'),
       headers: _headers,
       body: jsonEncode({'device': device}),
     ).timeout(const Duration(seconds: 30));
@@ -255,39 +255,39 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  /// GET /api/storage/check-usage — pre-unmount blocker check
+  /// GET /api/v1/storage/check-usage — pre-unmount blocker check
   Future<Map<String, dynamic>> checkStorageUsage() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/storage/check-usage'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/check-usage'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
     return jsonDecode(res.body);
   }
 
-  /// GET /api/system/firmware
+  /// GET /api/v1/system/firmware
   Future<Map<String, dynamic>> checkFirmwareUpdate() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/system/firmware'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/firmware'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
     return jsonDecode(res.body);
   }
 
-  /// POST /api/system/update
+  /// POST /api/v1/system/update
   Future<void> triggerOtaUpdate() async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/system/update'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/update'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
   }
 
-  /// PUT /api/system/name  body: {name}
+  /// PUT /api/v1/system/name  body: {name}
   Future<void> updateDeviceName(String name) async {
     final res = await _client.put(
-      Uri.parse('$_baseUrl/api/system/name'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/name'),
       headers: _headers,
       body: jsonEncode({'name': name}),
     ).timeout(_timeout);
@@ -298,10 +298,10 @@ class ApiService {
   // FILES
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/files/list?path=<path>
+  /// GET /api/v1/files/list?path=<path>
   Future<List<FileItem>> listFiles(String path) async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/files/list')
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/list')
           .replace(queryParameters: {'path': path}),
       headers: _headers,
     ).timeout(_timeout);
@@ -319,43 +319,43 @@ class ApiService {
     }).toList();
   }
 
-  /// POST /api/files/mkdir  body: {path}
+  /// POST /api/v1/files/mkdir  body: {path}
   Future<void> createFolder(String parentPath, String name) async {
     final fullPath =
         parentPath.endsWith('/') ? '$parentPath$name' : '$parentPath/$name';
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/files/mkdir'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/mkdir'),
       headers: _headers,
       body: jsonEncode({'path': fullPath}),
     ).timeout(_timeout);
     _check(res);
   }
 
-  /// DELETE /api/files/delete?path=<path>
+  /// DELETE /api/v1/files/delete?path=<path>
   Future<void> deleteFile(String path) async {
     final res = await _client.delete(
-      Uri.parse('$_baseUrl/api/files/delete')
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/delete')
           .replace(queryParameters: {'path': path}),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
   }
 
-  /// PUT /api/files/rename  body: {oldPath, newName}
+  /// PUT /api/v1/files/rename  body: {oldPath, newName}
   Future<void> renameFile(String path, String newName) async {
     final res = await _client.put(
-      Uri.parse('$_baseUrl/api/files/rename'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/rename'),
       headers: _headers,
       body: jsonEncode({'oldPath': path, 'newName': newName}),
     ).timeout(_timeout);
     _check(res);
   }
 
-  /// GET /api/files/download?path=...
+  /// GET /api/v1/files/download?path=...
   /// Returns the raw file bytes for saving or previewing.
   Future<http.Response> downloadFile(String filePath) async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/files/download')
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/download')
           .replace(queryParameters: {'path': filePath}),
       headers: _headers,
     ).timeout(const Duration(seconds: 60));
@@ -365,13 +365,13 @@ class ApiService {
 
   /// Returns the download URL for a file (for image display etc.)
   String getDownloadUrl(String filePath) {
-    return '$_baseUrl/api/files/download?path=${Uri.encodeComponent(filePath)}';
+    return '$_baseUrl${CubieConstants.apiVersion}/files/download?path=${Uri.encodeComponent(filePath)}';
   }
 
   /// Returns auth headers for use in image widgets.
   Map<String, String> get authHeaders => _headers;
 
-  /// POST /api/files/upload (multipart)
+  /// POST /api/v1/files/upload (multipart)
   /// Uploads a real file from [filePath] to [destinationPath] on the NAS.
   /// Returns a stream of uploaded byte counts for progress tracking.
   Stream<int> uploadFile(
@@ -381,7 +381,7 @@ class ApiService {
 
     () async {
       try {
-        final uri = Uri.parse('$_baseUrl/api/files/upload')
+        final uri = Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/upload')
             .replace(queryParameters: {'path': destinationPath});
 
         final request = http.MultipartRequest('POST', uri);
@@ -423,10 +423,10 @@ class ApiService {
   // FAMILY / USERS
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/users/family
+  /// GET /api/v1/users/family
   Future<List<FamilyUser>> getFamilyUsers() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/users/family'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/family'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
@@ -446,10 +446,10 @@ class ApiService {
     }).toList();
   }
 
-  /// POST /api/users/family  body: {name}
+  /// POST /api/v1/users/family  body: {name}
   Future<FamilyUser> addFamilyUser(String name) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/users/family'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/family'),
       headers: _headers,
       body: jsonEncode({'name': name}),
     ).timeout(_timeout);
@@ -467,10 +467,10 @@ class ApiService {
     );
   }
 
-  /// DELETE /api/users/family/<id>
+  /// DELETE /api/v1/users/family/<id>
   Future<void> removeFamilyUser(String userId) async {
     final res = await _client.delete(
-      Uri.parse('$_baseUrl/api/users/family/$userId'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/family/$userId'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
@@ -480,10 +480,10 @@ class ApiService {
   // SERVICES
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/services
+  /// GET /api/v1/services
   Future<List<ServiceInfo>> getServices() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/services'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/services'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
@@ -499,10 +499,10 @@ class ApiService {
     }).toList();
   }
 
-  /// POST /api/services/<id>/toggle  body: {enabled}
+  /// POST /api/v1/services/<id>/toggle  body: {enabled}
   Future<void> toggleService(String serviceId, bool enabled) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/services/$serviceId/toggle'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/services/$serviceId/toggle'),
       headers: _headers,
       body: jsonEncode({'enabled': enabled}),
     ).timeout(_timeout);
@@ -513,40 +513,40 @@ class ApiService {
   // NETWORK
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/network/status
+  /// GET /api/v1/network/status
   Future<NetworkStatus> getNetworkStatus() async {
     final res = await _client.get(
-      Uri.parse('$_baseUrl/api/network/status'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/status'),
       headers: _headers,
     ).timeout(_timeout);
     _check(res);
     return NetworkStatus.fromJson(jsonDecode(res.body));
   }
 
-  /// POST /api/network/wifi  body: {enabled}
+  /// POST /api/v1/network/wifi  body: {enabled}
   Future<void> toggleWifi(bool enabled) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/network/wifi'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/wifi'),
       headers: _headers,
       body: jsonEncode({'enabled': enabled}),
     ).timeout(_timeout);
     _check(res);
   }
 
-  /// POST /api/network/hotspot  body: {enabled}
+  /// POST /api/v1/network/hotspot  body: {enabled}
   Future<void> toggleHotspot(bool enabled) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/network/hotspot'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/hotspot'),
       headers: _headers,
       body: jsonEncode({'enabled': enabled}),
     ).timeout(const Duration(seconds: 15));
     _check(res);
   }
 
-  /// POST /api/network/bluetooth  body: {enabled}
+  /// POST /api/v1/network/bluetooth  body: {enabled}
   Future<void> toggleBluetooth(bool enabled) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/api/network/bluetooth'),
+      Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/bluetooth'),
       headers: _headers,
       body: jsonEncode({'enabled': enabled}),
     ).timeout(_timeout);
