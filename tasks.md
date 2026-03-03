@@ -162,11 +162,11 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 4D.1 | In `main.py`, change all `app.include_router(router, prefix="/api/...")` to `/api/v1/...` | 🟢 | ⬚ todo | |
-| 4D.2 | Add backward-compat 308 redirect: `@app.api_route("/api/{path:path}")` → `/api/v1/{path}` | 🟢 | ⬚ todo | Preserves existing APKs in the field |
-| 4D.3 | In `lib/core/constants.dart`, add `static const String apiVersion = '/api/v1'` and use it as base | 🟢 | ⬚ todo | |
-| 4D.4 | In `lib/services/api_service.dart`, replace all `/api/` string prefixes with the constant | 🔵 | ⬚ todo | Grep for `'/api/'` — many occurrences |
-| 4D.5 | Update `kb/api-contracts.md`: change all endpoint paths to include `/v1` | 🟢 | ⬚ todo | |
+| 4D.1 | In `main.py`, change all `app.include_router(router, prefix="/api/...")` to `/api/v1/...` | 🟢 | ✅ done | Achieved via versioned router prefixes (`/api/v1...`) registered in `main.py` |
+| 4D.2 | Add backward-compat 308 redirect: `@app.api_route("/api/{path:path}")` → `/api/v1/{path}` | 🟢 | ✅ done | Added in `backend/app/main.py` to preserve existing APKs |
+| 4D.3 | In `lib/core/constants.dart`, add `static const String apiVersion = '/api/v1'` and use it as base | 🟢 | ✅ done | `apiVersion` constant added and consumed |
+| 4D.4 | In `lib/services/api_service.dart`, replace all `/api/` string prefixes with the constant | 🔵 | ✅ done | HTTP endpoint construction now uses `CubieConstants.apiVersion` |
+| 4D.5 | Update `kb/api-contracts.md`: change all endpoint paths to include `/v1` | 🟢 | ✅ done | Contract table updated to `/api/v1/...` |
 
 ### 4E — CORS Hardening
 
