@@ -125,7 +125,7 @@
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
 | 4A.1 | Add `generate_jwt_secret()` to `config.py`: reads `/var/lib/cubie/jwt_secret` if exists, else generates 32-byte hex and writes it | 🟢 | ✅ done | Creates file with 256-bit secret (chmod 600) when missing |
-| 4A.2 | Modify `Settings.__init__`: if `CUBIE_JWT_SECRET` env var is absent, call `generate_jwt_secret()` | 🟢 | ⬚ todo | Env var still takes priority |
+| 4A.2 | Modify `Settings.__init__`: if `CUBIE_JWT_SECRET` env var is absent, call `generate_jwt_secret()` | 🟢 | ✅ done | Settings now calls `generate_jwt_secret()` when env var is absent |
 | 4A.3 | Add startup log: `"JWT secret loaded from /var/lib/cubie/jwt_secret"` (no secret value in message) | 🟢 | ⬚ todo | |
 | 4A.4 | Update `cubie-backend.service`: remove any hardcoded `CUBIE_JWT_SECRET=` line, add explanatory comment | 🟢 | ⬚ todo | |
 | 4A.5 | Write unit test: `generate_jwt_secret()` called twice returns same value (file persists) | 🟢 | ⬚ todo | Use `tmp_path` fixture |

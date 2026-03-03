@@ -3,6 +3,7 @@ CubieCloud backend configuration.
 All settings can be overridden via environment variables prefixed with CUBIE_.
 """
 
+import os
 import secrets
 import stat
 from pathlib import Path
@@ -93,3 +94,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Ensure a persistent JWT secret exists when the env var is not provided.
+# Priority: CUBIE_JWT_SECRET env var > persisted file > default placeholder.
+if not os.getenv("CUBIE_JWT_SECRET") and settings.jwt_secret == "change-me-in-production":
+    settings.jwt_secret = generate_jwt_secret()
