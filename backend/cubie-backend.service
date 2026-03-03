@@ -10,6 +10,13 @@ WorkingDirectory=/opt/cubie/backend
 ExecStart=/opt/cubie/backend/venv/bin/python -m app.main
 Restart=always
 RestartSec=5
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cubie /srv/nas
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
 
 # Environment overrides (edit as needed)
 # NOTE: Do NOT hardcode `CUBIE_JWT_SECRET` here. Use one of the following safer options:

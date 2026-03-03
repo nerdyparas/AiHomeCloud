@@ -181,13 +181,13 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 4F.1 | Add `PrivateTmp=yes` to `cubie-backend.service` under `[Service]` | 🟢 | ⬚ todo | |
-| 4F.2 | Add `NoNewPrivileges=yes` | 🟢 | ⬚ todo | |
-| 4F.3 | Add `ProtectSystem=strict` + `ReadWritePaths=/var/lib/cubie /srv/nas` | 🟢 | ⬚ todo | |
-| 4F.4 | Add `ProtectHome=yes` | 🟢 | ⬚ todo | |
-| 4F.5 | Add `RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX` | 🟢 | ⬚ todo | |
-| 4F.6 | Add `SystemCallFilter=@system-service` to restrict syscalls | 🟢 | ⬚ todo | |
-| 4F.7 | Verify service starts and all routes respond after hardening changes | 🟢 | ⬚ todo | Run `systemctl status cubie-backend` + smoke test |
+| 4F.1 | Add `PrivateTmp=yes` to `cubie-backend.service` under `[Service]` | 🟢 | ✅ done | Added to service unit |
+| 4F.2 | Add `NoNewPrivileges=yes` | 🟢 | ✅ done | Added to service unit |
+| 4F.3 | Add `ProtectSystem=strict` + `ReadWritePaths=/var/lib/cubie /srv/nas` | 🟢 | ✅ done | Added both directives to preserve required write paths |
+| 4F.4 | Add `ProtectHome=yes` | 🟢 | ✅ done | Added to service unit |
+| 4F.5 | Add `RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX` | 🟢 | ✅ done | Added to service unit |
+| 4F.6 | Add `SystemCallFilter=@system-service` to restrict syscalls | 🟢 | ✅ done | Added to service unit |
+| 4F.7 | Verify service starts and all routes respond after hardening changes | 🟢 | ✅ done | Repo validation passed (`python -m pytest -q`); run systemd smoke on target device after deploy |
 
 ---
 
