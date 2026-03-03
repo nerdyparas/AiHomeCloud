@@ -43,6 +43,6 @@ jobs:
       - name: Run backend tests
         working-directory: backend
         env:
-          PYTHONPATH: backend
+          PYTHONPATH: .
         run: |
           pytest -q tests
