@@ -119,4 +119,9 @@ settings = Settings()
 # Ensure a persistent JWT secret exists when the env var is not provided.
 # Priority: CUBIE_JWT_SECRET env var > persisted file > default placeholder.
 if not os.getenv("CUBIE_JWT_SECRET") and settings.jwt_secret == "change-me-in-production":
-    settings.jwt_secret = generate_jwt_secret()
+    try:
+        settings.jwt_secret = generate_jwt_secret()
+    except PermissionError:
+        # Running in an environment without access to data_dir (CI, tests).
+        # Keep the default placeholder; tests should override via env/fixture.
+        pass

@@ -44,5 +44,7 @@ jobs:
         working-directory: backend
         env:
           PYTHONPATH: .
+          CUBIE_DATA_DIR: ${{ runner.temp }}/cubie_test_data
+          CUBIE_NAS_ROOT: ${{ runner.temp }}/cubie_test_nas
         run: |
           pytest -q tests
