@@ -301,6 +301,19 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
             isAdmin: true,
           );
 
+      // Fetch server certificate fingerprint and persist for pinning (TOFU).
+      try {
+        final fp = await _api.getTlsFingerprint();
+        if (fp != null && fp.isNotEmpty) {
+          final prefs = _ref.read(sharedPreferencesProvider);
+          await prefs.setString(CubieConstants.kCertFingerprintPrefKey, fp);
+          // Inform ApiService to use pinned fingerprint
+          _api.setTrustedFingerprint(fp);
+        }
+      } catch (_) {
+        // Non-fatal; pairing still succeeds without saved fingerprint.
+      }
+
       state = state.copyWith(
         status: DiscoveryStatus.found,
         deviceIp: result.ip,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -16,20 +17,72 @@ import 'auth_session.dart';
 /// Drop-in replacement for MockApiService. Every method has the same signature
 /// so screens don't need to change.
 class ApiService {
-  ApiService._();
+  ApiService._() {
+    _initHttpClient();
+  }
   static final ApiService instance = ApiService._();
 
   AuthSession? Function()? _sessionResolver;
   void Function(ConnectionStatus status)? _connectionStatusCallback;
 
-  /// HTTP client that trusts self-signed certificates.
-  late final http.Client _client = _createTlsClient();
+  String? _trustedFingerprint;
+  late final HttpClient _httpClient;
+  late final http.Client _client;
+
+  /// Initialize TLS HTTP client. By default trusts any cert until a fingerprint
+  /// is set via `setTrustedFingerprint`.
+  void _initHttpClient() {
+    final context = SecurityContext(withTrustedRoots: true);
+    _httpClient = HttpClient(context: context)
+      ..badCertificateCallback = (cert, host, port) => _trustedFingerprint == null ? true : _validateCertFingerprint(cert);
+    _client = IOClient(_httpClient);
+  }
 
   static http.Client _createTlsClient() {
+    // Deprecated: kept for compatibility but instance now initializes client in constructor.
     final context = SecurityContext(withTrustedRoots: true);
     final httpClient = HttpClient(context: context)
       ..badCertificateCallback = (cert, host, port) => true;
     return IOClient(httpClient);
+  }
+
+  /// Set or clear the trusted certificate fingerprint used for cert pinning.
+  void setTrustedFingerprint(String? hexFingerprint) {
+    _trustedFingerprint = hexFingerprint?.toLowerCase();
+    // Ensure http client exists and update callback
+    try {
+      if (_httpClient == null) {
+        _initHttpClient();
+      } else {
+        _httpClient.badCertificateCallback = (cert, host, port) => _trustedFingerprint == null ? true : _validateCertFingerprint(cert);
+      }
+    } catch (_) {
+      // If init fails (unlikely), create client now
+      _initHttpClient();
+    }
+  }
+
+  bool _validateCertFingerprint(X509Certificate cert) {
+    try {
+      final pem = cert.pem;
+      // Extract base64 body
+      final lines = pem.split('\n');
+      final buffer = StringBuffer();
+      var inside = false;
+      for (final l in lines) {
+        if (l.contains('BEGIN CERTIFICATE')) {
+          inside = true;
+          continue;
+        }
+        if (l.contains('END CERTIFICATE')) break;
+        if (inside) buffer.write(l.trim());
+      }
+      final der = base64Decode(buffer.toString());
+      final fp = sha256.convert(der).toString().toLowerCase();
+      return _trustedFingerprint == fp;
+    } catch (_) {
+      return false;
+    }
   }
 
   void bindSessionResolver(AuthSession? Function() resolver) {
@@ -43,6 +96,22 @@ class ApiService {
 
   /// Connection timeout for all HTTP requests.
   static const _timeout = Duration(seconds: 10);
+
+  /// GET /api/v1/tls/fingerprint
+  Future<String?> getTlsFingerprint() async {
+    // Use session host if available, otherwise cannot determine base URL
+    final host = _session?.host;
+    final port = _session?.port ?? CubieConstants.apiPort;
+    final base = host != null && host.isNotEmpty ? 'https://$host:$port' : null;
+    final uri = base != null ? Uri.parse('$base${CubieConstants.apiVersion}/tls/fingerprint') : null;
+    if (uri == null) return null;
+    final res = await _client.get(uri, headers: _headers).timeout(_timeout);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return body['fingerprint'] as String?;
+    }
+    return null;
+  }
 
   AuthSession? get _session => _sessionResolver?.call();
 
