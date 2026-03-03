@@ -41,5 +41,6 @@ jobs:
         run: pip-audit --requirement backend/requirements.txt
 
       - name: Run backend tests
+        working-directory: backend
         run: |
-          pytest -q backend/tests
+          pytest -q tests
