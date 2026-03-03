@@ -7,12 +7,20 @@ import socket
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..auth import create_token, get_current_user, hash_password, verify_password
+from ..auth import (
+    create_token,
+    create_refresh_token,
+    decode_refresh_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 from ..config import settings
 from ..models import (
     ChangePinRequest,
     CreateUserRequest,
     LoginRequest,
+    RefreshRequest,
     PairRequest,
     TokenResponse,
 )
@@ -114,15 +122,17 @@ async def login(body: LoginRequest):
     if not ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
-    token = create_token(
+    access_token = create_token(
         subject=found["id"],
         extra={
             "type": "user",
             "is_admin": bool(found.get("is_admin", False)),
         },
     )
+    refresh_token, jti, expires_at = create_refresh_token(found["id"])
     return {
-        "accessToken": token,
+        "accessToken": access_token,
+        "refreshToken": refresh_token,
         "user": {
             "id": found["id"],
             "name": found["name"],
@@ -132,9 +142,39 @@ async def login(body: LoginRequest):
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(user: dict = Depends(get_current_user)):
-    """Logout — client should discard its token."""
+async def logout(body: RefreshRequest | None = None, user: dict = Depends(get_current_user)):
+    """Logout — revoke provided refresh token (if any)."""
+    if body and getattr(body, "refresh_token", None):
+        try:
+            payload = decode_refresh_token(body.refresh_token)
+            jti = payload.get("jti")
+            if jti:
+                await store.revoke_token(jti)
+        except HTTPException:
+            # treat invalid token as already logged out
+            pass
     return None
+
+
+
+@router.post("/auth/refresh")
+async def refresh(body: RefreshRequest):
+    """Exchange a refresh token for a new access token."""
+    payload = decode_refresh_token(body.refresh_token)
+    jti = payload.get("jti")
+    if not jti:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
+
+    rec = await store.get_token(jti)
+    if not rec or rec.get("revoked", False):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token revoked")
+    # Issue new access token
+    subject = payload.get("sub")
+    # Lookup user to set is_admin flag
+    found = await store.find_user(subject)
+    extra = {"type": "user", "is_admin": bool(found.get("is_admin", False))} if found else {"type": "user"}
+    access_token = create_token(subject=subject, extra=extra)
+    return {"accessToken": access_token}
 
 
 @router.put("/users/pin", status_code=status.HTTP_204_NO_CONTENT)

@@ -86,6 +86,10 @@ class Settings(BaseSettings):
         return self.data_dir / "storage.json"
 
     @property
+    def tokens_file(self) -> Path:
+        return self.data_dir / "tokens.json"
+
+    @property
     def cert_dir(self) -> Path:
         return self.data_dir / "tls"
 

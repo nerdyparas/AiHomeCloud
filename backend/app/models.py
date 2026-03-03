@@ -152,6 +152,12 @@ class LoginRequest(BaseModel):
     pin: str
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(alias="refreshToken")
+
+    model_config = {"populate_by_name": True}
+
+
 class TokenResponse(BaseModel):
     token: str
 
@@ -159,6 +165,16 @@ class TokenResponse(BaseModel):
 class CreateUserRequest(BaseModel):
     name: str
     pin: Optional[str] = None
+
+
+class RefreshTokenRecord(BaseModel):
+    jti: str
+    user_id: str = Field(alias="userId")
+    issued_at: int = Field(alias="issuedAt")
+    expires_at: int = Field(alias="expiresAt")
+    revoked: bool = False
+
+    model_config = {"populate_by_name": True}
 
 
 class ChangePinRequest(BaseModel):

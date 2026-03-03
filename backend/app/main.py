@@ -85,6 +85,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("Auto-remount failed: %s", e)
 
+    # Purge old refresh tokens (cleanup tokens.json) older than 30 days past expiry
+    try:
+        from . import store as _store_module
+        from datetime import datetime, timedelta
+
+        cutoff = int((datetime.utcnow() - timedelta(days=30)).timestamp())
+        removed = await _store_module.purge_expired_tokens(cutoff)
+        if removed:
+            logger.info("Purged %d expired refresh tokens", removed)
+    except Exception:
+        logger.debug("Token purge skipped or failed")
+
     yield
 
 

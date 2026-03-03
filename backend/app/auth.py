@@ -12,6 +12,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
+import uuid
+
+from . import store
 
 from .config import settings
 
@@ -46,6 +49,45 @@ def create_token(subject: str, extra: Optional[dict] = None) -> str:
     if extra:
         payload.update(extra)
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def create_refresh_token(subject: str, expires_days: int = 30) -> tuple[str, str, int]:
+    """Create a refresh JWT with a `jti` and persist a token record.
+
+    Returns (token, jti, expires_at_ts).
+    """
+    now = datetime.now(timezone.utc)
+    jti = uuid.uuid4().hex
+    exp = now + timedelta(days=expires_days)
+    payload = {
+        "sub": subject,
+        "iat": now,
+        "exp": exp,
+        "type": "refresh",
+        "jti": jti,
+    }
+    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    # Persist token record (epoch seconds)
+    record = {
+        "jti": jti,
+        "userId": subject,
+        "issuedAt": int(now.timestamp()),
+        "expiresAt": int(exp.timestamp()),
+        "revoked": False,
+    }
+    # store.add_token is async — schedule it
+    asyncio.create_task(store.add_token(record))
+    return token, jti, int(exp.timestamp())
+
+
+def decode_refresh_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        if payload.get("type") != "refresh":
+            raise InvalidTokenError("Not a refresh token")
+        return payload
+    except InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
 
 def decode_token(token: str) -> dict:

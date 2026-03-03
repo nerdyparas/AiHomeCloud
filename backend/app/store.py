@@ -261,3 +261,59 @@ async def clear_storage_state() -> None:
     _set_cached("storage_state", None)
     async with _store_lock:
         _write_json(settings.storage_file, {})
+
+
+# ─── Tokens (refresh tokens) ─────────────────────────────────────────────────
+
+async def get_tokens() -> list:
+    """Return list of refresh token records."""
+    cached = _get_cached("tokens")
+    if cached is not None:
+        return cached
+
+    async with _store_lock:
+        tokens = _read_json(settings.tokens_file, [])
+        _set_cached("tokens", tokens)
+        return tokens
+
+
+async def save_tokens(tokens: list) -> None:
+    """Persist tokens list to disk."""
+    _set_cached("tokens", None)
+    async with _store_lock:
+        _write_json(settings.tokens_file, tokens)
+
+
+async def add_token(record: dict) -> None:
+    tokens = await get_tokens()
+    tokens.append(record)
+    await save_tokens(tokens)
+
+
+async def get_token(jti: str) -> dict | None:
+    tokens = await get_tokens()
+    return next((t for t in tokens if t.get("jti") == jti), None)
+
+
+async def revoke_token(jti: str) -> bool:
+    tokens = await get_tokens()
+    changed = False
+    for t in tokens:
+        if t.get("jti") == jti:
+            t["revoked"] = True
+            changed = True
+    if changed:
+        await save_tokens(tokens)
+    return changed
+
+
+async def purge_expired_tokens(older_than_ts: int) -> int:
+    """Remove tokens whose `expires_at` is older than `older_than_ts`.
+    Returns number removed.
+    """
+    tokens = await get_tokens()
+    kept = [t for t in tokens if t.get("expires_at", 0) >= older_than_ts]
+    removed = len(tokens) - len(kept)
+    if removed > 0:
+        await save_tokens(kept)
+    return removed
