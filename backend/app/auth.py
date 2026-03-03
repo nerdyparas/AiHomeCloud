@@ -7,7 +7,8 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 
 from .config import settings
 
@@ -33,7 +34,7 @@ def decode_token(token: str) -> dict:
         return jwt.decode(
             token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
         )
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
