@@ -209,83 +209,83 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5B.1 | Add `_CACHE_TTL = 1.0` constant at top of `store.py` | 🟢 | ⬚ todo | |
-| 5B.2 | Add `_cache: dict[str, tuple[Any, float]]` module-level dict (key → `(value, expires_at)`) | 🟢 | ⬚ todo | |
-| 5B.3 | Add `_get_cached(key)` → returns value if not expired, else `None` | 🟢 | ⬚ todo | |
-| 5B.4 | Add `_set_cached(key, value)` → stores with `time.monotonic() + _CACHE_TTL` | 🟢 | ⬚ todo | |
-| 5B.5 | Wrap `get_users()`: check cache first, populate on miss, return cached | 🟢 | ⬚ todo | |
-| 5B.6 | Wrap `get_services()`: same pattern | 🟢 | ⬚ todo | |
-| 5B.7 | Wrap `get_storage_state()`: same pattern | 🟢 | ⬚ todo | |
-| 5B.8 | Call `_set_cached(key, None)` (invalidate) at the start of every `save_*` function | 🟢 | ⬚ todo | Invalidate before write, not after |
+| 5B.1 | Add `_CACHE_TTL = 1.0` constant at top of `store.py` | 🟢 | ✅ done | Added `_CACHE_TTL = 1.0` |
+| 5B.2 | Add `_cache: dict[str, tuple[Any, float]]` module-level dict (key → `(value, expires_at)`) | 🟢 | ✅ done | Added module cache store |
+| 5B.3 | Add `_get_cached(key)` → returns value if not expired, else `None` | 🟢 | ✅ done | Added expiry-aware cache getter |
+| 5B.4 | Add `_set_cached(key, value)` → stores with `time.monotonic() + _CACHE_TTL` | 🟢 | ✅ done | Added cache setter with TTL and invalidation on `None` |
+| 5B.5 | Wrap `get_users()`: check cache first, populate on miss, return cached | 🟢 | ✅ done | Implemented users read-through cache |
+| 5B.6 | Wrap `get_services()`: same pattern | 🟢 | ✅ done | Implemented services read-through cache |
+| 5B.7 | Wrap `get_storage_state()`: same pattern | 🟢 | ✅ done | Implemented storage-state read-through cache |
+| 5B.8 | Call `_set_cached(key, None)` (invalidate) at the start of every `save_*` function | 🟢 | ✅ done | Added invalidation before `save_users/save_services/save_storage_state` |
 
 ### 5C — AuthSessionNotifier (consolidate scattered StateProviders)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5C.1 | Create `lib/services/auth_session.dart` with `AuthSession` immutable data class: `host`, `port`, `token`, `refreshToken`, `username`, `isAdmin` | 🔵 | ⬚ todo | Use `copyWith` pattern |
-| 5C.2 | Create `AuthSessionNotifier extends StateNotifier<AuthSession?>` in same file | 🔵 | ⬚ todo | |
-| 5C.3 | Add `login(host, port, token, refreshToken, username, isAdmin)` method | 🟢 | ⬚ todo | |
-| 5C.4 | Add `logout()` method: clears state + removes keys from `SharedPreferences` | 🟢 | ⬚ todo | |
-| 5C.5 | Add `restoreFromPrefs()` async method: reads host/token/etc from SharedPreferences on app launch | 🟢 | ⬚ todo | |
-| 5C.6 | In `providers.dart`, replace the 6 scattered `StateProvider`s with single `authSessionProvider` | 🔵 | ⬚ todo | `StateNotifierProvider<AuthSessionNotifier, AuthSession?>` |
-| 5C.7 | Update `api_service.dart`: take `host`/`port`/`token` from `authSession` instead of internal mutable fields | 🔵 | ⬚ todo | |
-| 5C.8 | Update all screens reading `hostProvider`, `tokenProvider`, `portProvider` to read `authSessionProvider` | 🔵 | ⬚ todo | Grep for `hostProvider\|tokenProvider\|isAdminProvider` |
-| 5C.9 | Update onboarding flow to call `ref.read(authSessionProvider.notifier).login(...)` on successful pair | 🟢 | ⬚ todo | |
-| 5C.10 | Update `app_router.dart` redirect to check `authSessionProvider` for null | 🟢 | ⬚ todo | |
+| 5C.1 | Create `lib/services/auth_session.dart` with `AuthSession` immutable data class: `host`, `port`, `token`, `refreshToken`, `username`, `isAdmin` | 🔵 | ✅ done | Added immutable `AuthSession` with `copyWith` |
+| 5C.2 | Create `AuthSessionNotifier extends StateNotifier<AuthSession?>` in same file | 🔵 | ✅ done | Added `AuthSessionNotifier` |
+| 5C.3 | Add `login(host, port, token, refreshToken, username, isAdmin)` method | 🟢 | ✅ done | Implemented and persists to SharedPreferences |
+| 5C.4 | Add `logout()` method: clears state + removes keys from `SharedPreferences` | 🟢 | ✅ done | Implemented state and pref cleanup |
+| 5C.5 | Add `restoreFromPrefs()` async method: reads host/token/etc from SharedPreferences on app launch | 🟢 | ✅ done | Implemented and called from notifier constructor |
+| 5C.6 | In `providers.dart`, replace the 6 scattered `StateProvider`s with single `authSessionProvider` | 🔵 | ✅ done | Added `StateNotifierProvider<AuthSessionNotifier, AuthSession?>` and removed old providers |
+| 5C.7 | Update `api_service.dart`: take `host`/`port`/`token` from `authSession` instead of internal mutable fields | 🔵 | ✅ done | ApiService now resolves host/port/token from bound session resolver |
+| 5C.8 | Update all screens reading `hostProvider`, `tokenProvider`, `portProvider` to read `authSessionProvider` | 🔵 | ✅ done | Updated affected screens to consume `authSessionProvider` |
+| 5C.9 | Update onboarding flow to call `ref.read(authSessionProvider.notifier).login(...)` on successful pair | 🟢 | ✅ done | Added login call in discovery flow after successful pair |
+| 5C.10 | Update `app_router.dart` redirect to check `authSessionProvider` for null | 🟢 | ✅ done | Added router redirect guard based on auth session presence |
 
 ### 5D — Connection State Machine + 10s Debounce (Critique S1)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5D.1 | Add `ConnectionStatus` enum to `lib/models/models.dart`: `connected`, `reconnecting`, `disconnected` | 🟢 | ⬚ todo | |
-| 5D.2 | Create `ConnectionNotifier extends StateNotifier<ConnectionStatus>` in `providers.dart` | 🔵 | ⬚ todo | |
-| 5D.3 | In `ConnectionNotifier`, add `Timer? _debounceTimer`; emit `reconnecting` immediately, only emit `disconnected` after 10s | 🔵 | ⬚ todo | Prevents flicker on screen lock/unlock |
-| 5D.4 | Add `reconnectBackoff` list `[2, 4, 8, 16, 30]` seconds with cap; reset on successful connect | 🟢 | ⬚ todo | |
-| 5D.5 | Update `api_service.dart` WebSocket `onDone`/`onError`: notify `connectionNotifier` instead of setting internal bool | 🟢 | ⬚ todo | |
-| 5D.6 | Update `main_shell.dart`: show subtle `reconnecting` banner (not error) during `reconnecting` state | 🟢 | ⬚ todo | Only show full error after `disconnected` |
+| 5D.1 | Add `ConnectionStatus` enum to `lib/models/models.dart`: `connected`, `reconnecting`, `disconnected` | 🟢 | ✅ done | Added enum in models |
+| 5D.2 | Create `ConnectionNotifier extends StateNotifier<ConnectionStatus>` in `providers.dart` | 🔵 | ✅ done | Added notifier + provider |
+| 5D.3 | In `ConnectionNotifier`, add `Timer? _debounceTimer`; emit `reconnecting` immediately, only emit `disconnected` after 10s | 🔵 | ✅ done | Implemented debounce timer transition logic |
+| 5D.4 | Add `reconnectBackoff` list `[2, 4, 8, 16, 30]` seconds with cap; reset on successful connect | 🟢 | ✅ done | Added capped backoff list + reset on reconnect |
+| 5D.5 | Update `api_service.dart` WebSocket `onDone`/`onError`: notify `connectionNotifier` instead of setting internal bool | 🟢 | ✅ done | Added connection-status callback wiring from websocket handlers |
+| 5D.6 | Update `main_shell.dart`: show subtle `reconnecting` banner (not error) during `reconnecting` state | 🟢 | ✅ done | Added reconnecting banner and disconnected error banner |
 
 ### 5E — Pagination with Sort Stability + Total Count (Critique S3)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5E.1 | Add `FileListResponse` Pydantic model with `items: list[FileItem]`, `total_count: int`, `page: int`, `page_size: int` | 🟢 | ⬚ todo | |
-| 5E.2 | Add `page`, `page_size`, `sort_by`, `sort_dir` query params to `GET /api/v1/files/list` | 🟢 | ⬚ todo | Defaults: `page=0`, `page_size=50`, `sort_by="name"`, `sort_dir="asc"` |
-| 5E.3 | Implement stable sort: if `sort_by=="name"` sort by `(name.casefold(), name)` tuple | 🟢 | ⬚ todo | Prevents reordering of same-named items across pages |
-| 5E.4 | Return `total_count` in response (count after filter, before pagination) | 🟢 | ⬚ todo | |
-| 5E.5 | Add `totalCount` field to `FileListResponse` Dart model in `lib/models/models.dart` | 🟢 | ⬚ todo | |
-| 5E.6 | Update `api_service.dart` `listFiles()`: accept `page`, `pageSize`, `sortBy`, `sortDir` params | 🟢 | ⬚ todo | |
-| 5E.7 | Update `folder_view.dart`: implement load-more button; disable when `items.length >= totalCount` | 🔵 | ⬚ todo | |
+| 5E.1 | Add `FileListResponse` Pydantic model with `items: list[FileItem]`, `total_count: int`, `page: int`, `page_size: int` | 🟢 | ✅ done | Added backend paginated response model |
+| 5E.2 | Add `page`, `page_size`, `sort_by`, `sort_dir` query params to `GET /api/v1/files/list` | 🟢 | ✅ done | Added query params with defaults |
+| 5E.3 | Implement stable sort: if `sort_by=="name"` sort by `(name.casefold(), name)` tuple | 🟢 | ✅ done | Implemented tuple-based stable name sort |
+| 5E.4 | Return `total_count` in response (count after filter, before pagination) | 🟢 | ✅ done | Response now includes total count pre-pagination |
+| 5E.5 | Add `totalCount` field to `FileListResponse` Dart model in `lib/models/models.dart` | 🟢 | ✅ done | Added Dart FileListResponse with totalCount |
+| 5E.6 | Update `api_service.dart` `listFiles()`: accept `page`, `pageSize`, `sortBy`, `sortDir` params | 🟢 | ✅ done | Updated service method signature and parsing |
+| 5E.7 | Update `folder_view.dart`: implement load-more button; disable when `items.length >= totalCount` | 🔵 | ✅ done | Added load-more button with disable condition and progress state |
 
 ### 5F — Job Tracking for Long-Running Operations (Critique A2)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5F.1 | Create `backend/app/job_store.py` with `JobStatus` enum and `Job` dataclass: `id`, `status`, `started_at`, `result`, `error` | 🔵 | ⬚ todo | In-memory only; jobs lost on restart is acceptable |
-| 5F.2 | Add `create_job()`, `update_job()`, `get_job()` functions to `job_store.py` | 🟢 | ⬚ todo | |
-| 5F.3 | Add `GET /api/v1/jobs/{job_id}` endpoint in new `routes/jobs_routes.py` | 🟢 | ⬚ todo | |
-| 5F.4 | Register `jobs_router` in `main.py` | 🟢 | ⬚ todo | |
-| 5F.5 | Refactor `POST /api/v1/storage/format`: return `{"jobId": uuid}` immediately; run format via `asyncio.create_task()` | 🔵 | ⬚ todo | Format can take 3–8 min on 1TB |
-| 5F.6 | Add job timeout guard: mark job `failed` if still `running` after 10 min | 🟢 | ⬚ todo | |
-| 5F.7 | Add `JobStatus` Dart model in `lib/models/models.dart` | 🟢 | ⬚ todo | |
-| 5F.8 | Update `StorageManagementScreen`: after format starts, poll `GET /api/v1/jobs/{jobId}` every 2s | 🔵 | ⬚ todo | |
-| 5F.9 | Show format progress UI: `LinearProgressIndicator` with elapsed time text | 🟢 | ⬚ todo | |
+| 5F.1 | Create `backend/app/job_store.py` with `JobStatus` enum and `Job` dataclass: `id`, `status`, `started_at`, `result`, `error` | 🔵 | ✅ done | Added in-memory `job_store.py` with enum + dataclass |
+| 5F.2 | Add `create_job()`, `update_job()`, `get_job()` functions to `job_store.py` | 🟢 | ✅ done | Added all CRUD helpers |
+| 5F.3 | Add `GET /api/v1/jobs/{job_id}` endpoint in new `routes/jobs_routes.py` | 🟢 | ✅ done | Added endpoint in new jobs router |
+| 5F.4 | Register `jobs_router` in `main.py` | 🟢 | ✅ done | Registered jobs router in app bootstrap |
+| 5F.5 | Refactor `POST /api/v1/storage/format`: return `{"jobId": uuid}` immediately; run format via `asyncio.create_task()` | 🔵 | ✅ done | Format now starts background task and returns `jobId` |
+| 5F.6 | Add job timeout guard: mark job `failed` if still `running` after 10 min | 🟢 | ✅ done | Added 10-minute `asyncio.wait_for` guard |
+| 5F.7 | Add `JobStatus` Dart model in `lib/models/models.dart` | 🟢 | ✅ done | Added Dart model + parser helpers |
+| 5F.8 | Update `StorageManagementScreen`: after format starts, poll `GET /api/v1/jobs/{jobId}` every 2s | 🔵 | ✅ done | Implemented 2-second polling in storage explorer screen |
+| 5F.9 | Show format progress UI: `LinearProgressIndicator` with elapsed time text | 🟢 | ✅ done | Added live progress card with elapsed timer |
 
 ### 5G — Deploy Script Fix (Critique B2: curl fails on self-signed cert)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5G.1 | In `deploy.sh`, replace `curl http://...` health check with `curl --cacert "$CUBIE_CERT" https://...` | 🟢 | ⬚ todo | `CUBIE_CERT` env var path to server cert |
-| 5G.2 | Add fallback: if `CUBIE_CERT` not set, warn and use `curl -k` (insecure) with loud warning | 🟢 | ⬚ todo | |
-| 5G.3 | Add usage comment block at top of `deploy.sh` listing required env vars | 🟢 | ⬚ todo | |
+| 5G.1 | In `deploy.sh`, replace `curl http://...` health check with `curl --cacert "$CUBIE_CERT" https://...` | 🟢 | ✅ done | Added HTTPS health check using `--cacert` when cert path is provided |
+| 5G.2 | Add fallback: if `CUBIE_CERT` not set, warn and use `curl -k` (insecure) with loud warning | 🟢 | ✅ done | Added explicit warning + insecure fallback |
+| 5G.3 | Add usage comment block at top of `deploy.sh` listing required env vars | 🟢 | ✅ done | Added usage and env var docs at top of script |
 
 ### 5H — bcrypt `run_in_executor` (Critique B3: blocks event loop on ARM)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 5H.1 | In `auth.py`, add `async def hash_password(plain: str) -> str` using `loop.run_in_executor(None, functools.partial(pwd_context.hash, plain))` | 🟢 | ⬚ todo | bcrypt takes ~100ms on ARM — blocks all concurrent requests otherwise |
-| 5H.2 | Add `async def verify_password(plain: str, hashed: str) -> bool` using same `run_in_executor` pattern | 🟢 | ⬚ todo | |
-| 5H.3 | Update `routes/auth_routes.py` login handler: `await verify_password(...)` | 🟢 | ⬚ todo | |
-| 5H.4 | Update `routes/family_routes.py` wherever bcrypt is called: use async wrappers | 🟢 | ⬚ todo | Grep for `pwd_context` in routes/ |
+| 5H.1 | In `auth.py`, add `async def hash_password(plain: str) -> str` using `loop.run_in_executor(None, functools.partial(pwd_context.hash, plain))` | 🟢 | ✅ done | Added async bcrypt hash wrapper using executor |
+| 5H.2 | Add `async def verify_password(plain: str, hashed: str) -> bool` using same `run_in_executor` pattern | 🟢 | ✅ done | Added async bcrypt verify wrapper using executor |
+| 5H.3 | Update `routes/auth_routes.py` login handler: `await verify_password(...)` | 🟢 | ✅ done | Added `/api/v1/auth/login` and await-based password verification |
+| 5H.4 | Update `routes/family_routes.py` wherever bcrypt is called: use async wrappers | 🟢 | ✅ done | No bcrypt usage present in family routes after grep; no changes required |
 
 ---
 

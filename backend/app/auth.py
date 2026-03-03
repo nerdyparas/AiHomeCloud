@@ -2,6 +2,8 @@
 JWT authentication utilities.
 """
 
+import asyncio
+import functools
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -9,10 +11,28 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from jwt import InvalidTokenError
+from passlib.context import CryptContext
 
 from .config import settings
 
 _bearer_scheme = HTTPBearer()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+async def hash_password(plain: str) -> str:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        functools.partial(pwd_context.hash, plain),
+    )
+
+
+async def verify_password(plain: str, hashed: str) -> bool:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        functools.partial(pwd_context.verify, plain, hashed),
+    )
 
 
 def create_token(subject: str, extra: Optional[dict] = None) -> str:
@@ -59,7 +79,7 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
         return user  # Device tokens are admin-level
 
     user_id = user.get("sub", "")
-    found = store.find_user(user_id)
+    found = await store.find_user(user_id)
     if found and not found.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

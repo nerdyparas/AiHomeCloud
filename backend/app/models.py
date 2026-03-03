@@ -67,6 +67,15 @@ class FileItem(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class FileListResponse(BaseModel):
+    items: list[FileItem]
+    total_count: int = Field(alias="totalCount")
+    page: int
+    page_size: int = Field(alias="pageSize")
+
+    model_config = {"populate_by_name": True}
+
+
 # ─── FamilyUser ──────────────────────────────────────────────────────────────
 
 class FamilyUser(BaseModel):
@@ -136,6 +145,11 @@ class EjectRequest(BaseModel):
 class PairRequest(BaseModel):
     serial: str
     key: str
+
+
+class LoginRequest(BaseModel):
+    name: str
+    pin: str
 
 
 class TokenResponse(BaseModel):

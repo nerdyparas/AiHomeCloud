@@ -6,11 +6,12 @@ import socket
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..auth import create_token, get_current_user
+from ..auth import create_token, get_current_user, hash_password, verify_password
 from ..config import settings
 from ..models import (
     ChangePinRequest,
     CreateUserRequest,
+    LoginRequest,
     PairRequest,
     TokenResponse,
 )
@@ -82,11 +83,50 @@ async def create_user(body: CreateUserRequest):
     existing = await store.get_users()
     is_admin = len(existing) == 0  # First user is admin
 
-    user = await store.add_user(body.name, body.pin, is_admin=is_admin)
+    hashed_pin = await hash_password(body.pin) if body.pin else None
+    user = await store.add_user(body.name, hashed_pin, is_admin=is_admin)
     return {
         "id": user["id"],
         "name": user["name"],
         "isAdmin": user.get("is_admin", False),
+    }
+
+
+@router.post("/auth/login")
+async def login(body: LoginRequest):
+    """Login with username and PIN and return an access token."""
+    users = await store.get_users()
+    found = next((u for u in users if u.get("name") == body.name), None)
+    if not found:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+
+    stored_pin = found.get("pin")
+    if not stored_pin:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "PIN is not configured for this user")
+
+    if str(stored_pin).startswith("$2"):
+        ok = await verify_password(body.pin, stored_pin)
+    else:
+        # Legacy plaintext pin compatibility
+        ok = body.pin == stored_pin
+
+    if not ok:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+
+    token = create_token(
+        subject=found["id"],
+        extra={
+            "type": "user",
+            "is_admin": bool(found.get("is_admin", False)),
+        },
+    )
+    return {
+        "accessToken": token,
+        "user": {
+            "id": found["id"],
+            "name": found["name"],
+            "isAdmin": bool(found.get("is_admin", False)),
+        },
     }
 
 
@@ -104,7 +144,13 @@ async def change_pin(body: ChangePinRequest, user: dict = Depends(get_current_us
 
     user_id = user.get("sub", "")
     found = await store.find_user(user_id)
-    if found and found.get("pin") != body.old_pin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
+    if found and found.get("pin"):
+        stored_pin = found.get("pin")
+        if str(stored_pin).startswith("$2"):
+            if not body.old_pin or not await verify_password(body.old_pin, stored_pin):
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
+        else:
+            if stored_pin != body.old_pin:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
 
-    await store.update_user_pin(user_id, body.new_pin)
+    await store.update_user_pin(user_id, await hash_password(body.new_pin))
