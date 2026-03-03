@@ -382,7 +382,7 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 7E.1 | Create `.github/workflows/backend-tests.yml`: checkout → Python 3.12 → `pip install -r requirements.txt` → `pytest tests/ -v` | 🟢 | ⬚ todo | |
+| 7E.1 | Create `.github/workflows/backend-tests.yml`: checkout → Python 3.12 → `pip install -r requirements.txt` → run `bandit` + `pip-audit` → `pytest backend/tests` | 🟢 | ✅ done | CI workflow added at `.github/workflows/backend-tests.yml` |
 | 7E.2 | Create `.github/workflows/flutter-analyze.yml`: checkout → `flutter pub get` → `flutter analyze` → `flutter test` | 🟢 | ⬚ todo | |
 | 7E.3 | Add `bandit -r backend/app -ll` step to `backend-tests.yml` | 🟢 | ⬚ todo | Fail CI on HIGH severity |
 | 7E.4 | Add `pip-audit -r requirements.txt` step to `backend-tests.yml` | 🟢 | ⬚ todo | |
