@@ -134,12 +134,12 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 4B.1 | In `store.py`, remove `import threading` and `threading.Lock()`; add `_store_lock = asyncio.Lock()` at module level | 🟢 | ⬚ todo | `threading.Lock` is inert inside async — it never actually blocks |
-| 4B.2 | Convert `save_users()` → `async def save_users()` with `async with _store_lock:` | 🟢 | ⬚ todo | |
-| 4B.3 | Convert `get_users()` → `async def get_users()` with `async with _store_lock:` | 🟢 | ⬚ todo | |
-| 4B.4 | Convert `save_services()` → `async def save_services()` with lock | 🟢 | ⬚ todo | |
-| 4B.5 | Convert `get_services()` → `async def get_services()` with lock | 🟢 | ⬚ todo | |
-| 4B.6 | Convert `save_storage_state()`, `get_storage_state()`, `clear_storage_state()` → async with lock | 🟢 | ⬚ todo | |
+| 4B.1 | In `store.py`, remove `import threading` and `threading.Lock()`; add `_store_lock = asyncio.Lock()` at module level | 🟢 | ✅ done | `threading.Lock` is inert inside async — it never actually blocks |
+| 4B.2 | Convert `save_users()` → `async def save_users()` with `async with _store_lock:` | 🟢 | ✅ done | |
+| 4B.3 | Convert `get_users()` → `async def get_users()` with `async with _store_lock:` | 🟢 | ✅ done | |
+| 4B.4 | Convert `save_services()` → `async def save_services()` with lock | 🟢 | ✅ done | |
+| 4B.5 | Convert `get_services()` → `async def get_services()` with lock | 🟢 | ✅ done | |
+| 4B.6 | Convert `save_storage_state()`, `get_storage_state()`, `clear_storage_state()` → async with lock | 🟢 | ✅ done | |
 | 4B.7 | Update all route handlers in `routes/` to `await` every store call | 🔵 | ⬚ todo | Grep for `get_users\|save_users\|get_services` to find all call sites |
 | 4B.8 | Update `main.py` lifespan hook to `await` any store calls (e.g. `try_auto_remount`) | 🟢 | ⬚ todo | |
 | 4B.9 | Add atomic write helper `_atomic_write(path, data)` in `store.py`: write to `path.tmp` then `os.replace()` | 🟢 | ⬚ todo | Prevents corrupt JSON on power-loss mid-write |

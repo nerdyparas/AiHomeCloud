@@ -43,12 +43,13 @@ async def save_users(users: List[dict]) -> None:
         _write_json(settings.users_file, users)
 
 
-def find_user(user_id: str) -> Optional[dict]:
-    return next((u for u in get_users() if u["id"] == user_id), None)
+async def find_user(user_id: str) -> Optional[dict]:
+    users = await get_users()
+    return next((u for u in users if u["id"] == user_id), None)
 
 
-def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False) -> dict:
-    users = get_users()
+async def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False) -> dict:
+    users = await get_users()
     user = {
         "id": f"user_{uuid.uuid4().hex[:8]}",
         "name": name,
@@ -56,7 +57,7 @@ def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False) -> di
         "is_admin": is_admin,
     }
     users.append(user)
-    save_users(users)
+    await save_users(users)
 
     # Create personal folder
     personal = settings.personal_path / name
@@ -65,21 +66,21 @@ def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False) -> di
     return user
 
 
-def remove_user(user_id: str) -> bool:
-    users = get_users()
+async def remove_user(user_id: str) -> bool:
+    users = await get_users()
     filtered = [u for u in users if u["id"] != user_id]
     if len(filtered) == len(users):
         return False
-    save_users(filtered)
+    await save_users(filtered)
     return True
 
 
-def update_user_pin(user_id: str, new_pin: str) -> bool:
-    users = get_users()
+async def update_user_pin(user_id: str, new_pin: str) -> bool:
+    users = await get_users()
     for u in users:
         if u["id"] == user_id:
             u["pin"] = new_pin
-            save_users(users)
+            await save_users(users)
             return True
     return False
 
@@ -114,20 +115,28 @@ _DEFAULT_SERVICES = [
 ]
 
 
-def get_services() -> List[dict]:
-    services = _read_json(settings.services_file, None)
-    if services is None:
-        _write_json(settings.services_file, _DEFAULT_SERVICES)
-        return _DEFAULT_SERVICES
-    return services
+async def get_services() -> List[dict]:
+    """Return services list, creating defaults if missing."""
+    async with _store_lock:
+        services = _read_json(settings.services_file, None)
+        if services is None:
+            _write_json(settings.services_file, _DEFAULT_SERVICES)
+            return _DEFAULT_SERVICES
+        return services
 
 
-def toggle_service(service_id: str, enabled: bool) -> bool:
-    services = get_services()
+async def save_services(services: List[dict]) -> None:
+    """Persist services list to disk under lock."""
+    async with _store_lock:
+        _write_json(settings.services_file, services)
+
+
+async def toggle_service(service_id: str, enabled: bool) -> bool:
+    services = await get_services()
     for svc in services:
         if svc["id"] == service_id:
             svc["isEnabled"] = enabled
-            _write_json(settings.services_file, services)
+            await save_services(services)
             return True
     return False
 
@@ -152,16 +161,19 @@ def update_device_name(name: str) -> None:
 
 # ─── Storage state ────────────────────────────────────────────────────────────
 
-def get_storage_state() -> dict:
+async def get_storage_state() -> dict:
     """Read persisted storage mount info (activeDevice, mountedAt, etc.)."""
-    return _read_json(settings.storage_file, {})
+    async with _store_lock:
+        return _read_json(settings.storage_file, {})
 
 
-def save_storage_state(state: dict) -> None:
+async def save_storage_state(state: dict) -> None:
     """Persist storage mount info to disk."""
-    _write_json(settings.storage_file, state)
+    async with _store_lock:
+        _write_json(settings.storage_file, state)
 
 
-def clear_storage_state() -> None:
+async def clear_storage_state() -> None:
     """Clear persisted storage state (after unmount)."""
-    _write_json(settings.storage_file, {})
+    async with _store_lock:
+        _write_json(settings.storage_file, {})
