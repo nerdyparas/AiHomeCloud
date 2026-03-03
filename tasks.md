@@ -143,8 +143,7 @@
 | 4B.7 | Update all route handlers in `routes/` to `await` every store call | 🔵 | ✅ done | Updated `auth_routes.py`, `family_routes.py`, `service_routes.py`, and `storage_routes.py` to await async store functions |
 | 4B.8 | Update `main.py` lifespan hook to `await` any store calls (e.g. `try_auto_remount`) | 🟢 | ✅ done | `main.py` already awaits `storage_routes.try_auto_remount()`; verified |
 | 4B.9 | Add atomic write helper `_atomic_write(path, data)` in `store.py`: write to `path.tmp` then `os.replace()` | 🟢 | ✅ done | Implemented `_atomic_write()` using `tempfile.mkstemp` + `os.replace()` |
-| 4B.10 | Use `_atomic_write` in all `save_*` functions | 🟢 | ✅ done | `_write_json()` now delegates to `_atomic_write()`; all `save_*` use `_write_json()` |
-
+| 4B.10 | Use `_atomic_write` in all `save_*` functions | 🟢 | ✅ done | `_write_json()` now delegates to `_atomic_write()`; all `save_*` use `_write_json()` || 4B.11 | **Audit fix**: Convert `get_device_state()` / `update_device_name()` to async with lock + cache | 🟢 | ✅ done | Were still sync; fixed + updated `system_routes.py` callers to await |
 ### 4C — Subprocess Isolation (remove `shell=True`)
 
 | # | Task | Model | Status | Notes |
@@ -157,6 +156,7 @@
 | 4C.6 | In `routes/system_routes.py`: replace shell=True with `await run_command([...])` | 🟢 | ✅ done | No `shell=True` found; central runner added for consistency |
 | 4C.7 | In `routes/network_routes.py`: replace shell=True with `await run_command([...])` | 🟢 | ✅ done | No `shell=True` found; central runner added for consistency |
 | 4C.8 | Set per-call timeouts: default 30s, format operations 600s | 🟢 | ✅ done | `run_command` default 30s; `mkfs.ext4` called with `timeout=600` |
+| 4C.9 | **Audit fix**: Replace inline `create_subprocess_exec` in `service_routes.py`, `network_routes.py`, and `storage_routes.py` auto-remount with `run_command()` | 🟢 | ✅ done | Three route files had local subprocess helpers bypassing centralized runner; all now use `run_command` |
 
 ### 4D — API Versioning (`/api/v1` prefix)
 
@@ -167,6 +167,7 @@
 | 4D.3 | In `lib/core/constants.dart`, add `static const String apiVersion = '/api/v1'` and use it as base | 🟢 | ✅ done | `apiVersion` constant added and consumed |
 | 4D.4 | In `lib/services/api_service.dart`, replace all `/api/` string prefixes with the constant | 🔵 | ✅ done | HTTP endpoint construction now uses `CubieConstants.apiVersion` |
 | 4D.5 | Update `kb/api-contracts.md`: change all endpoint paths to include `/v1` | 🟢 | ✅ done | Contract table updated to `/api/v1/...` |
+| 4D.6 | **Audit note**: WebSocket routes (`/ws/monitor`, `/ws/events`) intentionally remain outside `/api/v1` prefix | 🟢 | ✅ done | WS upgrade paths do not benefit from REST redirect; documented as accepted |
 
 ### 4E — CORS Hardening
 
@@ -286,6 +287,7 @@
 | 5H.2 | Add `async def verify_password(plain: str, hashed: str) -> bool` using same `run_in_executor` pattern | 🟢 | ✅ done | Added async bcrypt verify wrapper using executor |
 | 5H.3 | Update `routes/auth_routes.py` login handler: `await verify_password(...)` | 🟢 | ✅ done | Added `/api/v1/auth/login` and await-based password verification |
 | 5H.4 | Update `routes/family_routes.py` wherever bcrypt is called: use async wrappers | 🟢 | ✅ done | No bcrypt usage present in family routes after grep; no changes required |
+| 5H.5 | **Audit fix**: Replace `==` plaintext PIN fallback with `hmac.compare_digest()` in login and change-pin | 🟢 | ✅ done | Prevents timing side-channel on legacy unhashed PINs |
 
 ---
 

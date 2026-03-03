@@ -2,6 +2,7 @@
 Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
 
+import hmac
 import socket
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -107,8 +108,8 @@ async def login(body: LoginRequest):
     if str(stored_pin).startswith("$2"):
         ok = await verify_password(body.pin, stored_pin)
     else:
-        # Legacy plaintext pin compatibility
-        ok = body.pin == stored_pin
+        # Legacy plaintext pin compatibility — constant-time compare
+        ok = hmac.compare_digest(body.pin.encode(), str(stored_pin).encode())
 
     if not ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
@@ -150,7 +151,7 @@ async def change_pin(body: ChangePinRequest, user: dict = Depends(get_current_us
             if not body.old_pin or not await verify_password(body.old_pin, stored_pin):
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
         else:
-            if stored_pin != body.old_pin:
+            if not hmac.compare_digest(str(stored_pin).encode(), body.old_pin.encode() if body.old_pin else b""):
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
 
     await store.update_user_pin(user_id, await hash_password(body.new_pin))

@@ -11,32 +11,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user, require_admin
 from ..models import NetworkStatus, ToggleRequest
+from ..subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.network")
 
-router = APIRouter(prefix="/api/v1/network", tags=["network"]) 
+router = APIRouter(prefix="/api/v1/network", tags=["network"])
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async def _run(cmd: list[str], timeout: float = 5.0) -> tuple[int, str, str]:
-    """Run a subprocess and return (returncode, stdout, stderr)."""
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=timeout
-        )
-        return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except FileNotFoundError:
-        return 1, "", f"Command not found: {cmd[0]}"
-    except asyncio.TimeoutError:
-        return 1, "", "Command timed out"
-    except Exception as e:
-        return 1, "", str(e)
+    """Delegate to centralized subprocess runner."""
+    return await run_command(cmd, timeout=int(timeout))
 
 
 async def _wifi_info() -> dict:

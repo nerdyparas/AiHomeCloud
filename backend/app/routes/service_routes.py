@@ -3,7 +3,6 @@ Service management routes — list and toggle NAS services.
 Uses real systemctl calls to start/stop systemd units on the Cubie.
 """
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,6 +11,7 @@ from ..auth import get_current_user, require_admin
 from ..models import ServiceInfo, ToggleServiceRequest
 from .. import store
 from .event_routes import emit_service_toggled
+from ..subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.services")
 
@@ -27,19 +27,9 @@ _SERVICE_UNITS: dict[str, list[str]] = {
 
 
 async def _systemctl(action: str, unit: str) -> tuple[bool, str]:
-    """Run `systemctl <action> <unit>` and return (success, stderr)."""
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "systemctl", action, unit,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-        return proc.returncode == 0, stderr.decode().strip()
-    except FileNotFoundError:
-        return False, "systemctl not found"
-    except Exception as e:
-        return False, str(e)
+    """Run `systemctl <action> <unit>` via centralized runner."""
+    rc, _, stderr = await run_command(["systemctl", action, unit], timeout=15)
+    return rc == 0, stderr
 
 
 @router.get("", response_model=list[ServiceInfo])

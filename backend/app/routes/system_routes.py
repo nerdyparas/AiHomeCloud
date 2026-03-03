@@ -29,7 +29,7 @@ def _get_local_ip() -> str:
 @router.get("/info", response_model=CubieDevice)
 async def device_info(user: dict = Depends(get_current_user)):
     """Return device identity & network info."""
-    state = store.get_device_state()
+    state = await store.get_device_state()
     return CubieDevice(
         serial=settings.device_serial,
         name=state.get("name", settings.device_name),
@@ -70,4 +70,4 @@ async def update_name(body: UpdateNameRequest, user: dict = Depends(get_current_
     """Rename the device."""
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
-    store.update_device_name(body.name)
+    await store.update_device_name(body.name)

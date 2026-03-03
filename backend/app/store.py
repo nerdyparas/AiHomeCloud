@@ -211,17 +211,28 @@ async def toggle_service(service_id: str, enabled: bool) -> bool:
 _device_state_file = settings.data_dir / "device.json"
 
 
-def get_device_state() -> dict:
-    return _read_json(
-        _device_state_file,
-        {"name": settings.device_name},
-    )
+async def get_device_state() -> dict:
+    """Read device state (name etc.), protected by the store lock."""
+    cached = _get_cached("device_state")
+    if cached is not None:
+        return cached
+
+    async with _store_lock:
+        state = _read_json(
+            _device_state_file,
+            {"name": settings.device_name},
+        )
+        _set_cached("device_state", state)
+        return state
 
 
-def update_device_name(name: str) -> None:
-    state = get_device_state()
-    state["name"] = name
-    _write_json(_device_state_file, state)
+async def update_device_name(name: str) -> None:
+    """Update device display name under lock."""
+    _set_cached("device_state", None)
+    async with _store_lock:
+        state = _read_json(_device_state_file, {"name": settings.device_name})
+        state["name"] = name
+        _write_json(_device_state_file, state)
 
 
 # ─── Storage state ────────────────────────────────────────────────────────────

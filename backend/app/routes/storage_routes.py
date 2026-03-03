@@ -623,14 +623,9 @@ async def try_auto_remount():
     # Attempt to mount
     settings.nas_root.mkdir(parents=True, exist_ok=True)
 
-    proc = await asyncio.create_subprocess_exec(
-        "mount", device_path, nas_root,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
+    rc, _, stderr = await run_command(["mount", device_path, nas_root], timeout=30)
 
-    if proc.returncode == 0:
+    if rc == 0:
         logger.info("Auto-remount: successfully mounted %s at %s", device_path, nas_root)
         # Ensure NAS dirs exist
         settings.personal_path.mkdir(parents=True, exist_ok=True)
@@ -639,6 +634,6 @@ async def try_auto_remount():
         await _start_nas_services()
     else:
         logger.error(
-            "Auto-remount: failed to mount %s — %s", device_path, stderr.decode().strip()
+            "Auto-remount: failed to mount %s — %s", device_path, stderr
         )
         await store.clear_storage_state()
