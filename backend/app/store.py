@@ -35,8 +35,10 @@ def get_users() -> List[dict]:
     return _read_json(settings.users_file, [])
 
 
-def save_users(users: List[dict]) -> None:
-    _write_json(settings.users_file, users)
+async def save_users(users: List[dict]) -> None:
+    """Persist users to disk using an async lock to prevent concurrent writes."""
+    async with _store_lock:
+        _write_json(settings.users_file, users)
 
 
 def find_user(user_id: str) -> Optional[dict]:
