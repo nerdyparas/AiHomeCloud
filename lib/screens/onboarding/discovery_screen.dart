@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
+import '../../models/models.dart';
 import '../../providers.dart';
 
 class DiscoveryScreen extends ConsumerStatefulWidget {
@@ -15,9 +18,29 @@ class DiscoveryScreen extends ConsumerStatefulWidget {
 }
 
 class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
+  int? _expiresAtSeconds;
+  Timer? _countdownTimer;
+  bool _fingerprintDialogVisible = false;
   @override
   void initState() {
     super.initState();
+    _expiresAtSeconds = ref.read(qrPayloadProvider)?.expiresAt;
+    ref.listen<QrPairPayload?>(qrPayloadProvider, (prev, next) {
+      final nextExpires = next?.expiresAt;
+      if (nextExpires != _expiresAtSeconds) {
+        setState(() {
+          _expiresAtSeconds = nextExpires;
+        });
+      }
+    });
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_expiresAtSeconds == null) return;
+      if (_timeRemaining == Duration.zero) {
+        _countdownTimer?.cancel();
+      }
+      setState(() {});
+    });
     _startDiscovery();
   }
 
@@ -40,8 +63,18 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
     final state = ref.watch(discoveryNotifierProvider);
 
     // Auto-navigate on success
-    ref.listen(discoveryNotifierProvider, (prev, next) {
-      if (next.status == DiscoveryStatus.found) {
+    ref.listen<DiscoveryState>(discoveryNotifierProvider, (prev, next) {
+      if (next.pendingFingerprint != null &&
+          next.pendingFingerprint != prev?.pendingFingerprint) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showFingerprintDialog(next.pendingFingerprint!);
+          }
+        });
+      }
+
+      if (next.status == DiscoveryStatus.found &&
+          next.pendingFingerprint == null) {
         Future.delayed(const Duration(seconds: 1), () {
           // ignore: use_build_context_synchronously
           if (mounted) context.go('/setup');
@@ -75,6 +108,29 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
               ).animate().fadeIn(duration: 300.ms),
 
               const SizedBox(height: 16),
+
+              if (_expiresAtSeconds != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.timer_outlined,
+                        size: 16, color: CubieColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      _timeRemaining == Duration.zero
+                          ? 'OTP expired — scan again'
+                          : 'OTP expires in ${_formatDuration(_timeRemaining)}',
+                      style: GoogleFonts.dmSans(
+                        color: _timeRemaining == Duration.zero
+                            ? CubieColors.error
+                            : CubieColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
 
               // Live status message
               AnimatedSwitcher(
@@ -112,8 +168,8 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                 TextButton(
                   onPressed: () => context.go('/qr-scan'),
                   child: Text('Scan Again',
-                      style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary)),
+                      style:
+                          GoogleFonts.dmSans(color: CubieColors.textSecondary)),
                 ),
               ],
 
@@ -126,11 +182,97 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
   }
 
   String _title(DiscoveryStatus s) => switch (s) {
-        DiscoveryStatus.idle || DiscoveryStatus.searching =>
+        DiscoveryStatus.idle ||
+        DiscoveryStatus.searching =>
           'Finding Your CubieCloud',
         DiscoveryStatus.found => 'Device Found!',
         DiscoveryStatus.failed => 'Connection Failed',
       };
+
+  Duration get _timeRemaining {
+    if (_expiresAtSeconds == null) return Duration.zero;
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    final diff = _expiresAtSeconds! - now;
+    return diff > 0 ? Duration(seconds: diff) : Duration.zero;
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _showFingerprintDialog(String fingerprint) {
+    if (_fingerprintDialogVisible) return;
+    _fingerprintDialogVisible = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('Verify Server Certificate', style: GoogleFonts.sora()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Fingerprint (SHA-256):',
+                style: GoogleFonts.dmSans(fontSize: 13)),
+            const SizedBox(height: 8),
+            SelectableText(
+              fingerprint.toUpperCase(),
+              style: GoogleFonts.dmSans(
+                color: CubieColors.textSecondary,
+                fontSize: 12,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Trusting this certificate locks the device to the pinned fingerprint.',
+              style: GoogleFonts.dmSans(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _handleFingerprintRejected();
+            },
+            child: Text('Cancel', style: GoogleFonts.dmSans()),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await _handleFingerprintTrust(fingerprint);
+            },
+            child: Text('Trust Certificate', style: GoogleFonts.dmSans()),
+          ),
+        ],
+      ),
+    ).whenComplete(() {
+      _fingerprintDialogVisible = false;
+    });
+  }
+
+  Future<void> _handleFingerprintTrust(String fingerprint) async {
+    await ref
+        .read(discoveryNotifierProvider.notifier)
+        .trustFingerprint(fingerprint);
+  }
+
+  void _handleFingerprintRejected() {
+    ref.read(discoveryNotifierProvider.notifier).reset();
+    if (mounted) {
+      context.go('/qr-scan');
+    }
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
 }
 
 // ─── Animated status indicator ──────────────────────────────────────────────

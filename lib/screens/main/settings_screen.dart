@@ -25,6 +25,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final deviceAsync = ref.watch(deviceInfoProvider);
     final servicesAsync = ref.watch(servicesProvider);
     final networkAsync = ref.watch(networkStatusProvider);
+    final fingerprint = ref.watch(certFingerprintProvider);
 
     return Scaffold(
       backgroundColor: CubieColors.background,
@@ -68,9 +69,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _NetworkToggleRow(
                       icon: Icons.wifi_tethering_rounded,
                       label: 'Hotspot',
-                      subtitle: n.hotspotEnabled
-                          ? n.hotspotSsid ?? 'Active'
-                          : 'Off',
+                      subtitle:
+                          n.hotspotEnabled ? n.hotspotSsid ?? 'Active' : 'Off',
                       value: n.hotspotEnabled,
                       onChanged: (v) async {
                         await ref.read(apiServiceProvider).toggleHotspot(v);
@@ -184,6 +184,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               error: (e, _) => CubieCard(child: Text('Error: $e')),
             ),
 
+            const SizedBox(height: 24),
+            _sectionLabel('Security'),
+            const SizedBox(height: 12),
+            CubieCard(
+              child: ListTile(
+                leading: const Icon(Icons.verified_user_rounded,
+                    color: CubieColors.primary, size: 20),
+                title: Text('Verify Server Certificate',
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textPrimary, fontSize: 14)),
+                subtitle: Text(
+                  fingerprint != null
+                      ? fingerprint.toUpperCase()
+                      : 'Not pinned yet',
+                  style: GoogleFonts.dmSans(
+                      color: fingerprint != null
+                          ? CubieColors.textSecondary
+                          : CubieColors.textMuted,
+                      fontSize: 12),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: CubieColors.textMuted, size: 20),
+                onTap: () => _verifyServerCertificate(fingerprint),
+              ),
+            ).animate().fadeIn(delay: 350.ms),
+
             // ── Account ─────────────────────────────────────────────────────
             const SizedBox(height: 24),
             _sectionLabel('Account'),
@@ -269,9 +295,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ? null
               : () async {
                   setState(() => _checkingUpdate = true);
-                  final info = await ref
-                      .read(apiServiceProvider)
-                      .checkFirmwareUpdate();
+                  final info =
+                      await ref.read(apiServiceProvider).checkFirmwareUpdate();
                   setState(() {
                     _updateInfo = info;
                     _checkingUpdate = false;
@@ -318,9 +343,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 12),
           Text(_updateInfo!['changelog'] as String,
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.5)),
+                  color: CubieColors.textSecondary, fontSize: 13, height: 1.5)),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -340,6 +363,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       );
 
+  Future<void> _verifyServerCertificate(String? storedFingerprint) async {
+    final api = ref.read(apiServiceProvider);
+    String? serverFingerprint;
+    String message;
+
+    try {
+      serverFingerprint = await api.fetchServerFingerprint();
+      if (serverFingerprint == null) {
+        message = 'Unable to fetch the fingerprint from the device.';
+      } else if (storedFingerprint == null) {
+        message = 'Fingerprint retrieved from the current device.';
+      } else if (storedFingerprint == serverFingerprint) {
+        message = 'Stored fingerprint matches the server certificate.';
+      } else {
+        message = 'Stored fingerprint differs from the server certificate.';
+      }
+    } catch (e) {
+      message = 'Failed to verify fingerprint: $e';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Server Certificate', style: GoogleFonts.sora()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Stored fingerprint:',
+                style: GoogleFonts.dmSans(fontSize: 12)),
+            SelectableText(
+              storedFingerprint?.toUpperCase() ?? 'Not set',
+              style: GoogleFonts.dmSans(
+                  color: CubieColors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Text('Server fingerprint:',
+                style: GoogleFonts.dmSans(fontSize: 12)),
+            SelectableText(
+              serverFingerprint?.toUpperCase() ?? 'Unavailable',
+              style: GoogleFonts.dmSans(
+                  color: CubieColors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            Text(message,
+                style: GoogleFonts.dmSans(
+                    color: CubieColors.textSecondary, fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Close', style: GoogleFonts.dmSans()),
+          ),
+          if (serverFingerprint != null)
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await persistServerFingerprint(ref, serverFingerprint!);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Fingerprint pinned to certificate.')));
+                }
+              },
+              child: Text('Trust Fingerprint', style: GoogleFonts.dmSans()),
+            ),
+        ],
+      ),
+    );
+  }
+
   // ── Dialogs ───────────────────────────────────────────────────────────────
 
   void _editName(String current) {
@@ -358,14 +452,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
-              await ref
-                  .read(apiServiceProvider)
-                  .updateDeviceName(ctrl.text);
+              await ref.read(apiServiceProvider).updateDeviceName(ctrl.text);
               ref.invalidate(deviceInfoProvider);
               if (ctx.mounted) Navigator.pop(ctx);
             },
@@ -394,8 +485,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'Current PIN',
-                prefixIcon: Icon(Icons.lock_open_rounded,
-                    color: CubieColors.textMuted),
+                prefixIcon:
+                    Icon(Icons.lock_open_rounded, color: CubieColors.textMuted),
               ),
             ),
             const SizedBox(height: 12),
@@ -417,8 +508,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -459,12 +549,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
           ),
           ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
             onPressed: () async {
               await ref.read(apiServiceProvider).logout();
               final prefs = ref.read(sharedPreferencesProvider);
@@ -680,16 +768,14 @@ class _LanStatusRow extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: (connected
-                          ? CubieColors.success
-                          : CubieColors.textMuted)
-                      .withValues(alpha: 0.12),
+                  color:
+                      (connected ? CubieColors.success : CubieColors.textMuted)
+                          .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(Icons.settings_ethernet_rounded,
-                    color: connected
-                        ? CubieColors.success
-                        : CubieColors.textMuted,
+                    color:
+                        connected ? CubieColors.success : CubieColors.textMuted,
                     size: 18),
               ),
               const SizedBox(width: 12),
@@ -714,13 +800,11 @@ class _LanStatusRow extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (connected
-                          ? CubieColors.success
-                          : CubieColors.textMuted)
-                      .withValues(alpha: 0.15),
+                  color:
+                      (connected ? CubieColors.success : CubieColors.textMuted)
+                          .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

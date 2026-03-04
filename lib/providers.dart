@@ -15,19 +15,48 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Override in ProviderScope at app start');
 });
 
+final certFingerprintProvider = StateProvider<String?>((ref) {
+  final stored = ref
+      .read(sharedPreferencesProvider)
+      .getString(CubieConstants.kCertFingerprintPrefKey);
+  if (stored == null || stored.isEmpty) return null;
+  return stored;
+});
+
 final authSessionProvider =
     StateNotifierProvider<AuthSessionNotifier, AuthSession?>((ref) {
   final prefs = ref.read(sharedPreferencesProvider);
-  return AuthSessionNotifier(prefs);
+  return AuthSessionNotifier(
+    prefs,
+    refreshTokenFn: (host, port, refreshToken) async {
+      return ApiService.instance.refreshAccessToken(
+        host: host,
+        port: port,
+        refreshToken: refreshToken,
+      );
+    },
+  );
 });
 
 final apiServiceProvider = Provider<ApiService>((ref) {
+  final storedFingerprint = ref.watch(certFingerprintProvider);
   final api = ApiService.instance;
+  api.setTrustedFingerprint(storedFingerprint);
   api.bindSessionResolver(() => ref.read(authSessionProvider));
   api.bindConnectionStatusCallback(
       (status) => ref.read(connectionProvider.notifier).setStatus(status));
+  api.bindTokenUpdater(
+    (token) => ref.read(authSessionProvider.notifier).updateToken(token),
+  );
   return api;
 });
+
+Future<void> persistServerFingerprint(Ref ref, String fingerprint) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  await prefs.setString(CubieConstants.kCertFingerprintPrefKey, fingerprint);
+  ref.read(certFingerprintProvider.notifier).state = fingerprint;
+  ref.read(apiServiceProvider).setTrustedFingerprint(fingerprint);
+}
 
 final discoveryServiceProvider = Provider<DiscoveryService>((ref) {
   return DiscoveryService.instance;
@@ -61,7 +90,8 @@ class ConnectionNotifier extends StateNotifier<ConnectionStatus> {
   final List<int> reconnectBackoff = [2, 4, 8, 16, 30];
   int _attempt = 0;
 
-  int get currentBackoffSeconds => reconnectBackoff[_attempt.clamp(0, reconnectBackoff.length - 1)];
+  int get currentBackoffSeconds =>
+      reconnectBackoff[_attempt.clamp(0, reconnectBackoff.length - 1)];
 
   void markConnected() {
     _debounceTimer?.cancel();
@@ -111,8 +141,7 @@ final storageStatsProvider = FutureProvider<StorageStats>((ref) async {
 
 // ─── Storage devices ────────────────────────────────────────────────────────
 
-final storageDevicesProvider =
-    FutureProvider<List<StorageDevice>>((ref) async {
+final storageDevicesProvider = FutureProvider<List<StorageDevice>>((ref) async {
   final api = ref.read(apiServiceProvider);
   return api.getStorageDevices();
 });
@@ -240,17 +269,21 @@ final qrPayloadProvider = StateProvider<QrPairPayload?>((ref) => null);
 
 enum DiscoveryStatus { idle, searching, found, failed }
 
+const _pendingFingerprintUnset = Object();
+
 class DiscoveryState {
   final DiscoveryStatus status;
   final String? deviceIp;
   final String statusMessage;
   final DiscoveryMethod? method;
+  final String? pendingFingerprint;
 
   const DiscoveryState({
     this.status = DiscoveryStatus.idle,
     this.deviceIp,
     this.statusMessage = '',
     this.method,
+    this.pendingFingerprint,
   });
 
   DiscoveryState copyWith({
@@ -258,12 +291,16 @@ class DiscoveryState {
     String? deviceIp,
     String? statusMessage,
     DiscoveryMethod? method,
+    Object? pendingFingerprint = _pendingFingerprintUnset,
   }) {
     return DiscoveryState(
       status: status ?? this.status,
       deviceIp: deviceIp ?? this.deviceIp,
       statusMessage: statusMessage ?? this.statusMessage,
       method: method ?? this.method,
+      pendingFingerprint: pendingFingerprint == _pendingFingerprintUnset
+          ? this.pendingFingerprint
+          : pendingFingerprint as String?,
     );
   }
 }
@@ -280,6 +317,7 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
     state = state.copyWith(
       status: DiscoveryStatus.searching,
       statusMessage: 'Starting discovery…',
+      pendingFingerprint: null,
     );
 
     try {
@@ -301,31 +339,74 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
             isAdmin: true,
           );
 
-      // Fetch server certificate fingerprint and persist for pinning (TOFU).
-      try {
-        final fp = await _api.getTlsFingerprint();
-        if (fp != null && fp.isNotEmpty) {
-          final prefs = _ref.read(sharedPreferencesProvider);
-          await prefs.setString(CubieConstants.kCertFingerprintPrefKey, fp);
-          // Inform ApiService to use pinned fingerprint
-          _api.setTrustedFingerprint(fp);
-        }
-      } catch (_) {
-        // Non-fatal; pairing still succeeds without saved fingerprint.
-      }
-
-      state = state.copyWith(
-        status: DiscoveryStatus.found,
-        deviceIp: result.ip,
-        method: result.method,
-        statusMessage: 'Device paired successfully!',
+      final fingerprint = await _api.fetchServerFingerprint(
+        host: result.ip,
+        port: CubieConstants.apiPort,
       );
+      await _handleFingerprint(result, fingerprint);
     } catch (e) {
       state = state.copyWith(
         status: DiscoveryStatus.failed,
         statusMessage: e.toString(),
+        pendingFingerprint: null,
       );
     }
+  }
+
+  Future<void> _handleFingerprint(
+      DiscoveryResult result, String? fingerprint) async {
+    final stored = _ref.read(certFingerprintProvider);
+    if (fingerprint == null) {
+      state = state.copyWith(
+        status: DiscoveryStatus.found,
+        deviceIp: result.ip,
+        method: result.method,
+        statusMessage:
+            'Device paired, but unable to fetch certificate fingerprint.',
+        pendingFingerprint: null,
+      );
+      return;
+    }
+
+    if (stored == null || stored.isEmpty) {
+      state = state.copyWith(
+        status: DiscoveryStatus.found,
+        deviceIp: result.ip,
+        method: result.method,
+        statusMessage:
+            'Confirm this server certificate fingerprint before trusting the device.',
+        pendingFingerprint: fingerprint,
+      );
+      return;
+    }
+
+    if (stored != fingerprint) {
+      state = state.copyWith(
+        status: DiscoveryStatus.failed,
+        deviceIp: result.ip,
+        method: result.method,
+        statusMessage: 'Server certificate fingerprint mismatch detected.',
+        pendingFingerprint: null,
+      );
+      return;
+    }
+
+    _api.setTrustedFingerprint(stored);
+    state = state.copyWith(
+      status: DiscoveryStatus.found,
+      deviceIp: result.ip,
+      method: result.method,
+      statusMessage: 'Device paired successfully!',
+      pendingFingerprint: null,
+    );
+  }
+
+  Future<void> trustFingerprint(String fingerprint) async {
+    await persistServerFingerprint(_ref, fingerprint);
+    state = state.copyWith(
+      statusMessage: 'Server certificate trusted.',
+      pendingFingerprint: null,
+    );
   }
 
   void reset() => state = const DiscoveryState();

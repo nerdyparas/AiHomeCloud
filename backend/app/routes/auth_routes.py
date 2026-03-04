@@ -54,13 +54,6 @@ async def get_pairing_qr():
     key = settings.pairing_key
     host = f"cubie-{serial}.local"
 
-    qr_value = (
-        f"cubie://pair"
-        f"?serial={serial}"
-        f"&key={key}"
-        f"&host={host}"
-    )
-
     # Ensure a persistent OTP exists for pairing (survives restarts).
     # OTP plaintext is not returned here; the device UI is expected to display it.
     import hashlib
@@ -83,6 +76,14 @@ async def get_pairing_qr():
         otp_hash = hashlib.sha256(otp.encode()).hexdigest()
         expires_at = int((datetime.utcnow() + timedelta(seconds=300)).timestamp())
         await store.save_otp(otp_hash, expires_at)
+
+    qr_value = (
+        f"cubie://pair"
+        f"?serial={serial}"
+        f"&key={key}"
+        f"&host={host}"
+        f"&expiresAt={expires_at}"
+    )
 
     return {
         "qrValue": qr_value,
@@ -141,6 +142,31 @@ async def pair_complete(body: PairCompleteRequest):
     await store.clear_otp()
     token = create_token(subject=body.serial, extra={"type": "device"})
     return TokenResponse(token=token)
+
+
+@router.get("/auth/cert-fingerprint")
+async def cert_fingerprint():
+    """Return SHA-256 fingerprint of server TLS cert (DER hex)."""
+    import hashlib
+    from base64 import b64decode
+    try:
+        cert_bytes = settings.tls_cert_path.read_bytes()
+        lines = cert_bytes.decode().splitlines()
+        der_lines = []
+        inside = False
+        for line in lines:
+            if "BEGIN CERTIFICATE" in line:
+                inside = True
+                continue
+            if "END CERTIFICATE" in line:
+                break
+            if inside:
+                der_lines.append(line)
+        der = b64decode("".join(der_lines))
+        fp = hashlib.sha256(der).hexdigest()
+        return {"fingerprint": fp, "algorithm": "sha256"}
+    except FileNotFoundError:
+        return {"fingerprint": None, "algorithm": "sha256"}
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)

@@ -41,8 +41,13 @@ class AuthSession {
 
 class AuthSessionNotifier extends StateNotifier<AuthSession?> {
   final SharedPreferences _prefs;
+  final Future<String> Function(String host, int port, String refreshToken)? _refreshTokenFn;
 
-  AuthSessionNotifier(this._prefs) : super(null) {
+  AuthSessionNotifier(
+    this._prefs, {
+    Future<String> Function(String host, int port, String refreshToken)? refreshTokenFn,
+  })  : _refreshTokenFn = refreshTokenFn,
+        super(null) {
     restoreFromPrefs();
   }
 
@@ -89,6 +94,12 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     await _prefs.setBool(CubieConstants.prefIsSetupDone, false);
   }
 
+  Future<void> updateToken(String token) async {
+    if (state == null) return;
+    state = state!.copyWith(token: token);
+    await _prefs.setString(CubieConstants.prefAuthToken, token);
+  }
+
   Future<void> restoreFromPrefs() async {
     final host = _prefs.getString(CubieConstants.prefDeviceIp);
     final token = _prefs.getString(CubieConstants.prefAuthToken);
@@ -111,5 +122,16 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
       username: username,
       isAdmin: isAdmin,
     );
+
+    if (_refreshTokenFn != null && refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        final refreshed = await _refreshTokenFn!(host, port, refreshToken);
+        if (refreshed.isNotEmpty) {
+          await updateToken(refreshed);
+        }
+      } catch (_) {
+        // Silent failure; session remains as-is until next manual login.
+      }
+    }
   }
 }

@@ -297,40 +297,40 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 6A.1 | Add `RefreshTokenRecord` Pydantic model: `jti`, `user_id`, `issued_at`, `expires_at`, `revoked: bool` | 🟢 | ⬚ todo | |
-| 6A.2 | Add `save_tokens()` / `get_tokens()` async functions to `store.py` using `tokens.json` | 🟢 | ⬚ todo | |
-| 6A.3 | In `auth.py`, add `create_refresh_token(user_id: str) -> str`: 30-day JWT with `type=refresh` claim and unique `jti` | 🟢 | ⬚ todo | |
-| 6A.4 | Update `POST /api/v1/auth/login`: return both `accessToken` (15min) and `refreshToken` (30d) | 🟢 | ⬚ todo | |
-| 6A.5 | Add `POST /api/v1/auth/refresh` endpoint: validate refresh JWT, check `jti` not revoked in store, return new access token | 🔵 | ⬚ todo | |
-| 6A.6 | Add `POST /api/v1/auth/logout` endpoint: mark `jti` as revoked in `tokens.json` | 🟢 | ⬚ todo | |
-| 6A.7 | Add cleanup job in `main.py` lifespan: purge `tokens.json` entries with `expires_at` > 30 days ago | 🟢 | ⬚ todo | |
-| 6A.8 | In `api_service.dart`, add `refreshAccessToken()` method calling `POST /auth/refresh` | 🟢 | ⬚ todo | |
-| 6A.9 | Add 401 auto-retry interceptor in `api_service.dart`: on 401, call `refreshAccessToken()` once then retry | 🔵 | ⬚ todo | Guard with `_isRefreshing` bool to prevent loops |
-| 6A.10 | In `AuthSessionNotifier`, store `refreshToken` field and persist it to `SharedPreferences` | 🟢 | ⬚ todo | |
-| 6A.11 | On app launch in `AuthSessionNotifier.restoreFromPrefs()`: if stored refresh token found, silently call `refreshAccessToken()` | 🔵 | ⬚ todo | |
+| 6A.1 | Add `RefreshTokenRecord` Pydantic model: `jti`, `user_id`, `issued_at`, `expires_at`, `revoked: bool` | 🟢 | ✅ done | Model introduced and used for refresh records |
+| 6A.2 | Add `save_tokens()` / `get_tokens()` async functions to `store.py` using `tokens.json` | 🟢 | ✅ done | File-backed token persistence helpers added |
+| 6A.3 | In `auth.py`, add `create_refresh_token(user_id: str) -> str`: 30-day JWT with `type=refresh` claim and unique `jti` | 🟢 | ✅ done | Refresh JWT builder with `jti` claim added |
+| 6A.4 | Update `POST /api/v1/auth/login`: return both `accessToken` (15min) and `refreshToken` (30d) | 🟢 | ✅ done | Login now returns both tokens |
+| 6A.5 | Add `POST /api/v1/auth/refresh` endpoint: validate refresh JWT, check `jti` not revoked in store, return new access token | 🔵 | ✅ done | Refresh endpoint enforces revocation state |
+| 6A.6 | Add `POST /api/v1/auth/logout` endpoint: mark `jti` as revoked in `tokens.json` | 🟢 | ✅ done | Logout revokes refresh token `jti` |
+| 6A.7 | Add cleanup job in `main.py` lifespan: purge `tokens.json` entries with `expires_at` > 30 days ago | 🟢 | ✅ done | Lifespan event clears stale refresh records |
+| 6A.8 | In `api_service.dart`, add `refreshAccessToken()` method calling `POST /auth/refresh` | 🟢 | ✅ done | Flutter API client exposed refresh helper |
+| 6A.9 | Add 401 auto-retry interceptor in `api_service.dart`: on 401, call `refreshAccessToken()` once then retry | 🔵 | ✅ done | Interceptor guards `_isRefreshing` and retries once |
+| 6A.10 | In `AuthSessionNotifier`, store `refreshToken` field and persist it to `SharedPreferences` | 🟢 | ✅ done | Auth state now caches refresh token persistently |
+| 6A.11 | On app launch in `AuthSessionNotifier.restoreFromPrefs()`: if stored refresh token found, silently call `refreshAccessToken()` | 🔵 | ✅ done | Restore flow refreshes access token automatically |
 
 ### 6B — OTP Pairing Redesign (Critique W4: OTP lost on restart)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 6B.1 | Add `save_otp(otp, expires_at)` / `get_otp() -> OtpRecord?` / `clear_otp()` to `store.py` using `pairing.json` | 🟢 | ⬚ todo | |
-| 6B.2 | Add `OtpRecord` model: `otp_hash`, `expires_at` (store hash, not plaintext) | 🟢 | ⬚ todo | |
-| 6B.3 | On backend startup: read `pairing.json`; if OTP expired, delete it | 🟢 | ⬚ todo | |
-| 6B.4 | Update `GET /api/v1/pair/qr`: read from `pairing.json` if valid OTP exists, else generate new; include `expiresAt` in response | 🟢 | ⬚ todo | |
-| 6B.5 | Update `POST /api/v1/pair/complete`: verify OTP hash, then `clear_otp()` | 🟢 | ⬚ todo | |
-| 6B.6 | Update `QrScanScreen` in Flutter: display countdown timer using `expiresAt` from QR payload | 🟢 | ⬚ todo | |
+| 6B.1 | Add `save_otp(otp, expires_at)` / `get_otp() -> OtpRecord?` / `clear_otp()` to `store.py` using `pairing.json` | 🟢 | ✅ done | Implemented file-backed OTP store helpers |
+| 6B.2 | Add `OtpRecord` model: `otp_hash`, `expires_at` (store hash, not plaintext) | 🟢 | ✅ done | Added `OtpRecord`/hash storage alongside expiry |
+| 6B.3 | On backend startup: read `pairing.json`; if OTP expired, delete it | 🟢 | ✅ done | Startup clears expired pairing data |
+| 6B.4 | Update `GET /api/v1/pair/qr`: read from `pairing.json` if valid OTP exists, else generate new; include `expiresAt` in response | 🟢 | ✅ done | QR payload now returns TTL and reuses stored OTP |
+| 6B.5 | Update `POST /api/v1/pair/complete`: verify OTP hash, then `clear_otp()` | 🟢 | ✅ done | Pair completion verifies hash and wipes OTP |
+| 6B.6 | Update `QrScanScreen` in Flutter: display countdown timer using `expiresAt` from QR payload | 🟢 | ✅ done | Added countdown UI tied to `expiresAt` |
 
 ### 6C — TLS Certificate Pinning in Flutter (Critique: `badCertificateCallback` open)
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 6C.1 | Add `GET /api/v1/auth/cert-fingerprint` endpoint: return SHA-256 hex fingerprint of server's TLS cert | 🟢 | ⬚ todo | Read DER bytes from cert file, compute `sha256` |
-| 6C.2 | Add `kCertFingerprintPrefKey = 'cubieFingerprint'` constant to `lib/core/constants.dart` | 🟢 | ⬚ todo | |
-| 6C.3 | During pairing (after successful pair): fetch and store cert fingerprint in `SharedPreferences` | 🟢 | ⬚ todo | |
-| 6C.4 | Add `_validateCertFingerprint(X509Certificate cert) -> bool` in `api_service.dart` | 🔵 | ⬚ todo | Compare stored hex to `cert.sha256` |
-| 6C.5 | Replace `badCertificateCallback: (_, __, ___) => true` with `_validateCertFingerprint` call | 🔵 | ⬚ todo | |
-| 6C.6 | Add "trust on first use" (TOFU) flow: if no stored fingerprint, show fingerprint dialog for user confirmation before storing | 🔵 | ⬚ todo | |
-| 6C.7 | In `SettingsScreen`, add "Verify Server Certificate" tile showing stored fingerprint | 🟢 | ⬚ todo | |
+| 6C.1 | Add `GET /api/v1/auth/cert-fingerprint` endpoint: return SHA-256 hex fingerprint of server's TLS cert | 🟢 | ✅ done | Endpoint already exposes HEX fingerprint via `/auth/cert-fingerprint` |
+| 6C.2 | Add `kCertFingerprintPrefKey = 'cubieFingerprint'` constant to `lib/core/constants.dart` | 🟢 | ✅ done | Constant present and used for SharedPreferences storage |
+| 6C.3 | During pairing (after successful pair): fetch and store cert fingerprint in `SharedPreferences` | 🟢 | ✅ done | Discovery flow fetches fingerprint and persists it post confirmation |
+| 6C.4 | Add `_validateCertFingerprint(X509Certificate cert) -> bool` in `api_service.dart` | 🔵 | ✅ done | TLS client + WebSocket helpers delegate to `_validateCertFingerprint` for pinning |
+| 6C.5 | Replace `badCertificateCallback: (_, __, ___) => true` with `_validateCertFingerprint` call | 🔵 | ✅ done | WebSocket and HTTP clients now rely on `_validateCertFingerprint` once fingerprint is set |
+| 6C.6 | Add "trust on first use" (TOFU) flow: if no stored fingerprint, show fingerprint dialog for user confirmation before storing | 🔵 | ✅ done | `DiscoveryScreen` waits for dialog approval before navigating and stores the fingerprint after trust |
+| 6C.7 | In `SettingsScreen`, add "Verify Server Certificate" tile showing stored fingerprint | 🟢 | ✅ done | Settings now surface the stored fingerprint and a verification dialog with re-pin action |
 
 ---
 
@@ -340,11 +340,11 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 7A.1 | Create `backend/tests/__init__.py` (empty) | 🟢 | ⬚ todo | |
-| 7A.2 | Create `backend/tests/conftest.py` with `@pytest.fixture async def client(tmp_path)`: overrides `settings.data_dir` to `tmp_path`, returns `AsyncClient(app=app, base_url="http://test")` | 🔵 | ⬚ todo | |
-| 7A.3 | Add `@pytest.fixture` for `admin_token`: calls `POST /api/v1/auth/login` with seeded admin creds | 🟢 | ⬚ todo | |
-| 7A.4 | Add `pytest`, `httpx`, `pytest-asyncio` to `requirements.txt` under `# dev` comment | 🟢 | ⬚ todo | |
-| 7A.5 | Create `backend/pytest.ini` with `asyncio_mode = "auto"` | 🟢 | ⬚ todo | |
+| 7A.1 | Create `backend/tests/__init__.py` (empty) | 🟢 | ✅ done | Test package ready with placeholder __init__ |
+| 7A.2 | Create `backend/tests/conftest.py` with `@pytest.fixture async def client(tmp_path)`: overrides `settings.data_dir` to `tmp_path`, returns `AsyncClient(app=app, base_url="http://test")` | 🔵 | ✅ done | Fixture sets sandboxed tmp_data_dir + AsyncClient |
+| 7A.3 | Add `@pytest.fixture` for `admin_token`: calls `POST /api/v1/auth/login` with seeded admin creds | 🟢 | ✅ done | Guest admin creation + login token fixture |
+| 7A.4 | Add `pytest`, `httpx`, `pytest-asyncio` to `requirements.txt` under `# dev` comment | 🟢 | ✅ done | Test deps grouped under # dev header |
+| 7A.5 | Create `backend/pytest.ini` with `asyncio_mode = "auto"` | 🟢 | ✅ done | Pytest async mode configured |
 
 ### 7B — Path Safety Tests
 

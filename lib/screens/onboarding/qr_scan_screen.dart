@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +21,9 @@ class QrScanScreen extends ConsumerStatefulWidget {
 
 class _QrScanScreenState extends ConsumerState<QrScanScreen> {
   bool _processing = false;
+  int? _otpExpiresAt;
+  int? _otpInitialWindow;
+  Timer? _countdownTimer;
 
   /// Called when a QR barcode is detected (or when the demo button is pressed).
   void _onQrDetected(String rawValue) {
@@ -37,6 +43,10 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
         return;
       }
 
+      if (payload.expiresAt != null) {
+        _startCountdown(payload.expiresAt!);
+      }
+
       ref.read(qrPayloadProvider.notifier).state = payload;
       context.go('/discovery');
     } catch (_) {
@@ -47,6 +57,82 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
   void _error(String msg) {
     setState(() => _processing = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _startCountdown(int expiresAt) {
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    _otpExpiresAt = expiresAt;
+    _otpInitialWindow = max(expiresAt - now, 1);
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remainingSeconds <= 0) {
+        _countdownTimer?.cancel();
+      }
+      setState(() {});
+    });
+    setState(() {});
+  }
+
+  int get _remainingSeconds {
+    if (_otpExpiresAt == null) return 0;
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    final diff = _otpExpiresAt! - now;
+    return diff > 0 ? diff : 0;
+  }
+
+  double get _countdownProgress {
+    if (_otpInitialWindow == null || _otpInitialWindow == 0) return 0;
+    return (_remainingSeconds / _otpInitialWindow!).clamp(0.0, 1.0);
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildCountdownWidget() {
+    final remaining = Duration(seconds: _remainingSeconds);
+    final isExpired = _remainingSeconds == 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.timer_outlined,
+                size: 16,
+                color:
+                    isExpired ? CubieColors.error : CubieColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              isExpired
+                  ? 'OTP expired — please scan again'
+                  : 'OTP expires in ${_formatDuration(remaining)}',
+              style: GoogleFonts.dmSans(
+                color:
+                    isExpired ? CubieColors.error : CubieColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(
+          value: isExpired ? 0 : _countdownProgress,
+          color: CubieColors.warning,
+          backgroundColor: CubieColors.surface.withOpacity(0.6),
+          minHeight: 4,
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
   /// Injects a realistic demo QR value for emulator testing.
@@ -68,8 +154,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
           onPressed: () => context.go('/welcome'),
         ),
         title: Text('Scan QR Code',
-            style:
-                GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),
+            style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),
       ),
       body: Column(
         children: [
@@ -127,6 +212,10 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                     height: 1.5,
                   ),
                 ),
+                if (_otpExpiresAt != null) ...[
+                  const SizedBox(height: 16),
+                  _buildCountdownWidget(),
+                ],
                 const SizedBox(height: 24),
 
                 // Demo button
@@ -167,25 +256,41 @@ class _ScannerOverlay extends StatelessWidget {
       height: 200,
       child: Stack(
         children: [
-          _corner(Alignment.topLeft,
-              const Border(top: BorderSide(color: c, width: w), left: BorderSide(color: c, width: w)), s),
-          _corner(Alignment.topRight,
-              const Border(top: BorderSide(color: c, width: w), right: BorderSide(color: c, width: w)), s),
-          _corner(Alignment.bottomLeft,
-              const Border(bottom: BorderSide(color: c, width: w), left: BorderSide(color: c, width: w)), s),
-          _corner(Alignment.bottomRight,
-              const Border(bottom: BorderSide(color: c, width: w), right: BorderSide(color: c, width: w)), s),
+          _corner(
+              Alignment.topLeft,
+              const Border(
+                  top: BorderSide(color: c, width: w),
+                  left: BorderSide(color: c, width: w)),
+              s),
+          _corner(
+              Alignment.topRight,
+              const Border(
+                  top: BorderSide(color: c, width: w),
+                  right: BorderSide(color: c, width: w)),
+              s),
+          _corner(
+              Alignment.bottomLeft,
+              const Border(
+                  bottom: BorderSide(color: c, width: w),
+                  left: BorderSide(color: c, width: w)),
+              s),
+          _corner(
+              Alignment.bottomRight,
+              const Border(
+                  bottom: BorderSide(color: c, width: w),
+                  right: BorderSide(color: c, width: w)),
+              s),
         ],
       ),
-    )
-        .animate(onPlay: (c) => c.repeat(reverse: true))
-        .scaleXY(begin: 0.95, end: 1.05, duration: 1500.ms, curve: Curves.easeInOut);
+    ).animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(
+        begin: 0.95, end: 1.05, duration: 1500.ms, curve: Curves.easeInOut);
   }
 
   Widget _corner(Alignment align, Border border, double size) {
     return Align(
       alignment: align,
-      child: Container(width: size, height: size, decoration: BoxDecoration(border: border)),
+      child: Container(
+          width: size, height: size, decoration: BoxDecoration(border: border)),
     );
   }
 }

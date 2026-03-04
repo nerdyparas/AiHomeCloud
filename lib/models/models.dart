@@ -102,7 +102,12 @@ class FileItem {
     if (isDirectory) return Icons.folder_rounded;
     final ext = name.split('.').last.toLowerCase();
     return switch (ext) {
-      'jpg' || 'jpeg' || 'png' || 'gif' || 'webp' || 'heic' =>
+      'jpg' ||
+      'jpeg' ||
+      'png' ||
+      'gif' ||
+      'webp' ||
+      'heic' =>
         Icons.image_rounded,
       'mp4' || 'mkv' || 'avi' || 'mov' || 'wmv' => Icons.movie_rounded,
       'mp3' || 'wav' || 'flac' || 'aac' || 'ogg' => Icons.music_note_rounded,
@@ -119,7 +124,12 @@ class FileItem {
     if (isDirectory) return const Color(0xFFE8A84C);
     final ext = name.split('.').last.toLowerCase();
     return switch (ext) {
-      'jpg' || 'jpeg' || 'png' || 'gif' || 'webp' || 'heic' =>
+      'jpg' ||
+      'jpeg' ||
+      'png' ||
+      'gif' ||
+      'webp' ||
+      'heic' =>
         const Color(0xFF4CE88A),
       'mp4' || 'mkv' || 'avi' || 'mov' || 'wmv' => const Color(0xFF4C9BE8),
       'mp3' || 'wav' || 'flac' || 'aac' || 'ogg' => const Color(0xFFE84CA8),
@@ -167,19 +177,39 @@ class QrPairPayload {
   final String serial;
   final String key;
   final String host;
+  final int? expiresAt;
 
   const QrPairPayload({
     required this.serial,
     required this.key,
     required this.host,
+    this.expiresAt,
   });
 
   factory QrPairPayload.fromUri(Uri uri) {
+    final rawExpires = uri.queryParameters['expiresAt'];
+    final expiresTimestamp =
+        rawExpires != null ? int.tryParse(rawExpires) : null;
     return QrPairPayload(
       serial: uri.queryParameters['serial'] ?? '',
       key: uri.queryParameters['key'] ?? '',
       host: uri.queryParameters['host'] ?? '',
+      expiresAt: expiresTimestamp,
     );
+  }
+
+  Duration? get timeUntilExpiry {
+    if (expiresAt == null) return null;
+    final now = DateTime.now().toUtc();
+    final expiry =
+        DateTime.fromMillisecondsSinceEpoch(expiresAt! * 1000, isUtc: true);
+    final diff = expiry.difference(now);
+    return diff.isNegative ? Duration.zero : diff;
+  }
+
+  bool get isExpired {
+    final remaining = timeUntilExpiry;
+    return remaining != null && remaining == Duration.zero;
   }
 }
 
@@ -240,18 +270,18 @@ class ServiceInfo {
 
 /// A block device (partition) detected on the Cubie hardware.
 class StorageDevice {
-  final String name;         // "sda1", "nvme0n1p1"
-  final String path;         // "/dev/sda1"
+  final String name; // "sda1", "nvme0n1p1"
+  final String path; // "/dev/sda1"
   final int sizeBytes;
-  final String sizeDisplay;  // "64.0 GB"
-  final String? fstype;      // "ext4", null if unformatted
+  final String sizeDisplay; // "64.0 GB"
+  final String? fstype; // "ext4", null if unformatted
   final String? label;
-  final String? model;       // "SanDisk Ultra"
-  final String transport;    // "usb", "nvme", "sd"
+  final String? model; // "SanDisk Ultra"
+  final String transport; // "usb", "nvme", "sd"
   final bool mounted;
   final String? mountPoint;
-  final bool isNasActive;    // currently used as NAS storage
-  final bool isOsDisk;       // SD card OS partition
+  final bool isNasActive; // currently used as NAS storage
+  final bool isOsDisk; // SD card OS partition
 
   const StorageDevice({
     required this.name,
@@ -287,19 +317,19 @@ class StorageDevice {
 
   /// Human-readable device type label.
   String get typeLabel => switch (transport) {
-    'usb'  => 'USB Drive',
-    'nvme' => 'NVMe SSD',
-    'sd'   => 'SD Card',
-    _      => transport.toUpperCase(),
-  };
+        'usb' => 'USB Drive',
+        'nvme' => 'NVMe SSD',
+        'sd' => 'SD Card',
+        _ => transport.toUpperCase(),
+      };
 
   /// Icon for this device type.
   IconData get icon => switch (transport) {
-    'usb'  => Icons.usb_rounded,
-    'nvme' => Icons.speed_rounded,
-    'sd'   => Icons.sd_card_rounded,
-    _      => Icons.storage_rounded,
-  };
+        'usb' => Icons.usb_rounded,
+        'nvme' => Icons.speed_rounded,
+        'sd' => Icons.sd_card_rounded,
+        _ => Icons.storage_rounded,
+      };
 }
 
 // ─── NetworkStatus ──────────────────────────────────────────────────────────

@@ -1,9 +1,7 @@
-import os
 import asyncio
-from pathlib import Path
 import pytest
 
-# Ensure test deps are present: httpx, pytest-asyncio
+# Ensure asyncio fixtures have HTTP client
 from httpx import AsyncClient
 
 # Set environment variable before importing the app so Settings picks it up
@@ -16,11 +14,13 @@ def event_loop():
 
 @pytest.fixture
 async def client(tmp_path, monkeypatch):
-    # Point the app data dir to a temporary path
+    # Point the app data dir to a temporary path before FastAPI loads settings
     monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
 
-    # Import app after env var set
+    from app.config import settings
     from app.main import app
+
+    settings.data_dir = tmp_path
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
