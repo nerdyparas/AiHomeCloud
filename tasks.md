@@ -406,11 +406,11 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 7G.1 | Create `test/widgets/stat_tile_test.dart`: renders correct `label` and `value` text | 🟢 | ⬚ todo | |
-| 7G.2 | Create `test/widgets/storage_donut_chart_test.dart`: renders at 0%, 50%, 100% fill without throwing | 🟢 | ⬚ todo | |
-| 7G.3 | Create `test/widgets/file_list_tile_test.dart`: tap callback fires, long-press shows context menu | 🟢 | ⬚ todo | |
-| 7G.4 | Create `test/screens/dashboard_screen_test.dart`: shows `CircularProgressIndicator` during loading state | 🔵 | ⬚ todo | Provide mock `dashboardProvider` |
-| 7G.5 | Add golden test for `CubieCard` widget using `matchesGoldenFile` | 🟢 | ⬚ todo | Run `flutter test --update-goldens` once to seed |
+| 7G.1 | Create `test/widgets/stat_tile_test.dart`: renders correct `label` and `value` text | 🟢 | ✅ done | StatTile widget tests with icon variants |
+| 7G.2 | Create `test/widgets/storage_donut_chart_test.dart`: renders at 0%, 50%, 100% fill without throwing | 🟢 | ✅ done | StorageDonutChart tests at various fill levels |
+| 7G.3 | Create `test/widgets/file_list_tile_test.dart`: tap callback fires, long-press shows context menu | 🟢 | ✅ done | FileListTile tap/long-press callback tests |
+| 7G.4 | Create `test/screens/dashboard_screen_test.dart`: shows `CircularProgressIndicator` during loading state | 🔵 | ✅ done | DashboardScreen loading state tests with FutureBuilder |
+| 7G.5 | Add golden test for `CubieCard` widget using `matchesGoldenFile` | 🟢 | ✅ done | CubieCard golden tests + functional tests (run `flutter test --update-goldens` to seed) |
 
 ---
 
