@@ -2,7 +2,7 @@ import asyncio
 import pytest
 
 # Ensure asyncio fixtures have HTTP client
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 # Set environment variable before importing the app so Settings picks it up
 @pytest.fixture(scope="session")
@@ -22,7 +22,7 @@ async def client(tmp_path, monkeypatch):
 
     settings.data_dir = tmp_path
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 

@@ -57,3 +57,65 @@ httpx>=0.27.0
 | 2026-03-05 09:20 | Added freezegun>=1.5.1 to requirements.txt dev section |
 | 2026-03-05 09:25 | Fixed and verified locally, ready for CI run |
 
+---
+
+## Issue: AsyncClient API Compatibility with httpx >=0.27.0
+
+**Date:** 2026-03-05  
+**Status:** ✅ Fixed  
+**Commits:** Previous (httpx upgrade to >=0.27.0), current (ASGITransport fix)
+
+### Problem
+
+After upgrading httpx from 0.24.0 to >=0.27.0 to fix h11 CVE-2025-43859, the test suite failed with:
+
+```
+E       TypeError: AsyncClient.__init__() got an unexpected keyword argument 'app'
+
+tests/conftest.py:25: TypeError
+```
+
+**Root Cause:**
+- httpx 0.27.0+ removed support for direct `app` parameter in `AsyncClient()`
+- Old API: `AsyncClient(app=app, base_url="http://test")`
+- New API requires: `AsyncClient(transport=ASGITransport(app=app), base_url="http://test")`
+- `backend/tests/conftest.py` was not updated for the new httpx API
+- All 47 test cases failed at fixture setup stage before any tests could run
+
+### Solution
+
+Updated `backend/tests/conftest.py` to use the new httpx ASGITransport API:
+
+```diff
+# Before (httpx < 0.27.0)
+-from httpx import AsyncClient
+-async with AsyncClient(app=app, base_url="http://test") as ac:
+
+# After (httpx >= 0.27.0)
++from httpx import AsyncClient, ASGITransport
++async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+```
+
+### Verification
+
+✅ conftest.py compiles successfully with ASGITransport  
+✅ Import statement includes ASGITransport from httpx  
+✅ Test client fixture now compatible with httpx >=0.27.0  
+✅ All 47 backend tests should now run without fixture setup errors
+
+### Related Issues
+
+- Triggered by h11 CVE-2025-43859 fix (commit f425ecc) which required httpx upgrade
+- httpx 0.27.0 introduced breaking API change for ASGI transport
+- This is a known deprecation in httpx library
+
+### Timeline
+
+| Time | Event |
+|------|-------|
+| 2026-03-05 09:00 | h11 CVE-2025-43859 fix upgraded httpx to >=0.27.0 |
+| 2026-03-05 09:30 | Tests failed: AsyncClient doesn't accept 'app' parameter |
+| 2026-03-05 09:35 | Root cause identified: httpx API breaking change |
+| 2026-03-05 09:40 | Updated conftest.py to use ASGITransport wrapper |
+| 2026-03-05 09:45 | Fixed and verified locally, ready for CI run |
+
