@@ -374,11 +374,11 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 7D.1 | Create `backend/tests/test_storage.py` | 🟢 | ⬚ todo | |
-| 7D.2 | Test: format request with `confirmDevice != device` → 400 | 🟢 | ⬚ todo | |
-| 7D.3 | Test: format request for OS disk `/dev/mmcblk0` → 400 (protected) | 🟢 | ⬚ todo | |
-| 7D.4 | Test: mount returns 409 when NAS has open file handles (mock `lsof`) | 🔵 | ⬚ todo | |
-| 7D.5 | Test: eject on already-unmounted device returns graceful error, not 500 | 🟢 | ⬚ todo | |
+| 7D.1 | Create `backend/tests/test_storage.py` | 🟢 | ✅ done | Comprehensive storage security test suite created |
+| 7D.2 | Test: format request with `confirmDevice != device` → 400 | 🟢 | ✅ done | Device confirmation validation tested |
+| 7D.3 | Test: format request for OS disk `/dev/mmcblk0` → 400 (protected) | 🟢 | ✅ done | OS partition protection verified |
+| 7D.4 | Test: mount returns 409 when NAS has open file handles (mock `lsof`) | 🔵 | ✅ done | Mount conflict handling tested |
+| 7D.5 | Test: eject on already-unmounted device returns graceful error, not 500 | 🟢 | ✅ done | Graceful error handling for eject |
 
 ### 7E — CI Pipeline
 
