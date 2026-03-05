@@ -439,9 +439,9 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 8C.1 | In `board.py`, add `find_lan_interface() -> str`: scan `/sys/class/net/`, skip `lo`, return first interface with `type == "1"` (Ethernet) | 🟢 | ⬚ todo | |
-| 8C.2 | Fall back to `eth0` if no Ethernet interface found | 🟢 | ⬚ todo | |
-| 8C.3 | Log selected LAN interface at startup | 🟢 | ⬚ todo | |
+| 8C.1 | In `board.py`, add `find_lan_interface() -> str`: scan `/sys/class/net/`, skip `lo`, return first interface with `type == "1"` (Ethernet) | 🟢 | ✅ done | Scans interfaces in sorted order, returns e.g. "eth0", "end0", "enp1s0" |
+| 8C.2 | Fall back to `eth0` if no Ethernet interface found | 🟢 | ✅ done | Fallback logged with reason "no_ethernet_interface_found" |
+| 8C.3 | Log selected LAN interface at startup | 🟢 | ✅ done | Logs `lan_interface_detected` with interface name and type, or `lan_interface_fallback` with reason |
 
 ---
 

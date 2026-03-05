@@ -4,7 +4,7 @@ Board abstraction layer for multi-SBC support (Cubie A7Z, Raspberry Pi 4, etc).
 Handles:
 - Board model detection from /proc/device-tree/model
 - Thermal zone path resolution (auto-detect or fallback)
-- LAN interface discovery (future)
+- LAN interface discovery (auto-detect or fallback)
 - CPU governor path mapping
 """
 
@@ -25,27 +25,27 @@ class BoardConfig:
     cpu_governor_path: str
 
 
-# Known board configurations (thermal_zone_path is auto-detected at runtime)
+# Known board configurations (thermal_zone_path and lan_interface are auto-detected at runtime)
 KNOWN_BOARDS: dict[str, BoardConfig] = {
     "Radxa CUBIE A7Z": BoardConfig(
         model_name="Radxa CUBIE A7Z",
         thermal_zone_path="",  # Will be overridden by auto-detection
-        lan_interface="eth0",
+        lan_interface="",  # Will be overridden by auto-detection
         cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
     ),
     "Raspberry Pi 4 Model B": BoardConfig(
         model_name="Raspberry Pi 4 Model B",
         thermal_zone_path="",  # Will be overridden by auto-detection
-        lan_interface="eth0",
+        lan_interface="",  # Will be overridden by auto-detection
         cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
     ),
 }
 
-# Fallback default board (thermal_zone_path is auto-detected at runtime)
+# Fallback default board (thermal_zone_path and lan_interface are auto-detected at runtime)
 DEFAULT_BOARD = BoardConfig(
     model_name="unknown",
     thermal_zone_path="",  # Will be overridden by auto-detection
-    lan_interface="eth0",
+    lan_interface="",  # Will be overridden by auto-detection
     cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
 )
 
@@ -100,16 +100,73 @@ def find_thermal_zone() -> str:
     return fallback_path
 
 
+def find_lan_interface() -> str:
+    """
+    Auto-detect the primary Ethernet LAN interface by scanning /sys/class/net/.
+    
+    Scans network interfaces in /sys/class/net/, skips loopback (lo), and returns
+    the first interface with type file containing "1" (Ethernet type).
+    Falls back to eth0 if no Ethernet interface is found.
+    
+    Returns:
+        Interface name like "eth0", "end0", "enp1s0", or fallback "eth0".
+    """
+    net_base = Path("/sys/class/net")
+    
+    # Try to find the first Ethernet interface
+    try:
+        if net_base.exists():
+            # List all network interfaces
+            interfaces = sorted(net_base.iterdir())
+            for iface_dir in interfaces:
+                iface_name = iface_dir.name
+                
+                # Skip loopback
+                if iface_name == "lo":
+                    continue
+                
+                # Check interface type (1 = Ethernet)
+                type_file = iface_dir / "type"
+                try:
+                    with open(type_file, "r") as f:
+                        iface_type = f.read().strip()
+                        if iface_type == "1":  # Ethernet type
+                            logger.info(
+                                "lan_interface_detected",
+                                interface=iface_name,
+                                type=iface_type,
+                            )
+                            return iface_name
+                except (FileNotFoundError, OSError):
+                    # Interface directory exists but can't read type, continue to next
+                    continue
+    except Exception as e:
+        logger.debug(
+            "lan_interface_scan_error",
+            error=str(e),
+        )
+    
+    # Fallback to eth0
+    fallback_iface = "eth0"
+    logger.info(
+        "lan_interface_fallback",
+        interface=fallback_iface,
+        reason="no_ethernet_interface_found",
+    )
+    return fallback_iface
+
+
 def detect_board() -> BoardConfig:
     """
     Detect the current board by reading /proc/device-tree/model.
     Auto-detects thermal zone path by scanning /sys/class/thermal/.
+    Auto-detects LAN interface by scanning /sys/class/net/.
     
     Falls back to DEFAULT_BOARD if detection fails or board not recognized.
-    Logs the detected board and thermal zone at startup.
+    Logs the detected board, thermal zone, and LAN interface at startup.
     
     Returns:
-        BoardConfig matching the detected board, with auto-detected thermal zone path.
+        BoardConfig matching the detected board, with auto-detected thermal zone path and LAN interface.
     """
     model_name = None
     
@@ -123,10 +180,11 @@ def detect_board() -> BoardConfig:
             error=str(e),
         )
         thermal_zone_path = find_thermal_zone()
+        lan_interface = find_lan_interface()
         board = BoardConfig(
             model_name=DEFAULT_BOARD.model_name,
             thermal_zone_path=thermal_zone_path,
-            lan_interface=DEFAULT_BOARD.lan_interface,
+            lan_interface=lan_interface,
             cpu_governor_path=DEFAULT_BOARD.cpu_governor_path,
         )
         logger.info("board_detected", model_name=board.model_name, reason="fallback")
@@ -136,10 +194,11 @@ def detect_board() -> BoardConfig:
     if model_name in KNOWN_BOARDS:
         base_board = KNOWN_BOARDS[model_name]
         thermal_zone_path = find_thermal_zone()
+        lan_interface = find_lan_interface()
         board = BoardConfig(
             model_name=base_board.model_name,
             thermal_zone_path=thermal_zone_path,
-            lan_interface=base_board.lan_interface,
+            lan_interface=lan_interface,
             cpu_governor_path=base_board.cpu_governor_path,
         )
         logger.info(
@@ -150,12 +209,13 @@ def detect_board() -> BoardConfig:
         )
         return board
     
-    # Unknown board, use defaults with auto-detected thermal zone
+    # Unknown board, use defaults with auto-detected thermal zone and LAN interface
     thermal_zone_path = find_thermal_zone()
+    lan_interface = find_lan_interface()
     board = BoardConfig(
         model_name=DEFAULT_BOARD.model_name,
         thermal_zone_path=thermal_zone_path,
-        lan_interface=DEFAULT_BOARD.lan_interface,
+        lan_interface=lan_interface,
         cpu_governor_path=DEFAULT_BOARD.cpu_governor_path,
     )
     logger.warning(
@@ -167,6 +227,7 @@ def detect_board() -> BoardConfig:
         "board_detected",
         model_name=board.model_name,
         thermal_zone=board.thermal_zone_path,
+        lan_interface=board.lan_interface,
         reason="unknown_model_fallback",
     )
     return board
