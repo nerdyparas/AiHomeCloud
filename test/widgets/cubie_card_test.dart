@@ -48,7 +48,8 @@ void main() {
   group('CubieCard Widget Golden Tests', () {
     // 7G.5: Golden tests for CubieCard widget
     testWidgets('CubieCard golden test with default properties', (WidgetTester tester) async {
-      await tester.binding.window.physicalSizeTestValue = const Size(400, 300);
+      // Set test window size
+      tester.binding.window.physicalSizeTestValue = const Size(400, 300);
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
 
       await tester.pumpWidget(
@@ -82,7 +83,8 @@ void main() {
     });
 
     testWidgets('CubieCard golden test with complex content', (WidgetTester tester) async {
-      await tester.binding.window.physicalSizeTestValue = const Size(400, 400);
+      // Set test window size
+      tester.binding.window.physicalSizeTestValue = const Size(400, 400);
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
 
       await tester.pumpWidget(
@@ -125,7 +127,8 @@ void main() {
     });
 
     testWidgets('CubieCard golden test with elevated style', (WidgetTester tester) async {
-      await tester.binding.window.physicalSizeTestValue = const Size(400, 250);
+      // Set test window size
+      tester.binding.window.physicalSizeTestValue = const Size(400, 250);
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
 
       await tester.pumpWidget(
@@ -160,7 +163,8 @@ void main() {
     });
 
     testWidgets('CubieCard golden test with custom padding', (WidgetTester tester) async {
-      await tester.binding.window.physicalSizeTestValue = const Size(400, 200);
+      // Set test window size
+      tester.binding.window.physicalSizeTestValue = const Size(400, 200);
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
 
       await tester.pumpWidget(

@@ -121,7 +121,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
         const SizedBox(height: 6),
         LinearProgressIndicator(
           value: isExpired ? 0 : _countdownProgress,
-          color: CubieColors.warning,
+          color: CubieColors.error,
           backgroundColor: CubieColors.surface.withOpacity(0.6),
           minHeight: 4,
         ),

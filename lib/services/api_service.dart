@@ -47,13 +47,13 @@ class ApiService {
     return httpClient;
   }
 
-  static http.Client _createTlsClient() {
-    // Deprecated: kept for compatibility but instance now initializes client in constructor.
-    final context = SecurityContext(withTrustedRoots: true);
-    final httpClient = HttpClient(context: context)
-      ..badCertificateCallback = (cert, host, port) => true;
-    return IOClient(httpClient);
-  }
+  // Note: _createTlsClient is kept commented for potential future TLS implementation
+  // static http.Client _createTlsClient() {
+  //   final context = SecurityContext(withTrustedRoots: true);
+  //   final httpClient = HttpClient(context: context)
+  //     ..badCertificateCallback = (cert, host, port) => true;
+  //   return IOClient(httpClient);
+  // }
 
   /// Set or clear the trusted certificate fingerprint used for cert pinning.
   void setTrustedFingerprint(String? hexFingerprint) {

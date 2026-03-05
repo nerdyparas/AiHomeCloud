@@ -211,8 +211,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Error message should be displayed
-      expect(find.text(contains('Error')), findsOneWidget);
-      expect(find.text(contains('Network error')), findsOneWidget);
+      expect(find.text('Error'), findsWidgets);
+      expect(find.text('Network error'), findsOneWidget);
 
       // Progress indicator should be gone
       expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -236,16 +236,14 @@ void main() {
     });
 
     testWidgets('loading future can be cancelled gracefully', (WidgetTester tester) async {
-      bool cancelled = false;
-
       await tester.pumpWidget(
         MaterialApp(
           home: DashboardScreen(
             fetchDashboard: () async {
               try {
                 await Future<void>.delayed(const Duration(seconds: 10));
-              } catch (e) {
-                cancelled = true;
+              } catch (_) {
+                // Future was cancelled during navigation
                 rethrow;
               }
             },

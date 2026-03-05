@@ -51,7 +51,7 @@ final apiServiceProvider = Provider<ApiService>((ref) {
   return api;
 });
 
-Future<void> persistServerFingerprint(Ref ref, String fingerprint) async {
+Future<void> persistServerFingerprint(dynamic ref, String fingerprint) async {
   final prefs = ref.read(sharedPreferencesProvider);
   await prefs.setString(CubieConstants.kCertFingerprintPrefKey, fingerprint);
   ref.read(certFingerprintProvider.notifier).state = fingerprint;

@@ -125,7 +125,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
 
     if (_refreshTokenFn != null && refreshToken != null && refreshToken.isNotEmpty) {
       try {
-        final refreshed = await _refreshTokenFn!(host, port, refreshToken);
+        final refreshed = await _refreshTokenFn(host, port, refreshToken);
         if (refreshed.isNotEmpty) {
           await updateToken(refreshed);
         }
