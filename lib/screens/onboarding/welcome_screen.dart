@@ -113,8 +113,8 @@ class _Illustration extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 colors: [
-                  CubieColors.primary.withValues(alpha: 0.15),
-                  CubieColors.primary.withValues(alpha: 0.03),
+                  CubieColors.primary.withOpacity(0.15),
+                  CubieColors.primary.withOpacity(0.03),
                   Colors.transparent,
                 ],
                 radius: 0.8,
@@ -137,7 +137,7 @@ class _Illustration extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                  color: CubieColors.primary.withValues(alpha: 0.3), width: 1),
+                  color: CubieColors.primary.withOpacity(0.3), width: 1),
             ),
           ),
           // Centre cloud icon
@@ -148,10 +148,10 @@ class _Illustration extends StatelessWidget {
               color: CubieColors.card,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                  color: CubieColors.primary.withValues(alpha: 0.4), width: 1.5),
+                  color: CubieColors.primary.withOpacity(0.4), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: CubieColors.primary.withValues(alpha: 0.2),
+                  color: CubieColors.primary.withOpacity(0.2),
                   blurRadius: 24,
                   spreadRadius: 4,
                 ),

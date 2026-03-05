@@ -37,7 +37,7 @@ class FamilyScreen extends ConsumerWidget {
                     ),
                     Container(
                       decoration: BoxDecoration(
-                        color: CubieColors.primary.withValues(alpha: 0.15),
+                        color: CubieColors.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: IconButton(
@@ -210,7 +210,7 @@ class _MemberCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: user.avatarColor.withValues(alpha: 0.15),
+              color: user.avatarColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
@@ -242,7 +242,7 @@ class _MemberCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: CubieColors.primary.withValues(alpha: 0.15),
+                          color: CubieColors.primary.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text('Admin',

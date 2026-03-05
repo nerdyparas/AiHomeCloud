@@ -45,7 +45,7 @@ class FileListTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: file.iconColor.withValues(alpha: 0.12),
+                  color: file.iconColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(file.icon, color: file.iconColor, size: 24),

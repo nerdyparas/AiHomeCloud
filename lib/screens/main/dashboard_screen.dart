@@ -76,7 +76,7 @@ class DashboardScreen extends ConsumerWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: CubieColors.primary.withValues(alpha: 0.15),
+                        color: CubieColors.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Center(
@@ -109,10 +109,10 @@ class DashboardScreen extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: CubieColors.primary.withValues(alpha: 0.1),
+                        color: CubieColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: CubieColors.primary.withValues(alpha: 0.3)),
+                            color: CubieColors.primary.withOpacity(0.3)),
                       ),
                       child: Row(
                         children: [
@@ -133,7 +133,7 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ).animate().fadeIn(delay: 200.ms).shimmer(
                           duration: 1500.ms,
-                          color: CubieColors.primary.withValues(alpha: 0.1),
+                          color: CubieColors.primary.withOpacity(0.1),
                         ),
                   );
                 },
@@ -367,7 +367,7 @@ class DashboardScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: CubieColors.primary.withValues(alpha: 0.12),
+                color: CubieColors.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.usb_rounded,
@@ -438,7 +438,7 @@ class _StorageDeviceTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _color.withValues(alpha: 0.12),
+              color: _color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(device.icon, color: _color, size: 22),
@@ -473,7 +473,7 @@ class _StorageDeviceTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.15),
+              color: _statusColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(_statusText,

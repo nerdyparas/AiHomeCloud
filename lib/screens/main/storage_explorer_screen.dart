@@ -193,7 +193,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: CubieColors.primary.withValues(alpha: 0.1),
+              color: CubieColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.usb_rounded,
@@ -600,7 +600,7 @@ class _DeviceCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _accentColor.withValues(alpha: 0.12),
+                  color: _accentColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(device.icon, color: _accentColor, size: 22),
@@ -720,7 +720,7 @@ class _DeviceCard extends StatelessWidget {
       child: OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           foregroundColor: color,
-          side: BorderSide(color: color.withValues(alpha: 0.3)),
+          side: BorderSide(color: color.withOpacity(0.3)),
           padding: const EdgeInsets.symmetric(vertical: 8),
         ),
         onPressed: onTap,
@@ -755,7 +755,7 @@ class _DeviceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(text,
@@ -822,7 +822,7 @@ class _SafeRemoveSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: CubieColors.error.withValues(alpha: 0.12),
+              color: CubieColors.error.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.eject_rounded,

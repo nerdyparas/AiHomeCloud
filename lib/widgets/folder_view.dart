@@ -275,7 +275,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: CubieColors.primary.withValues(alpha: 0.12),
+                    color: CubieColors.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.upload_file_rounded,
@@ -298,7 +298,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: CubieColors.secondary.withValues(alpha: 0.12),
+                    color: CubieColors.secondary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.create_new_folder_rounded,
@@ -638,7 +638,7 @@ class _UploadProgressCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: CubieColors.primary.withValues(alpha: 0.12),
+              color: CubieColors.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(

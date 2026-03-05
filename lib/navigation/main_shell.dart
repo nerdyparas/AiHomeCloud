@@ -34,7 +34,7 @@ class MainShell extends ConsumerWidget {
             if (connection == ConnectionStatus.reconnecting)
               Container(
                 width: double.infinity,
-                color: CubieColors.primary.withValues(alpha: 0.18),
+                color: CubieColors.primary.withOpacity(0.18),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: const Row(
                   children: [
@@ -51,7 +51,7 @@ class MainShell extends ConsumerWidget {
             if (connection == ConnectionStatus.disconnected)
               Container(
                 width: double.infinity,
-                color: CubieColors.error.withValues(alpha: 0.2),
+                color: CubieColors.error.withOpacity(0.2),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: const Text('Disconnected from device'),
               ),
@@ -66,7 +66,7 @@ class MainShell extends ConsumerWidget {
         ),
         child: NavigationBar(
           backgroundColor: CubieColors.surface,
-          indicatorColor: CubieColors.primary.withValues(alpha: 0.12),
+          indicatorColor: CubieColors.primary.withOpacity(0.12),
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           height: 68,

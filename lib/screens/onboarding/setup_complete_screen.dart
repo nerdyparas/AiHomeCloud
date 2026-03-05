@@ -97,7 +97,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: CubieColors.success.withValues(alpha: 0.15),
+                      color: CubieColors.success.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Icon(Icons.check_circle_rounded,

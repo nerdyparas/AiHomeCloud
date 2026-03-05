@@ -106,12 +106,12 @@ class _CubieToast extends StatelessWidget {
           color: CubieColors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: notification.color.withValues(alpha: 0.4),
+            color: notification.color.withOpacity(0.4),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: notification.color.withValues(alpha: 0.15),
+              color: notification.color.withOpacity(0.15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -123,7 +123,7 @@ class _CubieToast extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: notification.color.withValues(alpha: 0.15),
+                color: notification.color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(

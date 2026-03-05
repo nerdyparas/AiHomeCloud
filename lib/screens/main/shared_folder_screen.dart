@@ -40,7 +40,7 @@ class SharedFolderScreen extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: CubieColors.secondary.withValues(alpha: 0.12),
+                        color: CubieColors.secondary.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.devices_rounded,

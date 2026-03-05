@@ -78,7 +78,7 @@ class CubieTheme {
       ),
 
       // ── Cards ──
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: CubieColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -153,7 +153,7 @@ class CubieTheme {
       // ── NavigationBar (bottom) ──
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: CubieColors.surface,
-        indicatorColor: CubieColors.primary.withValues(alpha: 0.12),
+        indicatorColor: CubieColors.primary.withOpacity(0.12),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -208,7 +208,7 @@ class CubieTheme {
       ),
 
       // ── Dialog ──
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: CubieColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
@@ -241,7 +241,7 @@ class CubieTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return CubieColors.primary.withValues(alpha: 0.3);
+            return CubieColors.primary.withOpacity(0.3);
           }
           return CubieColors.surface;
         }),

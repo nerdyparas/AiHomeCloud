@@ -100,7 +100,7 @@ class _DonutPainter extends CustomPainter {
 
     // Amber glow behind the arc
     final glowPaint = Paint()
-      ..color = usedColor.withValues(alpha: 0.25)
+      ..color = usedColor.withOpacity(0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth + 6
       ..strokeCap = StrokeCap.round

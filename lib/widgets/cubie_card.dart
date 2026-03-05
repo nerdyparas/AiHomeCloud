@@ -30,14 +30,14 @@ class CubieCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: glowing
-                ? CubieColors.primary.withValues(alpha: 0.5)
+                ? CubieColors.primary.withOpacity(0.5)
                 : CubieColors.cardBorder,
             width: 1,
           ),
           boxShadow: glowing
               ? [
                   BoxShadow(
-                    color: CubieColors.primary.withValues(alpha: 0.15),
+                    color: CubieColors.primary.withOpacity(0.15),
                     blurRadius: 16,
                     spreadRadius: 2,
                   ),

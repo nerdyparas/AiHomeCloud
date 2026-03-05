@@ -45,11 +45,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: CubieColors.primary.withValues(alpha: 0.15),
+                color: CubieColors.primary.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: CubieColors.primary.withValues(alpha: 0.2),
+                    color: CubieColors.primary.withOpacity(0.2),
                     blurRadius: 32,
                     spreadRadius: 8,
                   ),

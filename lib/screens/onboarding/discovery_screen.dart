@@ -312,11 +312,11 @@ class _StatusAnimation extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: colour.withValues(alpha: 0.15),
+              color: colour.withOpacity(0.15),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: colour.withValues(alpha: 0.2),
+                  color: colour.withOpacity(0.2),
                   blurRadius: 24,
                   spreadRadius: 4,
                 ),
@@ -335,7 +335,7 @@ class _StatusAnimation extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: c.withValues(alpha: 0.15), width: 1),
+        border: Border.all(color: c.withOpacity(0.15), width: 1),
       ),
     )
         .animate(onPlay: (ctrl) => ctrl.repeat(), delay: delayMs.ms)

@@ -25,7 +25,7 @@ dependencies:
   shared_preferences: ^2.2.3
   permission_handler: ^11.3.1
   percent_indicator: ^4.2.3
-  intl: ^0.18.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
