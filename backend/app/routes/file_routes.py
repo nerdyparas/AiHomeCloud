@@ -24,9 +24,20 @@ def _safe_resolve(raw_path: str) -> Path:
     Resolve a NAS-relative path (e.g. /srv/nas/shared/Photos) to an
     absolute filesystem path, ensuring it stays within nas_root.
     """
+    # Reject null bytes early — they can confuse OS path operations
+    if "\x00" in raw_path:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
+
+    # Reject excessively long paths before touching the filesystem
+    if len(raw_path) > 4096:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path too long")
+
     # raw_path from the app looks like /srv/nas/shared/...
     # Convert it to absolute by treating nas_root as the anchor.
-    resolved = (settings.nas_root / raw_path.lstrip("/")).resolve()
+    try:
+        resolved = (settings.nas_root / raw_path.lstrip("/")).resolve()
+    except (OSError, ValueError):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
     nas_resolved = settings.nas_root.resolve()
     if not str(resolved).startswith(str(nas_resolved)):

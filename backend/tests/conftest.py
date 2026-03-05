@@ -19,11 +19,18 @@ async def client(tmp_path, monkeypatch):
 
     from app.config import settings
     from app.main import app
+    from app import store
 
     settings.data_dir = tmp_path
 
+    # Clear module-level cache so stale data from previous tests is discarded
+    store._cache.clear()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+    # Cleanup after test
+    store._cache.clear()
 
 
 @pytest.fixture

@@ -51,7 +51,7 @@ def create_token(subject: str, extra: Optional[dict] = None) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def create_refresh_token(subject: str, expires_days: int = 30) -> tuple[str, str, int]:
+async def create_refresh_token(subject: str, expires_days: int = 30) -> tuple[str, str, int]:
     """Create a refresh JWT with a `jti` and persist a token record.
 
     Returns (token, jti, expires_at_ts).
@@ -75,8 +75,7 @@ def create_refresh_token(subject: str, expires_days: int = 30) -> tuple[str, str
         "expiresAt": int(exp.timestamp()),
         "revoked": False,
     }
-    # store.add_token is async — schedule it
-    asyncio.create_task(store.add_token(record))
+    await store.add_token(record)
     return token, jti, int(exp.timestamp())
 
 

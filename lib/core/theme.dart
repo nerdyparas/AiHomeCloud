@@ -78,7 +78,7 @@ class CubieTheme {
       ),
 
       // ── Cards ──
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: CubieColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -208,7 +208,7 @@ class CubieTheme {
       ),
 
       // ── Dialog ──
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: CubieColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(

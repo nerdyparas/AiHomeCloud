@@ -215,7 +215,7 @@ async def login(body: LoginRequest):
             "is_admin": bool(found.get("is_admin", False)),
         },
     )
-    refresh_token, jti, expires_at = create_refresh_token(found["id"])
+    refresh_token, jti, expires_at = await create_refresh_token(found["id"])
     return {
         "accessToken": access_token,
         "refreshToken": refresh_token,
