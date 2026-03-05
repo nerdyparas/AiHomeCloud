@@ -420,12 +420,12 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 8A.1 | Create `backend/app/board.py` with `@dataclass BoardConfig(model_name, thermal_zone_path, lan_interface, cpu_governor_path)` | 🟢 | ⬚ todo | |
-| 8A.2 | Add `KNOWN_BOARDS: dict[str, BoardConfig]` with entries for Cubie A7Z and Raspberry Pi 4 | 🟢 | ⬚ todo | |
-| 8A.3 | Add `DEFAULT_BOARD = BoardConfig("unknown", "/sys/class/thermal/thermal_zone0/temp", "eth0", ...)` | 🟢 | ⬚ todo | |
-| 8A.4 | Add `detect_board() -> BoardConfig`: reads `/proc/device-tree/model`, strips null bytes, looks up `KNOWN_BOARDS`, falls back to `DEFAULT_BOARD` | 🟢 | ⬚ todo | |
-| 8A.5 | Wire `detect_board()` into `main.py` lifespan: store as `app.state.board` | 🟢 | ⬚ todo | |
-| 8A.6 | Update `routes/monitor_routes.py`: use `request.app.state.board.thermal_zone_path` instead of hardcoded path | 🟢 | ⬚ todo | |
+| 8A.1 | Create `backend/app/board.py` with `@dataclass BoardConfig(model_name, thermal_zone_path, lan_interface, cpu_governor_path)` | 🟢 | ✅ done | Immutable frozen dataclass with full fields |
+| 8A.2 | Add `KNOWN_BOARDS: dict[str, BoardConfig]` with entries for Cubie A7Z and Raspberry Pi 4 | 🟢 | ✅ done | Two board configs with accurate paths |
+| 8A.3 | Add `DEFAULT_BOARD = BoardConfig("unknown", "/sys/class/thermal/thermal_zone0/temp", "eth0", ...)` | 🟢 | ✅ done | Fallback board with safe defaults |
+| 8A.4 | Add `detect_board() -> BoardConfig`: reads `/proc/device-tree/model`, strips null bytes, looks up `KNOWN_BOARDS`, falls back to `DEFAULT_BOARD` | 🟢 | ✅ done | Full detection with null-byte stripping and fallback |
+| 8A.5 | Wire `detect_board()` into `main.py` lifespan: store as `app.state.board` | 🟢 | ✅ done | Board detection called at startup, stored in app.state |
+| 8A.6 | Update `routes/monitor_routes.py`: use `request.app.state.board.thermal_zone_path` instead of hardcoded path | 🟢 | ✅ done | Monitor WS now reads board-specific thermal zone |
 
 ### 8B — Thermal Zone Auto-Detect
 

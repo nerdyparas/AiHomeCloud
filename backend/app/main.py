@@ -18,6 +18,7 @@ from .config import settings, JWT_SECRET_FILE
 import os
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
+from .board import detect_board
 from .routes import (
     auth_routes,
     system_routes,
@@ -36,7 +37,7 @@ logger = logging.getLogger("cubie.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: ensure dirs exist, generate TLS cert, auto-remount saved storage device."""
+    """Startup: ensure dirs exist, generate TLS cert, detect board, auto-remount saved storage device."""
     # Configure logging before any startup log lines.
     configure_logging(settings.log_level)
 
@@ -49,6 +50,9 @@ async def lifespan(app: FastAPI):
             "port": settings.port,
         },
     )
+
+    # Detect board configuration and store in app state
+    app.state.board = detect_board()
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
