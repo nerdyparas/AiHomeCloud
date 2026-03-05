@@ -22,7 +22,7 @@ async def test_valid_login_returns_200_with_tokens(client: AsyncClient, admin_to
     """
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "admin", "pin": "1234"}
+        json={"name": "admin", "pin": "0000"}
     )
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     
@@ -64,7 +64,7 @@ async def test_nonexistent_user_returns_401(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_login_rate_limiting_429_on_rapid_calls(client: AsyncClient):
+async def test_login_rate_limiting_429_on_rapid_calls(client: AsyncClient, admin_token: str):
     """
     7C.4: POST /api/v1/auth/login with 6 rapid calls → 6th returns 429
     
@@ -91,7 +91,7 @@ async def test_login_rate_limiting_429_on_rapid_calls(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_member_cannot_access_admin_endpoint_403(client: AsyncClient):
+async def test_member_cannot_access_admin_endpoint_403(client: AsyncClient, admin_token: str):
     """
     7C.5: Member JWT cannot call GET /api/v1/family (admin-only) → 403
     
@@ -101,14 +101,14 @@ async def test_member_cannot_access_admin_endpoint_403(client: AsyncClient):
     # Create a member user
     response = await client.post(
         "/api/v1/users",
-        json={"name": "member_user", "pin": "5678"}
+        json={"name": "member_user", "pin": "4567"}
     )
     assert response.status_code == 201, "Member user creation should succeed"
     
     # Login as member
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "member_user", "pin": "5678"}
+        json={"name": "member_user", "pin": "4567"}
     )
     assert response.status_code == 200
     member_token = response.json().get("accessToken")
@@ -168,7 +168,7 @@ async def test_refresh_with_revoked_jti_returns_401(client: AsyncClient, admin_t
     # First, login to get a refresh token
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "admin", "pin": "1234"}
+        json={"name": "admin", "pin": "0000"}
     )
     assert response.status_code == 200
     refresh_token = response.json().get("refreshToken")
@@ -200,7 +200,7 @@ async def test_logout_then_refresh_returns_401(client: AsyncClient, admin_token:
     # Get a fresh login session
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "admin", "pin": "1234"}
+        json={"name": "admin", "pin": "0000"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -224,14 +224,14 @@ async def test_logout_then_refresh_returns_401(client: AsyncClient, admin_token:
 
 
 @pytest.mark.asyncio
-async def test_valid_refresh_token_returns_new_access_token(client: AsyncClient):
+async def test_valid_refresh_token_returns_new_access_token(client: AsyncClient, admin_token: str):
     """
     Bonus test: Verify that a valid refresh token can be used to get a new access token.
     """
     # Login to get both tokens
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "admin", "pin": "1234"}
+        json={"name": "admin", "pin": "0000"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -284,7 +284,7 @@ async def test_admin_can_access_admin_endpoint(client: AsyncClient, admin_token:
 
 
 @pytest.mark.asyncio
-async def test_create_user_first_user_is_admin(client: AsyncClient):
+async def test_create_user_first_user_is_admin(client: AsyncClient, admin_token: str):
     """
     Bonus test: Verify that first user created is automatically admin.
     This is tested implicitly through the admin_token fixture.
@@ -305,7 +305,7 @@ async def test_second_user_is_not_admin(client: AsyncClient, admin_token: str):
     # Create a second user
     response = await client.post(
         "/api/v1/users",
-        json={"name": "second_user", "pin": "9999"}
+        json={"name": "second_user", "pin": "1234"}
     )
     assert response.status_code == 201
     user_data = response.json()
@@ -343,7 +343,7 @@ async def test_change_pin_with_wrong_old_pin_returns_403(client: AsyncClient, ad
     """
     response = await client.put(
         "/api/v1/users/pin",
-        json={"oldPin": "9999", "newPin": "5678"},
+        json={"oldPin": "9999", "newPin": "1234"},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 403, "Wrong old PIN should return 403"
@@ -357,7 +357,7 @@ async def test_change_pin_success(client: AsyncClient, admin_token: str):
     # Change PIN
     response = await client.put(
         "/api/v1/users/pin",
-        json={"oldPin": "1234", "newPin": "5678"},
+        json={"oldPin": "0000", "newPin": "1111"},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 204, "PIN change should succeed"
@@ -365,14 +365,14 @@ async def test_change_pin_success(client: AsyncClient, admin_token: str):
     # Verify old PIN no longer works
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "admin", "pin": "1234"}
+        json={"name": "admin", "pin": "0000"}
     )
     assert response.status_code == 401, "Old PIN should not work"
     
     # Verify new PIN works
     response = await client.post(
         "/api/v1/auth/login",
-        json={"name": "admin", "pin": "5678"}
+        json={"name": "admin", "pin": "1111"}
     )
     assert response.status_code == 200, "New PIN should work"
 
@@ -384,7 +384,7 @@ async def test_change_pin_with_short_pin_returns_400(client: AsyncClient, admin_
     """
     response = await client.put(
         "/api/v1/users/pin",
-        json={"oldPin": "1234", "newPin": "123"},  # Only 3 digits
+        json={"oldPin": "0000", "newPin": "123"},  # Only 3 digits
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 400, "Short PIN should return 400"

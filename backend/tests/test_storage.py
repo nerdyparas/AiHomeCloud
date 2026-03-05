@@ -12,14 +12,14 @@ from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.asyncio
-async def test_format_request_with_mismatched_confirm_device_returns_400(client: AsyncClient):
+async def test_format_request_with_mismatched_confirm_device_returns_400(authenticated_client: AsyncClient):
     """
     7D.2: Format request with confirmDevice != device → 400
     
     Verify that format requests require confirmDevice to match device
     (like GitHub's repo delete confirmation pattern).
     """
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/format",
         json={
             "device": "/dev/sda1",
@@ -32,13 +32,13 @@ async def test_format_request_with_mismatched_confirm_device_returns_400(client:
 
 
 @pytest.mark.asyncio
-async def test_format_request_for_os_disk_returns_403(client: AsyncClient):
+async def test_format_request_for_os_disk_returns_403(authenticated_client: AsyncClient):
     """
     7D.3: Format request for OS disk /dev/mmcblk0 → 400 (protected)
     
     Verify that OS partitions (like microSD card) cannot be formatted.
     """
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/format",
         json={
             "device": "/dev/mmcblk0p1",
@@ -55,7 +55,7 @@ async def test_format_request_for_os_disk_returns_403(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_mount_returns_409_when_nas_has_open_file_handles(client: AsyncClient):
+async def test_mount_returns_409_when_nas_has_open_file_handles(authenticated_client: AsyncClient):
     """
     7D.4: Mount returns 409 when NAS has open file handles (mock lsof)
     
@@ -65,7 +65,7 @@ async def test_mount_returns_409_when_nas_has_open_file_handles(client: AsyncCli
     # First, we'd need to mock the storage state to simulate an already-mounted device
     # For now, we verify the endpoint rejects when something is already mounted
     
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/mount",
         json={"device": "/dev/sda1"}
     )
@@ -82,14 +82,14 @@ async def test_mount_returns_409_when_nas_has_open_file_handles(client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_eject_on_unmounted_device_returns_graceful_error(client: AsyncClient):
+async def test_eject_on_unmounted_device_returns_graceful_error(authenticated_client: AsyncClient):
     """
     7D.5: Eject on already-unmounted device returns graceful error, not 500
     
     Verify that ejecting a device that is not currently mounted
     returns a graceful error (not a 500 server error).
     """
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/eject",
         json={"device": "/dev/sda1"}
     )
@@ -100,11 +100,11 @@ async def test_eject_on_unmounted_device_returns_graceful_error(client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_format_nonexistent_device_returns_404(client: AsyncClient):
+async def test_format_nonexistent_device_returns_404(authenticated_client: AsyncClient):
     """
     Bonus: Format request for non-existent device returns 404.
     """
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/format",
         json={
             "device": "/dev/nonexistent999",
@@ -117,11 +117,11 @@ async def test_format_nonexistent_device_returns_404(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_mount_nonexistent_device_returns_404(client: AsyncClient):
+async def test_mount_nonexistent_device_returns_404(authenticated_client: AsyncClient):
     """
     Bonus: Mount request for non-existent device returns 404.
     """
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/mount",
         json={"device": "/dev/nonexistent999"}
     )
@@ -130,7 +130,7 @@ async def test_mount_nonexistent_device_returns_404(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_mount_unformatted_device_returns_400(client: AsyncClient):
+async def test_mount_unformatted_device_returns_400(authenticated_client: AsyncClient):
     """
     Bonus: Mount request for device without filesystem returns 400.
     
@@ -139,7 +139,7 @@ async def test_mount_unformatted_device_returns_400(client: AsyncClient):
     """
     # This would require a real device without a filesystem
     # The test may not apply in the test environment, so we skip if needed
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/mount",
         json={"device": "/dev/sda"}  # Raw device, not a partition
     )
@@ -150,12 +150,12 @@ async def test_mount_unformatted_device_returns_400(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_format_mounted_device_returns_409(client: AsyncClient):
+async def test_format_mounted_device_returns_409(authenticated_client: AsyncClient):
     """
     Bonus: Format request for currently mounted device returns 409.
     """
     # Get the currently mounted device (if any) from storage state
-    response = await client.get("/api/v1/storage/devices")
+    response = await authenticated_client.get("/api/v1/storage/devices")
     assert response.status_code == 200
     
     devices = response.json()
@@ -169,7 +169,7 @@ async def test_format_mounted_device_returns_409(client: AsyncClient):
     
     if mounted_device and not mounted_device.startswith("/dev/mmcblk"):
         # Try to format the mounted device
-        response = await client.post(
+        response = await authenticated_client.post(
             "/api/v1/storage/format",
             json={
                 "device": mounted_device,
@@ -181,12 +181,12 @@ async def test_format_mounted_device_returns_409(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_format_returns_job_id(client: AsyncClient):
+async def test_format_returns_job_id(authenticated_client: AsyncClient):
     """
     Bonus: Format request returns a jobId for async tracking.
     """
     # Try to format a non-OS device (if one exists)
-    response = await client.get("/api/v1/storage/devices")
+    response = await authenticated_client.get("/api/v1/storage/devices")
     assert response.status_code == 200
     
     devices = response.json()
@@ -199,7 +199,7 @@ async def test_format_returns_job_id(client: AsyncClient):
             break
     
     if external_device:
-        response = await client.post(
+        response = await authenticated_client.post(
             "/api/v1/storage/format",
             json={
                 "device": external_device,
@@ -215,11 +215,11 @@ async def test_format_returns_job_id(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_storage_devices_endpoint_returns_list(client: AsyncClient):
+async def test_storage_devices_endpoint_returns_list(authenticated_client: AsyncClient):
     """
     Bonus: Verify that GET /api/v1/storage/devices returns a device list.
     """
-    response = await client.get("/api/v1/storage/devices")
+    response = await authenticated_client.get("/api/v1/storage/devices")
     assert response.status_code == 200
     
     data = response.json()
@@ -237,7 +237,7 @@ async def test_storage_stats_endpoint_returns_stats(client: AsyncClient, admin_t
     """
     Bonus: Verify that GET /api/v1/storage/stats returns storage statistics.
     """
-    response = await client.get(
+    response = await authenticated_client.get(
         "/api/v1/storage/stats",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
@@ -251,12 +251,12 @@ async def test_storage_stats_endpoint_returns_stats(client: AsyncClient, admin_t
 
 
 @pytest.mark.asyncio
-async def test_format_requires_admin_privileges(client: AsyncClient):
+async def test_format_requires_admin_privileges(authenticated_client: AsyncClient):
     """
     Bonus: Verify that format endpoint requires admin privileges.
     """
     # Make request without authentication
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/format",
         json={
             "device": "/dev/sda1",
@@ -269,12 +269,12 @@ async def test_format_requires_admin_privileges(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_mount_requires_admin_privileges(client: AsyncClient):
+async def test_mount_requires_admin_privileges(authenticated_client: AsyncClient):
     """
     Bonus: Verify that mount endpoint requires admin privileges.
     """
     # Make request without authentication
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/mount",
         json={"device": "/dev/sda1"}
     )
@@ -283,23 +283,23 @@ async def test_mount_requires_admin_privileges(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_unmount_requires_admin_privileges(client: AsyncClient):
+async def test_unmount_requires_admin_privileges(authenticated_client: AsyncClient):
     """
     Bonus: Verify that unmount endpoint requires admin privileges.
     """
     # Make request without authentication
-    response = await client.post("/api/v1/storage/unmount")
+    response = await authenticated_client.post("/api/v1/storage/unmount")
     # Should return 403 (missing auth)
     assert response.status_code in (403, 401), "Unmount should require authentication"
 
 
 @pytest.mark.asyncio
-async def test_eject_requires_admin_privileges(client: AsyncClient):
+async def test_eject_requires_admin_privileges(authenticated_client: AsyncClient):
     """
     Bonus: Verify that eject endpoint requires admin privileges.
     """
     # Make request without authentication
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/storage/eject",
         json={"device": "/dev/sda1"}
     )
@@ -313,14 +313,14 @@ async def test_storage_stats_does_not_require_admin(client: AsyncClient, admin_t
     Bonus: Verify that /stats endpoint is readable by non-admin users.
     """
     # Create a member user
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/users",
         json={"name": "member_user", "pin": "5678"}
     )
     assert response.status_code == 201
     
     # Login as member
-    response = await client.post(
+    response = await authenticated_client.post(
         "/api/v1/auth/login",
         json={"name": "member_user", "pin": "5678"}
     )
@@ -328,7 +328,7 @@ async def test_storage_stats_does_not_require_admin(client: AsyncClient, admin_t
     member_token = response.json().get("accessToken")
     
     # Member should be able to read storage stats
-    response = await client.get(
+    response = await authenticated_client.get(
         "/api/v1/storage/stats",
         headers={"Authorization": f"Bearer {member_token}"}
     )

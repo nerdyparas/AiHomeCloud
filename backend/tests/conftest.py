@@ -28,17 +28,35 @@ async def client(tmp_path, monkeypatch):
 
 @pytest.fixture
 async def admin_token(client: AsyncClient):
+    """
+    Create an admin user and return a valid JWT access token.
+    Uses a short PIN (4 digits) to avoid bcrypt 72-byte limit issues.
+    Named "admin" to match test expectations.
+    """
     # Create first user (becomes admin) and login to obtain token
-    name = "test-admin"
-    pin = "0000"
+    name = "admin"
+    pin = "0000"  # Keep PIN short to avoid bcrypt byte limit issues
+    
     # Create user
     resp = await client.post("/api/v1/users", json={"name": name, "pin": pin})
-    assert resp.status_code in (200, 201)
+    assert resp.status_code in (200, 201), f"User creation failed: {resp.text}"
 
     # Login
     resp = await client.post("/api/v1/auth/login", json={"name": name, "pin": pin})
-    assert resp.status_code == 200
+    assert resp.status_code == 200, f"Login failed: {resp.text}"
+    
     body = resp.json()
     token = body.get("accessToken")
-    assert token
+    assert token, f"No accessToken in response: {body}"
+    
     return token
+
+
+@pytest.fixture
+async def authenticated_client(client: AsyncClient, admin_token: str):
+    """
+    Return a client with Authorization header pre-set with admin token.
+    Use this in tests that need authentication.
+    """
+    client.headers.update({"Authorization": f"Bearer {admin_token}"})
+    return client
