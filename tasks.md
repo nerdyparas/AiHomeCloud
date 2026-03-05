@@ -431,9 +431,9 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 8B.1 | In `board.py`, add `find_thermal_zone() -> str`: scan `/sys/class/thermal/thermal_zone*/type`, return path of first zone with type containing `cpu` or `soc` | 🟢 | ⬚ todo | |
-| 8B.2 | Fall back to `thermal_zone0` path if no matching zone found | 🟢 | ⬚ todo | |
-| 8B.3 | Log selected thermal zone at startup | 🟢 | ⬚ todo | |
+| 8B.1 | In `board.py`, add `find_thermal_zone() -> str`: scan `/sys/class/thermal/thermal_zone*/type`, return path of first zone with type containing `cpu` or `soc` | 🟢 | ✅ done | Scans zones in order, returns path like `/sys/class/thermal/thermal_zone1/temp` |
+| 8B.2 | Fall back to `thermal_zone0` path if no matching zone found | 🟢 | ✅ done | Fallback logged with reason "no_cpu_or_soc_zone_found" |
+| 8B.3 | Log selected thermal zone at startup | 🟢 | ✅ done | Logs `thermal_zone_detected` with path and zone_type, or `thermal_zone_fallback` with reason |
 
 ### 8C — LAN Interface Auto-Detect
 
