@@ -350,12 +350,12 @@
 
 | # | Task | Model | Status | Notes |
 |---|---|---|---|---|
-| 7B.1 | Create `backend/tests/test_path_safety.py` | 🟢 | ⬚ todo | |
-| 7B.2 | Test: `GET /api/v1/files/list?path=../../etc` returns 403 | 🟢 | ⬚ todo | |
-| 7B.3 | Test: `GET /api/v1/files/list?path=/srv/nas/valid/subdir` returns 200 | 🟢 | ⬚ todo | |
-| 7B.4 | Test: path with `%2F..%2F` URL encoding returns 403 | 🟢 | ⬚ todo | |
-| 7B.5 | Test: path of length > 4096 characters returns 400 | 🟢 | ⬚ todo | |
-| 7B.6 | Test: file listing response contains no entries outside NAS root | 🟢 | ⬚ todo | |
+| 7B.1 | Create `backend/tests/test_path_safety.py` | 🟢 | ✅ done | Comprehensive path safety test suite created |
+| 7B.2 | Test: `GET /api/v1/files/list?path=../../etc` returns 403 | 🟢 | ✅ done | Path traversal via .. blocked |
+| 7B.3 | Test: `GET /api/v1/files/list?path=/srv/nas/valid/subdir` returns 200 | 🟢 | ✅ done | Valid NAS paths allowed |
+| 7B.4 | Test: path with `%2F..%2F` URL encoding returns 403 | 🟢 | ✅ done | URL encoding bypass prevented |
+| 7B.5 | Test: path of length > 4096 characters returns 400 | 🟢 | ✅ done | Path length validation |
+| 7B.6 | Test: file listing response contains no entries outside NAS root | 🟢 | ✅ done | File listing bounds validated |
 
 ### 7C — Auth Route Tests
 
