@@ -1,0 +1,113 @@
+/// File browser models — FileItem, FileListResponse, UploadStatus, UploadTask.
+///
+/// Used by the MyFolder / SharedFolder screens and file upload tracking.
+import 'package:flutter/material.dart';
+
+class FileItem {
+  final String name;
+  final String path;
+  final bool isDirectory;
+  final int sizeBytes;
+  final DateTime modified;
+  final String? mimeType;
+
+  const FileItem({
+    required this.name,
+    required this.path,
+    required this.isDirectory,
+    required this.sizeBytes,
+    required this.modified,
+    this.mimeType,
+  });
+
+  /// Human-readable file size.
+  String get formattedSize {
+    if (isDirectory) return '';
+    if (sizeBytes < 1024) return '$sizeBytes B';
+    if (sizeBytes < 1024 * 1024) {
+      return '${(sizeBytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (sizeBytes < 1024 * 1024 * 1024) {
+      return '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(sizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  /// Icon based on file extension.
+  IconData get icon {
+    if (isDirectory) return Icons.folder_rounded;
+    final ext = name.split('.').last.toLowerCase();
+    return switch (ext) {
+      'jpg' ||
+      'jpeg' ||
+      'png' ||
+      'gif' ||
+      'webp' ||
+      'heic' =>
+        Icons.image_rounded,
+      'mp4' || 'mkv' || 'avi' || 'mov' || 'wmv' => Icons.movie_rounded,
+      'mp3' || 'wav' || 'flac' || 'aac' || 'ogg' => Icons.music_note_rounded,
+      'pdf' => Icons.picture_as_pdf_rounded,
+      'doc' || 'docx' || 'txt' || 'md' || 'rtf' => Icons.description_rounded,
+      'xls' || 'xlsx' || 'csv' => Icons.table_chart_rounded,
+      'zip' || 'rar' || '7z' || 'tar' || 'gz' => Icons.archive_rounded,
+      _ => Icons.insert_drive_file_rounded,
+    };
+  }
+
+  /// Accent colour based on file type.
+  Color get iconColor {
+    if (isDirectory) return const Color(0xFFE8A84C);
+    final ext = name.split('.').last.toLowerCase();
+    return switch (ext) {
+      'jpg' ||
+      'jpeg' ||
+      'png' ||
+      'gif' ||
+      'webp' ||
+      'heic' =>
+        const Color(0xFF4CE88A),
+      'mp4' || 'mkv' || 'avi' || 'mov' || 'wmv' => const Color(0xFF4C9BE8),
+      'mp3' || 'wav' || 'flac' || 'aac' || 'ogg' => const Color(0xFFE84CA8),
+      'pdf' => const Color(0xFFE85C5C),
+      _ => const Color(0xFF7A8499),
+    };
+  }
+}
+
+class FileListResponse {
+  final List<FileItem> items;
+  final int totalCount;
+  final int page;
+  final int pageSize;
+
+  const FileListResponse({
+    required this.items,
+    required this.totalCount,
+    required this.page,
+    required this.pageSize,
+  });
+}
+
+enum UploadStatus { queued, uploading, completed, failed }
+
+class UploadTask {
+  final String id;
+  final String fileName;
+  final int totalBytes;
+  int uploadedBytes;
+  UploadStatus status;
+  String? error;
+
+  UploadTask({
+    required this.id,
+    required this.fileName,
+    required this.totalBytes,
+    this.uploadedBytes = 0,
+    this.status = UploadStatus.queued,
+    this.error,
+  });
+
+  double get progress =>
+      totalBytes > 0 ? (uploadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+}
