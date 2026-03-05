@@ -34,8 +34,8 @@ jobs:
           pip install -r backend/requirements.txt
           pip install bandit pip-audit
 
-      - name: Run bandit (HIGH severity only)
-        run: bandit -r backend/app -lll
+      - name: Run bandit (HIGH severity)
+        run: bandit -r backend/app -ll
 
       - name: Run pip-audit
         run: pip-audit --requirement backend/requirements.txt
