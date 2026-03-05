@@ -74,9 +74,10 @@ async def test_mount_returns_409_when_nas_has_open_file_handles(authenticated_cl
     # If mount succeeds, it's because no device was previously mounted (200)
     # If it fails with 409, it's because a device is already mounted
     # If lsblk is unavailable (Windows), we get 404
-    # Both are acceptable outcomes for this test
-    assert response.status_code in (200, 404, 409), \
-        f"Mount should return 200, 404, or 409, got {response.status_code}"
+    # If the device is an OS partition (CI Linux), we get 403
+    # All are acceptable outcomes for this test
+    assert response.status_code in (200, 403, 404, 409), \
+        f"Mount should return 200, 403, 404, or 409, got {response.status_code}"
     
     if response.status_code == 409:
         assert "already mounted" in response.json().get("detail", "").lower()
@@ -164,8 +165,8 @@ async def test_format_mounted_device_returns_409(authenticated_client: AsyncClie
     # Find a mounted device
     mounted_device = None
     for dev in devices:
-        if dev.get("mountpoint"):
-            mounted_device = dev.get("device")
+        if dev.get("mountPoint"):
+            mounted_device = dev.get("path")
             break
     
     if mounted_device and not mounted_device.startswith("/dev/mmcblk"):
@@ -195,8 +196,8 @@ async def test_format_returns_job_id(authenticated_client: AsyncClient):
     
     # Find a non-OS, non-mounted device
     for dev in devices:
-        if not dev.get("isOSPartition") and not dev.get("mountpoint"):
-            external_device = dev.get("device")
+        if not dev.get("isOsDisk") and not dev.get("mountPoint"):
+            external_device = dev.get("path")
             break
     
     if external_device:
@@ -228,8 +229,8 @@ async def test_storage_devices_endpoint_returns_list(authenticated_client: Async
     
     # If devices are present, verify structure
     for device in data:
-        assert "device" in device, "Device should have 'device' field"
-        assert "sizeGB" in device, "Device should have 'sizeGB' field"
+        assert "path" in device, "Device should have 'path' field"
+        assert "sizeBytes" in device, "Device should have 'sizeBytes' field"
         assert "transport" in device, "Device should have 'transport' field"
 
 
