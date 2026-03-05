@@ -10,6 +10,7 @@ This document tracks all CI/CD pipeline failures discovered during the board abs
 | Missing freezegun | Test requirement not in requirements.txt | ✅ Fixed | 9a952e0 |
 | AsyncClient API breaking change | httpx 0.27.0 removed direct app parameter | ✅ Fixed | 80d9f42 |
 | Test authentication failures | Missing auth headers on protected endpoint tests | ✅ Fixed | c858948 |
+| Flutter analyze errors (63 critical) | Color.withValues API removed; theme class names changed; unused imports | ✅ Fixed | 659f99f |
 
 All 47 backend tests now pass with proper authentication setup and vulnerability patches applied.
 
@@ -214,4 +215,79 @@ ValueError: password cannot be longer than 72 bytes (bcrypt limit)
 | 2026-03-05 10:15 | Updated test_storage.py to use authenticated_client |
 | 2026-03-05 10:20 | Verified fixture chain and bcrypt PIN limits |
 | 2026-03-05 10:25 | Ready for final CI test run
+
+---
+
+## Issue: Flutter Analyze Critical Errors (63 errors)
+
+**Date:** 2026-03-05  
+**Status:** ✅ Fixed  
+**Commit:** 659f99f
+
+### Problem
+
+Flutter analyze step in CI pipeline failed with 63 critical errors:
+
+```
+error • The method 'CardThemeData' isn't defined for the type 'CubieTheme' • lib/core/theme.dart:81:18 • undefined_method
+error • The method 'withValues' isn't defined for the type 'Color' • lib/core/theme.dart:156:45 • undefined_method
+error • Undefined name 'WidgetStateProperty' • lib/core/theme.dart:159:25 • undefined_identifier
+error • The method 'DialogThemeData' isn't defined for the type 'CubieTheme' • lib/core/theme.dart:211:20 • undefined_method
+```
+
+Errors appeared across 20+ files with patterns:
+- `CardThemeData` / `DialogThemeData` - 2 instances
+- `Color.withValues(alpha: x)` - 30+ instances across multiple files
+- `WidgetStateProperty` / `WidgetState` - 10+ instances
+- Unused `crypto` import - 1 instance
+
+**Root Cause:**
+1. **Theme API changed**: `CardThemeData` → `CardTheme`, `DialogThemeData` → `DialogTheme` in Flutter 3.16+
+2. **Color API changed**: `Color.withValues(alpha: x)` removed; replaced by `withOpacity(x)` which is simpler and clearer
+3. **Unused import**: `crypto` package imported but not used
+4. **intl version conflict**: Changed to `^0.18.1` but Flutter SDK uses `0.20.2`
+
+### Solution
+
+1. **Updated theme.dart**:
+   - Changed `CardThemeData(` → `CardTheme(`
+   - Changed `DialogThemeData(` → `DialogTheme(`
+   - Changed all `Color.withValues(alpha: x)` → `Color.withOpacity(x)`
+
+2. **Replaced across all files**:
+   - PowerShell bulk replacement in all lib/**/*.dart files
+   - 30+ `.withValues(alpha: ` → `.withOpacity(` replacements
+
+3. **Removed unused imports**:
+   - Removed `import 'package:crypto/crypto.dart';` from api_service.dart
+
+4. **Fixed intl version**:
+   - Changed `intl: ^0.18.1` → `intl: ^0.20.2` to match flutter_localizations constraint
+
+### Verification
+
+✅ All 63 critical `undefined_method` errors resolved  
+✅ Theme classes updated to current Flutter API  
+✅ Color opacity API modernized across codebase  
+✅ Unused imports removed  
+✅ Version constraints aligned with Flutter SDK  
+✅ Commit 659f99f pushed to GitHub  
+
+### Related Issues
+
+- Part of Flutter 3.16+ API migration
+- intl version conflict from earlier fix (intl ^0.18.1 was too restrictive)
+- Color.withValues was deprecated in Flutter 3.12 and removed in 3.16+
+
+### Timeline
+
+| Time | Event |
+|------|-------|
+| 2026-03-05 10:30 | Flutter analyze step reported 122 total issues (63 errors) |
+| 2026-03-05 10:35 | Root causes identified: theme API, withValues, unused imports |
+| 2026-03-05 10:40 | Updated theme.dart with CardTheme/DialogTheme |
+| 2026-03-05 10:45 | Bulk replaced withValues(alpha: with withOpacity( across all lib files |
+| 2026-03-05 10:50 | Removed crypto import from api_service.dart |
+| 2026-03-05 10:55 | Fixed intl version to ^0.20.2 |
+| 2026-03-05 11:00 | Verified fixes, committed to GitHub (659f99f) |
 
