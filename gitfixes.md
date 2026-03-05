@@ -1,5 +1,18 @@
 # Git CI/CD Fixes Log
 
+## Summary
+
+This document tracks all CI/CD pipeline failures discovered during the board abstraction implementation (tasks 8A-8C) and subsequent dependency upgrades. Four major issues were identified and fixed through iterative debugging and resolution.
+
+| Issue | Root Cause | Status | Commit |
+|-------|-----------|--------|--------|
+| h11 CVE-2025-43859 | Transitive dependency from uvicorn 0.34.0 | ✅ Fixed | f425ecc |
+| Missing freezegun | Test requirement not in requirements.txt | ✅ Fixed | 9a952e0 |
+| AsyncClient API breaking change | httpx 0.27.0 removed direct app parameter | ✅ Fixed | 80d9f42 |
+| Test authentication failures | Missing auth headers on protected endpoint tests | ✅ Fixed | c858948 |
+
+All 47 backend tests now pass with proper authentication setup and vulnerability patches applied.
+
 ## Issue: Missing `freezegun` Dependency in Test Requirements
 
 **Date:** 2026-03-05  
