@@ -172,9 +172,20 @@ app.include_router(network_routes.router)
 app.include_router(event_routes.router)
 
 
+@app.get("/api/health")
+async def health():
+    """Health check — unversioned, always available."""
+    return {"status": "ok"}
+
+
 @app.get("/")
 async def root():
-    return {"service": "CubieCloud", "version": "0.1.0"}
+    return {
+        "service": "CubieCloud",
+        "version": "0.1.0",
+        "deviceName": settings.device_name,
+        "serial": settings.device_serial,
+    }
 
 
 # Backward-compatible redirect: /api/... -> /api/v1/...
