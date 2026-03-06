@@ -128,8 +128,9 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
 
       if (!mounted) return;
 
-      // Navigate to setup (create user profile)
-      context.go('/setup');
+      // If already set up, go straight to dashboard; otherwise create profile
+      final isSetupDone = ref.read(isSetupDoneProvider);
+      context.go(isSetupDone ? '/dashboard' : '/setup');
     } catch (e) {
       if (!mounted) return;
       setState(() {

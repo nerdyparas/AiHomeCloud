@@ -14,14 +14,21 @@ def event_loop():
 
 @pytest.fixture
 async def client(tmp_path, monkeypatch):
-    # Point the app data dir to a temporary path before FastAPI loads settings
+    # Point the app data dir AND NAS root to temporary paths before FastAPI loads settings
     monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+
+    nas_tmp = tmp_path / "nas"
+    nas_tmp.mkdir()
+    (nas_tmp / "shared").mkdir()
+    (nas_tmp / "personal").mkdir()
 
     from app.config import settings
     from app.main import app
     from app import store
 
     settings.data_dir = tmp_path
+    settings.nas_root = nas_tmp
+    settings.skip_mount_check = True
 
     # Clear module-level cache so stale data from previous tests is discarded
     store._cache.clear()

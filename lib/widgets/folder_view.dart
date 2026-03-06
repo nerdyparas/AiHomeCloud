@@ -440,6 +440,45 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
+  bool _isNoStorageError(String error) {
+    return error.contains('No external storage mounted') ||
+        error.contains('503');
+  }
+
+  Widget _buildNoStorageMessage() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.usb_off_rounded,
+                size: 64, color: CubieColors.textMuted),
+            const SizedBox(height: 16),
+            Text('No Storage Connected',
+                style: GoogleFonts.sora(
+                    color: CubieColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(
+              'Connect a USB drive or NVMe to your Cubie to use shared storage.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                  color: CubieColors.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Check Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uploads = ref.watch(uploadTasksProvider);
@@ -513,7 +552,9 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   child: CircularProgressIndicator(color: CubieColors.primary),
                 )
                   : _error != null
-                      ? Center(
+                      ? _isNoStorageError(_error!)
+                          ? _buildNoStorageMessage()
+                          : Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

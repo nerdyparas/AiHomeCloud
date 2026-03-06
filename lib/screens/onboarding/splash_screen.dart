@@ -26,7 +26,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted) return;
     final session = ref.read(authSessionProvider);
     if (session != null) {
-      context.go('/dashboard');
+      // Try reaching the saved device; if unreachable show scan page
+      final api = ref.read(apiServiceProvider);
+      try {
+        await api.getDeviceInfo();
+        if (!mounted) return;
+        context.go('/dashboard');
+      } catch (_) {
+        if (!mounted) return;
+        context.go('/scan-network');
+      }
     } else {
       context.go('/welcome');
     }

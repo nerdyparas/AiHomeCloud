@@ -8,6 +8,9 @@ import '../screens/main/file_preview_screen.dart';
 import '../screens/main/folder_view_screen.dart';
 import '../screens/main/my_folder_screen.dart';
 import '../screens/main/settings_screen.dart';
+import '../screens/main/settings/device_settings_screen.dart';
+import '../screens/main/settings/network_settings_screen.dart';
+import '../screens/main/settings/services_settings_screen.dart';
 import '../screens/main/shared_folder_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
 import '../screens/main/wifi_settings_screen.dart';
@@ -34,7 +37,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/welcome';
       }
 
-      if (authSession != null && onOnboarding) {
+      // Allow /scan-network when authenticated (for reconnection)
+      if (authSession != null && onOnboarding && loc != '/scan-network') {
         return '/dashboard';
       }
 
@@ -105,6 +109,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/wifi-settings',
         builder: (_, __) => const WifiSettingsScreen(),
+      ),
+
+      // ── Settings sub-screens (pushed on top, no bottom nav) ───────────────
+      GoRoute(
+        path: '/settings/network',
+        builder: (_, __) => const NetworkSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/device',
+        builder: (_, __) => const DeviceSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/services',
+        builder: (_, __) => const ServicesSettingsScreen(),
       ),
 
       // ── File preview (pushed on top, no bottom nav) ────────────────────────

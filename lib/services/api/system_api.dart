@@ -146,4 +146,17 @@ extension SystemApi on ApiService {
     );
     _check(res);
   }
+
+  /// POST /api/v1/system/shutdown — stop all services and power off
+  Future<void> shutdownDevice() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/shutdown'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30)),
+    );
+    _check(res);
+  }
 }

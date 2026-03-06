@@ -1,6 +1,7 @@
 """
 File management routes — list, mkdir, delete, rename, upload, download.
 All paths are sandboxed under settings.nas_root.
+External storage must be mounted at nas_root; SD card fallback is blocked.
 """
 
 import mimetypes
@@ -17,6 +18,22 @@ from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequ
 from .event_routes import emit_upload_complete
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
+
+
+def _require_external_storage() -> None:
+    """
+    Verify that external storage (USB / NVMe) is mounted at nas_root.
+    If nas_root is just a directory on the SD card, reject file operations
+    so users don't accidentally browse OS files.
+    """
+    if settings.skip_mount_check:
+        return
+    nas = settings.nas_root
+    if not nas.is_mount():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "No external storage mounted. Please connect a USB or NVMe drive.",
+        )
 
 
 def _safe_resolve(raw_path: str) -> Path:
@@ -82,6 +99,7 @@ async def list_files(
     user: dict = Depends(get_current_user),
 ):
     """List files and folders at the given NAS path."""
+    _require_external_storage()
     resolved = _safe_resolve(path)
 
     if not resolved.exists():
@@ -136,6 +154,7 @@ async def list_files(
 @router.post("/mkdir", status_code=status.HTTP_201_CREATED)
 async def create_folder(body: CreateFolderRequest, user: dict = Depends(get_current_user)):
     """Create a new directory."""
+    _require_external_storage()
     resolved = _safe_resolve(body.path)
     if resolved.exists():
         raise HTTPException(status.HTTP_409_CONFLICT, "Folder already exists")
@@ -149,6 +168,7 @@ async def delete_file(
     user: dict = Depends(get_current_user),
 ):
     """Delete a file or directory (recursively)."""
+    _require_external_storage()
     resolved = _safe_resolve(path)
     if not resolved.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
@@ -163,6 +183,7 @@ async def delete_file(
 @router.put("/rename", status_code=status.HTTP_204_NO_CONTENT)
 async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user)):
     """Rename a file or directory."""
+    _require_external_storage()
     if not body.new_name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
 
@@ -196,6 +217,7 @@ async def upload_file(
     Upload a file via multipart form data.
     The 'path' query param is the destination directory.
     """
+    _require_external_storage()
     dest_dir = _safe_resolve(path)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -246,6 +268,7 @@ async def download_file(
     Download a file from the NAS.
     Returns the raw file with appropriate Content-Disposition header.
     """
+    _require_external_storage()
     resolved = _safe_resolve(path)
 
     if not resolved.exists():

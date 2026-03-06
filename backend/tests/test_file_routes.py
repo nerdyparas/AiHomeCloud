@@ -162,9 +162,9 @@ async def test_download_nonexistent_returns_404(authenticated_client: AsyncClien
 @pytest.mark.asyncio
 async def test_download_directory_returns_400(authenticated_client: AsyncClient):
     """Downloading a directory returns 400."""
-    # Ensure shared dir exists
+    # Use /shared/ which maps to the sandboxed nas_root/shared/ created by conftest
     response = await authenticated_client.get(
-        "/api/v1/files/download?path=/srv/nas/shared/"
+        "/api/v1/files/download?path=/shared/"
     )
     assert response.status_code == 400
 

@@ -53,14 +53,25 @@ class MainShell extends ConsumerWidget {
                 width: double.infinity,
                 color: CubieColors.error.withOpacity(0.2),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.cloud_off_rounded, size: 14, color: CubieColors.error),
-                    SizedBox(width: 8),
-                    Expanded(
+                    const Icon(Icons.cloud_off_rounded, size: 14, color: CubieColors.error),
+                    const SizedBox(width: 8),
+                    const Expanded(
                       child: Text(
-                        'CubieCloud is unreachable. Check that your Cubie is powered on and you\'re on the same network.',
+                        'CubieCloud is unreachable.',
                         style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => context.go('/scan-network'),
+                      icon: const Icon(Icons.wifi_find_rounded, size: 14),
+                      label: const Text('Find Cubie', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: CubieColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ],

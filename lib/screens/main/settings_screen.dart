@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
-import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/cubie_card.dart';
 
@@ -18,14 +17,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _checkingUpdate = false;
-  Map<String, dynamic>? _updateInfo;
-
   @override
   Widget build(BuildContext context) {
-    final deviceAsync = ref.watch(deviceInfoProvider);
-    final servicesAsync = ref.watch(servicesProvider);
-    final networkAsync = ref.watch(networkStatusProvider);
     final fingerprint = ref.watch(certFingerprintProvider);
 
     return Scaffold(
@@ -43,185 +36,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 .animate()
                 .fadeIn(duration: 400.ms),
 
-            // ── Network ─────────────────────────────────────────────────────
+            // ── Categories ──────────────────────────────────────────────────
             const SizedBox(height: 24),
-            _sectionLabel('Network'),
-            const SizedBox(height: 12),
-            networkAsync.when(
-              data: (n) => CubieCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    // WiFi toggle + navigate to Wi-Fi picker
-                    _NetworkToggleRow(
-                      icon: Icons.wifi_rounded,
-                      label: 'Wi-Fi',
-                      subtitle: n.wifiConnected
-                          ? n.wifiSsid ?? 'Connected'
-                          : (n.wifiEnabled ? 'Not connected' : 'Off'),
-                      value: n.wifiEnabled,
-                      onChanged: (v) async {
-                        await ref.read(apiServiceProvider).toggleWifi(v);
-                        ref.invalidate(networkStatusProvider);
-                      },
-                      onTap: n.wifiEnabled
-                          ? () => context.push('/wifi-settings')
-                          : null,
-                    ),
-                    _divider(),
-                    // Hotspot toggle
-                    _NetworkToggleRow(
-                      icon: Icons.wifi_tethering_rounded,
-                      label: 'Hotspot',
-                      subtitle:
-                          n.hotspotEnabled ? n.hotspotSsid ?? 'Active' : 'Off',
-                      value: n.hotspotEnabled,
-                      onChanged: (v) async {
-                        await ref.read(apiServiceProvider).toggleHotspot(v);
-                        ref.invalidate(networkStatusProvider);
-                      },
-                    ),
-                    _divider(),
-                    // Bluetooth toggle
-                    _NetworkToggleRow(
-                      icon: Icons.bluetooth_rounded,
-                      label: 'Bluetooth',
-                      subtitle: n.bluetoothEnabled ? 'On' : 'Off',
-                      value: n.bluetoothEnabled,
-                      onChanged: (v) async {
-                        await ref.read(apiServiceProvider).toggleBluetooth(v);
-                        ref.invalidate(networkStatusProvider);
-                      },
-                    ),
-                    _divider(),
-                    // LAN status (read-only)
-                    _LanStatusRow(
-                      connected: n.lanConnected,
-                      ip: n.lanIp,
-                      speed: n.lanSpeed,
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 50.ms),
-              loading: () => const CubieCard(
-                  child: SizedBox(
-                      height: 200,
-                      child: Center(
-                          child: CircularProgressIndicator(
-                              color: CubieColors.primary)))),
-              error: (e, _) => CubieCard(
-                  child: Text(friendlyError(e),
-                      style: const TextStyle(color: CubieColors.error))),
-            ),
-
-            // ── Device info ─────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Device'),
-            const SizedBox(height: 12),
-            deviceAsync.when(
-              data: (d) => CubieCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    _row('Name', d.name,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit_rounded,
-                              size: 18, color: CubieColors.textMuted),
-                          onPressed: () => _editName(d.name),
-                        )),
-                    _divider(),
-                    _row('Serial', d.serial),
-                    _divider(),
-                    _row('IP Address', d.ip),
-                    _divider(),
-                    _row('Firmware', d.firmwareVersion),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 100.ms),
-              loading: () => const CubieCard(
-                  child: SizedBox(
-                      height: 160,
-                      child: Center(
-                          child: CircularProgressIndicator(
-                              color: CubieColors.primary)))),
-              error: (e, _) => CubieCard(child: Text(friendlyError(e))),
-            ),
-
-            // ── OTA update ──────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Firmware Update'),
-            const SizedBox(height: 12),
-            CubieCard(
-              child: _updateInfo != null ? _updateAvailable() : _checkButton(),
-            ).animate().fadeIn(delay: 200.ms),
-
-            // ── Services ────────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Services'),
-            const SizedBox(height: 12),
-            servicesAsync.when(
-              data: (services) => CubieCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (int i = 0; i < services.length; i++) ...[
-                      _ServiceToggle(
-                        service: services[i],
-                        onToggle: (v) async {
-                          await ref
-                              .read(apiServiceProvider)
-                              .toggleService(services[i].id, v);
-                          ref.invalidate(servicesProvider);
-                        },
-                      ),
-                      if (i < services.length - 1) _divider(),
-                    ],
-                  ],
-                ),
-              ).animate().fadeIn(delay: 300.ms),
-              loading: () => const CubieCard(
-                  child: SizedBox(
-                      height: 200,
-                      child: Center(
-                          child: CircularProgressIndicator(
-                              color: CubieColors.primary)))),
-              error: (e, _) => CubieCard(child: Text(friendlyError(e))),
-            ),
-
-            const SizedBox(height: 24),
-            _sectionLabel('Security'),
-            const SizedBox(height: 12),
-            CubieCard(
-              child: ListTile(
-                leading: const Icon(Icons.verified_user_rounded,
-                    color: CubieColors.primary, size: 20),
-                title: Text('Verify Server Certificate',
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary, fontSize: 14)),
-                subtitle: Text(
-                  fingerprint != null
-                      ? fingerprint.toUpperCase()
-                      : 'Not pinned yet',
-                  style: GoogleFonts.dmSans(
-                      color: fingerprint != null
-                          ? CubieColors.textSecondary
-                          : CubieColors.textMuted,
-                      fontSize: 12),
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: CubieColors.textMuted, size: 20),
-                onTap: () => _verifyServerCertificate(fingerprint),
-              ),
-            ).animate().fadeIn(delay: 350.ms),
-
-            // ── Account ─────────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Account'),
+            _sectionLabel('General'),
             const SizedBox(height: 12),
             CubieCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
+                  _categoryTile(
+                    icon: Icons.wifi_rounded,
+                    title: 'Network',
+                    subtitle: 'Wi-Fi, Hotspot, Bluetooth, Ethernet',
+                    onTap: () => context.push('/settings/network'),
+                  ),
+                  _divider(),
+                  _categoryTile(
+                    icon: Icons.developer_board_rounded,
+                    title: 'Device',
+                    subtitle: 'Info, name, firmware updates',
+                    onTap: () => context.push('/settings/device'),
+                  ),
+                  _divider(),
+                  _categoryTile(
+                    icon: Icons.apps_rounded,
+                    title: 'Services',
+                    subtitle: 'Manage NAS services',
+                    onTap: () => context.push('/settings/services'),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 50.ms),
+
+            // ── Security ────────────────────────────────────────────────────
+            const SizedBox(height: 24),
+            _sectionLabel('Security'),
+            const SizedBox(height: 12),
+            CubieCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.verified_user_rounded,
+                        color: CubieColors.primary, size: 20),
+                    title: Text('Verify Server Certificate',
+                        style: GoogleFonts.dmSans(
+                            color: CubieColors.textPrimary, fontSize: 14)),
+                    subtitle: Text(
+                      fingerprint != null
+                          ? fingerprint.toUpperCase()
+                          : 'Not pinned yet',
+                      style: GoogleFonts.dmSans(
+                          color: fingerprint != null
+                              ? CubieColors.textSecondary
+                              : CubieColors.textMuted,
+                          fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded,
+                        color: CubieColors.textMuted, size: 20),
+                    onTap: () => _verifyServerCertificate(fingerprint),
+                  ),
+                  _divider(),
                   ListTile(
                     leading: const Icon(Icons.lock_rounded,
                         color: CubieColors.textSecondary, size: 20),
@@ -232,18 +107,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: CubieColors.textMuted, size: 20),
                     onTap: _changePin,
                   ),
-                  _divider(),
-                  ListTile(
-                    leading: const Icon(Icons.logout_rounded,
-                        color: CubieColors.error, size: 20),
-                    title: Text('Logout',
-                        style: GoogleFonts.dmSans(
-                            color: CubieColors.error, fontSize: 14)),
-                    onTap: _confirmLogout,
-                  ),
                 ],
               ),
-            ).animate().fadeIn(delay: 400.ms),
+            ).animate().fadeIn(delay: 100.ms),
+
+            // ── Account ─────────────────────────────────────────────────────
+            const SizedBox(height: 24),
+            CubieCard(
+              child: ListTile(
+                leading: const Icon(Icons.logout_rounded,
+                    color: CubieColors.error, size: 20),
+                title: Text('Logout',
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.error, fontSize: 14)),
+                onTap: _confirmLogout,
+              ),
+            ).animate().fadeIn(delay: 150.ms),
+
+            // ── Power ───────────────────────────────────────────────────────
+            const SizedBox(height: 16),
+            CubieCard(
+              child: ListTile(
+                leading: const Icon(Icons.power_settings_new_rounded,
+                    color: CubieColors.error, size: 20),
+                title: Text('Turn Off Cubie',
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.error, fontSize: 14)),
+                subtitle: Text('Stop all services and power off',
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textMuted, fontSize: 12)),
+                onTap: _confirmShutdown,
+              ),
+            ).animate().fadeIn(delay: 200.ms),
 
             // ── Footer ──────────────────────────────────────────────────────
             const SizedBox(height: 32),
@@ -268,104 +163,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5));
 
-  Widget _row(String label, String value, {Widget? trailing}) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Text(label,
-                style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 13)),
-            const Spacer(),
-            Text(value,
-                style: GoogleFonts.dmSans(
-                    color: CubieColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500)),
-            if (trailing != null) trailing,
-          ],
-        ),
-      );
-
   Widget _divider() => const Divider(
       height: 1, indent: 16, endIndent: 16, color: CubieColors.cardBorder);
 
-  // ── OTA ────────────────────────────────────────────────────────────────────
-
-  Widget _checkButton() => SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton.icon(
-          onPressed: _checkingUpdate
-              ? null
-              : () async {
-                  setState(() => _checkingUpdate = true);
-                  final info =
-                      await ref.read(apiServiceProvider).checkFirmwareUpdate();
-                  setState(() {
-                    _updateInfo = info;
-                    _checkingUpdate = false;
-                  });
-                },
-          icon: _checkingUpdate
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: CubieColors.primary))
-              : const Icon(Icons.system_update_rounded, size: 18),
-          label: Text(
-            _checkingUpdate ? 'Checking…' : 'Check for Updates',
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+  Widget _categoryTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) =>
+      ListTile(
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: CubieColors.primary.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
           ),
+          child: Icon(icon, color: CubieColors.primary, size: 18),
         ),
+        title: Text(title,
+            style: GoogleFonts.dmSans(
+                color: CubieColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle,
+            style: GoogleFonts.dmSans(
+                color: CubieColors.textSecondary, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right_rounded,
+            color: CubieColors.textMuted, size: 20),
+        onTap: onTap,
       );
 
-  Widget _updateAvailable() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: CubieColors.success.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('v${_updateInfo!['latest_version']} available',
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.success,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-              ),
-              const Spacer(),
-              Text('${_updateInfo!['size_mb']} MB',
-                  style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(_updateInfo!['changelog'] as String,
-              style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 13, height: 1.5)),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                await ref.read(apiServiceProvider).triggerOtaUpdate();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text(
-                          'Update started. Device will reboot automatically.')));
-                }
-              },
-              child: Text('Install Update',
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
-      );
+  // ── Dialogs ───────────────────────────────────────────────────────────────
 
   Future<void> _verifyServerCertificate(String? storedFingerprint) async {
     final api = ref.read(apiServiceProvider);
@@ -433,40 +263,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
               child: Text('Trust Fingerprint', style: GoogleFonts.dmSans()),
             ),
-        ],
-      ),
-    );
-  }
-
-  // ── Dialogs ───────────────────────────────────────────────────────────────
-
-  void _editName(String current) {
-    final ctrl = TextEditingController(text: current);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Device Name', style: GoogleFonts.sora()),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Enter device name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref.read(apiServiceProvider).updateDeviceName(ctrl.text);
-              ref.invalidate(deviceInfoProvider);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: Text('Save',
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-          ),
         ],
       ),
     );
@@ -540,6 +336,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _confirmShutdown() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Turn Off Cubie?', style: GoogleFonts.sora()),
+        content: Text(
+          'This will stop all active services, cancel file transfers, '
+          'and safely power off the device. You will need physical access '
+          'to turn it back on.',
+          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _performShutdown();
+            },
+            child: Text('Turn Off',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performShutdown() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Shutting down Cubie…')),
+    );
+    try {
+      await ref.read(apiServiceProvider).shutdownDevice();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cubie is powering off.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Shutdown failed: ${friendlyError(e)}')),
+        );
+      }
+    }
+  }
+
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -568,298 +416,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text('Logout',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Service toggle row ─────────────────────────────────────────────────────
-
-class _ServiceToggle extends StatefulWidget {
-  final ServiceInfo service;
-  final ValueChanged<bool> onToggle;
-  const _ServiceToggle({required this.service, required this.onToggle});
-
-  @override
-  State<_ServiceToggle> createState() => _ServiceToggleState();
-}
-
-class _ServiceToggleState extends State<_ServiceToggle> {
-  late bool _on;
-
-  @override
-  void initState() {
-    super.initState();
-    _on = widget.service.isEnabled;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: (_on ? CubieColors.primary : CubieColors.textMuted)
-                  .withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(widget.service.icon,
-                color: _on ? CubieColors.primary : CubieColors.textMuted,
-                size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.service.name,
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500)),
-                Text(widget.service.description,
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
-              ],
-            ),
-          ),
-          Switch(
-            value: _on,
-            onChanged: (v) {
-              setState(() => _on = v);
-              widget.onToggle(v);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Network toggle row ─────────────────────────────────────────────────────
-
-class _NetworkToggleRow extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final bool value;
-  final Future<void> Function(bool) onChanged;
-  final VoidCallback? onTap;
-
-  const _NetworkToggleRow({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-    this.onTap,
-  });
-
-  @override
-  State<_NetworkToggleRow> createState() => _NetworkToggleRowState();
-}
-
-class _NetworkToggleRowState extends State<_NetworkToggleRow> {
-  late bool _on;
-  bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _on = widget.value;
-  }
-
-  @override
-  void didUpdateWidget(covariant _NetworkToggleRow old) {
-    super.didUpdateWidget(old);
-    if (old.value != widget.value) _on = widget.value;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: widget.onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: (_on ? CubieColors.primary : CubieColors.textMuted)
-                    .withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(widget.icon,
-                  color: _on ? CubieColors.primary : CubieColors.textMuted,
-                  size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.label,
-                      style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500)),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(widget.subtitle,
-                            style: GoogleFonts.dmSans(
-                                color: CubieColors.textSecondary,
-                                fontSize: 12)),
-                      ),
-                      if (widget.onTap != null)
-                        const Icon(Icons.chevron_right_rounded,
-                            color: CubieColors.textMuted, size: 18),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          if (_busy)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: CubieColors.primary),
-            )
-          else
-            Switch(
-              value: _on,
-              onChanged: (v) async {
-                setState(() {
-                  _on = v;
-                  _busy = true;
-                });
-                try {
-                  await widget.onChanged(v);
-                } catch (e) {
-                  if (mounted) {
-                    setState(() => _on = !v);
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(friendlyError(e))));
-                  }
-                } finally {
-                  if (mounted) setState(() => _busy = false);
-                }
-              },
-            ),
-        ],
-      ),
-      ),
-    );
-  }
-}
-
-// ─── LAN status row (read-only with safety note) ────────────────────────────
-
-class _LanStatusRow extends StatelessWidget {
-  final bool connected;
-  final String? ip;
-  final String? speed;
-
-  const _LanStatusRow({
-    required this.connected,
-    this.ip,
-    this.speed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color:
-                      (connected ? CubieColors.success : CubieColors.textMuted)
-                          .withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.settings_ethernet_rounded,
-                    color:
-                        connected ? CubieColors.success : CubieColors.textMuted,
-                    size: 18),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Ethernet',
-                        style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500)),
-                    Text(
-                      connected
-                          ? '${ip ?? "No IP"}'
-                              '${speed != null ? "  •  $speed" : ""}'
-                          : 'Cable not connected',
-                      style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color:
-                      (connected ? CubieColors.success : CubieColors.textMuted)
-                          .withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  connected ? 'Connected' : 'Disconnected',
-                  style: GoogleFonts.dmSans(
-                      color: connected
-                          ? CubieColors.success
-                          : CubieColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          // Safety note (2E.5)
-          if (connected)
-            Padding(
-              padding: const EdgeInsets.only(left: 48, top: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      size: 14, color: CubieColors.textMuted),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Changing the LAN IP may make this device unreachable.',
-                      style: GoogleFonts.dmSans(
-                          color: CubieColors.textMuted,
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

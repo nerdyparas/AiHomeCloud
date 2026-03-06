@@ -300,8 +300,27 @@ class DashboardScreen extends ConsumerWidget {
                           child: CircularProgressIndicator(
                               color: CubieColors.primary))),
                 ),
-                error: (_, __) =>
-                    const SliverToBoxAdapter(child: SizedBox.shrink()),
+                error: (e, __) => SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: CubieCard(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: CubieColors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Unable to load system stats: ${friendlyError(e)}',
+                              style: GoogleFonts.dmSans(
+                                  color: CubieColors.error, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -317,10 +336,18 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
 
+            // ── Network connectivity status ─────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _NetworkStatusCard(),
+              ),
+            ),
+
             // ── Network speed card ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
                 child: statsAsync.when(
                   data: (s) => CubieCard(
                     child: Row(
@@ -347,7 +374,22 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ).animate().fadeIn(delay: 600.ms),
                   loading: () => const SizedBox(height: 80),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (e, __) => CubieCard(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: CubieColors.error, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Unable to load network speed: ${friendlyError(e)}',
+                            style: GoogleFonts.dmSans(
+                                color: CubieColors.error, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -510,5 +552,120 @@ class _StorageDeviceTile extends StatelessWidget {
     if (device.mounted) return CubieColors.secondary;
     if (device.fstype == null) return CubieColors.primary;
     return CubieColors.textSecondary;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NETWORK STATUS CARD — WiFi, LAN, Bluetooth connectivity
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _NetworkStatusCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final netAsync = ref.watch(networkStatusProvider);
+    return netAsync.when(
+      data: (n) => CubieCard(
+        child: Column(
+          children: [
+            _netStatusRow(
+              icon: Icons.wifi_rounded,
+              label: n.wifiConnected
+                  ? 'WiFi: ${n.wifiSsid ?? "Connected"}'
+                  : n.wifiEnabled
+                      ? 'WiFi: Not connected'
+                      : 'WiFi: Off',
+              subtitle: n.wifiIp,
+              connected: n.wifiConnected,
+              enabled: n.wifiEnabled,
+            ),
+            Divider(color: CubieColors.cardBorder, height: 1),
+            _netStatusRow(
+              icon: Icons.lan_rounded,
+              label: n.lanConnected ? 'Ethernet: Connected' : 'Ethernet: Disconnected',
+              subtitle: n.lanConnected
+                  ? [n.lanIp, n.lanSpeed].whereType<String>().join(' • ')
+                  : null,
+              connected: n.lanConnected,
+              enabled: true,
+            ),
+            Divider(color: CubieColors.cardBorder, height: 1),
+            _netStatusRow(
+              icon: Icons.bluetooth_rounded,
+              label: n.bluetoothEnabled ? 'Bluetooth: On' : 'Bluetooth: Off',
+              connected: n.bluetoothEnabled,
+              enabled: n.bluetoothEnabled,
+            ),
+          ],
+        ),
+      ).animate().fadeIn(delay: 550.ms),
+      loading: () => const SizedBox(
+        height: 60,
+        child: Center(
+            child: CircularProgressIndicator(color: CubieColors.primary)),
+      ),
+      error: (e, _) => CubieCard(
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                color: CubieColors.error, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Unable to load network status: ${friendlyError(e)}',
+                style: GoogleFonts.dmSans(
+                    color: CubieColors.error, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _netStatusRow({
+    required IconData icon,
+    required String label,
+    String? subtitle,
+    required bool connected,
+    required bool enabled,
+  }) {
+    final color = connected
+        ? CubieColors.success
+        : enabled
+            ? CubieColors.textSecondary
+            : CubieColors.textMuted;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
+                if (subtitle != null && subtitle.isNotEmpty)
+                  Text(subtitle,
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary, fontSize: 11)),
+              ],
+            ),
+          ),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

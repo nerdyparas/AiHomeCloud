@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     personal_base: str = "personal"
     shared_dir: str = "shared"
     total_storage_gb: float = 500.0
+    skip_mount_check: bool = False  # set True in tests to bypass is_mount()
 
     # ── Upload ────────────────────────────────────────────────────────────────
     upload_chunk_size: int = 1024 * 1024  # 1 MB
