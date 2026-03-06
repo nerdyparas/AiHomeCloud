@@ -134,6 +134,8 @@ def build_device_list(partitions: list) -> list[StorageDevice]:
     for part in partitions:
         name = part.get("name", "")
         transport = classify_transport(part)
+        if transport not in ("usb", "nvme"):
+            continue
         mountpoint = part.get("mountpoint")
         size_bytes = int(part.get("size") or 0)
 
