@@ -44,7 +44,8 @@ def _safe_resolve(raw_path: str) -> Path:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
     nas_resolved = settings.nas_root.resolve()
-    if not str(resolved).startswith(str(nas_resolved)):
+    # Use os.sep suffix to prevent prefix-match attacks (e.g. /srv/nasty)
+    if resolved != nas_resolved and not str(resolved).startswith(str(nas_resolved) + os.sep):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
     return resolved
 
@@ -165,11 +166,20 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
     if not body.new_name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
 
+    # Reject names containing path separators to prevent traversal via rename
+    safe_new_name = Path(body.new_name).name
+    if safe_new_name != body.new_name.strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid file name")
+
     resolved = _safe_resolve(body.old_path)
     if not resolved.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
 
-    new_path = resolved.parent / body.new_name
+    new_path = resolved.parent / safe_new_name
+    # Verify new path is still inside NAS root
+    nas_resolved = settings.nas_root.resolve()
+    if new_path.resolve() != nas_resolved and not str(new_path.resolve()).startswith(str(nas_resolved) + os.sep):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
     if new_path.exists():
         raise HTTPException(status.HTTP_409_CONFLICT, "A file with that name already exists")
 
@@ -202,11 +212,19 @@ async def upload_file(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
     total = 0
+    max_bytes = settings.max_upload_bytes
 
     with open(resolved_dest, "wb") as f:
         while chunk := await file.read(settings.upload_chunk_size):
-            f.write(chunk)
             total += len(chunk)
+            if max_bytes and total > max_bytes:
+                f.close()
+                resolved_dest.unlink(missing_ok=True)
+                raise HTTPException(
+                    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    f"File exceeds maximum upload size of {max_bytes // (1024*1024)} MB",
+                )
+            f.write(chunk)
 
     # Notify connected clients
     user_name = user.get("sub", "unknown")

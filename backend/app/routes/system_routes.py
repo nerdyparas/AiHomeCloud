@@ -4,7 +4,7 @@ System routes — device info, firmware, device name.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
 from ..config import settings, get_local_ip
 from ..models import CubieDevice, FirmwareInfo, UpdateNameRequest
 from .. import store
@@ -42,7 +42,7 @@ async def check_firmware(user: dict = Depends(get_current_user)):
 
 
 @router.post("/update", status_code=status.HTTP_202_ACCEPTED)
-async def trigger_update(user: dict = Depends(get_current_user)):
+async def trigger_update(user: dict = Depends(require_admin)):
     """
     Trigger an OTA firmware update.
     In production this would kick off an async update process.
@@ -52,7 +52,7 @@ async def trigger_update(user: dict = Depends(get_current_user)):
 
 
 @router.put("/name", status_code=status.HTTP_204_NO_CONTENT)
-async def update_name(body: UpdateNameRequest, user: dict = Depends(get_current_user)):
+async def update_name(body: UpdateNameRequest, user: dict = Depends(require_admin)):
     """Rename the device."""
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")

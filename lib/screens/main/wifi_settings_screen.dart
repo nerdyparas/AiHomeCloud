@@ -47,8 +47,8 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       ]);
       if (mounted) {
         setState(() {
-          _networks = results[0] as List<WifiNetwork>;
-          _savedNetworks = results[1] as List<WifiNetwork>;
+          _networks = results[0];
+          _savedNetworks = results[1];
         });
       }
     } catch (e) {

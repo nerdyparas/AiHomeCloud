@@ -103,6 +103,7 @@ class Settings(BaseSettings):
 
     # ── Upload ────────────────────────────────────────────────────────────────
     upload_chunk_size: int = 1024 * 1024  # 1 MB
+    max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
 
     # ── Data (JSON-file-based persistence for users, services, etc.) ─────────
     data_dir: Path = Path("/var/lib/cubie")

@@ -98,10 +98,11 @@ async def test_member_cannot_access_admin_endpoint_403(client: AsyncClient, admi
     Verify role-based access control by attempting to call
     an admin-only endpoint with a member token.
     """
-    # Create a member user
+    # Create a member user (requires admin auth now that first user exists)
     response = await client.post(
         "/api/v1/users",
-        json={"name": "member_user", "pin": "4567"}
+        json={"name": "member_user", "pin": "4567"},
+        headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 201, "Member user creation should succeed"
     
@@ -301,10 +302,11 @@ async def test_second_user_is_not_admin(client: AsyncClient, admin_token: str):
     """
     Bonus test: Verify that subsequent users created are not admin.
     """
-    # Create a second user
+    # Create a second user (requires admin token now that first user exists)
     response = await client.post(
         "/api/v1/users",
-        json={"name": "second_user", "pin": "1234"}
+        json={"name": "second_user", "pin": "1234"},
+        headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 201
     user_data = response.json()

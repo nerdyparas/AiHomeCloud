@@ -315,10 +315,11 @@ async def test_storage_stats_does_not_require_admin(client: AsyncClient, admin_t
     """
     Bonus: Verify that /stats endpoint is readable by non-admin users.
     """
-    # Create a member user
+    # Create a member user (requires admin auth now that first user exists)
     response = await client.post(
         "/api/v1/users",
-        json={"name": "member_user", "pin": "5678"}
+        json={"name": "member_user", "pin": "5678"},
+        headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 201
     

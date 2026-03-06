@@ -111,9 +111,9 @@ async def get_users() -> List[dict]:
 
 async def save_users(users: List[dict]) -> None:
     """Persist users to disk using an async lock to prevent concurrent writes."""
-    _set_cached("users", None)
     async with _store_lock:
         _write_json(settings.users_file, users)
+        _set_cached("users", users)  # update inside lock after write
 
 
 async def find_user(user_id: str) -> Optional[dict]:
@@ -132,8 +132,9 @@ async def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False)
     users.append(user)
     await save_users(users)
 
-    # Create personal folder
-    personal = settings.personal_path / name
+    # Create personal folder — sanitize name to prevent path traversal
+    safe_name = Path(name).name  # strips any directory components like ../
+    personal = settings.personal_path / safe_name
     personal.mkdir(parents=True, exist_ok=True)
 
     return user

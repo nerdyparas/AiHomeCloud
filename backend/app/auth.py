@@ -109,6 +109,18 @@ async def get_current_user(
     return decode_token(credentials.credentials)
 
 
+_optional_bearer = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_optional_bearer),
+) -> Optional[dict]:
+    """FastAPI dependency — returns decoded token or None if no auth header."""
+    if credentials is None:
+        return None
+    return decode_token(credentials.credentials)
+
+
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     """FastAPI dependency — ensures the user has admin privileges.
     Works by looking up the user in the store by subject (serial/user_id).
@@ -121,7 +133,8 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 
     user_id = user.get("sub", "")
     found = await store.find_user(user_id)
-    if found and not found.get("is_admin", False):
+    # Reject if user not found (deleted account with valid JWT) OR not admin
+    if not found or not found.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required",

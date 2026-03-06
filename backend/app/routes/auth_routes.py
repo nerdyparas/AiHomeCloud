@@ -11,6 +11,8 @@ from ..auth import (
     create_refresh_token,
     decode_refresh_token,
     get_current_user,
+    get_current_user_optional,
+    require_admin,
     hash_password,
     verify_password,
 )
@@ -158,13 +160,24 @@ async def cert_fingerprint():
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
-async def create_user(body: CreateUserRequest):
-    """Create a new user on the device. First user is automatically admin."""
+async def create_user(
+    body: CreateUserRequest,
+    caller: dict | None = Depends(get_current_user_optional),
+):
+    """Create a new user. First call (setup) is unauthenticated; all subsequent calls require admin."""
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
 
     existing = await store.get_users()
-    is_admin = len(existing) == 0  # First user is admin
+    is_first_user = len(existing) == 0
+
+    if not is_first_user:
+        # Require admin auth once the first user has been created
+        if caller is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
+        await require_admin(caller)
+
+    is_admin = is_first_user
 
     hashed_pin = await hash_password(body.pin) if body.pin else None
     user = await store.add_user(body.name, hashed_pin, is_admin=is_admin)
