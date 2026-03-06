@@ -62,8 +62,8 @@ async def scan_devices(user: dict = Depends(get_current_user)):
     Triggers udev to re-detect, waits for settle, then returns fresh list.
     """
     try:
-        await run_command(["udevadm", "trigger", "--subsystem-match=block"])
-        await run_command(["udevadm", "settle", "--timeout=3"])
+        await run_command(["sudo", "udevadm", "trigger", "--subsystem-match=block"])
+        await run_command(["sudo", "udevadm", "settle", "--timeout=3"])
     except Exception as e:
         logger.warning("udevadm not available: %s", e)
 
@@ -143,7 +143,7 @@ async def format_device(
             logger.warning("FORMATTING %s as ext4 (label=%s)", req.device, req.label)
 
             rc, _, stderr = await run_command([
-                "mkfs.ext4", "-F", "-L", req.label, req.device
+                "sudo", "mkfs.ext4", "-F", "-L", req.label, req.device
             ], timeout=600)
 
             if rc != 0:
@@ -205,7 +205,7 @@ async def mount_device(
     settings.nas_root.mkdir(parents=True, exist_ok=True)
 
     # Mount
-    rc, _, stderr = await run_command(["mount", req.device, nas_root])
+    rc, _, stderr = await run_command(["sudo", "mount", req.device, nas_root])
     if rc != 0:
         raise HTTPException(500, f"Mount failed: {stderr}")
 
@@ -278,7 +278,7 @@ async def eject_device(
                 logger.info("Ejected USB device %s via sysfs", disk_name)
             except Exception:
                 # Try udisksctl as fallback
-                rc, _, stderr = await run_command(["udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
+                rc, _, stderr = await run_command(["sudo", "udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
                 if rc == 0:
                     logger.info("Ejected USB device %s via udisksctl", disk_name)
                 else:
@@ -288,7 +288,7 @@ async def eject_device(
                     )
         else:
             # Try udisksctl as fallback
-            rc, _, stderr = await run_command(["udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
+            rc, _, stderr = await run_command(["sudo", "udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
             if rc == 0:
                 logger.info("Ejected USB device %s via udisksctl", disk_name)
             else:
@@ -365,7 +365,7 @@ async def try_auto_remount():
     # Attempt to mount
     settings.nas_root.mkdir(parents=True, exist_ok=True)
 
-    rc, _, stderr = await run_command(["mount", device_path, nas_root], timeout=30)
+    rc, _, stderr = await run_command(["sudo", "mount", device_path, nas_root], timeout=30)
 
     if rc == 0:
         logger.info("Auto-remount: successfully mounted %s at %s", device_path, nas_root)

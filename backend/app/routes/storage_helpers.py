@@ -161,7 +161,7 @@ async def stop_nas_services():
     """Best-effort stop of NAS-related services before unmount."""
     for svc in ("smbd", "nmbd", "nfs-kernel-server", "minidlnad"):
         try:
-            await run_command(["systemctl", "stop", svc])
+            await run_command(["sudo", "systemctl", "stop", svc])
         except Exception:
             pass
 
@@ -170,7 +170,7 @@ async def start_nas_services():
     """Best-effort start of NAS services after mount."""
     for svc in ("smbd", "nmbd"):
         try:
-            await run_command(["systemctl", "start", svc])
+            await run_command(["sudo", "systemctl", "start", svc])
         except Exception:
             pass
 
@@ -261,10 +261,10 @@ async def do_unmount(force: bool = False) -> str:
     except Exception:
         pass
 
-    rc, _, stderr = await run_command(["umount", nas_root])
+    rc, _, stderr = await run_command(["sudo", "umount", nas_root])
     if rc != 0:
         logger.warning("Normal unmount failed, trying lazy unmount: %s", stderr)
-        rc2, _, stderr2 = await run_command(["umount", "-l", nas_root])
+        rc2, _, stderr2 = await run_command(["sudo", "umount", "-l", nas_root])
         if rc2 != 0:
             raise HTTPException(
                 500,

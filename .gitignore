@@ -11,6 +11,12 @@
 .svn/
 migrate_working_dir/
 
+# Python / Backend
+backend/venv/
+__pycache__/
+*.egg-info/
+.env
+
 # IntelliJ related
 *.iml
 *.ipr
