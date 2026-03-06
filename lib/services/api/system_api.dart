@@ -26,10 +26,13 @@ extension SystemApi on ApiService {
   Stream<SystemStats> monitorSystemStats() {
     final host = _session?.host;
     final port = _session?.port ?? CubieConstants.apiPort;
+    final token = _session?.token;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
     }
-    final uri = Uri.parse('wss://$host:$port/ws/monitor');
+    final uri = Uri.parse(
+      'wss://$host:$port/ws/monitor${token != null ? '?token=$token' : ''}',
+    );
     final channel = IOWebSocketChannel.connect(
       uri,
       customClient: _createPinnedHttpClient(),
@@ -71,10 +74,13 @@ extension SystemApi on ApiService {
   Stream<AppNotification> notificationStream() {
     final host = _session?.host;
     final port = _session?.port ?? CubieConstants.apiPort;
+    final token = _session?.token;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
     }
-    final uri = Uri.parse('wss://$host:$port/ws/events');
+    final uri = Uri.parse(
+      'wss://$host:$port/ws/events${token != null ? '?token=$token' : ''}',
+    );
     final channel = IOWebSocketChannel.connect(
       uri,
       customClient: _createPinnedHttpClient(),
