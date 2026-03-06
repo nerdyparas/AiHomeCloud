@@ -9,7 +9,7 @@ import json
 import time
 
 import psutil
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from shutil import disk_usage
 
 from ..config import settings
@@ -103,7 +103,7 @@ def _read_system_stats(thermal_zone_path: str = None) -> dict:
 
 
 @router.websocket("/ws/monitor")
-async def monitor_ws(ws: WebSocket, request: Request):
+async def monitor_ws(ws: WebSocket):
     """
     Stream system stats to the Flutter app every 2 seconds.
     Uses board-specific thermal zone path for accurate temperature readings.
@@ -112,8 +112,8 @@ async def monitor_ws(ws: WebSocket, request: Request):
     await ws.accept()
 
     # Get board-specific thermal zone path from app state
-    thermal_zone_path = getattr(request.app.state, 'board', None)
-    thermal_zone_path = thermal_zone_path.thermal_zone_path if thermal_zone_path else None
+    board = getattr(ws.app.state, 'board', None)
+    thermal_zone_path = board.thermal_zone_path if board else None
 
     # Prime the CPU meter (first call always returns 0)
     psutil.cpu_percent(interval=None)
