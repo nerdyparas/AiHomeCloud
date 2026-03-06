@@ -52,7 +52,10 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = friendlyError(e));
+      if (mounted) {
+        setState(() => _error = friendlyError(e));
+        _showSnack(friendlyError(e));
+      }
     } finally {
       if (mounted) setState(() => _scanning = false);
     }
@@ -69,13 +72,13 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   Future<void> _onNetworkTap(WifiNetwork network) async {
     if (network.inUse) {
       // Single tap on connected network → show details with edit/disconnect
-      _showConnectedSheet(network);
+      await _showConnectedSheet(network);
       return;
     }
 
     if (network.saved) {
       // Tap saved network → show manage options (reconnect / edit password / forget)
-      _showSavedSheet(network);
+      await _showSavedSheet(network);
       return;
     }
 
@@ -212,8 +215,8 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
 
   // ── Connected network sheet ───────────────────────────────────────────────
 
-  void _showConnectedSheet(WifiNetwork network) {
-    showModalBottomSheet(
+  Future<void> _showConnectedSheet(WifiNetwork network) async {
+    final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: CubieColors.surface,
       shape: const RoundedRectangleBorder(
@@ -263,42 +266,42 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                 icon: Icons.edit_rounded,
                 label: 'Edit password',
                 color: CubieColors.primary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showPasswordDialog(network, isEdit: true);
-                },
+                onTap: () => Navigator.pop(ctx, 'edit'),
               ),
               const SizedBox(height: 8),
               _sheetAction(
                 icon: Icons.link_off_rounded,
                 label: 'Disconnect',
                 color: CubieColors.textSecondary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _disconnect();
-                },
+                onTap: () => Navigator.pop(ctx, 'disconnect'),
               ),
               const SizedBox(height: 8),
               _sheetAction(
                 icon: Icons.delete_outline_rounded,
                 label: 'Forget network',
                 color: CubieColors.error,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _confirmForget(network.ssid);
-                },
+                onTap: () => Navigator.pop(ctx, 'forget'),
               ),
             ],
           ),
         ),
       ),
     );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'edit':
+        _showPasswordDialog(network, isEdit: true);
+      case 'disconnect':
+        await _disconnect();
+      case 'forget':
+        _confirmForget(network.ssid);
+    }
   }
 
   // ── Saved network sheet ───────────────────────────────────────────────────
 
-  void _showSavedSheet(WifiNetwork network) {
-    showModalBottomSheet(
+  Future<void> _showSavedSheet(WifiNetwork network) async {
+    final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: CubieColors.surface,
       shape: const RoundedRectangleBorder(
@@ -356,10 +359,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                   icon: Icons.wifi_rounded,
                   label: 'Connect',
                   color: CubieColors.success,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _connect(network.ssid, '');
-                  },
+                  onTap: () => Navigator.pop(ctx, 'connect'),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -367,26 +367,29 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                 icon: Icons.edit_rounded,
                 label: 'Edit password',
                 color: CubieColors.primary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showPasswordDialog(network, isEdit: true);
-                },
+                onTap: () => Navigator.pop(ctx, 'edit'),
               ),
               const SizedBox(height: 8),
               _sheetAction(
                 icon: Icons.delete_outline_rounded,
                 label: 'Forget network',
                 color: CubieColors.error,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _confirmForget(network.ssid);
-                },
+                onTap: () => Navigator.pop(ctx, 'forget'),
               ),
             ],
           ),
         ),
       ),
     );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'connect':
+        await _connect(network.ssid, '');
+      case 'edit':
+        _showPasswordDialog(network, isEdit: true);
+      case 'forget':
+        _confirmForget(network.ssid);
+    }
   }
 
   // ── Sheet action button ───────────────────────────────────────────────────
@@ -445,6 +448,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   // ── Disconnect & Forget ───────────────────────────────────────────────────
 
   Future<void> _disconnect() async {
+    setState(() => _scanning = true);
     try {
       await ref.read(apiServiceProvider).disconnectWifi();
       _showSnack('Disconnected');
@@ -452,6 +456,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       await _loadAll();
     } catch (e) {
       _showSnack('Disconnect failed: ${friendlyError(e)}');
+      if (mounted) setState(() => _scanning = false);
     }
   }
 
@@ -494,13 +499,15 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   }
 
   Future<void> _forget(String ssid) async {
+    setState(() => _scanning = true);
     try {
       await ref.read(apiServiceProvider).forgetWifiNetwork(ssid);
       _showSnack('Network forgotten');
       ref.invalidate(networkStatusProvider);
       await _loadAll();
     } catch (e) {
-      _showSnack('Failed: ${friendlyError(e)}');
+      _showSnack('Forget failed: ${friendlyError(e)}');
+      if (mounted) setState(() => _scanning = false);
     }
   }
 
