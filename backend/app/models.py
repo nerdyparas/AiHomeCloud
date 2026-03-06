@@ -251,3 +251,29 @@ class NetworkStatus(BaseModel):
 class ToggleRequest(BaseModel):
     """Generic enable/disable toggle for wifi, hotspot, bluetooth."""
     enabled: bool
+
+
+# ─── WiFi ─────────────────────────────────────────────────────────────────────
+
+class WifiNetwork(BaseModel):
+    """A single Wi-Fi network visible during scan."""
+    ssid: str
+    signal: int                                         # 0-100 (%)
+    security: str                                       # "WPA2", "WPA3", "Open", etc.
+    in_use: bool = Field(False, alias="inUse")          # currently connected
+    saved: bool = False                                 # saved in NetworkManager
+
+    model_config = {"populate_by_name": True}
+
+
+class WifiConnectRequest(BaseModel):
+    """Join a Wi-Fi network."""
+    ssid: str
+    password: str = ""                                  # empty for open networks
+
+
+class WifiConnectionResult(BaseModel):
+    """Result of a Wi-Fi connect attempt."""
+    success: bool
+    message: str
+    ip: Optional[str] = None

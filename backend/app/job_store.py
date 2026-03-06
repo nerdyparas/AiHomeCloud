@@ -5,7 +5,7 @@ In-memory job tracking for long-running operations.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -28,9 +28,33 @@ class Job:
 
 
 _jobs: dict[str, Job] = {}
+_MAX_JOBS = 100
+_JOB_TTL = timedelta(hours=1)
+
+
+def _purge_old_jobs() -> None:
+    """Remove completed/failed jobs older than _JOB_TTL, keep at most _MAX_JOBS."""
+    now = datetime.now(timezone.utc)
+    expired = [
+        jid for jid, job in _jobs.items()
+        if job.status in (JobStatus.completed, JobStatus.failed)
+        and (now - job.started_at) > _JOB_TTL
+    ]
+    for jid in expired:
+        del _jobs[jid]
+    # If still over limit, remove oldest completed/failed first
+    if len(_jobs) > _MAX_JOBS:
+        finished = sorted(
+            [(jid, j) for jid, j in _jobs.items()
+             if j.status in (JobStatus.completed, JobStatus.failed)],
+            key=lambda x: x[1].started_at,
+        )
+        for jid, _ in finished[:len(_jobs) - _MAX_JOBS]:
+            del _jobs[jid]
 
 
 def create_job() -> Job:
+    _purge_old_jobs()
     job = Job(
         id=uuid4().hex,
         status=JobStatus.pending,

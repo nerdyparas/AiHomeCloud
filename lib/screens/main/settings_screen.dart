@@ -52,7 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
-                    // WiFi toggle
+                    // WiFi toggle + navigate to Wi-Fi picker
                     _NetworkToggleRow(
                       icon: Icons.wifi_rounded,
                       label: 'Wi-Fi',
@@ -64,6 +64,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         await ref.read(apiServiceProvider).toggleWifi(v);
                         ref.invalidate(networkStatusProvider);
                       },
+                      onTap: n.wifiEnabled
+                          ? () => context.push('/wifi-settings')
+                          : null,
                     ),
                     _divider(),
                     // Hotspot toggle
@@ -646,6 +649,7 @@ class _NetworkToggleRow extends StatefulWidget {
   final String subtitle;
   final bool value;
   final Future<void> Function(bool) onChanged;
+  final VoidCallback? onTap;
 
   const _NetworkToggleRow({
     required this.icon,
@@ -653,6 +657,7 @@ class _NetworkToggleRow extends StatefulWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.onTap,
   });
 
   @override
@@ -677,38 +682,51 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: (_on ? CubieColors.primary : CubieColors.textMuted)
-                  .withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: (_on ? CubieColors.primary : CubieColors.textMuted)
+                    .withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(widget.icon,
+                  color: _on ? CubieColors.primary : CubieColors.textMuted,
+                  size: 18),
             ),
-            child: Icon(widget.icon,
-                color: _on ? CubieColors.primary : CubieColors.textMuted,
-                size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.label,
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500)),
-                Text(widget.subtitle,
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.label,
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(widget.subtitle,
+                            style: GoogleFonts.dmSans(
+                                color: CubieColors.textSecondary,
+                                fontSize: 12)),
+                      ),
+                      if (widget.onTap != null)
+                        const Icon(Icons.chevron_right_rounded,
+                            color: CubieColors.textMuted, size: 18),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
           if (_busy)
             const SizedBox(
               width: 20,
@@ -738,6 +756,7 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
               },
             ),
         ],
+      ),
       ),
     );
   }

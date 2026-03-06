@@ -2,6 +2,7 @@
 Family / user management routes.
 """
 
+import asyncio
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -13,8 +14,8 @@ from .. import store
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
-def _folder_size_gb(path: str) -> float:
-    """Calculate total size of a directory in GB."""
+def _folder_size_gb_sync(path: str) -> float:
+    """Calculate total size of a directory in GB (synchronous)."""
     total = 0
     try:
         for dirpath, _, filenames in os.walk(path):
@@ -26,6 +27,12 @@ def _folder_size_gb(path: str) -> float:
     except OSError:
         pass
     return round(total / (1024 ** 3), 2)
+
+
+async def _folder_size_gb(path: str) -> float:
+    """Calculate total size of a directory in GB (non-blocking)."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _folder_size_gb_sync, path)
 
 
 # Simple deterministic colour palette
@@ -44,7 +51,7 @@ async def list_family(user: dict = Depends(get_current_user)):
                 id=u["id"],
                 name=u["name"],
                 isAdmin=u.get("is_admin", False),
-                folderSizeGB=_folder_size_gb(str(personal_dir)),
+                folderSizeGB=await _folder_size_gb(str(personal_dir)),
                 avatarColor=_COLORS[i % len(_COLORS)],
             )
         )

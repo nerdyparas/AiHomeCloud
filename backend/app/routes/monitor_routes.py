@@ -6,12 +6,14 @@ Respects board-specific thermal zone paths for accurate temperature readings.
 
 import asyncio
 import json
+import logging
 import time
 
 import psutil
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from shutil import disk_usage
 
+from ..auth import decode_token
 from ..config import settings
 from .event_routes import emit_storage_warning
 
@@ -20,20 +22,19 @@ router = APIRouter(tags=["monitor"])
 # Track boot time once
 _boot_time = psutil.boot_time()
 
-# Track network counters for delta calculation
-_prev_net = psutil.net_io_counters()
-_prev_time = time.time()
 
-
-def _read_system_stats(thermal_zone_path: str = None) -> dict:
+def _read_system_stats(thermal_zone_path: str = None, prev_net=None, prev_time=None) -> dict:
     """
     Gather real system metrics.
     
     Args:
         thermal_zone_path: Optional board-specific path to thermal zone temp file.
-                          If provided, will read from this path instead of psutil sensors.
+        prev_net: Previous network counters (per-connection state).
+        prev_time: Previous timestamp (per-connection state).
+    
+    Returns:
+        Tuple of (stats_dict, current_net_counters, current_time).
     """
-    global _prev_net, _prev_time
 
     # CPU & RAM
     cpu = psutil.cpu_percent(interval=None)
@@ -70,14 +71,16 @@ def _read_system_stats(thermal_zone_path: str = None) -> dict:
     # Uptime
     uptime_sec = int(time.time() - _boot_time)
 
-    # Network throughput (delta)
+    # Network throughput (delta) — per-connection counters
     now_time = time.time()
     now_net = psutil.net_io_counters()
-    dt = now_time - _prev_time if now_time != _prev_time else 1.0
-    up_mbps = ((now_net.bytes_sent - _prev_net.bytes_sent) * 8) / (dt * 1_000_000)
-    down_mbps = ((now_net.bytes_recv - _prev_net.bytes_recv) * 8) / (dt * 1_000_000)
-    _prev_net = now_net
-    _prev_time = now_time
+    if prev_net and prev_time:
+        dt = now_time - prev_time if now_time != prev_time else 1.0
+        up_mbps = ((now_net.bytes_sent - prev_net.bytes_sent) * 8) / (dt * 1_000_000)
+        down_mbps = ((now_net.bytes_recv - prev_net.bytes_recv) * 8) / (dt * 1_000_000)
+    else:
+        up_mbps = 0.0
+        down_mbps = 0.0
 
     # Disk
     try:
@@ -88,7 +91,7 @@ def _read_system_stats(thermal_zone_path: str = None) -> dict:
         total_gb = settings.total_storage_gb
         used_gb = 0.0
 
-    return {
+    stats = {
         "cpuPercent": round(cpu, 1),
         "ramPercent": round(ram, 1),
         "tempCelsius": round(temp, 1),
@@ -100,15 +103,26 @@ def _read_system_stats(thermal_zone_path: str = None) -> dict:
             "usedGB": round(used_gb, 1),
         },
     }
+    return stats, now_net, now_time
 
 
 @router.websocket("/ws/monitor")
-async def monitor_ws(ws: WebSocket):
+async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
     """
     Stream system stats to the Flutter app every 2 seconds.
     Uses board-specific thermal zone path for accurate temperature readings.
-    No auth on the WS itself — the app should already be paired.
+    Requires JWT token as query parameter: /ws/monitor?token=<jwt>
     """
+    # Authenticate before accepting
+    if not token:
+        await ws.close(code=4001, reason="Missing token")
+        return
+    try:
+        decode_token(token)
+    except Exception:
+        await ws.close(code=4003, reason="Invalid token")
+        return
+
     await ws.accept()
 
     # Get board-specific thermal zone path from app state
@@ -118,12 +132,18 @@ async def monitor_ws(ws: WebSocket):
     # Prime the CPU meter (first call always returns 0)
     psutil.cpu_percent(interval=None)
 
+    # Per-connection network counters
+    prev_net = psutil.net_io_counters()
+    prev_time = time.time()
+
     # Throttle storage warnings (at most once per 5 minutes)
     _last_storage_warn = 0
 
     try:
         while True:
-            stats = _read_system_stats(thermal_zone_path)
+            stats, prev_net, prev_time = _read_system_stats(
+                thermal_zone_path, prev_net, prev_time
+            )
             await ws.send_text(json.dumps(stats))
 
             # Check storage thresholds periodically

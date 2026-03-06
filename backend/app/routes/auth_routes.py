@@ -45,9 +45,9 @@ async def get_pairing_qr():
     # OTP plaintext is not returned here; the device UI is expected to display it.
     import hashlib
     import secrets
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     otp_record = await store.get_otp()
     expires_at = None
     if otp_record and otp_record.get("expires_at"):
@@ -61,7 +61,7 @@ async def get_pairing_qr():
         # Generate a short-lived 6-digit OTP and persist its hash + expiry.
         otp = f"{secrets.randbelow(10**6):06d}"
         otp_hash = hashlib.sha256(otp.encode()).hexdigest()
-        expires_at = int((datetime.utcnow() + timedelta(seconds=300)).timestamp())
+        expires_at = int((datetime.now(timezone.utc) + timedelta(seconds=300)).timestamp())
         await store.save_otp(otp_hash, expires_at)
 
     qr_value = (
@@ -111,10 +111,10 @@ async def pair_complete(body: PairCompleteRequest):
     # Validate OTP
     import hashlib
     import hmac
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     otp_rec = await store.get_otp()
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     if not otp_rec or not otp_rec.get("otp_hash") or not otp_rec.get("expires_at"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No active OTP for pairing")
     if int(otp_rec.get("expires_at", 0)) < now:

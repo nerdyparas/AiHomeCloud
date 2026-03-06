@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI):
         from . import store as _store_module
         from datetime import datetime, timedelta
 
-        cutoff = int((datetime.utcnow() - timedelta(days=30)).timestamp())
+        cutoff = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
         removed = await _store_module.purge_expired_tokens(cutoff)
         if removed:
             logger.info("Purged %d expired refresh tokens", removed)
@@ -105,11 +105,11 @@ async def lifespan(app: FastAPI):
     # Clear expired pairing OTPs on startup
     try:
         from . import store as _store_module
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         otp = await _store_module.get_otp()
         if otp and otp.get("expires_at"):
-            if int(otp.get("expires_at", 0)) < int(datetime.utcnow().timestamp()):
+            if int(otp.get("expires_at", 0)) < int(datetime.now(timezone.utc).timestamp()):
                 await _store_module.clear_otp()
                 logger.info("Cleared expired pairing OTP on startup")
     except Exception:

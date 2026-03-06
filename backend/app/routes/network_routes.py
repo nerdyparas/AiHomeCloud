@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user, require_admin
 from ..config import settings
-from ..models import NetworkStatus, ToggleRequest
+from ..models import NetworkStatus, ToggleRequest, WifiNetwork, WifiConnectRequest, WifiConnectionResult
 from ..subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.network")
@@ -281,3 +281,231 @@ async def get_lan_status(user: dict = Depends(get_current_user)):
         "lanIp": lan["ip"],
         "lanSpeed": lan["speed"],
     }
+
+
+# ─── Wi-Fi scan / connect / disconnect / forget ─────────────────────────────
+
+@router.get("/wifi/scan", response_model=list[WifiNetwork])
+async def scan_wifi_networks(user: dict = Depends(get_current_user)):
+    """Scan for available Wi-Fi networks.
+
+    Returns a de-duplicated list sorted by signal strength.
+    """
+    # Ensure radio is on
+    rc, out, _ = await _run(["nmcli", "radio", "wifi"])
+    if out.strip().lower() != "enabled":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Wi-Fi radio is turned off. Enable it first.",
+        )
+
+    # Trigger a fresh scan (best-effort; may fail if already scanning)
+    await _run(["nmcli", "device", "wifi", "rescan"], timeout=10)
+    # Short pause to let results populate
+    await asyncio.sleep(0.5)
+
+    # Fetch scan results in terse format
+    rc, out, _ = await _run([
+        "nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY",
+        "device", "wifi", "list", "--rescan", "no",
+    ])
+    if rc != 0:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to list Wi-Fi networks.",
+        )
+
+    # Get saved connection names
+    rc2, saved_out, _ = await _run([
+        "nmcli", "-t", "-f", "NAME,TYPE",
+        "connection", "show",
+    ])
+    saved_names: set[str] = set()
+    for line in saved_out.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 2 and parts[1] == "802-11-wireless":
+            saved_names.add(parts[0])
+
+    # Parse and de-duplicate (keep highest signal per SSID)
+    best: dict[str, WifiNetwork] = {}
+    for line in out.splitlines():
+        # IN-USE:SSID:SIGNAL:SECURITY  (IN-USE is "*" or "")
+        parts = line.split(":")
+        if len(parts) < 4:
+            continue
+        in_use = parts[0].strip() == "*"
+        ssid = parts[1].strip()
+        if not ssid:
+            continue  # hidden networks
+        try:
+            signal = int(parts[2].strip())
+        except ValueError:
+            signal = 0
+        security = parts[3].strip() or "Open"
+
+        network = WifiNetwork(
+            ssid=ssid,
+            signal=signal,
+            security=security,
+            in_use=in_use,
+            saved=ssid in saved_names,
+        )
+        if ssid not in best or signal > best[ssid].signal:
+            best[ssid] = network
+
+    # Sort: connected first, then by signal descending
+    result = sorted(best.values(), key=lambda n: (not n.in_use, -n.signal))
+    return result
+
+
+@router.post("/wifi/connect", response_model=WifiConnectionResult)
+async def connect_wifi(
+    body: WifiConnectRequest,
+    user: dict = Depends(require_admin),
+):
+    """Connect to a Wi-Fi network by SSID + password.
+
+    If a saved profile for this SSID exists, it is updated with the new
+    password and brought up.  Otherwise a new profile is created.
+    NetworkManager keeps Ethernet active alongside Wi-Fi.
+    """
+    ssid = body.ssid.strip()
+    if not ssid:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "SSID is required.")
+
+    # Check if a saved connection already exists for this SSID
+    rc, out, _ = await _run([
+        "nmcli", "-t", "-f", "NAME,TYPE",
+        "connection", "show",
+    ])
+    existing_name = None
+    for line in out.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 2 and parts[0] == ssid and parts[1] == "802-11-wireless":
+            existing_name = parts[0]
+            break
+
+    if existing_name and body.password:
+        # Update the password on the existing profile
+        await _run([
+            "nmcli", "connection", "modify", existing_name,
+            "wifi-sec.key-mgmt", "wpa-psk",
+            "wifi-sec.psk", body.password,
+        ])
+        rc, _, err = await _run(
+            ["nmcli", "connection", "up", existing_name],
+            timeout=30,
+        )
+    elif existing_name:
+        # Re-activate saved profile without changing password
+        rc, _, err = await _run(
+            ["nmcli", "connection", "up", existing_name],
+            timeout=30,
+        )
+    else:
+        # Create brand-new connection
+        cmd = [
+            "nmcli", "device", "wifi", "connect", ssid,
+        ]
+        if body.password:
+            cmd += ["password", body.password]
+        rc, _, err = await _run(cmd, timeout=30)
+
+    if rc != 0:
+        # Differentiate wrong password from other errors
+        lower_err = err.lower()
+        if "secrets were required" in lower_err or "no suitable" in lower_err:
+            msg = "Incorrect password."
+        elif "no network with ssid" in lower_err:
+            msg = "Network not found."
+        else:
+            msg = err.strip() or "Connection failed."
+        logger.warning("wifi_connect_failed ssid=%s err=%s", ssid, err)
+        return WifiConnectionResult(success=False, message=msg)
+
+    # Ensure lower priority than wired so Ethernet remains primary
+    await _run([
+        "nmcli", "connection", "modify", ssid,
+        "connection.autoconnect", "yes",
+        "connection.autoconnect-priority", "10",
+    ])
+
+    # Fetch the allocated IP
+    ip_addr = None
+    await asyncio.sleep(2)  # let DHCP complete
+    rc, out, _ = await _run([
+        "nmcli", "-t", "-f", "IP4.ADDRESS",
+        "device", "show", "wlan0",
+    ])
+    for line in out.splitlines():
+        match = re.search(r"(\d+\.\d+\.\d+\.\d+)", line)
+        if match:
+            ip_addr = match.group(1)
+            break
+
+    logger.info("wifi_connected ssid=%s ip=%s", ssid, ip_addr)
+    return WifiConnectionResult(
+        success=True,
+        message=f"Connected to {ssid}",
+        ip=ip_addr,
+    )
+
+
+@router.post("/wifi/disconnect", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_wifi(user: dict = Depends(require_admin)):
+    """Disconnect from the current Wi-Fi network (keeps saved profile)."""
+    rc, out, _ = await _run([
+        "nmcli", "-t", "-f", "NAME,TYPE,DEVICE",
+        "connection", "show", "--active",
+    ])
+    disconnected = False
+    for line in out.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 3 and parts[1] == "802-11-wireless" and parts[2] == "wlan0":
+            name = parts[0]
+            # Skip hotspot connections
+            rc2, mode_out, _ = await _run([
+                "nmcli", "-t", "-f", "802-11-wireless.mode",
+                "connection", "show", name,
+            ])
+            if "ap" in mode_out.lower():
+                continue
+            rc, _, err = await _run(["nmcli", "connection", "down", name])
+            if rc != 0:
+                raise HTTPException(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    f"Failed to disconnect: {err}",
+                )
+            disconnected = True
+            break
+
+    if not disconnected:
+        raise HTTPException(status.HTTP_409_CONFLICT, "No active Wi-Fi connection.")
+
+
+@router.delete("/wifi/saved/{ssid}", status_code=status.HTTP_204_NO_CONTENT)
+async def forget_wifi_network(
+    ssid: str,
+    user: dict = Depends(require_admin),
+):
+    """Remove a saved Wi-Fi network profile from NetworkManager."""
+    # Find the connection by name matching the SSID
+    rc, out, _ = await _run([
+        "nmcli", "-t", "-f", "NAME,TYPE",
+        "connection", "show",
+    ])
+    found = False
+    for line in out.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 2 and parts[0] == ssid and parts[1] == "802-11-wireless":
+            rc, _, err = await _run(["nmcli", "connection", "delete", ssid])
+            if rc != 0:
+                raise HTTPException(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    f"Failed to forget network: {err}",
+                )
+            found = True
+            break
+
+    if not found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Saved network not found.")

@@ -70,3 +70,53 @@ class NetworkStatus {
     );
   }
 }
+
+/// A single Wi-Fi network from a scan result.
+class WifiNetwork {
+  final String ssid;
+  final int signal;
+  final String security;
+  final bool inUse;
+  final bool saved;
+
+  const WifiNetwork({
+    required this.ssid,
+    required this.signal,
+    required this.security,
+    this.inUse = false,
+    this.saved = false,
+  });
+
+  bool get isOpen => security == 'Open' || security.isEmpty;
+
+  factory WifiNetwork.fromJson(Map<String, dynamic> json) {
+    return WifiNetwork(
+      ssid: json['ssid'] as String,
+      signal: json['signal'] as int,
+      security: json['security'] as String,
+      inUse: json['inUse'] as bool? ?? false,
+      saved: json['saved'] as bool? ?? false,
+    );
+  }
+}
+
+/// Result of a Wi-Fi connect attempt.
+class WifiConnectionResult {
+  final bool success;
+  final String message;
+  final String? ip;
+
+  const WifiConnectionResult({
+    required this.success,
+    required this.message,
+    this.ip,
+  });
+
+  factory WifiConnectionResult.fromJson(Map<String, dynamic> json) {
+    return WifiConnectionResult(
+      success: json['success'] as bool,
+      message: json['message'] as String,
+      ip: json['ip'] as String?,
+    );
+  }
+}

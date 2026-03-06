@@ -11,7 +11,7 @@ from enum import Enum
 from dataclasses import dataclass, asdict
 from typing import Optional
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
 logger = logging.getLogger("cubie.events")
 
@@ -155,11 +155,23 @@ async def emit_device_ejected(device: str):
 # ─── WebSocket endpoint ─────────────────────────────────────────────────────
 
 @router.websocket("/ws/events")
-async def events_ws(ws: WebSocket):
+async def events_ws(ws: WebSocket, token: str = Query(default=None)):
     """
     Push in-app notifications to connected Flutter clients.
     Each event is a JSON object: {type, title, body, severity, timestamp, data}.
+    Requires JWT token as query parameter: /ws/events?token=<jwt>
     """
+    # Authenticate before accepting
+    if not token:
+        await ws.close(code=4001, reason="Missing token")
+        return
+    try:
+        from ..auth import decode_token
+        decode_token(token)
+    except Exception:
+        await ws.close(code=4003, reason="Invalid token")
+        return
+
     await ws.accept()
     queue = event_bus.subscribe()
 

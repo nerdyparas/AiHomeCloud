@@ -6,6 +6,7 @@ Designed for simplicity on a single-device NAS — no database needed.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from pathlib import Path
 import asyncio
@@ -16,12 +17,16 @@ import time
 
 from .config import settings
 
+logger = logging.getLogger("cubie.store")
 
 # Async lock to protect concurrent access to JSON files from async handlers
 _store_lock = asyncio.Lock()
 
 _CACHE_TTL = 1.0
 _cache: dict[str, tuple[Any, float]] = {}
+
+# Sentinel for distinguishing "no default passed" from "default=None"
+_UNSET = object()
 
 
 def _get_cached(key: str) -> Any:
@@ -43,10 +48,20 @@ def _set_cached(key: str, value: Any) -> None:
     _cache[key] = (value, time.monotonic() + _CACHE_TTL)
 
 
-def _read_json(path: Path, default: Any = None) -> Any:
+def _read_json(path: Path, default: Any = _UNSET) -> Any:
     if not path.exists():
-        return default if default is not None else {}
-    return json.loads(path.read_text())
+        return {} if default is _UNSET else default
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, ValueError):
+        logger.error("corrupt_json path=%s — returning default", path)
+        # Rename corrupt file for forensic inspection
+        try:
+            corrupt_name = path.with_suffix(".json.corrupt")
+            path.rename(corrupt_name)
+        except Exception:
+            pass
+        return {} if default is _UNSET else default
 
 
 def _atomic_write(path: Path, data: Any) -> None:
@@ -208,8 +223,6 @@ async def toggle_service(service_id: str, enabled: bool) -> bool:
 
 # ─── Device state ─────────────────────────────────────────────────────────────
 
-_device_state_file = settings.data_dir / "device.json"
-
 
 async def get_device_state() -> dict:
     """Read device state (name etc.), protected by the store lock."""
@@ -219,7 +232,7 @@ async def get_device_state() -> dict:
 
     async with _store_lock:
         state = _read_json(
-            _device_state_file,
+            settings.data_dir / "device.json",
             {"name": settings.device_name},
         )
         _set_cached("device_state", state)
@@ -230,9 +243,10 @@ async def update_device_name(name: str) -> None:
     """Update device display name under lock."""
     _set_cached("device_state", None)
     async with _store_lock:
-        state = _read_json(_device_state_file, {"name": settings.device_name})
+        dev_file = settings.data_dir / "device.json"
+        state = _read_json(dev_file, {"name": settings.device_name})
         state["name"] = name
-        _write_json(_device_state_file, state)
+        _write_json(dev_file, state)
 
 
 # ─── Storage state ────────────────────────────────────────────────────────────
@@ -308,11 +322,11 @@ async def revoke_token(jti: str) -> bool:
 
 
 async def purge_expired_tokens(older_than_ts: int) -> int:
-    """Remove tokens whose `expires_at` is older than `older_than_ts`.
+    """Remove tokens whose `expiresAt` is older than `older_than_ts`.
     Returns number removed.
     """
     tokens = await get_tokens()
-    kept = [t for t in tokens if t.get("expires_at", 0) >= older_than_ts]
+    kept = [t for t in tokens if t.get("expiresAt", 0) >= older_than_ts]
     removed = len(tokens) - len(kept)
     if removed > 0:
         await save_tokens(kept)
@@ -321,7 +335,7 @@ async def purge_expired_tokens(older_than_ts: int) -> int:
 
 # ─── Pairing / OTP persistence ───────────────────────────────────────────────
 
-_pairing_file = settings.data_dir / "pairing.json"
+
 
 
 async def get_otp() -> dict | None:
@@ -334,7 +348,7 @@ async def get_otp() -> dict | None:
         return cached
 
     async with _store_lock:
-        data = _read_json(_pairing_file, None)
+        data = _read_json(settings.data_dir / "pairing.json", None)
         if not data:
             _set_cached("pairing_otp", None)
             return None
@@ -347,7 +361,7 @@ async def save_otp(otp_hash: str, expires_at: int) -> None:
     _set_cached("pairing_otp", None)
     async with _store_lock:
         record = {"otp_hash": otp_hash, "expires_at": int(expires_at)}
-        _write_json(_pairing_file, record)
+        _write_json(settings.data_dir / "pairing.json", record)
 
 
 async def clear_otp() -> None:
@@ -355,4 +369,4 @@ async def clear_otp() -> None:
     _set_cached("pairing_otp", None)
     async with _store_lock:
         # Remove file if it exists; write empty dict for atomicity.
-        _write_json(_pairing_file, {})
+        _write_json(settings.data_dir / "pairing.json", {})

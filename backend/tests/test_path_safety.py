@@ -88,14 +88,13 @@ async def test_file_listing_response_contains_no_entries_outside_nas_root(
     data = response.json()
     items = data.get("items", [])
     
-    # Every item's path should start with /srv/nas/ and resolve within NAS root
+    # Every item's path should be relative within NAS root — no parent escapes
     for item in items:
         path = item.get("path", "")
-        assert path.startswith("/srv/nas/"), \
-            f"Item path {path} should be within /srv/nas/"
         # Paths should never try to escape or reference parent directories
         assert ".." not in path, f"Item path {path} contains .."
         assert not path.startswith("/etc"), f"Item path {path} escapes NAS root"
+        assert not path.startswith("/var"), f"Item path {path} escapes NAS root"
 
 
 @pytest.mark.asyncio

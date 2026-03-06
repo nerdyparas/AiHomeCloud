@@ -10,6 +10,7 @@ import '../screens/main/my_folder_screen.dart';
 import '../screens/main/settings_screen.dart';
 import '../screens/main/shared_folder_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
+import '../screens/main/wifi_settings_screen.dart';
 import '../screens/onboarding/discovery_screen.dart';
 import '../screens/onboarding/network_scan_screen.dart';
 import '../screens/onboarding/qr_scan_screen.dart';
@@ -98,6 +99,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/storage-explorer',
         builder: (_, __) => const StorageExplorerScreen(),
+      ),
+
+      // ── Wi-Fi settings (pushed on top, no bottom nav) ─────────────────────
+      GoRoute(
+        path: '/wifi-settings',
+        builder: (_, __) => const WifiSettingsScreen(),
       ),
 
       // ── File preview (pushed on top, no bottom nav) ────────────────────────

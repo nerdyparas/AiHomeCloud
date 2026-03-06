@@ -94,7 +94,8 @@ async def list_files(
     for child in resolved.iterdir():
         try:
             items.append(_file_item(child, path))
-        except PermissionError:
+        except OSError:
+            # Skip broken symlinks, inaccessible files, etc.
             continue
 
     # Sort with stability guarantees for pagination.
@@ -188,21 +189,32 @@ async def upload_file(
     dest_dir = _safe_resolve(path)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    dest_file = dest_dir / file.filename
+    # Sanitize filename: strip path separators to prevent directory traversal
+    raw_name = file.filename or "upload"
+    safe_name = Path(raw_name).name  # strips any directory components
+    if not safe_name or safe_name in (".", ".."):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
+
+    dest_file = dest_dir / safe_name
+    # Final safety check: ensure resolved path is still within NAS root
+    resolved_dest = dest_file.resolve()
+    if not str(resolved_dest).startswith(str(settings.nas_root.resolve())):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
+
     total = 0
 
-    with open(dest_file, "wb") as f:
+    with open(resolved_dest, "wb") as f:
         while chunk := await file.read(settings.upload_chunk_size):
             f.write(chunk)
             total += len(chunk)
 
     # Notify connected clients
     user_name = user.get("sub", "unknown")
-    await emit_upload_complete(file.filename, user_name)
+    await emit_upload_complete(safe_name, user_name)
 
     return {
-        "name": file.filename,
-        "path": "/" + str(dest_file.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
+        "name": safe_name,
+        "path": "/" + str(resolved_dest.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
         "sizeBytes": total,
     }
 
