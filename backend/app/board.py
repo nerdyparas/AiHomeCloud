@@ -76,9 +76,9 @@ def find_thermal_zone() -> str:
                         if "cpu" in zone_type or "soc" in zone_type:
                             thermal_zone_path = str(zone_dir / "temp")
                             logger.info(
-                                "thermal_zone_detected",
-                                path=thermal_zone_path,
-                                zone_type=zone_type,
+                                "thermal_zone_detected path=%s zone_type=%s",
+                                thermal_zone_path,
+                                zone_type,
                             )
                             return thermal_zone_path
                 except (FileNotFoundError, OSError):
@@ -86,16 +86,15 @@ def find_thermal_zone() -> str:
                     continue
     except Exception as e:
         logger.debug(
-            "thermal_zone_scan_error",
-            error=str(e),
+            "thermal_zone_scan_error error=%s",
+            str(e),
         )
     
     # Fallback to thermal_zone0
     fallback_path = "/sys/class/thermal/thermal_zone0/temp"
     logger.info(
-        "thermal_zone_fallback",
-        path=fallback_path,
-        reason="no_cpu_or_soc_zone_found",
+        "thermal_zone_fallback path=%s reason=no_cpu_or_soc_zone_found",
+        fallback_path,
     )
     return fallback_path
 
@@ -132,9 +131,9 @@ def find_lan_interface() -> str:
                         iface_type = f.read().strip()
                         if iface_type == "1":  # Ethernet type
                             logger.info(
-                                "lan_interface_detected",
-                                interface=iface_name,
-                                type=iface_type,
+                                "lan_interface_detected interface=%s type=%s",
+                                iface_name,
+                                iface_type,
                             )
                             return iface_name
                 except (FileNotFoundError, OSError):
@@ -142,16 +141,15 @@ def find_lan_interface() -> str:
                     continue
     except Exception as e:
         logger.debug(
-            "lan_interface_scan_error",
-            error=str(e),
+            "lan_interface_scan_error error=%s",
+            str(e),
         )
     
     # Fallback to eth0
     fallback_iface = "eth0"
     logger.info(
-        "lan_interface_fallback",
-        interface=fallback_iface,
-        reason="no_ethernet_interface_found",
+        "lan_interface_fallback interface=%s reason=no_ethernet_interface_found",
+        fallback_iface,
     )
     return fallback_iface
 
@@ -175,9 +173,8 @@ def detect_board() -> BoardConfig:
             model_name = f.read().rstrip("\x00\n")  # Strip null bytes and newlines
     except (FileNotFoundError, OSError) as e:
         logger.warning(
-            "board_detection_failed",
-            path="/proc/device-tree/model",
-            error=str(e),
+            "board_detection_failed path=/proc/device-tree/model error=%s",
+            str(e),
         )
         thermal_zone_path = find_thermal_zone()
         lan_interface = find_lan_interface()
@@ -187,7 +184,7 @@ def detect_board() -> BoardConfig:
             lan_interface=lan_interface,
             cpu_governor_path=DEFAULT_BOARD.cpu_governor_path,
         )
-        logger.info("board_detected", model_name=board.model_name, reason="fallback")
+        logger.info("board_detected model_name=%s reason=fallback", board.model_name)
         return board
     
     # Look up in known boards
@@ -202,10 +199,10 @@ def detect_board() -> BoardConfig:
             cpu_governor_path=base_board.cpu_governor_path,
         )
         logger.info(
-            "board_detected",
-            model_name=board.model_name,
-            thermal_zone=board.thermal_zone_path,
-            lan_interface=board.lan_interface,
+            "board_detected model_name=%s thermal_zone=%s lan_interface=%s",
+            board.model_name,
+            board.thermal_zone_path,
+            board.lan_interface,
         )
         return board
     
@@ -219,15 +216,14 @@ def detect_board() -> BoardConfig:
         cpu_governor_path=DEFAULT_BOARD.cpu_governor_path,
     )
     logger.warning(
-        "board_unknown",
-        model_name=model_name,
-        falling_back_to=DEFAULT_BOARD.model_name,
+        "board_unknown model_name=%s falling_back_to=%s",
+        model_name,
+        DEFAULT_BOARD.model_name,
     )
     logger.info(
-        "board_detected",
-        model_name=board.model_name,
-        thermal_zone=board.thermal_zone_path,
-        lan_interface=board.lan_interface,
-        reason="unknown_model_fallback",
+        "board_detected model_name=%s thermal_zone=%s lan_interface=%s reason=unknown_model_fallback",
+        board.model_name,
+        board.thermal_zone_path,
+        board.lan_interface,
     )
     return board
