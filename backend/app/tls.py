@@ -3,13 +3,12 @@ TLS certificate management for CubieCloud.
 Auto-generates a self-signed certificate on first boot.
 """
 
-import datetime
 import logging
 import socket
-import subprocess
 from pathlib import Path
 
 from .config import settings
+from .subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.tls")
 
@@ -27,7 +26,7 @@ def _get_local_ips() -> list[str]:
     return sorted(ips)
 
 
-def ensure_tls_cert() -> tuple[Path, Path]:
+async def ensure_tls_cert() -> tuple[Path, Path]:
     """
     Return (cert_path, key_path), generating a self-signed certificate
     if one does not already exist.
@@ -62,16 +61,10 @@ def ensure_tls_cert() -> tuple[Path, Path]:
         "-addext", f"subjectAltName={san_string}",
     ]
 
-    try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=30,
-        )
-        if result.returncode != 0:
-            logger.error("openssl failed: %s", result.stderr)
-            raise RuntimeError(f"openssl cert generation failed: {result.stderr}")
-        logger.info("✅ TLS cert generated: %s", cert_path)
-    except FileNotFoundError:
-        logger.error("openssl not found — cannot generate TLS certificate")
-        raise RuntimeError("openssl is required for TLS cert generation")
+    rc, _, stderr = await run_command(cmd, timeout=30)
+    if rc != 0:
+        logger.error("openssl failed: %s", stderr)
+        raise RuntimeError(f"openssl cert generation failed: {stderr}")
+    logger.info("TLS cert generated: %s", cert_path)
 
     return cert_path, key_path

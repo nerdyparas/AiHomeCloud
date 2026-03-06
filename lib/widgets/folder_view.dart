@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
+import '../core/error_utils.dart';
 import '../models/models.dart';
 import '../providers.dart';
 import 'cubie_card.dart';
@@ -519,7 +520,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                       const Icon(Icons.error_outline_rounded,
                           size: 48, color: CubieColors.error),
                       const SizedBox(height: 12),
-                      Text('Error: $_error',
+                      Text(friendlyError(_error!),
                           style: GoogleFonts.dmSans(color: CubieColors.error)),
                       const SizedBox(height: 12),
                       OutlinedButton(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
+import '../../core/error_utils.dart';
 import '../../core/theme.dart';
 import '../../providers.dart';
 
@@ -42,7 +43,10 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
 
       // Get discovery state for the real device IP
       final discovery = ref.read(discoveryNotifierProvider);
-      final deviceIp = discovery.deviceIp ?? '192.168.0.212';
+      final deviceIp = discovery.deviceIp;
+      if (deviceIp == null || deviceIp.isEmpty) {
+        throw Exception('Device IP not found. Please restart setup.');
+      }
       final previous = ref.read(authSessionProvider);
 
       final prefs = ref.read(sharedPreferencesProvider);
@@ -51,8 +55,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
       }
       await prefs.setString(
           CubieConstants.prefDeviceSerial,
-          prefs.getString(CubieConstants.prefDeviceSerial) ??
-              'CUBIE-A7A-2025-001');
+          prefs.getString(CubieConstants.prefDeviceSerial) ?? '');
       await prefs.setString(CubieConstants.prefDeviceName, 'My CubieCloud');
 
       await ref.read(authSessionProvider.notifier).login(
@@ -70,7 +73,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

@@ -67,14 +67,14 @@ class WelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () => context.go('/qr-scan'),
+                  onPressed: () => context.go('/scan-network'),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                      const Icon(Icons.wifi_find_rounded, size: 20),
                       const SizedBox(width: 10),
                       Text(
-                        'Scan QR Code',
+                        'Find My Cubie',
                         style: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w600, fontSize: 16),
                       ),

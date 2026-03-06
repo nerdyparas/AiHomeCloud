@@ -15,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings, JWT_SECRET_FILE
-import os
+import os  # noqa: E402 — used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .board import detect_board
@@ -61,10 +61,11 @@ async def lifespan(app: FastAPI):
     # Auto-generate self-signed TLS cert if needed
     if settings.tls_enabled:
         try:
-            cert, key = ensure_tls_cert()
+            cert, key = await ensure_tls_cert()
             logger.info("TLS enabled — cert=%s key=%s", cert, key)
         except Exception as e:
-            logger.warning("TLS cert generation failed, will run without TLS: %s", e)
+            logger.warning("TLS cert generation failed, running without TLS: %s", e)
+            settings.tls_enabled = False
 
     logger.info("CubieCloud backend starting on %s:%s", settings.host, settings.port)
     logger.info("  NAS root : %s", settings.nas_root)
@@ -176,33 +177,6 @@ async def root():
     return {"service": "CubieCloud", "version": "0.1.0"}
 
 
-@app.get("/api/v1/tls/fingerprint")
-async def tls_fingerprint():
-    """Return the SHA-256 fingerprint of the server certificate.
-    Called once by the Flutter app to pin the self-signed cert."""
-    import hashlib
-    try:
-        cert_bytes = settings.tls_cert_path.read_bytes()
-        # Parse PEM → DER for fingerprint
-        from base64 import b64decode
-        lines = cert_bytes.decode().splitlines()
-        der_lines = []
-        inside = False
-        for line in lines:
-            if "BEGIN CERTIFICATE" in line:
-                inside = True
-                continue
-            if "END CERTIFICATE" in line:
-                break
-            if inside:
-                der_lines.append(line)
-        der = b64decode("".join(der_lines))
-        fp = hashlib.sha256(der).hexdigest()
-        return {"fingerprint": fp, "algorithm": "sha256"}
-    except FileNotFoundError:
-        return {"fingerprint": None, "algorithm": "sha256"}
-
-
 # Backward-compatible redirect: /api/... -> /api/v1/...
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def redirect_api(path: str, request: Request):
@@ -221,8 +195,9 @@ if __name__ == "__main__":
         "log_level": "info",
     }
     if settings.tls_enabled:
+        import asyncio
         try:
-            cert, key = ensure_tls_cert()
+            cert, key = asyncio.get_event_loop().run_until_complete(ensure_tls_cert())
             kwargs["ssl_certfile"] = str(cert)
             kwargs["ssl_keyfile"] = str(key)
         except Exception:

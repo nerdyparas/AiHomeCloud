@@ -10,6 +10,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user, require_admin
+from ..config import settings
 from ..models import NetworkStatus, ToggleRequest
 from ..subprocess_runner import run_command
 
@@ -226,7 +227,7 @@ async def toggle_hotspot(
                 "nmcli", "device", "wifi", "hotspot",
                 "ifname", "wlan0",
                 "ssid", "CubieCloud",
-                "password", "cubiecloud",
+                "password", settings.hotspot_password,
             ])
         if rc != 0:
             logger.error("Hotspot enable failed: %s", err)

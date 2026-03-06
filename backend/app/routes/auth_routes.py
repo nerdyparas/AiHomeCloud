@@ -3,7 +3,6 @@ Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
 
 import hmac
-import socket
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -15,7 +14,7 @@ from ..auth import (
     hash_password,
     verify_password,
 )
-from ..config import settings
+from ..config import settings, get_local_ip
 from ..models import (
     ChangePinRequest,
     CreateUserRequest,
@@ -30,18 +29,6 @@ from .. import store
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 
 
-def _get_local_ip() -> str:
-    """Get the device's local IP address."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
-
 @router.get("/pair/qr")
 async def get_pairing_qr():
     """
@@ -49,7 +36,7 @@ async def get_pairing_qr():
     The Cubie displays this as a QR code on its screen or web UI.
     Format: cubie://pair?serial=...&key=...&host=...
     """
-    ip = _get_local_ip()
+    ip = get_local_ip()
     serial = settings.device_serial
     key = settings.pairing_key
     host = f"cubie-{serial}.local"
@@ -88,6 +75,7 @@ async def get_pairing_qr():
     return {
         "qrValue": qr_value,
         "serial": serial,
+        "key": key,
         "ip": ip,
         "host": host,
         "expiresAt": expires_at,

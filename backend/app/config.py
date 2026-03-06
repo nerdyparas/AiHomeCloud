@@ -5,6 +5,7 @@ All settings can be overridden via environment variables prefixed with CUBIE_.
 
 import os
 import secrets
+import socket
 import stat
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 JWT_SECRET_FILE = Path("/var/lib/cubie/jwt_secret")
+PAIRING_KEY_FILE = Path("/var/lib/cubie/pairing_key")
 DEFAULT_CORS_ORIGINS = ["http://localhost", "http://localhost:3000"]
 
 
@@ -25,6 +27,43 @@ def generate_jwt_secret(secret_file: Path = JWT_SECRET_FILE) -> str:
     secret_file.write_text(secret)
     secret_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
     return secret
+
+
+def generate_pairing_key(key_file: Path = PAIRING_KEY_FILE) -> str:
+    """Return the existing pairing key or generate one and persist it."""
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    if key_file.exists():
+        return key_file.read_text().strip()
+
+    key = secrets.token_urlsafe(16)
+    key_file.write_text(key)
+    key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    return key
+
+
+def generate_device_serial() -> str:
+    """Generate a device serial from the machine's MAC address."""
+    import uuid
+    mac = uuid.getnode()
+    mac_hex = f"{mac:012x}".upper()
+    return f"CUBIE-{mac_hex[-6:]}"
+
+
+def generate_hotspot_password() -> str:
+    """Generate a random 12-character hotspot password."""
+    return secrets.token_urlsafe(9)  # yields 12 chars
+
+
+def get_local_ip() -> str:
+    """Get the device's primary local IP address."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
 
 class Settings(BaseSettings):
@@ -48,10 +87,11 @@ class Settings(BaseSettings):
     jwt_expire_hours: int = 720  # 30 days
 
     # ── Device ────────────────────────────────────────────────────────────────
-    device_serial: str = "CUBIE-A7A-2025-001"
+    device_serial: str = ""  # auto-generated from MAC address if empty
     device_name: str = "My CubieCloud"
     firmware_version: str = "2.1.4"
-    pairing_key: str = "default-pair-key"
+    pairing_key: str = ""  # auto-generated and persisted if empty
+    hotspot_password: str = ""  # auto-generated if empty
 
     # ── Storage ───────────────────────────────────────────────────────────────
     nas_root: Path = Path("/srv/nas")
@@ -121,11 +161,23 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Ensure a persistent JWT secret exists when the env var is not provided.
-# Priority: CUBIE_JWT_SECRET env var > persisted file > default placeholder.
 if not os.getenv("CUBIE_JWT_SECRET") and settings.jwt_secret == "change-me-in-production":
     try:
         settings.jwt_secret = generate_jwt_secret()
     except PermissionError:
-        # Running in an environment without access to data_dir (CI, tests).
-        # Keep the default placeholder; tests should override via env/fixture.
         pass
+
+# Auto-generate pairing key if not provided.
+if not settings.pairing_key:
+    try:
+        settings.pairing_key = generate_pairing_key()
+    except PermissionError:
+        settings.pairing_key = secrets.token_urlsafe(16)
+
+# Auto-generate device serial from MAC address if not provided.
+if not settings.device_serial:
+    settings.device_serial = generate_device_serial()
+
+# Auto-generate hotspot password if not provided.
+if not settings.hotspot_password:
+    settings.hotspot_password = generate_hotspot_password()

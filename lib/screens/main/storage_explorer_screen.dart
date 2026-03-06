@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
+import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/cubie_card.dart';
@@ -236,7 +237,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       _showSnack('${dev.label ?? dev.name} mounted as NAS storage');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Mount failed: $e', isError: true);
+      _showSnack('Mount failed: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -263,7 +264,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       _showSnack('Storage unmounted');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Unmount failed: $e', isError: true);
+      _showSnack('Unmount failed: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -287,7 +288,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       _showSnack('${dev.label ?? dev.name} safely ejected — you can remove it');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Eject failed: $e', isError: true);
+      _showSnack('Eject failed: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -387,7 +388,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         _startFormatPolling(jobId);
         _showSnack('Format started for ${dev.name}. Tracking progress…');
       } catch (e) {
-        _showSnack('Format failed: $e', isError: true);
+        _showSnack('Format failed: ${friendlyError(e)}', isError: true);
       } finally {
         if (mounted) setState(() => _busyDevice = null);
       }
@@ -446,7 +447,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         }
       } catch (e) {
         if (!mounted) return;
-        _showSnack('Job polling error: $e', isError: true);
+        _showSnack('Job polling error: ${friendlyError(e)}', isError: true);
       }
     });
   }

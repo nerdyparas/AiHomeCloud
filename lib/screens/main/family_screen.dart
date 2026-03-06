@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/cubie_card.dart';
@@ -99,7 +100,7 @@ class FamilyScreen extends ConsumerWidget {
               ),
               error: (e, _) => SliverFillRemaining(
                 child: Center(
-                    child: Text('Error: $e',
+                    child: Text(friendlyError(e),
                         style: const TextStyle(color: CubieColors.error))),
               ),
             ),

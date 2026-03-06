@@ -2,6 +2,16 @@ part of '../api_service.dart';
 
 /// Authentication API — pairing, user creation, login/logout, PIN management.
 extension AuthApi on ApiService {
+  /// GET /api/v1/pair/qr — fetch pairing info from a discovered Cubie.
+  Future<Map<String, dynamic>> fetchPairingInfo(String host) async {
+    final base = 'https://$host:${CubieConstants.apiPort}';
+    final res = await _client
+        .get(Uri.parse('$base${CubieConstants.apiVersion}/pair/qr'))
+        .timeout(ApiService._timeout);
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   /// POST /api/v1/pair  body: {serial, key}
   Future<String> pairDevice(String serial, String key,
       {String? hostOverride}) async {

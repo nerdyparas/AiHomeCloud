@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
+import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/cubie_card.dart';
@@ -106,7 +107,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: CircularProgressIndicator(
                               color: CubieColors.primary)))),
               error: (e, _) => CubieCard(
-                  child: Text('Network error: $e',
+                  child: Text(friendlyError(e),
                       style: const TextStyle(color: CubieColors.error))),
             ),
 
@@ -140,7 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: Center(
                           child: CircularProgressIndicator(
                               color: CubieColors.primary)))),
-              error: (e, _) => CubieCard(child: Text('Error: $e')),
+              error: (e, _) => CubieCard(child: Text(friendlyError(e))),
             ),
 
             // ── OTA update ──────────────────────────────────────────────────
@@ -181,7 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: Center(
                           child: CircularProgressIndicator(
                               color: CubieColors.primary)))),
-              error: (e, _) => CubieCard(child: Text('Error: $e')),
+              error: (e, _) => CubieCard(child: Text(friendlyError(e))),
             ),
 
             const SizedBox(height: 24),
@@ -380,7 +381,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         message = 'Stored fingerprint differs from the server certificate.';
       }
     } catch (e) {
-      message = 'Failed to verify fingerprint: $e';
+      message = 'Failed to verify fingerprint: ${friendlyError(e)}';
     }
 
     showDialog(
@@ -524,7 +525,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      .showSnackBar(SnackBar(content: Text(friendlyError(e))));
                 }
               }
             },
@@ -729,7 +730,7 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
                   if (mounted) {
                     setState(() => _on = !v);
                     ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text('Error: $e')));
+                        .showSnackBar(SnackBar(content: Text(friendlyError(e))));
                   }
                 } finally {
                   if (mounted) setState(() => _busy = false);

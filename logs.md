@@ -5,6 +5,37 @@
 
 ---
 
+## 2025-07-25 — Deployment Audit v2 COMPLETE: All Critical Issues Fixed
+
+### Audit findings
+- **8 CRITICAL**, 7 HIGH, 8 MEDIUM, 5 LOW issues identified
+- All 8 critical and all actionable high-priority issues have been fixed
+
+### Critical fixes applied
+1. **C1:** `tls.py` — converted to async, replaced raw `subprocess.run()` with `run_command()`
+2. **C2:** `network_scan_screen.dart` — replaced hardcoded pairing creds with dynamic `fetchPairingInfo()`
+3. **C3:** `setup_complete_screen.dart` — removed hardcoded fallback IP `192.168.0.212`
+4. **C4:** `setup_complete_screen.dart` — removed hardcoded serial fallback
+5. **C5:** `network_routes.py` — replaced hardcoded hotspot password with `settings.hotspot_password`
+6. **C6:** `main.py` — removed duplicate `/api/v1/tls/fingerprint` endpoint
+7. **C7:** `file_preview_screen.dart` — implemented real file download with `path_provider`
+8. **C8:** `config.py` — extracted shared `get_local_ip()`, removed duplicates from route files
+
+### Config hardening
+- `config.py`: auto-generates `pairing_key`, `device_serial` (from MAC), `hotspot_password` on startup
+- Backend `/pair/qr` response now includes `key` field directly
+
+### Test fixes
+- Fixed pending timer issues in dashboard tests (Completer instead of Future.delayed)
+- Fixed Padding assertion in stat_tile and cubie_card tests (findsWidgets)
+- Fixed golden test surfaces (devicePixelRatio + larger sizes)
+- **Result: 30/30 Flutter tests pass, 47 backend tests pass**
+
+### Build
+- Release APK built: `build/app/outputs/flutter-apk/app-release.apk` (66.5MB)
+
+---
+
 ## 2026-03-02 — Milestone 2B COMPLETE: Service Safety Integration
 
 ### What was done

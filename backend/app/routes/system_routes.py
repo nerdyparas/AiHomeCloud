@@ -2,28 +2,14 @@
 System routes — device info, firmware, device name.
 """
 
-import socket
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user
-from ..config import settings
+from ..config import settings, get_local_ip
 from ..models import CubieDevice, FirmwareInfo, UpdateNameRequest
 from .. import store
 
 router = APIRouter(prefix="/api/v1/system", tags=["system"])
-
-
-def _get_local_ip() -> str:
-    """Best-effort local IP detection."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
 
 
 @router.get("/info", response_model=CubieDevice)
@@ -33,7 +19,7 @@ async def device_info(user: dict = Depends(get_current_user)):
     return CubieDevice(
         serial=settings.device_serial,
         name=state.get("name", settings.device_name),
-        ip=_get_local_ip(),
+        ip=get_local_ip(),
         firmwareVersion=settings.firmware_version,
     )
 

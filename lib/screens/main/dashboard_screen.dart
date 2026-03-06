@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
+import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/cubie_card.dart';
@@ -231,7 +232,7 @@ class DashboardScreen extends ConsumerWidget {
                             color: CubieColors.primary)),
                   ),
                   error: (e, _) => CubieCard(
-                    child: Text('Error: $e',
+                    child: Text(friendlyError(e),
                         style:
                             const TextStyle(color: CubieColors.error)),
                   ),

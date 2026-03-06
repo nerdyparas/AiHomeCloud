@@ -53,7 +53,18 @@ class MainShell extends ConsumerWidget {
                 width: double.infinity,
                 color: CubieColors.error.withOpacity(0.2),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: const Text('Disconnected from device'),
+                child: const Row(
+                  children: [
+                    Icon(Icons.cloud_off_rounded, size: 14, color: CubieColors.error),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'CubieCloud is unreachable. Check that your Cubie is powered on and you\'re on the same network.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             Expanded(child: child),
           ],

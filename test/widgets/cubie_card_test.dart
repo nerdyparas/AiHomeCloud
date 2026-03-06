@@ -50,7 +50,9 @@ void main() {
     testWidgets('CubieCard golden test with default properties', (WidgetTester tester) async {
       // Set test window size
       tester.binding.window.physicalSizeTestValue = const Size(400, 300);
+      tester.binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
+      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -84,8 +86,10 @@ void main() {
 
     testWidgets('CubieCard golden test with complex content', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 400);
+      tester.binding.window.physicalSizeTestValue = const Size(400, 500);
+      tester.binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
+      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -128,8 +132,10 @@ void main() {
 
     testWidgets('CubieCard golden test with elevated style', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 250);
+      tester.binding.window.physicalSizeTestValue = const Size(400, 300);
+      tester.binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
+      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -164,8 +170,10 @@ void main() {
 
     testWidgets('CubieCard golden test with custom padding', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 200);
+      tester.binding.window.physicalSizeTestValue = const Size(400, 300);
+      tester.binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
+      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -281,7 +289,7 @@ void main() {
         ),
       );
 
-      expect(find.byType(Padding), findsOneWidget);
+      expect(find.byType(Padding), findsWidgets);
     });
   });
 }

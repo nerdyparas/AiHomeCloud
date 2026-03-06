@@ -5,12 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'core/constants.dart';
 import 'core/theme.dart';
 import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
 import 'providers.dart';
-import 'services/api_service.dart';
 
 /// Trust self-signed TLS certificates from the Cubie backend.
 class _CubieHttpOverrides extends HttpOverrides {
@@ -43,32 +41,9 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
-  // ── DEV SHORTCUT: Skip onboarding, connect directly to Cubie ──────────
-  // Remove this block once onboarding/QR flow is fully tested.
-  const devMode = true;
-  if (devMode && !prefs.containsKey(CubieConstants.prefIsSetupDone)) {
-    const cubieIp = '192.168.0.212';
-    // Pair to get a real JWT
-    try {
-      debugPrint('[DEV] Pairing with Cubie at $cubieIp:${CubieConstants.apiPort}…');
-      final token = await ApiService.instance
-        .pairDevice('CUBIE-A7A-2025-001', 'your-pairing-key', hostOverride: cubieIp);
-      debugPrint('[DEV] ✅ Paired! Token: ${token.substring(0, 20)}…');
-      await prefs.setString(CubieConstants.prefDeviceIp, cubieIp);
-      await prefs.setInt(CubieConstants.prefDevicePort, CubieConstants.apiPort);
-      await prefs.setString(CubieConstants.prefAuthToken, token);
-      await prefs.setString(CubieConstants.prefUserName, 'paras');
-      await prefs.setBool(CubieConstants.prefIsAdmin, true);
-      await prefs.setString(
-          CubieConstants.prefDeviceSerial, 'CUBIE-A7A-2025-001');
-      await prefs.setString(CubieConstants.prefDeviceName, 'My CubieCloud');
-      await prefs.setBool(CubieConstants.prefIsSetupDone, true);
-    } catch (e) {
-      debugPrint('[DEV] ❌ Pairing failed: $e');
-      // If Cubie isn't reachable, fall through to normal onboarding
-    }
-  }
-  // ── END DEV SHORTCUT ──────────────────────────────────────────────────
+  // Auto-reconnect: if a device was previously paired, the AuthSessionNotifier
+  // will restore the session from SharedPreferences on init. If not, the
+  // router guard sends the user to /welcome → /scan-network for first-time setup.
 
   runApp(
     ProviderScope(

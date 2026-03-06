@@ -518,7 +518,41 @@
 
 ---
 
-## Priority Order for Milestones 4–10
+## Milestone 11: Remote Access via Tailscale
+
+> Allow users to access their files from anywhere using Tailscale as a zero-config VPN overlay.
+> Tailscale is a transport layer — no backend API changes needed for core file/storage/auth endpoints.
+
+### 11A — Flutter: Remote Access Settings UI
+
+| # | Task | Model | Status | Notes |
+|---|---|---|---|---|
+| 11A.1 | Add "Remote Access" section in `SettingsScreen` with toggle and setup guide | 🔵 | ⬚ todo | Show Tailscale status, link to install instructions |
+| 11A.2 | Add `kTailscaleIpPrefKey = 'cubieTailscaleIp'` constant to `lib/core/constants.dart` | 🟢 | ⬚ todo | |
+| 11A.3 | Add Tailscale IP input field in Remote Access settings (user enters Cubie's `100.x.y.z` Tailscale IP) | 🟢 | ⬚ todo | Validates IP format before saving |
+| 11A.4 | Store Tailscale IP in `SharedPreferences` via `AuthSessionNotifier` | 🟢 | ⬚ todo | Add `tailscaleIp` field to `AuthSession` |
+| 11A.5 | Add "Home" vs "Remote" mode selector (or auto-detect toggle) in Remote Access settings | 🔵 | ⬚ todo | Persisted to SharedPreferences |
+
+### 11B — Flutter: Dual-IP Connection Logic
+
+| # | Task | Model | Status | Notes |
+|---|---|---|---|---|
+| 11B.1 | In `ApiService`, add fallback logic: try LAN IP first (2s timeout), fall back to Tailscale IP if unreachable | 🔵 | ⬚ todo | Only if auto-detect mode is enabled |
+| 11B.2 | Add `activeHost` getter to `ApiService` so UI can show which IP is currently in use | 🟢 | ⬚ todo | |
+| 11B.3 | Show connection mode indicator in `MainShell` (e.g., "Connected via LAN" vs "Connected via Tailscale") | 🟢 | ⬚ todo | Subtle chip or icon in app bar |
+| 11B.4 | Handle TLS cert pinning across both IPs — same Cubie cert, different IP in SAN | 🔵 | ⬚ todo | May need to regenerate cert with Tailscale IP in SAN |
+
+### 11C — Backend: Tailscale Setup Helper (Optional)
+
+| # | Task | Model | Status | Notes |
+|---|---|---|---|---|
+| 11C.1 | Add `GET /api/v1/system/tailscale-status` endpoint: check if `tailscale` CLI is installed and `tailscale status` output | 🟢 | ⬚ todo | Returns `{installed, connected, ip}` |
+| 11C.2 | Add `POST /api/v1/system/tailscale-up` endpoint (admin-only): runs `tailscale up` via `run_command()` | 🔵 | ⬚ todo | Requires Tailscale pre-installed on Cubie; returns auth URL for user to complete |
+| 11C.3 | Document Tailscale install steps in `kb/setup-instructions.md` | 🟢 | ⬚ todo | `curl -fsSL https://tailscale.com/install.sh \| sh && sudo tailscale up` |
+
+---
+
+## Priority Order for Milestones 4–11
 
 **Work in this sequence — each milestone unblocks the next:**
 
@@ -529,3 +563,4 @@
 5. 🔵 **Milestone 8** — multi-SBC abstraction (low urgency; single-board deployment is fine for v1)
 6. 🔵 **Milestone 9** — AI readiness stubs (future-proofing only)
 7. 🔵 **Milestone 10** — final audit pass (run last, after all code is written)
+8. 🟢 **Milestone 11** — remote access via Tailscale (can be done anytime after Milestone 5)

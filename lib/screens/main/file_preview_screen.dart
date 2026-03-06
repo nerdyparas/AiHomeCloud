@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../../core/error_utils.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
@@ -85,16 +88,43 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
   }
 
   Future<void> _downloadToDevice() async {
-    // Show a snackbar indicating download isn't saved locally yet
-    // This would use path_provider + file save in a full implementation
-    if (mounted) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Downloading ${widget.file.name}…',
+            style: GoogleFonts.dmSans()),
+        backgroundColor: CubieColors.card,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      final res = await api.downloadFile(widget.file.path);
+      final dir = await getApplicationDocumentsDirectory();
+      final downloadsDir = Directory('${dir.path}/Downloads');
+      if (!downloadsDir.existsSync()) {
+        downloadsDir.createSync(recursive: true);
+      }
+      final file = File('${downloadsDir.path}/${widget.file.name}');
+      await file.writeAsBytes(res.bodyBytes);
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Download started: ${widget.file.name}',
-            style: GoogleFonts.dmSans(),
-          ),
+          content: Text('Saved: ${widget.file.name}',
+              style: GoogleFonts.dmSans()),
           backgroundColor: CubieColors.card,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Download failed: ${friendlyError(e)}',
+              style: GoogleFonts.dmSans()),
+          backgroundColor: Colors.red.shade700,
         ),
       );
     }

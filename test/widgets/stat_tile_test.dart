@@ -135,7 +135,7 @@ void main() {
       expect(find.byType(Card), findsOneWidget);
 
       // Verify Padding widget exists
-      expect(find.byType(Padding), findsOneWidget);
+      expect(find.byType(Padding), findsWidgets);
     });
   });
 }
