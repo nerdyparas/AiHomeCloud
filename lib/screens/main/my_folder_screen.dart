@@ -1,26 +1,352 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
+import '../../core/theme.dart';
+import '../../core/error_utils.dart';
+import '../../models/models.dart';
 import '../../providers.dart';
-import '../../widgets/folder_view.dart';
+import '../../widgets/cubie_card.dart';
 
-/// Tab 2 — personal file browser for the current user.
-class MyFolderScreen extends ConsumerWidget {
+/// Tab 2 — storage file explorer (Google Files / My Computer style).
+/// Shows available USB/NVMe drives and quick-access folders.
+class MyFolderScreen extends ConsumerStatefulWidget {
   const MyFolderScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authSessionProvider);
-    final user = (session?.username.isNotEmpty ?? false)
-      ? session!.username
-      : 'user';
-    final path = '${CubieConstants.personalBasePath}$user/';
+  ConsumerState<MyFolderScreen> createState() => _MyFolderScreenState();
+}
 
-    return FolderView(
-      title: 'My Files',
-      folderPath: path,
-      readOnly: false,
+class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
+  List<StorageRoot>? _roots;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoots();
+  }
+
+  Future<void> _loadRoots() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final roots = await ref.read(apiServiceProvider).getStorageRoots();
+      if (mounted) setState(() { _roots = roots; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+    }
+  }
+
+  String get _userName {
+    final session = ref.watch(authSessionProvider);
+    return (session?.username.isNotEmpty ?? false) ? session!.username : 'user';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: CubieColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadRoots,
+          color: CubieColors.primary,
+          child: CustomScrollView(
+            slivers: [
+              // ── Title ─────────────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Text('My Files',
+                      style: GoogleFonts.sora(
+                          color: CubieColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700)),
+                ).animate().fadeIn(duration: 400.ms),
+              ),
+
+              // ── Storage Drives ────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+                  child: Text('Storage Drives',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+
+              if (_loading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: CubieColors.primary),
+                    ),
+                  ),
+                )
+              else if (_error != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: CubieCard(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: CubieColors.error, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(_error!,
+                                style: GoogleFonts.dmSans(
+                                    color: CubieColors.textSecondary,
+                                    fontSize: 13)),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh_rounded,
+                                color: CubieColors.primary, size: 20),
+                            onPressed: _loadRoots,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else if (_roots == null || _roots!.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: CubieCard(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: CubieColors.textMuted.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.usb_off_rounded,
+                                color: CubieColors.textMuted, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('No storage connected',
+                                    style: GoogleFonts.dmSans(
+                                        color: CubieColors.textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 2),
+                                Text('Connect a USB drive or NVMe SSD',
+                                    style: GoogleFonts.dmSans(
+                                        color: CubieColors.textSecondary,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final root = _roots![index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 5),
+                        child: _DriveCard(
+                          root: root,
+                          onTap: () => context.push('/folder-view', extra: {
+                            'title': root.name,
+                            'folderPath': '${root.path}/',
+                            'readOnly': false,
+                          }),
+                        ).animate()
+                          .fadeIn(delay: (100 * index).ms)
+                          .slideY(begin: 0.05, end: 0),
+                      );
+                    },
+                    childCount: _roots!.length,
+                  ),
+                ),
+
+              // ── Quick Access ──────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+                  child: Text('Quick Access',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                  child: CubieCard(
+                    onTap: () => context.push('/folder-view', extra: {
+                      'title': 'Personal',
+                      'folderPath': '${CubieConstants.personalBasePath}$_userName/',
+                      'readOnly': false,
+                    }),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: CubieColors.primary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.person_rounded,
+                              color: CubieColors.primary, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Personal',
+                                  style: GoogleFonts.dmSans(
+                                      color: CubieColors.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text('Your private files',
+                                  style: GoogleFonts.dmSans(
+                                      color: CubieColors.textSecondary,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: CubieColors.textMuted, size: 18),
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.05, end: 0),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                  child: CubieCard(
+                    onTap: () => context.push('/folder-view', extra: {
+                      'title': 'Shared',
+                      'folderPath': CubieConstants.sharedPath,
+                      'readOnly': false,
+                    }),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: CubieColors.secondary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.folder_shared_rounded,
+                              color: CubieColors.secondary, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Shared',
+                                  style: GoogleFonts.dmSans(
+                                      color: CubieColors.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text('Family shared files',
+                                  style: GoogleFonts.dmSans(
+                                      color: CubieColors.textSecondary,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: CubieColors.textMuted, size: 18),
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.05, end: 0),
+                ),
+              ),
+
+              // Bottom padding
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 24),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card showing a storage drive.
+class _DriveCard extends StatelessWidget {
+  final StorageRoot root;
+  final VoidCallback onTap;
+  const _DriveCard({required this.root, required this.onTap});
+
+  Color get _color => switch (root.transport) {
+        'usb' => const Color(0xFF4C9BE8),
+        'nvme' => const Color(0xFFE8A84C),
+        _ => CubieColors.textSecondary,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return CubieCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(root.icon, color: _color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(root.name,
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text('${root.typeLabel}  •  ${root.sizeDisplay}',
+                    style: GoogleFonts.dmSans(
+                        color: CubieColors.textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded,
+              color: CubieColors.textMuted, size: 18),
+        ],
+      ),
     );
   }
 }

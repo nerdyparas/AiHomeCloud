@@ -166,4 +166,23 @@ extension FilesApi on ApiService {
 
     return ctrl.stream;
   }
+
+  /// GET /api/v1/files/roots — returns mounted USB/NVMe drives as browseable roots.
+  Future<List<StorageRoot>> getStorageRoots() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/roots'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    final Map<String, dynamic> body = jsonDecode(res.body);
+    final List<dynamic> list = body['roots'] as List<dynamic>;
+    return list
+        .map((item) =>
+            StorageRoot.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
 }

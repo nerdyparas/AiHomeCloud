@@ -111,3 +111,54 @@ class UploadTask {
   double get progress =>
       totalBytes > 0 ? (uploadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
 }
+
+/// A browseable storage root — a mounted USB or NVMe drive.
+class StorageRoot {
+  final String name;
+  final String path;
+  final String device;
+  final String transport;
+  final int sizeBytes;
+  final String sizeDisplay;
+  final String fstype;
+  final String label;
+  final String model;
+
+  const StorageRoot({
+    required this.name,
+    required this.path,
+    required this.device,
+    required this.transport,
+    required this.sizeBytes,
+    required this.sizeDisplay,
+    required this.fstype,
+    required this.label,
+    required this.model,
+  });
+
+  factory StorageRoot.fromJson(Map<String, dynamic> json) {
+    return StorageRoot(
+      name: json['name'] as String,
+      path: json['path'] as String,
+      device: json['device'] as String,
+      transport: json['transport'] as String,
+      sizeBytes: json['sizeBytes'] as int,
+      sizeDisplay: json['sizeDisplay'] as String,
+      fstype: (json['fstype'] as String?) ?? '',
+      label: (json['label'] as String?) ?? '',
+      model: (json['model'] as String?) ?? '',
+    );
+  }
+
+  IconData get icon => switch (transport) {
+        'usb' => Icons.usb_rounded,
+        'nvme' => Icons.speed_rounded,
+        _ => Icons.storage_rounded,
+      };
+
+  String get typeLabel => switch (transport) {
+        'usb' => 'USB Drive',
+        'nvme' => 'NVMe SSD',
+        _ => transport.toUpperCase(),
+      };
+}

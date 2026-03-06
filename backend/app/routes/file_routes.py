@@ -33,7 +33,11 @@ def _safe_resolve(raw_path: str) -> Path:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path too long")
 
     # raw_path from the app looks like /srv/nas/shared/...
-    # Convert it to absolute by treating nas_root as the anchor.
+    # Strip the nas_root prefix if present so we don't double it.
+    nas_prefix = str(settings.nas_root)
+    if raw_path.startswith(nas_prefix):
+        raw_path = raw_path[len(nas_prefix):]
+
     try:
         resolved = (settings.nas_root / raw_path.lstrip("/")).resolve()
     except (OSError, ValueError):
@@ -226,3 +230,27 @@ async def download_file(
         filename=resolved.name,
         media_type=mime or "application/octet-stream",
     )
+
+
+@router.get("/roots")
+async def storage_roots(user: dict = Depends(get_current_user)):
+    """Return browseable storage roots — mounted USB/NVMe drives."""
+    from .storage_helpers import build_device_list, flatten_devices, list_block_devices
+
+    raw = await list_block_devices()
+    devices = build_device_list(flatten_devices(raw))
+    roots = []
+    for dev in devices:
+        if dev.mounted and dev.mount_point:
+            roots.append({
+                "name": dev.label or dev.model or dev.name,
+                "path": dev.mount_point,
+                "device": dev.path,
+                "transport": dev.transport,
+                "sizeBytes": dev.size_bytes,
+                "sizeDisplay": dev.size_display,
+                "fstype": dev.fstype or "",
+                "label": dev.label or "",
+                "model": dev.model or "",
+            })
+    return {"roots": roots}
