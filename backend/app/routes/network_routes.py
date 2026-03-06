@@ -226,7 +226,7 @@ async def toggle_hotspot(
             rc, _, err = await _run([
                 "nmcli", "device", "wifi", "hotspot",
                 "ifname", "wlan0",
-                "ssid", "CubieCloud",
+                "ssid", settings.hotspot_ssid,
                 "password", settings.hotspot_password,
             ])
         if rc != 0:
@@ -270,6 +270,47 @@ async def toggle_bluetooth(
         logger.error("Bluetooth toggle failed: %s", err)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             f"Failed to toggle Bluetooth: {err}")
+
+
+# ─── Auto-AP settings ───────────────────────────────────────────────────────
+
+@router.get("/auto-ap")
+async def get_auto_ap_setting(user: dict = Depends(get_current_user)):
+    """Get the current auto-AP configuration."""
+    from ..auto_ap import _auto_ap_active
+    return {
+        "enabled": settings.auto_ap_enabled,
+        "hotspotSsid": settings.hotspot_ssid,
+        "autoApActive": _auto_ap_active,
+    }
+
+
+@router.put("/auto-ap", status_code=status.HTTP_204_NO_CONTENT)
+async def set_auto_ap_setting(
+    body: ToggleRequest,
+    user: dict = Depends(require_admin),
+):
+    """Enable or disable the auto-AP feature.
+
+    When disabled, the auto-started hotspot (if running) is torn down
+    and the background monitor stops checking.
+    """
+    from ..auto_ap import (
+        _auto_ap_active, _stop_hotspot,
+        maybe_start_auto_ap, shutdown_auto_ap,
+    )
+
+    settings.auto_ap_enabled = body.enabled
+
+    if not body.enabled and _auto_ap_active:
+        # Disable: stop the auto-started hotspot and cancel monitor
+        await shutdown_auto_ap()
+        await _stop_hotspot()
+        logger.info("auto_ap_disabled_by_user")
+    elif body.enabled:
+        # Re-enable: start the monitor (and hotspot if needed)
+        await maybe_start_auto_ap()
+        logger.info("auto_ap_enabled_by_user")
 
 
 @router.get("/lan")
@@ -350,7 +391,8 @@ async def scan_wifi_networks(user: dict = Depends(get_current_user)):
             in_use=in_use,
             saved=ssid in saved_names,
         )
-        if ssid not in best or signal > best[ssid].signal:
+        existing = best.get(ssid)
+        if existing is None or signal > existing.signal or (in_use and not existing.in_use):
             best[ssid] = network
 
     # Sort: connected first, then by signal descending
@@ -509,3 +551,69 @@ async def forget_wifi_network(
 
     if not found:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Saved network not found.")
+
+
+@router.get("/wifi/saved", response_model=list[WifiNetwork])
+async def list_saved_wifi_networks(user: dict = Depends(get_current_user)):
+    """List saved Wi-Fi network profiles from NetworkManager.
+
+    Returns profiles even if the network is not currently in range.
+    """
+    rc, out, _ = await _run([
+        "nmcli", "-t", "-f", "NAME,TYPE",
+        "connection", "show",
+    ])
+    if rc != 0:
+        return []
+
+    # Get active connections to mark inUse
+    rc2, active_out, _ = await _run([
+        "nmcli", "-t", "-f", "NAME,TYPE,DEVICE",
+        "connection", "show", "--active",
+    ])
+    active_names: set[str] = set()
+    for line in active_out.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 3 and parts[1] == "802-11-wireless":
+            # Check it's station mode, not AP
+            name = parts[0]
+            rc3, mode_out, _ = await _run([
+                "nmcli", "-t", "-f", "802-11-wireless.mode",
+                "connection", "show", name,
+            ])
+            if rc3 == 0 and "ap" not in mode_out.lower():
+                active_names.add(name)
+
+    results: list[WifiNetwork] = []
+    for line in out.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 2 and parts[1] == "802-11-wireless":
+            name = parts[0]
+            # Skip hotspot profiles
+            rc4, mode_out, _ = await _run([
+                "nmcli", "-t", "-f", "802-11-wireless.mode",
+                "connection", "show", name,
+            ])
+            if rc4 == 0 and "ap" in mode_out.lower():
+                continue
+
+            # Get security type
+            rc5, sec_out, _ = await _run([
+                "nmcli", "-t", "-f", "802-11-wireless-security.key-mgmt",
+                "connection", "show", name,
+            ])
+            security = "Open"
+            if rc5 == 0 and sec_out.strip():
+                km = sec_out.split(":")[-1].strip()
+                if "wpa" in km:
+                    security = "WPA2" if "wpa-psk" in km else km.upper()
+
+            results.append(WifiNetwork(
+                ssid=name,
+                signal=0,  # not in range — unknown
+                security=security,
+                in_use=name in active_names,
+                saved=True,
+            ))
+
+    return results

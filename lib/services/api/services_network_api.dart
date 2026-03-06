@@ -157,4 +157,20 @@ extension ServicesNetworkApi on ApiService {
     );
     _check(res);
   }
+
+  /// GET /api/v1/network/wifi/saved — list saved Wi-Fi profiles
+  Future<List<WifiNetwork>> getSavedWifiNetworks() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse(
+                '$_baseUrl${CubieConstants.apiVersion}/network/wifi/saved'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    final List<dynamic> list = jsonDecode(res.body);
+    return list.map((item) => WifiNetwork.fromJson(item)).toList();
+  }
 }

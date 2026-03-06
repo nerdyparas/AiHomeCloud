@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     firmware_version: str = "2.1.4"
     pairing_key: str = ""  # auto-generated and persisted if empty
     hotspot_password: str = ""  # auto-generated if empty
+    hotspot_ssid: str = "CubieCloud"
+    auto_ap_enabled: bool = True  # auto-start hotspot when no network
 
     # ── Storage ───────────────────────────────────────────────────────────────
     nas_root: Path = Path("/srv/nas")

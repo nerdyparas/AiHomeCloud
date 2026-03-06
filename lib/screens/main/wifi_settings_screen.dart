@@ -10,8 +10,10 @@ import '../../providers.dart';
 
 /// Wi-Fi settings screen — Android-style network picker.
 ///
-/// Shows available networks sorted by signal strength, connected network
-/// at the top, tap-to-connect with password dialog, disconnect and forget.
+/// Hierarchy:
+///   1. Connected network (single tap → edit password / disconnect / forget)
+///   2. Saved networks (tap to reconnect, long-press or tap gear → modify/delete)
+///   3. Available networks (tap → password dialog → connect)
 class WifiSettingsScreen extends ConsumerStatefulWidget {
   const WifiSettingsScreen({super.key});
 
@@ -21,6 +23,7 @@ class WifiSettingsScreen extends ConsumerStatefulWidget {
 
 class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   List<WifiNetwork>? _networks;
+  List<WifiNetwork>? _savedNetworks;
   bool _scanning = false;
   String? _error;
   String? _connectingSsid;
@@ -28,17 +31,26 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _scan();
+    _loadAll();
   }
 
-  Future<void> _scan() async {
+  Future<void> _loadAll() async {
     setState(() {
       _scanning = true;
       _error = null;
     });
     try {
-      final networks = await ref.read(apiServiceProvider).scanWifiNetworks();
-      if (mounted) setState(() => _networks = networks);
+      final api = ref.read(apiServiceProvider);
+      final results = await Future.wait([
+        api.scanWifiNetworks(),
+        api.getSavedWifiNetworks(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _networks = results[0] as List<WifiNetwork>;
+          _savedNetworks = results[1] as List<WifiNetwork>;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = friendlyError(e));
     } finally {
@@ -56,7 +68,14 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
 
   Future<void> _onNetworkTap(WifiNetwork network) async {
     if (network.inUse) {
-      _showConnectedDetails(network);
+      // Single tap on connected network → show details with edit/disconnect
+      _showConnectedSheet(network);
+      return;
+    }
+
+    if (network.saved) {
+      // Tap saved network → show manage options (reconnect / edit password / forget)
+      _showSavedSheet(network);
       return;
     }
 
@@ -65,11 +84,11 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       return;
     }
 
-    // Show password dialog
+    // New secured network → password dialog
     _showPasswordDialog(network);
   }
 
-  void _showPasswordDialog(WifiNetwork network) {
+  void _showPasswordDialog(WifiNetwork network, {bool isEdit = false}) {
     final ctrl = TextEditingController();
     bool obscure = true;
 
@@ -82,8 +101,13 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(_signalIcon(network.signal),
-                  color: CubieColors.primary, size: 20),
+              Icon(
+                network.signal > 0
+                    ? _signalIcon(network.signal)
+                    : Icons.wifi_rounded,
+                color: CubieColors.primary,
+                size: 20,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(network.ssid,
@@ -99,10 +123,20 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(network.security,
-                  style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 12)),
-              const SizedBox(height: 16),
+              if (isEdit)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('Enter new password',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary, fontSize: 12)),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(network.security,
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary, fontSize: 12)),
+                ),
               TextField(
                 controller: ctrl,
                 autofocus: true,
@@ -125,8 +159,10 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                   ),
                 ),
                 onSubmitted: (_) {
-                  Navigator.pop(ctx);
-                  _connect(network.ssid, ctrl.text);
+                  if (ctrl.text.isNotEmpty) {
+                    Navigator.pop(ctx);
+                    _connect(network.ssid, ctrl.text);
+                  }
                 },
               ),
             ],
@@ -140,10 +176,12 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(ctx);
-                _connect(network.ssid, ctrl.text);
+                if (ctrl.text.isNotEmpty) {
+                  Navigator.pop(ctx);
+                  _connect(network.ssid, ctrl.text);
+                }
               },
-              child: Text('Connect',
+              child: Text(isEdit ? 'Save & Connect' : 'Connect',
                   style:
                       GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
             ),
@@ -161,7 +199,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       if (result.success) {
         _showSnack(result.message);
         ref.invalidate(networkStatusProvider);
-        await _scan();
+        await _loadAll();
       } else {
         _showSnack(result.message);
       }
@@ -172,9 +210,9 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
     }
   }
 
-  // ── Connected network details ─────────────────────────────────────────────
+  // ── Connected network sheet ───────────────────────────────────────────────
 
-  void _showConnectedDetails(WifiNetwork network) {
+  void _showConnectedSheet(WifiNetwork network) {
     showModalBottomSheet(
       context: context,
       backgroundColor: CubieColors.surface,
@@ -187,6 +225,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               Row(
                 children: [
                   const Icon(Icons.wifi_rounded,
@@ -217,37 +256,168 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               const SizedBox(height: 16),
               _detailRow('Security', network.security),
               _detailRow('Signal strength', '${network.signal}%'),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // Action buttons: Edit Password / Disconnect / Forget
+              _sheetAction(
+                icon: Icons.edit_rounded,
+                label: 'Edit password',
+                color: CubieColors.primary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showPasswordDialog(network, isEdit: true);
+                },
+              ),
+              const SizedBox(height: 8),
+              _sheetAction(
+                icon: Icons.link_off_rounded,
+                label: 'Disconnect',
+                color: CubieColors.textSecondary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _disconnect();
+                },
+              ),
+              const SizedBox(height: 8),
+              _sheetAction(
+                icon: Icons.delete_outline_rounded,
+                label: 'Forget network',
+                color: CubieColors.error,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _confirmForget(network.ssid);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Saved network sheet ───────────────────────────────────────────────────
+
+  void _showSavedSheet(WifiNetwork network) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: CubieColors.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await _disconnect();
-                      },
-                      child: Text('Disconnect',
-                          style: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w600)),
-                    ),
+                  Icon(
+                    network.signal > 0
+                        ? _signalIcon(network.signal)
+                        : Icons.wifi_rounded,
+                    color: CubieColors.textSecondary,
+                    size: 24,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                          foregroundColor: CubieColors.error,
-                          side: const BorderSide(color: CubieColors.error)),
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await _forget(network.ssid);
-                      },
-                      child: Text('Forget',
-                          style: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w600)),
+                    child: Text(network.ssid,
+                        style: GoogleFonts.sora(
+                            color: CubieColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: CubieColors.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Text('Saved',
+                        style: GoogleFonts.dmSans(
+                            color: CubieColors.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              if (network.security.isNotEmpty && network.security != 'Open')
+                _detailRow('Security', network.security),
+              if (network.signal > 0)
+                _detailRow('Signal strength', '${network.signal}%'),
+              const SizedBox(height: 20),
+
+              // Action buttons
+              if (network.signal > 0) ...[
+                _sheetAction(
+                  icon: Icons.wifi_rounded,
+                  label: 'Connect',
+                  color: CubieColors.success,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _connect(network.ssid, '');
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+              _sheetAction(
+                icon: Icons.edit_rounded,
+                label: 'Edit password',
+                color: CubieColors.primary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showPasswordDialog(network, isEdit: true);
+                },
+              ),
+              const SizedBox(height: 8),
+              _sheetAction(
+                icon: Icons.delete_outline_rounded,
+                label: 'Forget network',
+                color: CubieColors.error,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _confirmForget(network.ssid);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Sheet action button ───────────────────────────────────────────────────
+
+  Widget _sheetAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 14),
+              Text(label,
+                  style: GoogleFonts.dmSans(
+                      color: color,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -272,15 +442,55 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
         ),
       );
 
+  // ── Disconnect & Forget ───────────────────────────────────────────────────
+
   Future<void> _disconnect() async {
     try {
       await ref.read(apiServiceProvider).disconnectWifi();
       _showSnack('Disconnected');
       ref.invalidate(networkStatusProvider);
-      await _scan();
+      await _loadAll();
     } catch (e) {
       _showSnack('Disconnect failed: ${friendlyError(e)}');
     }
+  }
+
+  void _confirmForget(String ssid) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CubieColors.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        title: Text('Forget $ssid?',
+            style: GoogleFonts.sora(
+                color: CubieColors.textPrimary, fontSize: 16)),
+        content: Text(
+            'This will remove the saved password. '
+            'You\'ll need to enter it again to reconnect.',
+            style: GoogleFonts.dmSans(
+                color: CubieColors.textSecondary, fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style:
+                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: CubieColors.error),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _forget(ssid);
+            },
+            child: Text('Forget',
+                style:
+                    GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _forget(String ssid) async {
@@ -288,7 +498,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       await ref.read(apiServiceProvider).forgetWifiNetwork(ssid);
       _showSnack('Network forgotten');
       ref.invalidate(networkStatusProvider);
-      await _scan();
+      await _loadAll();
     } catch (e) {
       _showSnack('Failed: ${friendlyError(e)}');
     }
@@ -343,7 +553,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
             IconButton(
               icon: const Icon(Icons.refresh_rounded,
                   color: CubieColors.textSecondary),
-              onPressed: _scan,
+              onPressed: _loadAll,
               tooltip: 'Rescan',
             ),
         ],
@@ -369,7 +579,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                       color: CubieColors.textSecondary, fontSize: 14)),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: _scan,
+                onPressed: _loadAll,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: Text('Retry',
                     style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -386,7 +596,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       );
     }
 
-    if (_networks!.isEmpty) {
+    if (_networks!.isEmpty && (_savedNetworks == null || _savedNetworks!.isEmpty)) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -399,7 +609,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     color: CubieColors.textSecondary, fontSize: 14)),
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: _scan,
+              onPressed: _loadAll,
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: Text('Scan again',
                   style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -409,33 +619,46 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       );
     }
 
-    // Separate connected from available
+    // Build sections from scan results
     final connected = _networks!.where((n) => n.inUse).toList();
-    final saved =
+    final available = _networks!.where((n) => !n.inUse && !n.saved).toList();
+
+    // Saved = merge scan-visible saved + backend saved-only (not in range)
+    final scannedSavedSsids =
+        _networks!.where((n) => !n.inUse && n.saved).map((n) => n.ssid).toSet();
+    final savedFromScan =
         _networks!.where((n) => !n.inUse && n.saved).toList();
-    final available =
-        _networks!.where((n) => !n.inUse && !n.saved).toList();
+    final savedOnlyFromBackend = (_savedNetworks ?? [])
+        .where((n) => !n.inUse && !scannedSavedSsids.contains(n.ssid))
+        .toList();
+    final allSaved = [...savedFromScan, ...savedOnlyFromBackend];
 
     return RefreshIndicator(
-      onRefresh: _scan,
+      onRefresh: _loadAll,
       color: CubieColors.primary,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
+          // 1. Connected
           if (connected.isNotEmpty) ...[
             _sectionHeader('Connected'),
             ...connected.map((n) => _networkTile(n)),
             const SizedBox(height: 16),
           ],
-          if (saved.isNotEmpty) ...[
+
+          // 2. Saved networks
+          if (allSaved.isNotEmpty) ...[
             _sectionHeader('Saved networks'),
-            ...saved.map((n) => _networkTile(n)),
+            ...allSaved.map((n) => _networkTile(n)),
             const SizedBox(height: 16),
           ],
+
+          // 3. Available networks
           if (available.isNotEmpty) ...[
             _sectionHeader('Available networks'),
             ...available.map((n) => _networkTile(n)),
           ],
+
           const SizedBox(height: 24),
         ],
       ),
@@ -462,9 +685,6 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: isConnecting ? null : () => _onNetworkTap(network),
-          onLongPress: network.saved && !network.inUse
-              ? () => _showForgetDialog(network)
-              : null,
           child: Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -483,10 +703,14 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               children: [
                 // Signal icon
                 Icon(
-                  _signalIcon(network.signal),
+                  network.signal > 0
+                      ? _signalIcon(network.signal)
+                      : Icons.wifi_rounded,
                   color: network.inUse
                       ? CubieColors.primary
-                      : _signalColor(network.signal),
+                      : network.signal > 0
+                          ? _signalColor(network.signal)
+                          : CubieColors.textMuted,
                   size: 22,
                 ),
                 const SizedBox(width: 14),
@@ -508,7 +732,9 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                         network.inUse
                             ? 'Connected'
                             : network.saved
-                                ? 'Saved • ${network.security}'
+                                ? network.signal > 0
+                                    ? 'Saved \u2022 ${network.security}'
+                                    : 'Saved \u2022 Not in range'
                                 : network.security,
                         style: GoogleFonts.dmSans(
                             color: network.inUse
@@ -519,7 +745,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     ],
                   ),
                 ),
-                // Lock icon for secured, check for connected
+                // Status icons
                 if (isConnecting)
                   const SizedBox(
                     width: 20,
@@ -528,8 +754,11 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                         strokeWidth: 2, color: CubieColors.primary),
                   )
                 else if (network.inUse)
-                  const Icon(Icons.check_circle_rounded,
-                      color: CubieColors.success, size: 20)
+                  const Icon(Icons.settings_rounded,
+                      color: CubieColors.textMuted, size: 20)
+                else if (network.saved)
+                  const Icon(Icons.settings_rounded,
+                      color: CubieColors.textMuted, size: 18)
                 else if (!network.isOpen)
                   const Icon(Icons.lock_rounded,
                       color: CubieColors.textMuted, size: 18),
@@ -538,44 +767,6 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
           ),
         ),
       ).animate().fadeIn(duration: 200.ms),
-    );
-  }
-
-  void _showForgetDialog(WifiNetwork network) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: CubieColors.surface,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: Text('Forget ${network.ssid}?',
-            style: GoogleFonts.sora(
-                color: CubieColors.textPrimary, fontSize: 16)),
-        content: Text(
-            'This will remove the saved password. '
-            'You\'ll need to enter it again to reconnect.',
-            style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary, fontSize: 13)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: CubieColors.error),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _forget(network.ssid);
-            },
-            child: Text('Forget',
-                style:
-                    GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
     );
   }
 }

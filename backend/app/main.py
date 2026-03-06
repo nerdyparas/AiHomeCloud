@@ -18,6 +18,7 @@ from .config import settings, JWT_SECRET_FILE
 import os  # noqa: E402 — used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
+from .auto_ap import maybe_start_auto_ap, shutdown_auto_ap
 from .board import detect_board
 from .routes import (
     auth_routes,
@@ -115,7 +116,19 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Pairing OTP cleanup skipped or failed")
 
+    # Auto-AP: start hotspot if no network is available
+    try:
+        await maybe_start_auto_ap()
+    except Exception as e:
+        logger.error("Auto-AP startup failed: %s", e)
+
     yield
+
+    # Shutdown: cancel Auto-AP background monitor
+    try:
+        await shutdown_auto_ap()
+    except Exception:
+        logger.debug("Auto-AP shutdown cleanup skipped")
 
 
 app = FastAPI(
