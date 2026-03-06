@@ -405,15 +405,22 @@ async def connect_wifi(
     body: WifiConnectRequest,
     user: dict = Depends(require_admin),
 ):
-    """Connect to a Wi-Fi network by SSID + password.
+    """Add / update a Wi-Fi network profile.
 
-    If a saved profile for this SSID exists, it is updated with the new
-    password and brought up.  Otherwise a new profile is created.
-    NetworkManager keeps Ethernet active alongside Wi-Fi.
+    If Ethernet is active the profile is **saved only** (fallback).
+    If Ethernet is down the profile is saved and activated immediately.
     """
     ssid = body.ssid.strip()
     if not ssid:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "SSID is required.")
+
+    # Detect whether Ethernet is currently active
+    eth_active = False
+    for iface in ("eth0", "end0", "enp1s0"):
+        rc, out, _ = await _run(["ip", "link", "show", iface])
+        if rc == 0 and "state UP" in out:
+            eth_active = True
+            break
 
     # Check if a saved connection already exists for this SSID
     rc, out, _ = await _run([
@@ -434,24 +441,46 @@ async def connect_wifi(
             "wifi-sec.key-mgmt", "wpa-psk",
             "wifi-sec.psk", body.password,
         ])
-        rc, _, err = await _run(
-            ["nmcli", "connection", "up", existing_name],
-            timeout=30,
-        )
+        if not eth_active:
+            rc, _, err = await _run(
+                ["nmcli", "connection", "up", existing_name],
+                timeout=30,
+            )
+        else:
+            rc, err = 0, ""
     elif existing_name:
-        # Re-activate saved profile without changing password
-        rc, _, err = await _run(
-            ["nmcli", "connection", "up", existing_name],
-            timeout=30,
-        )
+        if not eth_active:
+            # Re-activate saved profile without changing password
+            rc, _, err = await _run(
+                ["nmcli", "connection", "up", existing_name],
+                timeout=30,
+            )
+        else:
+            rc, err = 0, ""
     else:
-        # Create brand-new connection
-        cmd = [
-            "nmcli", "device", "wifi", "connect", ssid,
-        ]
-        if body.password:
-            cmd += ["password", body.password]
-        rc, _, err = await _run(cmd, timeout=30)
+        if not eth_active:
+            # Create and connect immediately
+            cmd = [
+                "nmcli", "device", "wifi", "connect", ssid,
+            ]
+            if body.password:
+                cmd += ["password", body.password]
+            rc, _, err = await _run(cmd, timeout=30)
+        else:
+            # Save profile only — don't activate while Ethernet is up
+            cmd = [
+                "nmcli", "connection", "add",
+                "type", "wifi",
+                "con-name", ssid,
+                "ssid", ssid,
+                "autoconnect", "no",
+            ]
+            if body.password:
+                cmd += [
+                    "wifi-sec.key-mgmt", "wpa-psk",
+                    "wifi-sec.psk", body.password,
+                ]
+            rc, _, err = await _run(cmd, timeout=15)
 
     if rc != 0:
         # Differentiate wrong password from other errors
@@ -461,18 +490,38 @@ async def connect_wifi(
         elif "no network with ssid" in lower_err:
             msg = "Network not found."
         else:
-            msg = err.strip() or "Connection failed."
+            msg = err.strip() or "Failed to save network."
         logger.warning("wifi_connect_failed ssid=%s err=%s", ssid, err)
         return WifiConnectionResult(success=False, message=msg)
 
-    # Ensure lower priority than wired so Ethernet remains primary
+    # Ensure autoconnect as fallback with lower priority than wired
     await _run([
         "nmcli", "connection", "modify", ssid,
         "connection.autoconnect", "yes",
         "connection.autoconnect-priority", "10",
     ])
 
-    # Fetch the allocated IP
+    if eth_active:
+        # Bring down WiFi if NM auto-activated it during profile creation
+        rc_chk, act_out, _ = await _run([
+            "nmcli", "-t", "-f", "NAME,TYPE,DEVICE",
+            "connection", "show", "--active",
+        ])
+        for act_line in act_out.splitlines():
+            act_parts = act_line.split(":")
+            if (len(act_parts) >= 3
+                    and act_parts[0] == ssid
+                    and act_parts[1] == "802-11-wireless"):
+                await _run(["nmcli", "connection", "down", ssid])
+                break
+
+        logger.info("wifi_saved_fallback ssid=%s", ssid)
+        return WifiConnectionResult(
+            success=True,
+            message=f"Saved {ssid} as fallback",
+        )
+
+    # Fetch the allocated IP (only when we actually connected)
     ip_addr = None
     await asyncio.sleep(2)  # let DHCP complete
     rc, out, _ = await _run([

@@ -184,7 +184,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                   _connect(network.ssid, ctrl.text);
                 }
               },
-              child: Text(isEdit ? 'Save & Connect' : 'Connect',
+              child: Text(isEdit ? 'Update' : 'Save',
                   style:
                       GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
             ),
