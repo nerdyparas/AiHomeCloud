@@ -103,7 +103,28 @@ Environment=CUBIE_TLS_ENABLED=true
 > **Security note:** The JWT secret is auto-generated on first boot and saved to
 > `/var/lib/cubie/jwt_secret`. You do NOT need to set `CUBIE_JWT_SECRET` manually.
 
-### Step 8 — Start the service
+### Step 8 — Configure polkit for NetworkManager
+
+The backend runs as the `radxa` user (not root). Wi-Fi operations (connect, disconnect, toggle, hotspot) require polkit authorization for NetworkManager.
+
+> **Note:** Radxa OS ships polkit **0.105**, which uses the legacy `.pkla` INI format — **not** the `.rules` JavaScript format (that's polkit 0.106+).
+
+```bash
+sudo tee /etc/polkit-1/localauthority/50-local.d/50-cubie-network.pkla << 'EOF'
+[Allow NetworkManager for cubie backend]
+Identity=unix-group:sudo;unix-group:netdev
+Action=org.freedesktop.NetworkManager.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+EOF
+
+sudo systemctl restart polkit
+```
+
+`ResultInactive=yes` is required because the backend runs as a daemon (no interactive session).
+
+### Step 9 — Start the service
 
 ```bash
 sudo systemctl daemon-reload
@@ -111,7 +132,7 @@ sudo systemctl enable cubie-backend
 sudo systemctl start cubie-backend
 ```
 
-### Step 9 — Verify
+### Step 10 — Verify
 
 ```bash
 # Check service status

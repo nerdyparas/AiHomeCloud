@@ -5,6 +5,25 @@
 
 ---
 
+## 2025-07-25 — Wi-Fi UX + Auto-AP + Polkit Fix
+
+### What was done
+- **Auto-AP module** (`backend/app/auto_ap.py`): auto-starts hotspot when no network available, background monitor loop (30s), tears down auto-hotspot when network returns
+- **Config**: added `hotspot_ssid` and `auto_ap_enabled` settings
+- **API endpoints**: `GET/PUT /network/auto-ap`, `GET /network/wifi/saved`
+- **Polkit fix**: Backend (running as `radxa` user) lacked NetworkManager authorization. Polkit **0.105** uses legacy `.pkla` format, not `.rules` JavaScript. Created `/etc/polkit-1/localauthority/50-local.d/50-cubie-network.pkla` with `ResultInactive=yes` for daemon processes
+- **Scan inUse bug**: Fixed dedup logic — when two entries have equal signal, prefer the `inUse=True` one
+- **Flutter Wi-Fi screen rewrite**: saved networks section, connected/saved tap → bottom sheet (edit/disconnect/forget), gear icon, not-in-range display
+- **Tests**: 18 auto-AP tests added (143 total passing)
+- **Docs**: Added polkit setup as Step 8 in `kb/setup-instructions.md`
+
+### Key decisions
+- Polkit 0.105 (Radxa OS) uses `.pkla` INI format, NOT `.rules` JavaScript (that's 0.106+)
+- `ResultInactive=yes` is required for daemon processes (backend has no interactive session)
+- Both `.rules` (for future polkit versions) and `.pkla` (for current) approaches documented
+
+---
+
 ## 2025-07-25 — Deployment Audit v2 COMPLETE: All Critical Issues Fixed
 
 ### Audit findings
