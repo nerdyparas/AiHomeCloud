@@ -359,22 +359,23 @@ Users need to manually point their router's DHCP DNS to the Cubie's LAN IP. 5-st
 
 ### TASK-P3-01 — Streamed Upload with Real Progress
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 3 — Upload UX Fix
-**Files:** `lib/services/api_service.dart`, `lib/screens/main/my_folder_screen.dart`
+**Files:** `lib/services/api/files_api.dart`, `lib/widgets/folder_view.dart`
 **Depends on:** none
 
 **Goal:**
 Replace `MultipartRequest` with `StreamedRequest` for real upload progress reporting. Currently upload progress is faked.
 
 **Acceptance criteria:**
-- [ ] Upload uses `StreamedRequest` with `onProgress` callback
-- [ ] Upload card shows real percentage progress
-- [ ] Dismiss/cancel button on upload progress card
-- [ ] `flutter analyze` passes
+- [x] Upload uses `StreamedRequest` with real byte-counting progress
+- [x] Upload card shows real percentage progress (bytes streamed to socket ÷ file size)
+- [x] Dismiss/cancel button on upload progress card (cancels subscription for active uploads, dismisses completed/failed)
+- [x] `flutter analyze` passes (0 errors, 0 warnings — 161 pre-existing info items unchanged)
+- [x] `flutter test` passes (30/30)
 
 **Notes:**
-Dart's `http.StreamedRequest` allows reading bytes sent for progress tracking.
+`_UploadProgressCard` now accepts `onDismiss` callback. `_FolderViewState` tracks active `StreamSubscription`s in `_uploadSubscriptions` map, cancels all on `dispose()`. Uses `http.StreamedRequest` with body piped from `MultipartRequest.finalize()` through a byte-counting `StreamTransformer`.
 
 ---
 

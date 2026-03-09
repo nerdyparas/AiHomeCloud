@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -43,11 +45,22 @@ class _FolderViewState extends ConsumerState<FolderView> {
   String? _error;
   List<FileItem> _items = [];
 
+  /// Active upload subscriptions keyed by task ID — used for cancellation.
+  final Map<String, StreamSubscription<int>> _uploadSubscriptions = {};
+
   @override
   void initState() {
     super.initState();
     _currentPath = widget.folderPath;
     _loadFiles(reset: true);
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _uploadSubscriptions.values) {
+      sub.cancel();
+    }
+    super.dispose();
   }
 
   Future<void> _loadFiles({required bool reset}) async {
@@ -359,6 +372,14 @@ class _FolderViewState extends ConsumerState<FolderView> {
     );
   }
 
+  /// Cancel an in-progress upload and remove its card.
+  void _dismissUpload(String taskId) {
+    _uploadSubscriptions.remove(taskId)?.cancel();
+    if (mounted) {
+      ref.read(uploadTasksProvider.notifier).removeTask(taskId);
+    }
+  }
+
   /// Pick one or more files from the device and upload them to the Cubie.
   void _uploadFile() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
@@ -391,23 +412,24 @@ class _FolderViewState extends ConsumerState<FolderView> {
         filePath: filePath,
       );
 
-      stream.listen(
+      final sub = stream.listen(
         (bytes) {
-          ref
-              .read(uploadTasksProvider.notifier)
-              .updateTask(task.id, uploadedBytes: bytes);
+          if (mounted) {
+            ref
+                .read(uploadTasksProvider.notifier)
+                .updateTask(task.id, uploadedBytes: bytes);
+          }
         },
         onDone: () {
+          _uploadSubscriptions.remove(task.id);
+          if (!mounted) return;
           ref
               .read(uploadTasksProvider.notifier)
               .updateTask(task.id, status: UploadStatus.completed);
           _loadFiles(reset: true);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text('${task.fileName} uploaded successfully')),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${task.fileName} uploaded successfully')),
+          );
           // Auto-remove completed card after 3 s
           Future.delayed(const Duration(seconds: 3), () {
             if (mounted) {
@@ -416,13 +438,18 @@ class _FolderViewState extends ConsumerState<FolderView> {
           });
         },
         onError: (e) {
-          ref.read(uploadTasksProvider.notifier).updateTask(
-                task.id,
-                status: UploadStatus.failed,
-                error: e.toString(),
-              );
+          _uploadSubscriptions.remove(task.id);
+          if (mounted) {
+            ref.read(uploadTasksProvider.notifier).updateTask(
+                  task.id,
+                  status: UploadStatus.failed,
+                  error: friendlyError(e),
+                );
+          }
         },
+        cancelOnError: false,
       );
+      _uploadSubscriptions[task.id] = sub;
     }
   }
 
@@ -539,7 +566,10 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   children: uploads
                       .map((t) => Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: _UploadProgressCard(task: t),
+                            child: _UploadProgressCard(
+                              task: t,
+                              onDismiss: () => _dismissUpload(t.id),
+                            ),
                           ))
                       .toList(),
                 ),
@@ -664,16 +694,19 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
 class _UploadProgressCard extends StatelessWidget {
   final UploadTask task;
-  const _UploadProgressCard({required this.task});
+  final VoidCallback onDismiss;
+
+  const _UploadProgressCard({required this.task, required this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
     final isDone = task.status == UploadStatus.completed;
     final isFail = task.status == UploadStatus.failed;
+    final isUploading = task.status == UploadStatus.uploading;
 
     return CubieCard(
       padding: const EdgeInsets.all(12),
-      glowing: task.status == UploadStatus.uploading,
+      glowing: isUploading,
       child: Row(
         children: [
           Container(
@@ -713,28 +746,52 @@ class _UploadProgressCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: task.progress,
-                    backgroundColor: CubieColors.cardBorder,
-                    valueColor: AlwaysStoppedAnimation(
-                      isDone ? CubieColors.success : CubieColors.primary,
+                if (isFail)
+                  Text(
+                    task.error ?? 'Upload failed',
+                    style: GoogleFonts.dmSans(
+                      color: CubieColors.error,
+                      fontSize: 11,
                     ),
-                    minHeight: 4,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: task.progress,
+                      backgroundColor: CubieColors.cardBorder,
+                      valueColor: AlwaysStoppedAnimation(
+                        isDone ? CubieColors.success : CubieColors.primary,
+                      ),
+                      minHeight: 4,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            '${(task.progress * 100).toStringAsFixed(0)}%',
-            style: GoogleFonts.dmSans(
-              color: CubieColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 4),
+          if (!isFail)
+            Text(
+              '${(task.progress * 100).toStringAsFixed(0)}%',
+              style: GoogleFonts.dmSans(
+                color: CubieColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+          // Dismiss (completed/failed) or Cancel (uploading) button
+          IconButton(
+            icon: Icon(
+              isUploading ? Icons.close_rounded : Icons.clear_rounded,
+              size: 18,
+              color: CubieColors.textMuted,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            tooltip: isUploading ? 'Cancel upload' : 'Dismiss',
+            onPressed: onDismiss,
           ),
         ],
       ),

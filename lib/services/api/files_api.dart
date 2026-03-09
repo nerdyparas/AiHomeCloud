@@ -115,9 +115,12 @@ extension FilesApi on ApiService {
   /// Returns auth headers for use in image widgets.
   Map<String, String> get authHeaders => _headers;
 
-  /// POST /api/v1/files/upload (multipart)
+  /// POST /api/v1/files/upload (multipart/form-data)
   /// Uploads a real file from [filePath] to [destinationPath] on the NAS.
-  /// Returns a stream of uploaded byte counts for progress tracking.
+  ///
+  /// Returns a stream of uploaded byte counts. Each event is the cumulative
+  /// number of multipart-body bytes delivered to the socket so far, enabling
+  /// real percentage progress (divide by [totalBytes]).
   Stream<int> uploadFile(
       String destinationPath, String fileName, int totalBytes,
       {String? filePath}) {
@@ -129,33 +132,63 @@ extension FilesApi on ApiService {
             Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/upload')
                 .replace(queryParameters: {'path': destinationPath});
 
-        final request = http.MultipartRequest('POST', uri);
+        // Build a MultipartRequest to derive the Content-Type header (which
+        // carries the boundary string) and the exact content length.
+        final multipart = http.MultipartRequest('POST', uri);
         final token = _session?.token;
         if (token != null) {
-          request.headers['Authorization'] = 'Bearer $token';
+          multipart.headers['Authorization'] = 'Bearer $token';
         }
 
         if (filePath != null) {
-          // Real file from device
-          request.files.add(
+          multipart.files.add(
             await http.MultipartFile.fromPath('file', filePath,
                 filename: fileName),
           );
         } else {
-          // Fallback: empty bytes (shouldn't happen in production)
-          request.files.add(http.MultipartFile.fromBytes(
+          multipart.files.add(http.MultipartFile.fromBytes(
             'file',
             [],
             filename: fileName,
           ));
         }
 
-        final response = await _client.send(request);
+        final contentLength = multipart.contentLength;
+
+        // Wrap the finalized body stream with a byte counter so we can emit
+        // cumulative progress events as chunks are handed to the socket.
+        int bytesSent = 0;
+        final bodyStream = multipart.finalize().transform(
+          StreamTransformer<List<int>, List<int>>.fromHandlers(
+            handleData: (chunk, sink) {
+              bytesSent += chunk.length;
+              ctrl.add(bytesSent);
+              sink.add(chunk);
+            },
+          ),
+        );
+
+        // Construct a StreamedRequest carrying the multipart Content-Type so
+        // the server can find the boundary and parse the body correctly.
+        final streamedRequest = http.StreamedRequest('POST', uri)
+          ..contentLength = contentLength
+          ..headers.addAll(multipart.headers);
+
+        // Pipe the progress-tracked body into the request sink.
+        bodyStream.listen(
+          streamedRequest.sink.add,
+          onDone: streamedRequest.sink.close,
+          onError: (Object e) => streamedRequest.sink.addError(e),
+          cancelOnError: true,
+        );
+
+        final response = await _client.send(streamedRequest);
+        await response.stream.drain<void>();
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          ctrl.add(totalBytes);
+          ctrl.add(totalBytes); // guarantee a 100 % event
           await ctrl.close();
         } else {
-          ctrl.addError(Exception('Upload failed: \${response.statusCode}'));
+          ctrl.addError(Exception('Upload failed: ${response.statusCode}'));
           await ctrl.close();
         }
       } catch (e) {
