@@ -409,34 +409,34 @@ Pattern: `.when(error: (e, _) => ErrWidget(friendlyError(e), onRetry: () => ref.
 
 ### TASK-P4-01 — Restructure to 4 Tabs
 **Priority:** 🔴 Critical
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 4 — UI Language & Structure
-**Files:** `lib/navigation/main_shell.dart`, `lib/navigation/app_router.dart`, `lib/screens/main/files_screen.dart` (new), `lib/screens/main/more_screen.dart` (new)
+**Files:** `lib/navigation/main_shell.dart`, `lib/navigation/app_router.dart`, `lib/screens/main/files_screen.dart` (new), `lib/screens/main/more_screen.dart` (new), `lib/services/api/services_network_api.dart`
 **Depends on:** none
 
 **Goal:**
 Change from 5 tabs (Home, MyFiles, Family, Shared, Settings) to 4 tabs (Home, Files, Family, More) per MASTER_PROMPT.md.
 
 **Acceptance criteria:**
-- [ ] Bottom nav has exactly 4 tabs: 🏠 Home | 📁 Files | 👨‍👩‍👧 Family | ⚙️ More
-- [ ] "Files" tab combines My Files + Shared with segment control: [My Files] [Shared] [Videos]
-- [ ] "More" tab created with sections:
-  - 🤖 Telegram Bot → setup sub-page
+- [x] Bottom nav has exactly 4 tabs: 🏠 Home | 📁 Files | 👨‍👩‍👧 Family | ⚙️ More
+- [x] "Files" tab combines My Files + Shared with segment control: [My Files] [Shared] [Videos]
+- [x] "More" tab created with sections:
+  - 🤖 Telegram Bot → placeholder dialog (setup sub-page P4-06)
   - 📺 TV Streaming → toggle (label: "Smart TV Streaming", never "DLNA")
   - 🛡️ Ad Blocking → stats + pause buttons + toggle (admin only)
   - 🔒 Change my PIN
-  - 💾 Storage Drive → sub-page
-  - 📶 Network → sub-page
+  - 💾 Storage Drive → sub-page (/storage-explorer)
+  - 📶 Network → sub-page (/settings/network)
   - About AiHomeCloud
-  - Shut down (danger zone, bottom)
+  - Shut down (danger zone, admin only)
   - Log Out (bottom)
-- [ ] GoRouter routes updated
-- [ ] Old MyFolder/SharedFolder/Settings screens either merged or removed
-- [ ] `flutter analyze` passes
-- [ ] `flutter test` passes
+- [x] GoRouter routes updated (/files, /more replace /my-folder, /shared, /settings)
+- [x] Old MyFolder/SharedFolder/Settings screens kept (now embedded inside FilesScreen/MoreScreen)
+- [x] `flutter analyze` passes (0 errors, 0 warnings)
+- [x] `flutter test` passes (30/30)
 
 **Notes:**
-"Videos" segment on Files tab goes directly to `/shared/Videos/`. Storage Explorer becomes sub-page under More. Settings screen items move to More tab.
+"Videos" segment uses `FolderView` pointed at `/srv/nas/shared/Videos/`. `IndexedStack` + `AutomaticKeepAliveClientMixin` preserves scroll position per segment. AdGuard section gracefully shows "not configured" if the backend returns 503. Added `getAdGuardStats()`, `toggleAdGuard()`, `pauseAdGuard()` to `services_network_api.dart`.
 
 ---
 

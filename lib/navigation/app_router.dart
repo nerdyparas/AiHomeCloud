@@ -5,13 +5,12 @@ import '../models/models.dart';
 import '../screens/main/dashboard_screen.dart';
 import '../screens/main/family_screen.dart';
 import '../screens/main/file_preview_screen.dart';
+import '../screens/main/files_screen.dart';
 import '../screens/main/folder_view_screen.dart';
-import '../screens/main/my_folder_screen.dart';
-import '../screens/main/settings_screen.dart';
+import '../screens/main/more_screen.dart';
 import '../screens/main/settings/device_settings_screen.dart';
 import '../screens/main/settings/network_settings_screen.dart';
 import '../screens/main/settings/services_settings_screen.dart';
-import '../screens/main/shared_folder_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
 import '../screens/main/wifi_settings_screen.dart';
 import '../screens/onboarding/discovery_screen.dart';
@@ -64,9 +63,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                 const NoTransitionPage(child: DashboardScreen()),
           ),
           GoRoute(
-            path: '/my-folder',
+            path: '/files',
             pageBuilder: (_, __) =>
-                const NoTransitionPage(child: MyFolderScreen()),
+                const NoTransitionPage(child: FilesScreen()),
           ),
           GoRoute(
             path: '/family',
@@ -74,14 +73,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                 const NoTransitionPage(child: FamilyScreen()),
           ),
           GoRoute(
-            path: '/shared',
+            path: '/more',
             pageBuilder: (_, __) =>
-                const NoTransitionPage(child: SharedFolderScreen()),
-          ),
-          GoRoute(
-            path: '/settings',
-            pageBuilder: (_, __) =>
-                const NoTransitionPage(child: SettingsScreen()),
+                const NoTransitionPage(child: MoreScreen()),
           ),
         ],
       ),

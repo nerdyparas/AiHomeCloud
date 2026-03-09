@@ -173,4 +173,48 @@ extension ServicesNetworkApi on ApiService {
     final List<dynamic> list = jsonDecode(res.body);
     return list.map((item) => WifiNetwork.fromJson(item)).toList();
   }
+
+  // ── AdGuard Home proxy endpoints ──────────────────────────────────────────
+
+  /// GET /api/v1/adguard/stats
+  Future<Map<String, dynamic>> getAdGuardStats() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/adguard/stats'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return (jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// POST /api/v1/adguard/toggle  body: {enabled}
+  Future<void> toggleAdGuard(bool enabled) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/adguard/toggle'),
+            headers: _headers,
+            body: jsonEncode({'enabled': enabled}),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
+  /// POST /api/v1/adguard/pause  body: {minutes}
+  Future<void> pauseAdGuard(int minutes) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/adguard/pause'),
+            headers: _headers,
+            body: jsonEncode({'minutes': minutes}),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
 }

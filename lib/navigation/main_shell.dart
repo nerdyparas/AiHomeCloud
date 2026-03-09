@@ -15,10 +15,9 @@ class MainShell extends ConsumerWidget {
   int _indexOf(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
     if (loc.startsWith('/dashboard')) return 0;
-    if (loc.startsWith('/my-folder')) return 1;
+    if (loc.startsWith('/files')) return 1;
     if (loc.startsWith('/family')) return 2;
-    if (loc.startsWith('/shared')) return 3;
-    if (loc.startsWith('/settings')) return 4;
+    if (loc.startsWith('/more')) return 3;
     return 0;
   }
 
@@ -137,26 +136,21 @@ class MainShell extends ConsumerWidget {
               case 0:
                 context.go('/dashboard');
               case 1:
-                context.go('/my-folder');
+                context.go('/files');
               case 2:
                 context.go('/family');
               case 3:
-                context.go('/shared');
-              case 4:
-                context.go('/settings');
+                context.go('/more');
             }
           },
           destinations: [
-            _dest(Icons.dashboard_outlined, Icons.dashboard_rounded, 'Home',
-                idx == 0),
-            _dest(Icons.folder_outlined, Icons.folder_rounded, 'My Files',
+            _dest(Icons.home_outlined, Icons.home_rounded, 'Home', idx == 0),
+            _dest(Icons.folder_outlined, Icons.folder_rounded, 'Files',
                 idx == 1),
             _dest(Icons.people_outline_rounded, Icons.people_rounded, 'Family',
                 idx == 2),
-            _dest(Icons.folder_shared_outlined, Icons.folder_shared_rounded,
-                'Shared', idx == 3),
-            _dest(Icons.settings_outlined, Icons.settings_rounded, 'Settings',
-                idx == 4),
+            _dest(Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More',
+                idx == 3),
           ],
         ),
       ),
