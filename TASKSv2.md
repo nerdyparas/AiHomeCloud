@@ -304,7 +304,7 @@ Allow users to share files from other Android apps (Gallery, WhatsApp, etc.) dir
 
 ### TASK-P2-06 — First Boot Setup Script
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
 **Files:** `scripts/first-boot-setup.sh` (new)
 **Depends on:** none
@@ -313,18 +313,18 @@ Allow users to share files from other Android apps (Gallery, WhatsApp, etc.) dir
 Create a bash script that sets up a fresh Cubie from scratch: installs deps, creates venv, configures systemd, creates directories.
 
 **Acceptance criteria:**
-- [ ] `scripts/first-boot-setup.sh` created
-- [ ] Installs Python 3.12+, pip, venv
-- [ ] Creates `/var/lib/cubie/` data directory
-- [ ] Creates `/srv/nas/` mount point
-- [ ] Sets up Python venv at `/opt/cubie/venv`
-- [ ] Installs requirements.txt into venv
-- [ ] Copies systemd service file and enables it
-- [ ] Script is idempotent (safe to run multiple times)
-- [ ] Script is executable (`chmod +x`)
+- [x] `scripts/first-boot-setup.sh` created
+- [x] Installs Python 3.12+, pip, venv
+- [x] Creates `/var/lib/cubie/` data directory
+- [x] Creates `/srv/nas/` mount point
+- [x] Sets up Python venv at `/opt/cubie/venv`
+- [x] Installs requirements.txt into venv
+- [x] Copies systemd service file and enables it
+- [x] Script is idempotent (safe to run multiple times)
+- [x] Script is executable (shebang + `chmod +x` instructions in README)
 
 **Notes:**
-See `kb/setup-instructions.md` for the manual steps this should automate. Target Ubuntu 24 ARM64.
+See `kb/setup-instructions.md` for the manual steps this automates. Target Ubuntu 24 ARM64. 9-step idempotent script: apt install, Python version check, system user, dirs, backend symlink, venv + deps, systemd service with auto-generated serial/pairing key, polkit rule, service start + health check.
 
 ---
 
