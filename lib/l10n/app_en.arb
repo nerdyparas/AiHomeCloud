@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
 
-  "appName": "CubieCloud",
+  "appName": "AiHomeCloud",
   "@appName": { "description": "Application name" },
 
   "genericError": "Error: {error}",
@@ -80,7 +80,7 @@
   "settingsAccountSection": "Account",
   "settingsChangePin": "Change PIN",
   "settingsLogout": "Logout",
-  "settingsAppVersion": "CubieCloud v{version}",
+  "settingsAppVersion": "AiHomeCloud v{version}",
   "@settingsAppVersion": { "placeholders": { "version": { "type": "String" } } },
   "settingsChecking": "Checking…",
   "settingsCheckForUpdates": "Check for Updates",
@@ -167,18 +167,18 @@
 
   "splashTagline": "Your home, your cloud",
 
-  "welcomeTitle": "Welcome to\nCubieCloud",
+  "welcomeTitle": "Welcome to\nAiHomeCloud",
   "welcomeSubtitle": "Your personal home cloud. Store photos, videos, and files — all on your own device.\nNo subscriptions, no limits.",
   "welcomeScanQr": "Scan QR Code",
 
   "qrScanTitle": "Scan QR Code",
-  "qrScanInvalidCode": "Invalid QR code. Scan the code on your CubieCloud box.",
+  "qrScanInvalidCode": "Invalid QR code. Scan the code on your AiHomeCloud box.",
   "qrScanMissingData": "QR code is missing required data.",
   "qrScanReadError": "Could not read QR code. Please try again.",
-  "qrScanInstructions": "Point your camera at the QR code\non the bottom of your CubieCloud box",
+  "qrScanInstructions": "Point your camera at the QR code\non the bottom of your AiHomeCloud box",
   "qrScanDemoButton": "Use Demo QR (Testing)",
 
-  "discoverySearchingTitle": "Finding Your CubieCloud",
+  "discoverySearchingTitle": "Finding Your AiHomeCloud",
   "discoveryFoundTitle": "Device Found!",
   "discoveryFailedTitle": "Connection Failed",
   "discoveryRetry": "Retry",

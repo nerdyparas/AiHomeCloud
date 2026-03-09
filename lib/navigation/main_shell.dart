@@ -59,7 +59,7 @@ class MainShell extends ConsumerWidget {
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
-                        'CubieCloud is unreachable.',
+                        'AiHomeCloud is unreachable.',
                         style: TextStyle(fontSize: 12),
                       ),
                     ),

@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'CubieCloud';
+  String get appName => 'AiHomeCloud';
 
   @override
   String genericError(String error) {
@@ -217,7 +217,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsAppVersion(String version) {
-    return 'CubieCloud v$version';
+    return 'AiHomeCloud v$version';
   }
 
   @override
@@ -455,7 +455,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get splashTagline => 'Your home, your cloud';
 
   @override
-  String get welcomeTitle => 'Welcome to\nCubieCloud';
+  String get welcomeTitle => 'Welcome to\nAiHomeCloud';
 
   @override
   String get welcomeSubtitle =>
@@ -469,7 +469,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qrScanInvalidCode =>
-      'Invalid QR code. Scan the code on your CubieCloud box.';
+      'Invalid QR code. Scan the code on your AiHomeCloud box.';
 
   @override
   String get qrScanMissingData => 'QR code is missing required data.';
@@ -479,13 +479,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qrScanInstructions =>
-      'Point your camera at the QR code\non the bottom of your CubieCloud box';
+      'Point your camera at the QR code\non the bottom of your AiHomeCloud box';
 
   @override
   String get qrScanDemoButton => 'Use Demo QR (Testing)';
 
   @override
-  String get discoverySearchingTitle => 'Finding Your CubieCloud';
+  String get discoverySearchingTitle => 'Finding Your AiHomeCloud';
 
   @override
   String get discoveryFoundTitle => 'Device Found!';

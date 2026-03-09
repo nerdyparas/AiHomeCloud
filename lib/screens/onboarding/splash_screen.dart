@@ -49,25 +49,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo
+            // App icon with glow
             Container(
-              width: 80,
-              height: 80,
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
-                color: CubieColors.primary.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: CubieColors.primary.withOpacity(0.2),
-                    blurRadius: 32,
+                    color: CubieColors.primary.withOpacity(0.3),
+                    blurRadius: 40,
                     spreadRadius: 8,
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.cloud_rounded,
-                color: CubieColors.primary,
-                size: 44,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: Image.asset(
+                  'assets/icon/app_icon_192.png',
+                  width: 120,
+                  height: 120,
+                ),
               ),
             )
                 .animate()
@@ -79,11 +81,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   curve: Curves.easeOutBack,
                 ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
             // App name
             Text(
-              'CubieCloud',
+              'AiHomeCloud',
               style: GoogleFonts.sora(
                 color: CubieColors.textPrimary,
                 fontSize: 32,
@@ -102,7 +104,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
             // Tagline
             Text(
-              'Your home, your cloud',
+              'Your family\'s private cloud',
               style: GoogleFonts.dmSans(
                 color: CubieColors.textSecondary,
                 fontSize: 16,

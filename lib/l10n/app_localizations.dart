@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// Application name
   ///
   /// In en, this message translates to:
-  /// **'CubieCloud'**
+  /// **'AiHomeCloud'**
   String get appName;
 
   /// No description provided for @genericError.
@@ -481,7 +481,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAppVersion.
   ///
   /// In en, this message translates to:
-  /// **'CubieCloud v{version}'**
+  /// **'AiHomeCloud v{version}'**
   String settingsAppVersion(String version);
 
   /// No description provided for @settingsChecking.
@@ -883,7 +883,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to\nCubieCloud'**
+  /// **'Welcome to\nAiHomeCloud'**
   String get welcomeTitle;
 
   /// No description provided for @welcomeSubtitle.
@@ -907,7 +907,7 @@ abstract class AppLocalizations {
   /// No description provided for @qrScanInvalidCode.
   ///
   /// In en, this message translates to:
-  /// **'Invalid QR code. Scan the code on your CubieCloud box.'**
+  /// **'Invalid QR code. Scan the code on your AiHomeCloud box.'**
   String get qrScanInvalidCode;
 
   /// No description provided for @qrScanMissingData.
@@ -925,7 +925,7 @@ abstract class AppLocalizations {
   /// No description provided for @qrScanInstructions.
   ///
   /// In en, this message translates to:
-  /// **'Point your camera at the QR code\non the bottom of your CubieCloud box'**
+  /// **'Point your camera at the QR code\non the bottom of your AiHomeCloud box'**
   String get qrScanInstructions;
 
   /// No description provided for @qrScanDemoButton.
@@ -937,7 +937,7 @@ abstract class AppLocalizations {
   /// No description provided for @discoverySearchingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Finding Your CubieCloud'**
+  /// **'Finding Your AiHomeCloud'**
   String get discoverySearchingTitle;
 
   /// No description provided for @discoveryFoundTitle.

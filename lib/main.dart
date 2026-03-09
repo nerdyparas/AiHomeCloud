@@ -63,7 +63,7 @@ class CubieCloudApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'CubieCloud',
+      title: 'AiHomeCloud',
       debugShowCheckedModeBanner: false,
       theme: CubieTheme.dark,
       routerConfig: router,

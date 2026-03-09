@@ -1,5 +1,5 @@
 name: cubie_cloud
-description: CubieCloud – Home NAS management app for Radxa Cubie A5E
+description: AiHomeCloud – Your family's private cloud
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -33,7 +33,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon_1024.png"
+  adaptive_icon_background: "#0D0F14"
+  adaptive_icon_foreground: "assets/icon/app_icon_adaptive_fg.png"
 
 flutter:
   generate: true
   uses-material-design: true
+
+  assets:
+    - assets/icon/app_icon_192.png
