@@ -184,7 +184,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
   String _title(DiscoveryStatus s) => switch (s) {
         DiscoveryStatus.idle ||
         DiscoveryStatus.searching =>
-          'Finding Your CubieCloud',
+          'Finding Your AiHomeCloud',
         DiscoveryStatus.found => 'Device Found!',
         DiscoveryStatus.failed => 'Connection Failed',
       };

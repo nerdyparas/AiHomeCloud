@@ -56,7 +56,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
       await prefs.setString(
           CubieConstants.prefDeviceSerial,
           prefs.getString(CubieConstants.prefDeviceSerial) ?? '');
-      await prefs.setString(CubieConstants.prefDeviceName, 'My CubieCloud');
+      await prefs.setString(CubieConstants.prefDeviceName, 'My AiHomeCloud');
 
       await ref.read(authSessionProvider.notifier).login(
             host: deviceIp,

@@ -58,7 +58,7 @@ class SharedFolderScreen extends StatelessWidget {
                                   fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
-                            r'SMB: \\cubie-nas\shared  •  DLNA: CubieCloud Media',
+                            'TV & Computer Sharing  •  Smart TV Streaming',
                             style: GoogleFonts.dmSans(
                                 color: CubieColors.textSecondary,
                                 fontSize: 11),

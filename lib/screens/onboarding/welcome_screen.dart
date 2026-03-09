@@ -32,7 +32,7 @@ class WelcomeScreen extends StatelessWidget {
 
               // Title
               Text(
-                'Welcome to\nCubieCloud',
+                'Welcome to\nAiHomeCloud',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.sora(
                   color: CubieColors.textPrimary,

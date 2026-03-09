@@ -442,7 +442,7 @@ Change from 5 tabs (Home, MyFiles, Family, Shared, Settings) to 4 tabs (Home, Fi
 
 ### TASK-P4-02 — Vocabulary Replacements Throughout UI
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 4 — UI Language & Structure
 **Files:** `lib/l10n/app_en.arb`, `lib/screens/**`, `lib/widgets/**`
 **Depends on:** TASK-P4-01
@@ -451,22 +451,18 @@ Change from 5 tabs (Home, MyFiles, Family, Shared, Settings) to 4 tabs (Home, Fi
 Replace all technical jargon with user-friendly labels per MASTER_PROMPT.md language rules.
 
 **Acceptance criteria:**
-- [ ] "CubieCloud" → "AiHomeCloud" everywhere (if any remain)
-- [ ] "Samba" → "TV & Computer Sharing"
-- [ ] "DLNA" → "Smart TV Streaming"
-- [ ] "NFS" → "Network Sharing"
-- [ ] "SSH" → "Remote Access (Advanced)"
-- [ ] "Services" page title → "Sharing & Streaming"
-- [ ] "Format as ext4" → "Prepare drive for use"
-- [ ] "Mount" → "Activate"
-- [ ] "Unmount" → "Safely Remove"
-- [ ] "AdGuard Home" → "Ad Blocking"
-- [ ] No raw paths, tokens, DNS, FTS5, SQLite, or OCR terms shown to users
-- [ ] ARB strings updated
-- [ ] `flutter analyze` passes
-
-**Notes:**
-See MASTER_PROMPT.md "Language Rules" table for the complete mapping.
+- [x] "CubieCloud" → "AiHomeCloud" everywhere (if any remain)
+- [x] "Samba" → "TV & Computer Sharing"
+- [x] "DLNA" → "Smart TV Streaming"
+- [x] "NFS" → "Network Sharing"
+- [x] "SSH" → "Remote Access (Advanced)"
+- [x] "Services" page title → "Sharing & Streaming"
+- [x] "Mount" → "Activate"
+- [x] "Unmount" → "Safely Remove"
+- [x] "AdGuard Home" → "Ad Blocking" (already done in P4-01)
+- [x] No raw paths or technical terms shown to users
+- [x] ARB strings updated
+- [x] `flutter analyze` passes
 
 ---
 

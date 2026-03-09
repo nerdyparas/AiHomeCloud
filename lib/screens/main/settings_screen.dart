@@ -143,7 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // ── Footer ──────────────────────────────────────────────────────
             const SizedBox(height: 32),
             Center(
-              child: Text('CubieCloud v1.0.0',
+              child: Text('AiHomeCloud v1.0.0',
                   style: GoogleFonts.dmSans(
                       color: CubieColors.textMuted, fontSize: 12)),
             ),

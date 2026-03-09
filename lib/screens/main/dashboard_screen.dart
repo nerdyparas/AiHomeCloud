@@ -562,7 +562,7 @@ class _StorageDeviceTile extends StatelessWidget {
 
   String get _statusText {
     if (device.isNasActive) return 'Active';
-    if (device.mounted) return 'Mounted';
+    if (device.mounted) return 'Activated';
     if (device.fstype == null) return 'Unformatted';
     return 'Ready';
   }

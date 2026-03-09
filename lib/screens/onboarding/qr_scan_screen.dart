@@ -33,7 +33,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
     try {
       final uri = Uri.parse(rawValue);
       if (uri.scheme != 'cubie' || uri.host != 'pair') {
-        _error('Invalid QR code. Scan the code on your CubieCloud box.');
+        _error('Invalid QR code. Scan the code on your AiHomeCloud box.');
         return;
       }
 
@@ -204,7 +204,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
               children: [
                 Text(
                   'Point your camera at the QR code\n'
-                  'on the bottom of your CubieCloud box',
+                  'on the bottom of your AiHomeCloud box',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     color: CubieColors.textSecondary,

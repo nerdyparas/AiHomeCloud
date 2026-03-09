@@ -21,7 +21,7 @@ class ServicesSettingsScreen extends ConsumerWidget {
       backgroundColor: CubieColors.background,
       appBar: AppBar(
         backgroundColor: CubieColors.background,
-        title: Text('Services',
+        title: Text('Sharing & Streaming',
             style: GoogleFonts.sora(
                 color: CubieColors.textPrimary,
                 fontSize: 18,
@@ -120,7 +120,7 @@ class _ServiceToggleState extends State<_ServiceToggle> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.service.name,
+                Text(_friendlyServiceName(widget.service.id),
                     style: GoogleFonts.dmSans(
                         color: CubieColors.textPrimary,
                         fontSize: 14,
@@ -143,3 +143,13 @@ class _ServiceToggleState extends State<_ServiceToggle> {
     );
   }
 }
+
+// ─── Friendly service name mapping ──────────────────────────────────────────
+
+String _friendlyServiceName(String id) => switch (id.toLowerCase()) {
+      'samba' || 'smb' => 'TV & Computer Sharing',
+      'dlna' => 'Smart TV Streaming',
+      'nfs' => 'Network Sharing',
+      'ssh' => 'Remote Access (Advanced)',
+      _ => id,
+    };

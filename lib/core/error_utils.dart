@@ -19,19 +19,19 @@ String friendlyError(Object error) {
       return 'You are not connected to the same network as your Cubie. Check your Wi-Fi connection.';
     }
     if (msg.contains('Connection reset')) {
-      return 'Connection to CubieCloud was interrupted. Please try again.';
+      return 'Connection to AiHomeCloud was interrupted. Please try again.';
     }
-    return 'Cannot connect to CubieCloud. Check that you\'re on the same network.';
+    return 'Cannot connect to AiHomeCloud. Check that you\'re on the same network.';
   }
 
   // ── Timeout ─────────────────────────────────────────────────────────────
   if (error is TimeoutException || msg.contains('TimeoutException')) {
-    return 'CubieCloud is taking too long to respond. It may be busy or unreachable.';
+    return 'AiHomeCloud is taking too long to respond. It may be busy or unreachable.';
   }
 
   // ── HTTP errors ─────────────────────────────────────────────────────────
   if (error is HttpException || msg.contains('HttpException')) {
-    return 'Communication error with CubieCloud. Please try again.';
+    return 'Communication error with AiHomeCloud. Please try again.';
   }
 
   // ── HandshakeException (TLS) ────────────────────────────────────────────
@@ -42,9 +42,9 @@ String friendlyError(Object error) {
   // ── ClientException (http package) ──────────────────────────────────────
   if (msg.contains('ClientException')) {
     if (msg.contains('SocketException') || msg.contains('Connection refused')) {
-      return 'CubieCloud is not reachable. Make sure it\'s powered on and connected to your network.';
+      return 'AiHomeCloud is not reachable. Make sure it\'s powered on and connected to your network.';
     }
-    return 'Cannot connect to CubieCloud. Check your network connection.';
+    return 'Cannot connect to AiHomeCloud. Check your network connection.';
   }
 
   // ── StateError (session not configured) ─────────────────────────────────

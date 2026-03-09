@@ -231,7 +231,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     icon: Icons.storage_rounded,
                     color: CubieColors.secondary,
                     title: 'Storage Drive',
-                    subtitle: 'Manage drives, format, mount',
+                    subtitle: 'Manage drives and storage',
                     onTap: () => context.push('/storage-explorer'),
                   ),
                   _divider(),

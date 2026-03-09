@@ -97,7 +97,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageStatusActive => 'Active';
 
   @override
-  String get storageStatusMounted => 'Mounted';
+  String get storageStatusMounted => 'Activated';
 
   @override
   String get storageStatusUnformatted => 'Unformatted';
@@ -153,7 +153,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sharedNetworkInfo =>
-      'SMB: \\\\cubie-nas\\shared  •  DLNA: CubieCloud Media';
+      'TV & Computer Sharing  •  Smart TV Streaming';
 
   @override
   String get settingsTitle => 'Settings';
@@ -321,20 +321,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String storageExplorerMounted(String name) {
-    return '$name mounted as NAS storage';
+    return '$name activated as NAS storage';
   }
 
   @override
   String storageExplorerMountFailed(String error) {
-    return 'Mount failed: $error';
+    return 'Activate failed: $error';
   }
 
   @override
-  String get storageExplorerUnmounted => 'Storage unmounted';
+  String get storageExplorerUnmounted => 'Storage safely removed';
 
   @override
   String storageExplorerUnmountFailed(String error) {
-    return 'Unmount failed: $error';
+    return 'Remove failed: $error';
   }
 
   @override
@@ -368,7 +368,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String storageExplorerFormatted(String name) {
-    return '$name formatted as ext4';
+    return '$name prepared for use';
   }
 
   @override
@@ -385,16 +385,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get storageExplorerForceUnmount => 'Force Unmount';
+  String get storageExplorerForceUnmount => 'Force Remove';
 
   @override
-  String get storageActionUnmount => 'Unmount';
+  String get storageActionUnmount => 'Safely Remove';
 
   @override
   String get storageActionSafeRemove => 'Safe Remove';
 
   @override
-  String get storageActionMount => 'Mount';
+  String get storageActionMount => 'Activate';
 
   @override
   String get storageActionFormat => 'Format';

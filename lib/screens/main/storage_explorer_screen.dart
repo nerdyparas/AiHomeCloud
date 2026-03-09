@@ -234,10 +234,10 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     setState(() => _busyDevice = dev.path);
     try {
       await ref.read(apiServiceProvider).mountDevice(dev.path);
-      _showSnack('${dev.label ?? dev.name} mounted as NAS storage');
+      _showSnack('${dev.label ?? dev.name} activated as NAS storage');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Mount failed: ${friendlyError(e)}', isError: true);
+      _showSnack('Activate failed: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -261,10 +261,10 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       await ref.read(apiServiceProvider).unmountDevice(
             force: blockers.isNotEmpty,
           );
-      _showSnack('Storage unmounted');
+      _showSnack('Storage safely removed');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Unmount failed: ${friendlyError(e)}', isError: true);
+      _showSnack('Remove failed: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -548,7 +548,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: CubieColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Force Unmount',
+            child: Text('Force Remove',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -673,7 +673,7 @@ class _DeviceCard extends StatelessWidget {
     if (device.isNasActive) {
       return Row(
         children: [
-          _actionBtn(Icons.eject_rounded, 'Unmount', CubieColors.primary,
+          _actionBtn(Icons.eject_rounded, 'Safely Remove', CubieColors.primary,
               onUnmount),
           const SizedBox(width: 8),
           if (device.transport == 'usb')
@@ -688,7 +688,7 @@ class _DeviceCard extends StatelessWidget {
       return Row(
         children: [
           _actionBtn(
-              Icons.play_arrow_rounded, 'Mount', CubieColors.success, onMount),
+              Icons.play_arrow_rounded, 'Activate', CubieColors.success, onMount),
           const SizedBox(width: 8),
           _actionBtn(Icons.format_paint_rounded, 'Format', CubieColors.error,
               onFormat),
@@ -740,7 +740,7 @@ class _DeviceCard extends StatelessWidget {
       text = 'Active';
       color = CubieColors.success;
     } else if (device.mounted) {
-      text = 'Mounted';
+      text = 'Activated';
       color = CubieColors.secondary;
     } else if (device.isOsDisk) {
       text = 'System';

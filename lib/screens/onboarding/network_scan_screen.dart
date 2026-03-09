@@ -282,7 +282,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                   children: [
                     // CubieCloud devices section
                     if (cubieHosts.isNotEmpty) ...[
-                      _sectionHeader('CubieCloud Devices'),
+                      _sectionHeader('AiHomeCloud Devices'),
                       const SizedBox(height: 8),
                       ...cubieHosts.map((h) => _DeviceTile(
                             host: h,
@@ -420,7 +420,7 @@ class _DeviceTile extends StatelessWidget {
                     children: [
                       Text(
                         isCubie
-                            ? (host.deviceName ?? 'CubieCloud')
+                            ? (host.deviceName ?? 'AiHomeCloud')
                             : host.ip,
                         style: GoogleFonts.dmSans(
                           color: CubieColors.textPrimary,
