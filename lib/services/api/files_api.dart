@@ -200,6 +200,25 @@ extension FilesApi on ApiService {
     return ctrl.stream;
   }
 
+  /// GET /api/v1/files/search?q=<query> — full-text document search (FTS5).
+  Future<List<SearchResult>> searchDocuments(String query) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/search')
+                .replace(queryParameters: {'q': query, 'limit': '10'}),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    final Map<String, dynamic> body = jsonDecode(res.body);
+    final List<dynamic> list = body['results'] as List<dynamic>;
+    return list
+        .map((e) => SearchResult.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// GET /api/v1/files/roots — returns mounted USB/NVMe drives as browseable roots.
   Future<List<StorageRoot>> getStorageRoots() async {
     final res = await _withAutoRefresh(

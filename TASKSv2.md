@@ -468,24 +468,21 @@ Replace all technical jargon with user-friendly labels per MASTER_PROMPT.md lang
 
 ### TASK-P4-03 — Home Tab Document Search Bar
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 4 — UI Language & Structure
-**Files:** `lib/screens/main/dashboard_screen.dart`, `lib/services/api_service.dart`, `lib/providers.dart`
+**Files:** `lib/screens/main/dashboard_screen.dart`, `lib/services/api/files_api.dart`, `lib/providers/file_providers.dart`, `lib/models/file_models.dart`
 **Depends on:** TASK-P2-02
 
 **Goal:**
 Add an always-visible document search bar on the Home tab that searches the FTS5 index. Results show on first keypress with debounce.
 
 **Acceptance criteria:**
-- [ ] Search bar at top of Home tab, always visible
-- [ ] Calls `GET /api/v1/files/search?q=...` with 300ms debounce
-- [ ] Results show as a list with filename, who added it, date
-- [ ] Tap result → navigate to file preview
-- [ ] Empty state: "No documents found for '{query}'"
-- [ ] `flutter analyze` passes
-
-**Notes:**
-Use a `TextEditingController` with debounce timer. Provider for search results.
+- [x] Search bar at top of Home tab, always visible
+- [x] Calls `GET /api/v1/files/search?q=...` with 300ms debounce
+- [x] Results show as a list with filename, who added it, date
+- [x] Tap result → navigate to file preview
+- [x] Empty state: "No documents found for '{query}'"
+- [x] `flutter analyze` passes
 
 ---
 

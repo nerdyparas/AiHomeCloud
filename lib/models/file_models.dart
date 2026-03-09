@@ -166,3 +166,39 @@ class StorageRoot {
         _ => transport.toUpperCase(),
       };
 }
+
+/// A document search result returned by GET /api/v1/files/search?q=...
+class SearchResult {
+  final String path;
+  final String filename;
+  final String addedBy;
+  final DateTime addedAt;
+  final String snippet;
+
+  const SearchResult({
+    required this.path,
+    required this.filename,
+    required this.addedBy,
+    required this.addedAt,
+    this.snippet = '',
+  });
+
+  factory SearchResult.fromJson(Map<String, dynamic> json) {
+    return SearchResult(
+      path: json['path'] as String,
+      filename: json['filename'] as String,
+      addedBy: (json['added_by'] as String?) ?? '',
+      addedAt: DateTime.parse((json['added_at'] as String?) ?? DateTime.now().toIso8601String()),
+      snippet: (json['snippet'] as String?) ?? '',
+    );
+  }
+
+  /// Convert to a FileItem for file preview navigation.
+  FileItem toFileItem() => FileItem(
+        name: filename,
+        path: path,
+        isDirectory: false,
+        sizeBytes: 0,
+        modified: addedAt,
+      );
+}

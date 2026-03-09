@@ -71,3 +71,11 @@ final uploadTasksProvider =
     StateNotifierProvider<UploadTasksNotifier, List<UploadTask>>((ref) {
   return UploadTasksNotifier();
 });
+
+/// FTS5 document search — FutureProvider.family keyed by query string.
+/// Returns an empty list for blank queries (never calls the API).
+final docSearchResultsProvider =
+    FutureProvider.family<List<SearchResult>, String>((ref, query) async {
+  if (query.trim().isEmpty) return [];
+  return ref.read(apiServiceProvider).searchDocuments(query.trim());
+});
