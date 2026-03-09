@@ -31,18 +31,13 @@ async def device_info(user: dict = Depends(get_current_user)):
 
 @router.get("/firmware", response_model=FirmwareInfo)
 async def check_firmware(user: dict = Depends(get_current_user)):
-    """Check for available firmware updates."""
-    # In production, this would query an update server.
+    """Check for available firmware updates. OTA not yet implemented."""
     return FirmwareInfo(
         current_version=settings.firmware_version,
-        latest_version="2.2.0",
-        update_available=True,
-        changelog=(
-            "Bug fixes and performance improvements.\n"
-            "Added SMB3 support.\n"
-            "Improved thermal management."
-        ),
-        size_mb=156.2,
+        latest_version=settings.firmware_version,
+        update_available=False,
+        changelog="",
+        size_mb=0.0,
     )
 
 

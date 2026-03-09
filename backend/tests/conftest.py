@@ -33,6 +33,18 @@ async def client(tmp_path, monkeypatch):
     # Clear module-level cache so stale data from previous tests is discarded
     store._cache.clear()
 
+    # Reset rate limiter storage and account lockout between tests
+    try:
+        from app.limiter import limiter
+        limiter._storage.reset()
+    except Exception:
+        pass
+    try:
+        from app.routes.auth_routes import _failed_logins
+        _failed_logins.clear()
+    except Exception:
+        pass
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 

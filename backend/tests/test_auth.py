@@ -390,3 +390,91 @@ async def test_change_pin_with_short_pin_returns_400(client: AsyncClient, admin_
     )
     assert response.status_code == 400, "Short PIN should return 400"
     assert "at least 4" in response.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_pair_qr_does_not_expose_key(client: AsyncClient):
+    """
+    TASK-P1-04: GET /api/v1/pair/qr must NOT return 'key' field in JSON.
+    The pairing key must only be embedded inside the qrValue payload string.
+    """
+    response = await client.get("/api/v1/pair/qr")
+    assert response.status_code == 200
+    data = response.json()
+
+    # The 'key' field must not appear in the JSON response body
+    assert "key" not in data, "'key' must not be exposed directly in the /pair/qr JSON response"
+
+    # The QR value string must still contain the key embedded in the payload
+    qr_value = data.get("qrValue", "")
+    assert "&key=" in qr_value, "The pairing key must still be present inside the qrValue payload"
+
+    # Other safe fields should be present
+    assert "qrValue" in data
+    assert "serial" in data
+    assert "host" in data
+    assert "expiresAt" in data
+
+
+@pytest.mark.asyncio
+async def test_account_lockout_after_10_failures(client: AsyncClient, admin_token: str):
+    """
+    Account lockout: 10 consecutive failed logins from the same IP trigger a
+    15-minute lockout. The 11th attempt must return HTTP 429.
+    """
+    from app.routes.auth_routes import _failed_logins
+
+    # Seed 9 prior failures for the test client IP so we only need 1 more HTTP
+    # request to trigger the lockout (avoids exhausting the slowapi 10/min quota).
+    _failed_logins["127.0.0.1"] = (9, 0.0)
+
+    # 10th failure — triggers lockout, response is still 401 for this request
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"name": "admin", "pin": "WRONG"},
+    )
+    assert r.status_code == 401, "10th attempt should still return 401"
+
+    # 11th attempt — account is locked out
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"name": "admin", "pin": "WRONG"},
+    )
+    assert r.status_code == 429, "11th attempt should be locked out (429)"
+    assert "minute" in r.json().get("detail", "").lower(), "Error message should mention lockout duration"
+
+
+@pytest.mark.asyncio
+async def test_migrate_plaintext_pins(client: AsyncClient):
+    """
+    TASK-P1-05: migrate_plaintext_pins() must detect plaintext PINs, hash them,
+    and save back — without breaking login.
+    """
+    from app import store
+    from app.auth import migrate_plaintext_pins
+
+    # Manually inject a user with a plaintext PIN directly into the store
+    users = await store.get_users()
+    plaintext_pin = "migr4te"
+    test_user = {
+        "id": "user_migrate_test",
+        "name": "migrate_test_user",
+        "pin": plaintext_pin,   # stored as plaintext — simulates pre-migration state
+        "is_admin": False,
+    }
+    users.append(test_user)
+    await store.save_users(users)
+
+    # Run migration
+    migrated_count = await migrate_plaintext_pins()
+    assert migrated_count >= 1, "Should report at least 1 migrated PIN"
+
+    # PIN must now be a bcrypt hash
+    updated_users = await store.get_users()
+    updated_user = next((u for u in updated_users if u["id"] == "user_migrate_test"), None)
+    assert updated_user is not None
+    assert str(updated_user["pin"]).startswith("$2"), "PIN should now be a bcrypt hash"
+
+    # Running migration again on already-hashed PINs must migrate 0
+    second_run = await migrate_plaintext_pins()
+    assert second_run == 0, "Second run should find nothing to migrate"

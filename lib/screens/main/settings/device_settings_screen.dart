@@ -18,9 +18,6 @@ class DeviceSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
-  bool _checkingUpdate = false;
-  Map<String, dynamic>? _updateInfo;
-
   @override
   Widget build(BuildContext context) {
     final deviceAsync = ref.watch(deviceInfoProvider);
@@ -76,15 +73,6 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
             error: (e, _) => CubieCard(child: Text(friendlyError(e))),
           ),
 
-          // ── Firmware update ─────────────────────────────────────────────
-          const SizedBox(height: 24),
-          _sectionLabel('Firmware Update'),
-          const SizedBox(height: 12),
-          CubieCard(
-            child:
-                _updateInfo != null ? _updateAvailable() : _checkButton(),
-          ).animate().fadeIn(delay: 100.ms),
-
           const SizedBox(height: 24),
         ],
       ),
@@ -120,86 +108,6 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
 
   Widget _divider() => const Divider(
       height: 1, indent: 16, endIndent: 16, color: CubieColors.cardBorder);
-
-  // ── OTA ────────────────────────────────────────────────────────────────────
-
-  Widget _checkButton() => SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton.icon(
-          onPressed: _checkingUpdate
-              ? null
-              : () async {
-                  setState(() => _checkingUpdate = true);
-                  final info =
-                      await ref.read(apiServiceProvider).checkFirmwareUpdate();
-                  setState(() {
-                    _updateInfo = info;
-                    _checkingUpdate = false;
-                  });
-                },
-          icon: _checkingUpdate
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: CubieColors.primary))
-              : const Icon(Icons.system_update_rounded, size: 18),
-          label: Text(
-            _checkingUpdate ? 'Checking…' : 'Check for Updates',
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
-          ),
-        ),
-      );
-
-  Widget _updateAvailable() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: CubieColors.success.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('v${_updateInfo!['latest_version']} available',
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.success,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-              ),
-              const Spacer(),
-              Text('${_updateInfo!['size_mb']} MB',
-                  style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(_updateInfo!['changelog'] as String,
-              style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.5)),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                await ref.read(apiServiceProvider).triggerOtaUpdate();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text(
-                          'Update started. Device will reboot automatically.')));
-                }
-              },
-              child: Text('Install Update',
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
-      );
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
 

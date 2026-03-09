@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     # ── JWT ────────────────────────────────────────────────────────────────────
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expire_hours: int = 720  # 30 days
+    jwt_expire_hours: int = 1  # 1 hour — use refresh tokens for longer sessions
 
     # ── Device ────────────────────────────────────────────────────────────────
     device_serial: str = ""  # auto-generated from MAC address if empty
@@ -105,6 +105,14 @@ class Settings(BaseSettings):
     # ── Upload ────────────────────────────────────────────────────────────────
     upload_chunk_size: int = 1024 * 1024  # 1 MB
     max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
+
+    # ── AdGuard Home (optional — proxy disabled when False) ───────────────────
+    adguard_enabled: bool = False   # CUBIE_ADGUARD_ENABLED
+    adguard_password: str = ""      # CUBIE_ADGUARD_PASSWORD — AdGuard admin password
+
+    # ── Telegram Bot (optional — disabled if token is empty) ─────────────────
+    telegram_bot_token: str = ""   # CUBIE_TELEGRAM_BOT_TOKEN
+    telegram_allowed_ids: str = ""  # CUBIE_TELEGRAM_ALLOWED_IDS — comma-sep chat IDs; empty = no restriction
 
     # ── Data (JSON-file-based persistence for users, services, etc.) ─────────
     data_dir: Path = Path("/var/lib/cubie")

@@ -3,8 +3,25 @@ Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
 
 import hmac
+import time
+from typing import Dict, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+from ..limiter import limiter
+
+# In-memory account lockout: IP → (fail_count, lockout_until_timestamp)
+_failed_logins: Dict[str, Tuple[int, float]] = {}
+_MAX_FAILURES = 10
+_LOCKOUT_SECONDS = 900  # 15 minutes
+
+
+def _record_failure(ip: str) -> None:
+    """Increment failed login counter for an IP; set lockout when threshold reached."""
+    record = _failed_logins.get(ip)
+    count = (record[0] if record else 0) + 1
+    lockout_until = (time.time() + _LOCKOUT_SECONDS) if count >= _MAX_FAILURES else 0.0
+    _failed_logins[ip] = (count, lockout_until)
 
 from ..auth import (
     create_token,
@@ -77,7 +94,6 @@ async def get_pairing_qr():
     return {
         "qrValue": qr_value,
         "serial": serial,
-        "key": key,
         "ip": ip,
         "host": host,
         "expiresAt": expires_at,
@@ -100,7 +116,8 @@ async def pair_device(body: PairRequest):
 
 
 @router.post("/pair/complete", response_model=TokenResponse)
-async def pair_complete(body: PairCompleteRequest):
+@limiter.limit("5/minute")
+async def pair_complete(request: Request, body: PairCompleteRequest):
     """
     Complete pairing by validating serial, pairing key, and OTP.
     On success, clears stored OTP and returns a device JWT.
@@ -189,11 +206,31 @@ async def create_user(
 
 
 @router.post("/auth/login")
-async def login(body: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest):
     """Login with username and PIN and return an access token."""
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+
+    # Check account lockout
+    record = _failed_logins.get(client_ip)
+    if record:
+        count, lockout_until = record
+        if lockout_until > now:
+            remaining = int(lockout_until - now)
+            minutes = max(remaining // 60, 1)
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                f"Too many failed attempts. Try again in {minutes} minute(s).",
+            )
+        if lockout_until > 0:
+            # Lockout expired — reset counter
+            _failed_logins.pop(client_ip, None)
+
     users = await store.get_users()
     found = next((u for u in users if u.get("name") == body.name), None)
     if not found:
+        _record_failure(client_ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     stored_pin = found.get("pin")
@@ -207,7 +244,11 @@ async def login(body: LoginRequest):
         ok = hmac.compare_digest(body.pin.encode(), str(stored_pin).encode())
 
     if not ok:
+        _record_failure(client_ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+
+    # Success — clear lockout counter
+    _failed_logins.pop(client_ip, None)
 
     access_token = create_token(
         subject=found["id"],

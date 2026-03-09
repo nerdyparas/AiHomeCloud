@@ -29,7 +29,7 @@ All of these are ✅ complete and preserved on the `v1` branch:
 
 ### TASK-P1-01 — JWT Expiry: 720h → 1h
 **Priority:** 🔴 Critical
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 1 — Security
 **Files:** `backend/app/config.py`
 **Depends on:** none
@@ -38,8 +38,8 @@ All of these are ✅ complete and preserved on the `v1` branch:
 Change `jwt_expire_hours` from 720 (30 days) to 1 (1 hour). The auto-refresh interceptor in `api_service.dart` is already wired — this just activates short-lived access tokens.
 
 **Acceptance criteria:**
-- [ ] `jwt_expire_hours: int = 1` in config.py
-- [ ] Backend tests pass: `cd backend && python -m pytest tests/ -q`
+- [x] `jwt_expire_hours: int = 1` in config.py
+- [x] Backend tests pass: `cd backend && python -m pytest tests/ -q`
 
 **Notes:**
 Flutter `_withAutoRefresh()` and `/auth/refresh` endpoint already exist from M6. This is a one-line change that dramatically improves security.
@@ -48,7 +48,7 @@ Flutter `_withAutoRefresh()` and `/auth/refresh` endpoint already exist from M6.
 
 ### TASK-P1-02 — Rate Limiting on Auth Endpoints
 **Priority:** 🔴 Critical
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 1 — Security
 **Files:** `backend/requirements.txt`, `backend/app/main.py`, `backend/app/routes/auth_routes.py`
 **Depends on:** none
@@ -57,12 +57,12 @@ Flutter `_withAutoRefresh()` and `/auth/refresh` endpoint already exist from M6.
 Add `slowapi` rate limiting to prevent brute-force attacks on pairing and login endpoints. Add account lockout after repeated failures.
 
 **Acceptance criteria:**
-- [ ] `slowapi==0.1.9` added to requirements.txt
-- [ ] Limiter configured in main.py
-- [ ] `@limiter.limit("5/minute")` on `POST /pair/complete`
-- [ ] `@limiter.limit("10/minute")` on `POST /auth/login`
-- [ ] Account lockout after 10 failures → 15-minute cooldown
-- [ ] Backend tests pass
+- [x] `slowapi==0.1.9` added to requirements.txt
+- [x] Limiter configured in main.py
+- [x] `@limiter.limit("5/minute")` on `POST /pair/complete`
+- [x] `@limiter.limit("10/minute")` on `POST /auth/login`
+- [x] Account lockout after 10 failures → 15-minute cooldown
+- [x] Backend tests pass
 
 **Notes:**
 slowapi uses starlette's Request object. Store failed attempt counter in memory dict keyed by IP.
@@ -71,7 +71,7 @@ slowapi uses starlette's Request object. Store failed attempt counter in memory 
 
 ### TASK-P1-03 — Block Executable Uploads
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 1 — Security
 **Files:** `backend/app/routes/file_routes.py`
 **Depends on:** none
@@ -80,11 +80,11 @@ slowapi uses starlette's Request object. Store failed attempt counter in memory 
 Reject uploads of dangerous executable file types with HTTP 415 before the file is written to disk.
 
 **Acceptance criteria:**
-- [ ] `BLOCKED_EXTENSIONS` set defined: `.sh, .bash, .zsh, .py, .rb, .pl, .php, .elf, .bin, .exe, .apk, .so, .ko, .deb, .rpm`
-- [ ] Upload endpoint checks file extension against blocklist
-- [ ] Returns 415 Unsupported Media Type with friendly message
-- [ ] Test added to `backend/tests/test_file_routes.py`
-- [ ] Backend tests pass
+- [x] `BLOCKED_EXTENSIONS` set defined: `.sh, .bash, .zsh, .py, .rb, .pl, .php, .elf, .bin, .exe, .apk, .so, .ko, .deb, .rpm`
+- [x] Upload endpoint checks file extension against blocklist
+- [x] Returns 415 Unsupported Media Type with friendly message
+- [x] Test added to `backend/tests/test_file_routes.py`
+- [x] Backend tests pass
 
 **Notes:**
 Check must happen before writing any bytes. Case-insensitive extension matching.
@@ -93,7 +93,7 @@ Check must happen before writing any bytes. Case-insensitive extension matching.
 
 ### TASK-P1-04 — Remove Pairing Key from /pair/qr JSON
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 1 — Security
 **Files:** `backend/app/routes/auth_routes.py`
 **Depends on:** none
@@ -102,10 +102,10 @@ Check must happen before writing any bytes. Case-insensitive extension matching.
 The `GET /api/v1/pair/qr` endpoint currently returns the pairing key both inside the QR image AND as a `"key"` field in the JSON response body. Remove the key from the JSON — it should only be embedded in the QR payload string.
 
 **Acceptance criteria:**
-- [ ] `"key"` field removed from `/pair/qr` JSON response
-- [ ] QR image still contains the key in its encoded payload
-- [ ] Flutter QR scanner still works (it reads from QR, not JSON)
-- [ ] Backend tests pass
+- [x] `"key"` field removed from `/pair/qr` JSON response
+- [x] QR image still contains the key in its encoded payload
+- [x] Flutter QR scanner still works (it reads from QR, not JSON)
+- [x] Backend tests pass
 
 **Notes:**
 Check `auth_routes.py` around the `/pair/qr` handler. The Flutter app reads the key from the scanned QR content, not from the JSON response.
@@ -114,7 +114,7 @@ Check `auth_routes.py` around the `/pair/qr` handler. The Flutter app reads the 
 
 ### TASK-P1-05 — Plaintext PIN Migration on Startup
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 1 — Security
 **Files:** `backend/app/main.py`, `backend/app/auth.py`, `backend/app/store.py`
 **Depends on:** none
@@ -123,13 +123,13 @@ Check `auth_routes.py` around the `/pair/qr` handler. The Flutter app reads the 
 Add a one-time migration at backend startup: scan all users in `users.json`, detect plaintext PINs (not starting with `$2b$`), hash them using `hash_password()`, and save back. Ensures no plaintext PINs remain from early development.
 
 **Acceptance criteria:**
-- [ ] Migration function `migrate_plaintext_pins()` created
-- [ ] Called from `main.py` lifespan at startup
-- [ ] Detects plaintext vs bcrypt-hashed PINs
-- [ ] Hashes any plaintext PINs and saves users
-- [ ] Logs how many PINs were migrated
-- [ ] Test added: create user with plaintext PIN, run migration, verify hashed
-- [ ] Backend tests pass
+- [x] Migration function `migrate_plaintext_pins()` created
+- [x] Called from `main.py` lifespan at startup
+- [x] Detects plaintext vs bcrypt-hashed PINs
+- [x] Hashes any plaintext PINs and saves users
+- [x] Logs how many PINs were migrated
+- [x] Test added: create user with plaintext PIN, run migration, verify hashed
+- [x] Backend tests pass
 
 **Notes:**
 bcrypt hashes always start with `$2b$`. Safe to check prefix. Use `hmac.compare_digest()` for PIN comparison everywhere (already done in M5).
@@ -138,19 +138,19 @@ bcrypt hashes always start with `$2b$`. Safe to check prefix. Use `hmac.compare_
 
 ### TASK-P1-06 — Firmware Update Stub + Hide UI
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 1 — Security
-**Files:** `backend/app/routes/system_routes.py`, `lib/screens/main/settings_screen.dart`
+**Files:** `backend/app/routes/system_routes.py`, `lib/screens/main/settings/device_settings_screen.dart`
 **Depends on:** none
 
 **Goal:**
 The firmware update endpoint should always return `update_available: false` until a real OTA system is built. Hide the firmware update UI section in Flutter entirely.
 
 **Acceptance criteria:**
-- [ ] `/api/v1/system/info` returns `updateAvailable: false` always
-- [ ] Flutter settings screen hides/removes firmware update section
-- [ ] `flutter analyze` passes
-- [ ] Backend tests pass
+- [x] `/api/v1/system/firmware` returns `updateAvailable: false` always
+- [x] Flutter settings screen hides/removes firmware update section
+- [x] `flutter analyze` passes
+- [x] Backend tests pass
 
 **Notes:**
 Prevents users from seeing a non-functional "Update" button.
@@ -165,28 +165,28 @@ Prevents users from seeing a non-functional "Update" button.
 
 ### TASK-P2-01 — InboxWatcher File Auto-Sorter
 **Priority:** 🔴 Critical
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
-**Files:** `backend/app/file_sorter.py` (new), `backend/app/main.py`, `backend/app/routes/file_routes.py`
+**Files:** `backend/app/file_sorter.py` (new), `backend/app/main.py`, `backend/app/routes/file_routes.py`, `backend/app/store.py`
 **Depends on:** none
 
 **Goal:**
 Create `file_sorter.py` with an `InboxWatcher` class that polls `.inbox/` directories every 30 seconds and auto-sorts files into Photos/Videos/Documents/Others based on extension. Document-like photos (small JPGs with keywords like "aadhaar", "pan") go to Documents/.
 
 **Acceptance criteria:**
-- [ ] `file_sorter.py` created with `InboxWatcher` class
-- [ ] SORT_RULES dict maps extensions to folder names per MASTER_PROMPT.md
-- [ ] DOC_KEYWORDS set for document photo detection (size < 800KB OR keyword in filename)
-- [ ] Files must be 5+ seconds old (mtime) before moving — prevents mid-upload move
-- [ ] Duplicate filename → rename to `file_2.jpg`, never overwrite
-- [ ] Sort failure → file stays in .inbox/, log warning, watcher continues
-- [ ] Watcher polls every 30 seconds
-- [ ] After sorting to Documents/ → trigger `index_document()` (once TASK-P2-02 exists)
-- [ ] On new user created → pre-create all 5 folders including .inbox/
-- [ ] InboxWatcher started/stopped in `main.py` lifespan
-- [ ] Upload endpoint in `file_routes.py` forces upload path to `.inbox/`
-- [ ] Test added to `backend/tests/test_file_sorter.py`
-- [ ] Backend tests pass
+- [x] `file_sorter.py` created with `InboxWatcher` class
+- [x] SORT_RULES dict maps extensions to folder names per MASTER_PROMPT.md
+- [x] DOC_KEYWORDS set for document photo detection (size < 800KB OR keyword in filename)
+- [x] Files must be 5+ seconds old (mtime) before moving — prevents mid-upload move
+- [x] Duplicate filename → rename to `file_2.jpg`, never overwrite
+- [x] Sort failure → file stays in .inbox/, log warning, watcher continues
+- [x] Watcher polls every 30 seconds
+- [x] After sorting to Documents/ → trigger `index_document()` (once TASK-P2-02 exists)
+- [x] On new user created → pre-create all 5 folders including .inbox/
+- [x] InboxWatcher started/stopped in `main.py` lifespan
+- [x] Upload endpoint in `file_routes.py` forces upload path to `.inbox/`
+- [x] Test added to `backend/tests/test_file_sorter.py`
+- [x] Backend tests pass
 
 **Notes:**
 Watch both `personal/{username}/.inbox/` and `shared/.inbox/`. Use `asyncio.sleep(30)` loop, not filesystem events (low CPU on ARM). Never use `settings.nas_root` hardcoded — always read from config.
@@ -195,7 +195,7 @@ Watch both `personal/{username}/.inbox/` and `shared/.inbox/`. Use `asyncio.slee
 
 ### TASK-P2-02 — Document Search with SQLite FTS5
 **Priority:** 🔴 Critical
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
 **Files:** `backend/app/document_index.py` (new), `backend/app/routes/file_routes.py`
 **Depends on:** none
@@ -204,18 +204,18 @@ Watch both `personal/{username}/.inbox/` and `shared/.inbox/`. Use `asyncio.slee
 Create `document_index.py` with SQLite FTS5 for full-text search of documents. OCR support for PDFs and images. Database at `settings.data_dir / "docs.db"`.
 
 **Acceptance criteria:**
-- [ ] `document_index.py` created with FTS5 virtual table
-- [ ] Schema: `doc_index(path, filename, ocr_text, added_by, added_at)`
-- [ ] `index_document(path, filename, added_by)` — async, handles OCR
-- [ ] `search_documents(query, limit=5)` — returns list of dicts
-- [ ] `remove_document(path)` — removes from index
-- [ ] OCR strategy: `.pdf` → `pdftotext`, `.jpg/.png/.heic` → `tesseract eng+hin`, `.txt/.md` → read file, else → empty string
-- [ ] If tesseract/pdftotext missing → log warning, store empty string, never fail
-- [ ] Search scope: admin → all Documents + shared/Documents; member → own + shared only
-- [ ] Wire into file_routes.py: after upload to Documents/, `asyncio.create_task(index_document(...))`
-- [ ] Add search endpoint `GET /api/v1/files/search?q=...`
-- [ ] Test added to `backend/tests/test_document_index.py`
-- [ ] Backend tests pass
+- [x] `document_index.py` created with FTS5 virtual table
+- [x] Schema: `doc_index(path, filename, ocr_text, added_by, added_at)`
+- [x] `index_document(path, filename, added_by)` — async, handles OCR
+- [x] `search_documents(query, limit=5)` — returns list of dicts
+- [x] `remove_document(path)` — removes from index
+- [x] OCR strategy: `.pdf` → `pdftotext`, `.jpg/.png/.heic` → `tesseract eng+hin`, `.txt/.md` → read file, else → empty string
+- [x] If tesseract/pdftotext missing → log warning, store empty string, never fail
+- [x] Search scope: admin → all Documents + shared/Documents; member → own + shared only
+- [x] Wire into file_routes.py: after upload to Documents/, `asyncio.create_task(index_document(...))`
+- [x] Add search endpoint `GET /api/v1/files/search?q=...`
+- [x] Test added to `backend/tests/test_document_index.py`
+- [x] Backend tests pass
 
 **Notes:**
 OCR is enhancement, not requirement. If binary missing, degrade gracefully. One index, two consumers (API + Telegram bot).
@@ -224,7 +224,7 @@ OCR is enhancement, not requirement. If binary missing, degrade gracefully. One 
 
 ### TASK-P2-03 — Telegram Bot Handler
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
 **Files:** `backend/app/telegram_bot.py` (new), `backend/app/config.py`, `backend/app/main.py`, `backend/requirements.txt`
 **Depends on:** TASK-P2-02
@@ -233,17 +233,17 @@ OCR is enhancement, not requirement. If binary missing, degrade gracefully. One 
 Create `telegram_bot.py` for document retrieval via Telegram. Bot only starts if `telegram_bot_token` is configured. Uses the same FTS5 index as the API search.
 
 **Acceptance criteria:**
-- [ ] `python-telegram-bot==21.3` added to requirements.txt
-- [ ] `telegram_bot_token: str = ""` added to config.py (CUBIE_TELEGRAM_BOT_TOKEN)
-- [ ] `telegram_allowed_ids: str = ""` added to config.py (CUBIE_TELEGRAM_ALLOWED_IDS)
-- [ ] `telegram_bot.py` created with `start_bot()` / `stop_bot()` functions
-- [ ] Commands: `/start` (welcome), `/list` (last 10 docs), plain text (search)
-- [ ] 0 results → friendly message; 1 result → send file; 2-5 → numbered list
-- [ ] Number reply → send corresponding file from last search
-- [ ] Security: only respond to allowed chat IDs (if configured)
-- [ ] Unauthorized users get "Sorry, this is a private AiHomeCloud."
-- [ ] Wired into main.py lifespan (start on startup if token set, stop on shutdown)
-- [ ] Backend tests pass
+- [x] `python-telegram-bot==21.3` added to requirements.txt
+- [x] `telegram_bot_token: str = ""` added to config.py (CUBIE_TELEGRAM_BOT_TOKEN)
+- [x] `telegram_allowed_ids: str = ""` added to config.py (CUBIE_TELEGRAM_ALLOWED_IDS)
+- [x] `telegram_bot.py` created with `start_bot()` / `stop_bot()` functions
+- [x] Commands: `/start` (welcome), `/list` (last 10 docs), plain text (search)
+- [x] 0 results → friendly message; 1 result → send file; 2-5 → numbered list
+- [x] Number reply → send corresponding file from last search
+- [x] Security: only respond to allowed chat IDs (if configured)
+- [x] Unauthorized users get "Sorry, this is a private AiHomeCloud."
+- [x] Wired into main.py lifespan (start on startup if token set, stop on shutdown)
+- [x] Backend tests pass
 
 **Notes:**
 Bot is optional — if no token configured, skip entirely. Uses `search_documents()` from document_index.py.
@@ -252,7 +252,7 @@ Bot is optional — if no token configured, skip entirely. Uses `search_document
 
 ### TASK-P2-04 — AdGuard Home Proxy Routes
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
 **Files:** `backend/app/routes/adguard_routes.py` (new), `backend/app/config.py`, `backend/app/main.py`
 **Depends on:** none
@@ -261,44 +261,44 @@ Bot is optional — if no token configured, skip entirely. Uses `search_document
 Create proxy routes that wrap AdGuard Home's admin API with authentication. Never expose AdGuard's port 3000 directly.
 
 **Acceptance criteria:**
-- [ ] `adguard_enabled: bool = False` added to config.py (CUBIE_ADGUARD_ENABLED)
-- [ ] `adguard_password: str = ""` added to config.py (CUBIE_ADGUARD_PASSWORD)
-- [ ] `adguard_routes.py` created with 3 endpoints:
+- [x] `adguard_enabled: bool = False` added to config.py (CUBIE_ADGUARD_ENABLED)
+- [x] `adguard_password: str = ""` added to config.py (CUBIE_ADGUARD_PASSWORD)
+- [x] `adguard_routes.py` created with 3 endpoints:
   - `GET /api/v1/adguard/stats` → proxy to AdGuard `/control/stats` (any authenticated user)
   - `POST /api/v1/adguard/pause` → body `{minutes: 5|30|60}` (any authenticated user)
   - `POST /api/v1/adguard/toggle` → body `{enabled: bool}` (admin only)
-- [ ] Returns `{dns_queries, blocked_today, blocked_percent, top_blocked[]}`
-- [ ] Router registered in main.py
-- [ ] If `adguard_enabled` is false, endpoints return 503
-- [ ] Test added to `backend/tests/test_endpoints.py`
-- [ ] Backend tests pass
+- [x] Returns `{dns_queries, blocked_today, blocked_percent, top_blocked[]}`
+- [x] Router registered in main.py
+- [x] If `adguard_enabled` is false, endpoints return 503
+- [x] Test added to `backend/tests/test_endpoints.py`
+- [x] Backend tests pass (225 pass, 2 pre-existing Windows-only skips)
 
 **Notes:**
-AdGuard API base: `http://localhost:3000/control/`. Use `httpx` async client for proxying.
+AdGuard API base: `http://localhost:3000/control/`. Uses `httpx.AsyncClient` for proxying. ConnectError → 503.
 
 ---
 
 ### TASK-P2-05 — Android Share Target
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
-**Files:** `lib/services/share_handler.dart` (new), `pubspec.yaml`, `android/app/src/main/AndroidManifest.xml`, `lib/main.dart`
+**Files:** `lib/services/share_handler.dart` (new), `pubspec.yaml`, `android/app/src/main/AndroidManifest.xml`, `lib/main.dart`, `lib/navigation/main_shell.dart`, `lib/providers.dart`
 **Depends on:** none
 
 **Goal:**
 Allow users to share files from other Android apps (Gallery, WhatsApp, etc.) directly to AiHomeCloud. Received files upload to user's `.inbox/` for auto-sorting.
 
 **Acceptance criteria:**
-- [ ] `receive_sharing_intent: ^1.8.0` added to pubspec.yaml
-- [ ] `share_handler.dart` created — listens for incoming share intents
-- [ ] Shared files uploaded to user's `.inbox/` via existing upload endpoint
-- [ ] Shows upload progress toast/dialog
-- [ ] Handles multiple files in one share
-- [ ] `flutter analyze` passes
-- [ ] `flutter test` passes
-
-**Notes:**
-Intent filter in AndroidManifest.xml for `android.intent.action.SEND` and `SEND_MULTIPLE`.
+- [x] `receive_sharing_intent: ^1.8.0` added to pubspec.yaml
+- [x] `share_handler.dart` created — listens for incoming share intents
+- [x] Shared files uploaded to user's `.inbox/` via existing upload endpoint
+- [x] Shows upload progress banner (top of shell) and success banner (3s auto-dismiss)
+- [x] Handles multiple files in one share
+- [x] Intent filters added to AndroidManifest.xml for `SEND` + `SEND_MULTIPLE` (image/*, video/*, audio/*, application/*, text/plain)
+- [x] `CubieCloudApp` converted to `ConsumerStatefulWidget`; `ShareHandler` initialized in `initState`
+- [x] `shareUploadProvider` exported via `providers.dart`
+- [x] `flutter analyze` passes (0 errors, 0 warnings)
+- [x] `flutter test` passes (30 tests)
 
 ---
 

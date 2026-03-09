@@ -10,4 +10,5 @@ export 'providers/discovery_providers.dart';
 
 // Re-export so screens get ApiService extensions via `import providers.dart`.
 export 'services/api_service.dart';
+export 'services/share_handler.dart';
 

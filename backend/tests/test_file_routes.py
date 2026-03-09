@@ -97,16 +97,18 @@ async def test_mkdir_duplicate_returns_409(authenticated_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_delete_file(authenticated_client: AsyncClient):
     """Delete a file and verify it's gone."""
-    # Upload a file
+    # Upload a file — it lands in user's .inbox/ now
     files = {"file": ("to_delete.txt", io.BytesIO(b"bye"), "text/plain")}
-    await authenticated_client.post(
+    resp = await authenticated_client.post(
         "/api/v1/files/upload?path=/srv/nas/shared/",
         files=files,
     )
+    assert resp.status_code == 201
+    uploaded_path = resp.json()["path"]
 
-    # Delete it
+    # Delete using the actual path returned by upload
     response = await authenticated_client.delete(
-        "/api/v1/files/delete?path=/srv/nas/shared/to_delete.txt"
+        f"/api/v1/files/delete?path={uploaded_path}"
     )
     assert response.status_code == 204
 
@@ -125,17 +127,19 @@ async def test_rename_file(authenticated_client: AsyncClient):
     """Rename a file and verify old name gone, new name exists."""
     old_name = f"old_{uuid.uuid4().hex[:8]}.txt"
     new_name = f"new_{uuid.uuid4().hex[:8]}.txt"
-    # Upload
+    # Upload — file lands in .inbox/
     files = {"file": (old_name, io.BytesIO(b"data"), "text/plain")}
-    await authenticated_client.post(
+    resp = await authenticated_client.post(
         "/api/v1/files/upload?path=/srv/nas/shared/",
         files=files,
     )
+    assert resp.status_code == 201
+    uploaded_path = resp.json()["path"]
 
-    # Rename
+    # Rename using the actual uploaded path
     response = await authenticated_client.put(
         "/api/v1/files/rename",
-        json={"oldPath": f"/srv/nas/shared/{old_name}", "newName": new_name},
+        json={"oldPath": uploaded_path, "newName": new_name},
     )
     assert response.status_code == 204
 
@@ -167,6 +171,39 @@ async def test_download_directory_returns_400(authenticated_client: AsyncClient)
         "/api/v1/files/download?path=/shared/"
     )
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("filename", [
+    "evil.sh", "run.bash", "script.zsh",
+    "hack.py", "exploit.rb", "payload.pl",
+    "malware.php", "binary.elf", "virus.exe",
+    "app.apk", "module.so", "kernel.ko",
+    "package.deb", "package.rpm",
+])
+async def test_blocked_executable_upload_returns_415(
+    authenticated_client: AsyncClient, filename: str
+):
+    """Uploading a blocked executable file type must return HTTP 415 before any disk write."""
+    files = {"file": (filename, io.BytesIO(b"#!/bin/sh\nrm -rf /"), "application/octet-stream")}
+    response = await authenticated_client.post(
+        "/api/v1/files/upload?path=/srv/nas/shared/",
+        files=files,
+    )
+    assert response.status_code == 415, f"Expected 415 for {filename}, got {response.status_code}"
+    assert "not allowed" in response.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_blocked_extension_case_insensitive(authenticated_client: AsyncClient):
+    """Extension check must be case-insensitive (e.g. .SH, .EXE)."""
+    for filename in ("EVIL.SH", "VIRUS.EXE", "HACK.PY"):
+        files = {"file": (filename, io.BytesIO(b"bad"), "application/octet-stream")}
+        response = await authenticated_client.post(
+            "/api/v1/files/upload?path=/srv/nas/shared/",
+            files=files,
+        )
+        assert response.status_code == 415, f"Expected 415 for {filename}"
 
 
 @pytest.mark.asyncio

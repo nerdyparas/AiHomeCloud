@@ -26,6 +26,7 @@ class MainShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final idx = _indexOf(context);
     final connection = ref.watch(connectionProvider);
+    final upload = ref.watch(shareUploadProvider);
 
     return CubieNotificationOverlay(
       child: Scaffold(
@@ -45,6 +46,43 @@ class MainShell extends ConsumerWidget {
                     ),
                     SizedBox(width: 8),
                     Text('Reconnecting…'),
+                  ],
+                ),
+              ),
+            if (upload.active)
+              Container(
+                width: double.infinity,
+                color: CubieColors.primary.withOpacity(0.18),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Uploading ${upload.done} of ${upload.total} file(s)…',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              )
+            else if (upload.total > 0)
+              Container(
+                width: double.infinity,
+                color: Colors.green.withOpacity(0.18),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        size: 14, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${upload.done} of ${upload.total} file(s) saved to AiHomeCloud',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
               ),

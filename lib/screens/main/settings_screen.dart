@@ -54,7 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _categoryTile(
                     icon: Icons.developer_board_rounded,
                     title: 'Device',
-                    subtitle: 'Info, name, firmware updates',
+                    subtitle: 'Info, name',
                     onTap: () => context.push('/settings/device'),
                   ),
                   _divider(),

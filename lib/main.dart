@@ -55,11 +55,34 @@ void main() async {
   );
 }
 
-class CubieCloudApp extends ConsumerWidget {
+class CubieCloudApp extends ConsumerStatefulWidget {
   const CubieCloudApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CubieCloudApp> createState() => _CubieCloudAppState();
+}
+
+class _CubieCloudAppState extends ConsumerState<CubieCloudApp> {
+  late final ShareHandler _shareHandler;
+
+  @override
+  void initState() {
+    super.initState();
+    _shareHandler = ShareHandler(
+      progress: ref.read(shareUploadProvider.notifier),
+      getSession: () => ref.read(authSessionProvider),
+    );
+    _shareHandler.initialize();
+  }
+
+  @override
+  void dispose() {
+    _shareHandler.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

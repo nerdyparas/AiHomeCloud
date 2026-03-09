@@ -19,6 +19,15 @@ from .event_routes import emit_upload_complete
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
+# Executables and dangerous file types that must never be uploaded to the NAS.
+BLOCKED_EXTENSIONS: frozenset[str] = frozenset({
+    ".sh", ".bash", ".zsh", ".fish",
+    ".py", ".rb", ".pl", ".php",
+    ".elf", ".bin", ".exe",
+    ".apk", ".so", ".ko",
+    ".deb", ".rpm",
+})
+
 
 def _require_external_storage() -> None:
     """
@@ -209,16 +218,26 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_file(
-    path: str = Query(..., description="Destination directory path"),
+    path: str = Query("", description="Ignored — files always land in user's .inbox/ for auto-sorting"),
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ):
     """
     Upload a file via multipart form data.
-    The 'path' query param is the destination directory.
+    All uploads are placed in the authenticated user's personal .inbox/ directory
+    where the InboxWatcher will auto-sort them into Photos/Videos/Documents/Others.
     """
     _require_external_storage()
-    dest_dir = _safe_resolve(path)
+    # Device-type tokens (pairing) cannot upload files
+    if user.get("type") == "device":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Device tokens cannot upload files")
+    # Resolve the user's personal .inbox/ directory
+    from .. import store as _store
+    user_record = await _store.find_user(user.get("sub", ""))
+    if user_record is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "User not found")
+    safe_username = Path(user_record["name"]).name
+    dest_dir = settings.personal_path / safe_username / ".inbox"
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     # Sanitize filename: strip path separators to prevent directory traversal
@@ -226,6 +245,14 @@ async def upload_file(
     safe_name = Path(raw_name).name  # strips any directory components
     if not safe_name or safe_name in (".", ".."):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
+
+    # Block executable and dangerous file types — check before any disk I/O
+    ext = Path(safe_name).suffix.lower()
+    if ext in BLOCKED_EXTENSIONS:
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            f"File type '{ext}' is not allowed for security reasons.",
+        )
 
     dest_file = dest_dir / safe_name
     # Final safety check: ensure resolved path is still within NAS root
@@ -283,6 +310,24 @@ async def download_file(
         filename=resolved.name,
         media_type=mime or "application/octet-stream",
     )
+
+
+@router.get("/search")
+async def search_files(
+    q: str = Query(..., min_length=1, max_length=200, description="Full-text search query"),
+    limit: int = Query(10, ge=1, le=50),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Full-text search over indexed documents in the NAS.
+    Admins see all results; regular users see only their own and shared documents.
+    """
+    from ..document_index import search_documents
+
+    username = user.get("sub", "")
+    user_role = "admin" if user.get("is_admin") or user.get("type") == "device" else "member"
+    results = await search_documents(query=q, limit=limit, user_role=user_role, username=username)
+    return {"results": results, "query": q, "count": len(results)}
 
 
 @router.get("/roots")

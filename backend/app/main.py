@@ -13,14 +13,18 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from .config import settings, JWT_SECRET_FILE
+from .limiter import limiter
 import os  # noqa: E402 — used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .auto_ap import maybe_start_auto_ap, shutdown_auto_ap
 from .board import detect_board
 from .routes import (
+    adguard_routes,
     auth_routes,
     system_routes,
     monitor_routes,
@@ -58,6 +62,8 @@ async def lifespan(app: FastAPI):
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
     settings.shared_path.mkdir(parents=True, exist_ok=True)
+    # Ensure shared .inbox/ exists for auto-sorting of shared-folder uploads
+    (settings.shared_path / ".inbox").mkdir(exist_ok=True)
 
     # Auto-generate self-signed TLS cert if needed
     if settings.tls_enabled:
@@ -116,13 +122,57 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Pairing OTP cleanup skipped or failed")
 
+    # Migrate any plaintext PINs from early development
+    try:
+        from .auth import migrate_plaintext_pins
+        migrated = await migrate_plaintext_pins()
+        if migrated:
+            logger.info("Startup PIN migration: hashed %d plaintext PIN(s)", migrated)
+    except Exception as e:
+        logger.error("PIN migration failed: %s", e)
+
     # Auto-AP: start hotspot if no network is available
     try:
         await maybe_start_auto_ap()
     except Exception as e:
         logger.error("Auto-AP startup failed: %s", e)
 
+    # Initialise document search index (FTS5)
+    try:
+        from .document_index import init_db as _init_doc_db
+        await _init_doc_db()
+    except Exception as e:
+        logger.error("document_index init failed: %s", e)
+
+    # Start InboxWatcher for auto-sorting uploaded files
+    try:
+        from .file_sorter import get_watcher as _get_watcher
+        _get_watcher().start()
+    except Exception as e:
+        logger.error("InboxWatcher startup failed: %s", e)
+
+    # Start Telegram bot (optional — skipped if token not set)
+    try:
+        from .telegram_bot import start_bot as _start_bot
+        await _start_bot()
+    except Exception as e:
+        logger.error("Telegram bot startup failed: %s", e)
+
     yield
+
+    # Stop Telegram bot
+    try:
+        from .telegram_bot import stop_bot as _stop_bot
+        await _stop_bot()
+    except Exception:
+        logger.debug("Telegram bot shutdown skipped")
+
+    # Stop InboxWatcher
+    try:
+        from .file_sorter import get_watcher as _get_watcher
+        await _get_watcher().stop()
+    except Exception:
+        logger.debug("InboxWatcher shutdown skipped")
 
     # Shutdown: cancel Auto-AP background monitor
     try:
@@ -137,6 +187,10 @@ app = FastAPI(
     description="Backend API for the CubieCloud home NAS",
     lifespan=lifespan,
 )
+
+# Rate limiting (slowapi)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Restrict CORS to configured origins.
 app.add_middleware(
@@ -183,6 +237,7 @@ app.include_router(service_routes.router)
 app.include_router(storage_routes.router)
 app.include_router(network_routes.router)
 app.include_router(event_routes.router)
+app.include_router(adguard_routes.router)
 
 
 @app.get("/api/health")

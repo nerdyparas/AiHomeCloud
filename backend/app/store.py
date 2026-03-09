@@ -136,6 +136,9 @@ async def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False)
     safe_name = Path(name).name  # strips any directory components like ../
     personal = settings.personal_path / safe_name
     personal.mkdir(parents=True, exist_ok=True)
+    # Pre-create the 5 standard sub-folders (including .inbox/ for auto-sorting)
+    for _sub in ("Photos", "Videos", "Documents", "Others", ".inbox"):
+        (personal / _sub).mkdir(exist_ok=True)
 
     return user
 
