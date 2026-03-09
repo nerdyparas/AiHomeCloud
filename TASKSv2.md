@@ -381,22 +381,23 @@ Replace `MultipartRequest` with `StreamedRequest` for real upload progress repor
 
 ### TASK-P3-02 — Error Handling on Upload & FutureProviders
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 3 — Upload UX Fix
-**Files:** `lib/screens/main/my_folder_screen.dart`, `lib/screens/main/shared_folder_screen.dart`, `lib/screens/main/dashboard_screen.dart`
+**Files:** `lib/models/file_models.dart`, `lib/widgets/folder_view.dart`, `lib/screens/main/dashboard_screen.dart`
 **Depends on:** none
 
 **Goal:**
 Add try/catch on all dialog actions (rename, delete, create folder). Add error/retry states on all FutureProviders. Never show raw exceptions.
 
 **Acceptance criteria:**
-- [ ] All dialog action callbacks wrapped in try/catch with `friendlyError(e)`
-- [ ] Upload failures show retry button, not silent failure
-- [ ] FutureProviders show error state with retry button (not just spinner forever)
-- [ ] `flutter analyze` passes
+- [x] All dialog action callbacks wrapped in try/catch with `friendlyError(e)`
+- [x] Upload failures show retry button, not silent failure
+- [x] FutureProviders show error state with retry button (not just spinner forever)
+- [x] `flutter analyze` passes
 
 **Notes:**
 Pattern: `.when(error: (e, _) => ErrWidget(friendlyError(e), onRetry: () => ref.invalidate(provider)))`.
+`UploadTask` now stores `filePath`/`destinationPath` to enable retry. `_startUpload()` helper extracted to avoid duplication between `_uploadFile()` and `_retryUpload()`.
 
 ---
 

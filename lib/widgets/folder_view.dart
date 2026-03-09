@@ -219,11 +219,20 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await ref
-                  .read(apiServiceProvider)
-                  .renameFile(file.path, ctrl.text);
-              await _loadFiles(reset: true);
-              if (ctx.mounted) Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(apiServiceProvider)
+                    .renameFile(file.path, ctrl.text);
+                await _loadFiles(reset: true);
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(friendlyError(e))),
+                  );
+                }
+              }
             },
             child: Text('Rename',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -254,11 +263,20 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
             onPressed: () async {
-              await ref
-                  .read(apiServiceProvider)
-                  .deleteFile(file.path);
-              await _loadFiles(reset: true);
-              if (ctx.mounted) Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(apiServiceProvider)
+                    .deleteFile(file.path);
+                await _loadFiles(reset: true);
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(friendlyError(e))),
+                  );
+                }
+              }
             },
             child: Text('Delete',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -358,11 +376,20 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await ref
-                  .read(apiServiceProvider)
-                  .createFolder(_currentPath, ctrl.text);
-              await _loadFiles(reset: true);
-              if (ctx.mounted) Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(apiServiceProvider)
+                    .createFolder(_currentPath, ctrl.text);
+                await _loadFiles(reset: true);
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(friendlyError(e))),
+                  );
+                }
+              }
             },
             child: Text('Create',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -380,76 +407,83 @@ class _FolderViewState extends ConsumerState<FolderView> {
     }
   }
 
+  /// Retry a failed upload.
+  void _retryUpload(UploadTask task) {
+    final filePath = task.filePath;
+    final destinationPath = task.destinationPath;
+    if (filePath == null || destinationPath == null) return;
+    _dismissUpload(task.id);
+    final newTask = UploadTask(
+      id: 'upload_${DateTime.now().millisecondsSinceEpoch}_${task.fileName.hashCode}',
+      fileName: task.fileName,
+      totalBytes: task.totalBytes,
+      filePath: filePath,
+      destinationPath: destinationPath,
+    );
+    _startUpload(newTask);
+  }
+
+  /// Wire up a stream subscription for an [UploadTask] and begin streaming.
+  void _startUpload(UploadTask task) {
+    final api = ref.read(apiServiceProvider);
+    ref.read(uploadTasksProvider.notifier).addTask(task);
+    ref.read(uploadTasksProvider.notifier).updateTask(task.id, status: UploadStatus.uploading);
+
+    final stream = api.uploadFile(
+      task.destinationPath!,
+      task.fileName,
+      task.totalBytes,
+      filePath: task.filePath!,
+    );
+
+    final sub = stream.listen(
+      (bytes) {
+        if (mounted) {
+          ref.read(uploadTasksProvider.notifier).updateTask(task.id, uploadedBytes: bytes);
+        }
+      },
+      onDone: () {
+        _uploadSubscriptions.remove(task.id);
+        if (!mounted) return;
+        ref.read(uploadTasksProvider.notifier).updateTask(task.id, status: UploadStatus.completed);
+        _loadFiles(reset: true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${task.fileName} uploaded successfully')),
+        );
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) ref.read(uploadTasksProvider.notifier).removeTask(task.id);
+        });
+      },
+      onError: (e) {
+        _uploadSubscriptions.remove(task.id);
+        if (mounted) {
+          ref.read(uploadTasksProvider.notifier).updateTask(
+            task.id,
+            status: UploadStatus.failed,
+            error: friendlyError(e),
+          );
+        }
+      },
+      cancelOnError: false,
+    );
+    _uploadSubscriptions[task.id] = sub;
+  }
+
   /// Pick one or more files from the device and upload them to the Cubie.
   void _uploadFile() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result == null || result.files.isEmpty) return;
 
-    final api = ref.read(apiServiceProvider);
-
     for (final pickedFile in result.files) {
-      final fileName = pickedFile.name;
-      final filePath = pickedFile.path;
-      final totalBytes = pickedFile.size;
-
-      if (filePath == null) continue;
-
+      if (pickedFile.path == null) continue;
       final task = UploadTask(
-        id: 'upload_${DateTime.now().millisecondsSinceEpoch}_${fileName.hashCode}',
-        fileName: fileName,
-        totalBytes: totalBytes,
+        id: 'upload_${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name.hashCode}',
+        fileName: pickedFile.name,
+        totalBytes: pickedFile.size,
+        filePath: pickedFile.path,
+        destinationPath: _currentPath,
       );
-
-      ref.read(uploadTasksProvider.notifier).addTask(task);
-      ref
-          .read(uploadTasksProvider.notifier)
-          .updateTask(task.id, status: UploadStatus.uploading);
-
-      final stream = api.uploadFile(
-        _currentPath,
-        fileName,
-        totalBytes,
-        filePath: filePath,
-      );
-
-      final sub = stream.listen(
-        (bytes) {
-          if (mounted) {
-            ref
-                .read(uploadTasksProvider.notifier)
-                .updateTask(task.id, uploadedBytes: bytes);
-          }
-        },
-        onDone: () {
-          _uploadSubscriptions.remove(task.id);
-          if (!mounted) return;
-          ref
-              .read(uploadTasksProvider.notifier)
-              .updateTask(task.id, status: UploadStatus.completed);
-          _loadFiles(reset: true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${task.fileName} uploaded successfully')),
-          );
-          // Auto-remove completed card after 3 s
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted) {
-              ref.read(uploadTasksProvider.notifier).removeTask(task.id);
-            }
-          });
-        },
-        onError: (e) {
-          _uploadSubscriptions.remove(task.id);
-          if (mounted) {
-            ref.read(uploadTasksProvider.notifier).updateTask(
-                  task.id,
-                  status: UploadStatus.failed,
-                  error: friendlyError(e),
-                );
-          }
-        },
-        cancelOnError: false,
-      );
-      _uploadSubscriptions[task.id] = sub;
+      _startUpload(task);
     }
   }
 
@@ -569,6 +603,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                             child: _UploadProgressCard(
                               task: t,
                               onDismiss: () => _dismissUpload(t.id),
+                              onRetry: () => _retryUpload(t),
                             ),
                           ))
                       .toList(),
@@ -695,8 +730,13 @@ class _FolderViewState extends ConsumerState<FolderView> {
 class _UploadProgressCard extends StatelessWidget {
   final UploadTask task;
   final VoidCallback onDismiss;
+  final VoidCallback onRetry;
 
-  const _UploadProgressCard({required this.task, required this.onDismiss});
+  const _UploadProgressCard({
+    required this.task,
+    required this.onDismiss,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -780,6 +820,15 @@ class _UploadProgressCard extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          if (isFail && task.filePath != null)
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                foregroundColor: CubieColors.primary,
+              ),
+              child: Text('Retry', style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600)),
             ),
           // Dismiss (completed/failed) or Cancel (uploading) button
           IconButton(

@@ -232,9 +232,21 @@ class DashboardScreen extends ConsumerWidget {
                             color: CubieColors.primary)),
                   ),
                   error: (e, _) => CubieCard(
-                    child: Text(friendlyError(e),
-                        style:
-                            const TextStyle(color: CubieColors.error)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: CubieColors.error, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(friendlyError(e),
+                              style: const TextStyle(color: CubieColors.error)),
+                        ),
+                        TextButton(
+                          onPressed: () => ref.invalidate(storageDevicesProvider),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -316,6 +328,10 @@ class DashboardScreen extends ConsumerWidget {
                                   color: CubieColors.error, fontSize: 13),
                             ),
                           ),
+                          TextButton(
+                            onPressed: () => ref.invalidate(systemStatsStreamProvider),
+                            child: const Text('Retry'),
+                          ),
                         ],
                       ),
                     ),
@@ -386,6 +402,10 @@ class DashboardScreen extends ConsumerWidget {
                             style: GoogleFonts.dmSans(
                                 color: CubieColors.error, fontSize: 13),
                           ),
+                        ),
+                        TextButton(
+                          onPressed: () => ref.invalidate(systemStatsStreamProvider),
+                          child: const Text('Retry'),
                         ),
                       ],
                     ),

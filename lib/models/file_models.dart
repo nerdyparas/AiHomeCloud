@@ -95,6 +95,8 @@ class UploadTask {
   final String id;
   final String fileName;
   final int totalBytes;
+  final String? filePath;
+  final String? destinationPath;
   int uploadedBytes;
   UploadStatus status;
   String? error;
@@ -103,6 +105,8 @@ class UploadTask {
     required this.id,
     required this.fileName,
     required this.totalBytes,
+    this.filePath,
+    this.destinationPath,
     this.uploadedBytes = 0,
     this.status = UploadStatus.queued,
     this.error,
