@@ -330,7 +330,7 @@ See `kb/setup-instructions.md` for the manual steps this automates. Target Ubunt
 
 ### TASK-P2-07 — AdGuard Install Script
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 2 — Core New Features
 **Files:** `scripts/install-adguard.sh` (new)
 **Depends on:** none
@@ -339,15 +339,15 @@ See `kb/setup-instructions.md` for the manual steps this automates. Target Ubunt
 Create a bash script that installs AdGuard Home on the Cubie and configures it for DNS port 5353 (non-privileged).
 
 **Acceptance criteria:**
-- [ ] `scripts/install-adguard.sh` created
-- [ ] Downloads and installs AdGuard Home
-- [ ] Configures DNS to port 5353
-- [ ] Creates systemd service for AdGuard
-- [ ] Prints instructions for router DNS configuration
-- [ ] Script is executable
+- [x] `scripts/install-adguard.sh` created
+- [x] Downloads and installs AdGuard Home (fetches latest ARM64 binary from GitHub releases API)
+- [x] Configures DNS to port 5353
+- [x] Creates systemd service for AdGuard
+- [x] Prints instructions for router DNS configuration (including iptables 53→5353 redirect for routers that don't support custom DNS ports)
+- [x] Script is executable (shebang present; `chmod +x` on device)
 
 **Notes:**
-Users need to manually point their router's DHCP DNS to the Cubie's LAN IP.
+Users need to manually point their router's DHCP DNS to the Cubie's LAN IP. 5-step idempotent script: download binary, create `adguard` system user, write YAML config (auto-generated admin password via bcrypt), create systemd unit with hardening, update `cubie-backend.service` with `CUBIE_ADGUARD_ENABLED=true` and auto-generated `CUBIE_ADGUARD_PASSWORD`. Admin UI bound to localhost:3000 only — proxied by AiHomeCloud backend (P2-04). Note: avahi-daemon also uses port 5353 for multicast mDNS; they coexist since avahi only processes multicast packets.
 
 ---
 
