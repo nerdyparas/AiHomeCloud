@@ -189,6 +189,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
+            // ── Ad Blocking badge (hidden if AdGuard not enabled) ──────────
+            const _AdBlockingBadge(),
+
             // ── Storage section title ───────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
@@ -895,5 +898,75 @@ class _SearchResultTile extends StatelessWidget {
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AD BLOCKING BADGE — compact stats row, hidden if AdGuard not enabled
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AdBlockingBadge extends ConsumerWidget {
+  const _AdBlockingBadge();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(adGuardStatsSilentProvider);
+    return statsAsync.when(
+      data: (stats) {
+        if (stats == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
+        final blocked = stats['blocked_today'] as int? ?? 0;
+        if (blocked == 0 && (stats['dns_queries'] as int? ?? 0) == 0) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        final formatted = _formatCount(blocked);
+        return SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: CubieCard(
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: CubieColors.success.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.shield_rounded,
+                        color: CubieColors.success, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.dmSans(
+                            color: CubieColors.textSecondary, fontSize: 13),
+                        children: [
+                          TextSpan(
+                            text: '$formatted ads',
+                            style: GoogleFonts.dmSans(
+                                color: CubieColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const TextSpan(text: ' blocked today'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 400.ms),
+          ),
+        );
+      },
+      loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+      error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+    );
+  }
+
+  String _formatCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
   }
 }

@@ -40,3 +40,14 @@ final notificationHistoryProvider =
     StateNotifierProvider<NotificationHistoryNotifier, List<AppNotification>>(
   (ref) => NotificationHistoryNotifier(),
 );
+
+/// Ad Blocking stats — silently returns null if AdGuard is disabled/unreachable.
+/// Used on the Home tab to optionally show the ad blocking badge.
+final adGuardStatsSilentProvider =
+    FutureProvider<Map<String, dynamic>?>((ref) async {
+  try {
+    return await ref.read(apiServiceProvider).getAdGuardStats();
+  } catch (_) {
+    return null;
+  }
+});

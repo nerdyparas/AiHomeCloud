@@ -488,19 +488,19 @@ Add an always-visible document search bar on the Home tab that searches the FTS5
 
 ### TASK-P4-04 — Home Tab Ad Blocking Stats Widget
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 4 — UI Language & Structure
-**Files:** `lib/screens/main/dashboard_screen.dart`, `lib/services/api_service.dart`, `lib/providers.dart`
+**Files:** `lib/screens/main/dashboard_screen.dart`, `lib/providers/data_providers.dart`
 **Depends on:** TASK-P2-04
 
 **Goal:**
 Show compact ad blocking stats row on Home tab: "🛡️ 1,247 ads blocked today". Only visible if AdGuard is enabled.
 
 **Acceptance criteria:**
-- [ ] Compact row showing blocked count
-- [ ] Only shown if `/api/v1/adguard/stats` returns data
-- [ ] Gracefully hidden if AdGuard not enabled (no error shown)
-- [ ] `flutter analyze` passes
+- [x] Compact row showing blocked count
+- [x] Only shown if `/api/v1/adguard/stats` returns data
+- [x] Gracefully hidden if AdGuard not enabled (no error shown)
+- [x] `flutter analyze` passes
 
 **Notes:**
 Use a FutureProvider with error suppression — if AdGuard isn't running, just hide the widget.
