@@ -1,6 +1,7 @@
 /// Real-time notification models — NotificationSeverity, AppNotification.
 ///
 /// Used by the notification stream (WebSocket /ws/events) and history display.
+library;
 import 'package:flutter/material.dart';
 
 /// Severity level for in-app notifications.

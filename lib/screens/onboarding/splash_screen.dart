@@ -44,7 +44,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -57,7 +57,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: CubieColors.primary.withOpacity(0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                     blurRadius: 40,
                     spreadRadius: 8,
                   ),
@@ -87,7 +87,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             Text(
               'AiHomeCloud',
               style: GoogleFonts.sora(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 32,
                 fontWeight: FontWeight.w700,
               ),
@@ -106,7 +106,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             Text(
               'Your family\'s private cloud',
               style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary,
+                color: AppColors.textSecondary,
                 fontSize: 16,
               ),
             ).animate(delay: 600.ms).fadeIn(duration: 500.ms),

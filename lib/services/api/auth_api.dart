@@ -4,9 +4,9 @@ part of '../api_service.dart';
 extension AuthApi on ApiService {
   /// GET /api/v1/pair/qr — fetch pairing info from a discovered Cubie.
   Future<Map<String, dynamic>> fetchPairingInfo(String host) async {
-    final base = 'https://$host:${CubieConstants.apiPort}';
+    final base = 'https://$host:${AppConstants.apiPort}';
     final res = await _client
-        .get(Uri.parse('$base${CubieConstants.apiVersion}/pair/qr'))
+        .get(Uri.parse('$base${AppConstants.apiVersion}/pair/qr'))
         .timeout(ApiService._timeout);
     _check(res);
     return jsonDecode(res.body) as Map<String, dynamic>;
@@ -19,11 +19,11 @@ extension AuthApi on ApiService {
     if (host == null || host.isEmpty) {
       throw StateError('Host is required to pair device');
     }
-    final base = 'https://$host:${CubieConstants.apiPort}';
+    final base = 'https://$host:${AppConstants.apiPort}';
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$base${CubieConstants.apiVersion}/pair'),
+            Uri.parse('$base${AppConstants.apiVersion}/pair'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'serial': serial, 'key': key}),
           )
@@ -39,7 +39,7 @@ extension AuthApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users'),
             headers: _headers,
             body: jsonEncode({'name': name, if (pin != null) 'pin': pin}),
           )
@@ -56,7 +56,7 @@ extension AuthApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/auth/logout'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/auth/logout'),
             headers: _headers,
             body: payload,
           )
@@ -70,7 +70,7 @@ extension AuthApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .put(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/pin'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/pin'),
             headers: _headers,
             body: jsonEncode({'oldPin': oldPin, 'newPin': newPin}),
           )

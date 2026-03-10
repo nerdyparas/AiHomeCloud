@@ -2,6 +2,7 @@
 ///
 /// Used by the storage management screen for device detection, formatting,
 /// and mount/unmount operations.
+library;
 import 'package:flutter/material.dart';
 
 /// A block device (partition) detected on the Cubie hardware.

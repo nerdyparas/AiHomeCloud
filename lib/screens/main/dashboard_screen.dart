@@ -65,7 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       : 'User';
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -82,7 +82,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Text(
                             'Hey, $userName 👋',
                             style: GoogleFonts.sora(
-                              color: CubieColors.textPrimary,
+                              color: AppColors.textPrimary,
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
                             ),
@@ -91,15 +91,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           deviceAsync.when(
                             data: (d) => Text(d.name,
                                 style: GoogleFonts.dmSans(
-                                    color: CubieColors.textSecondary,
+                                    color: AppColors.textSecondary,
                                     fontSize: 14)),
                             loading: () => Text('Loading…',
                                 style: GoogleFonts.dmSans(
-                                    color: CubieColors.textMuted,
+                                    color: AppColors.textMuted,
                                     fontSize: 14)),
                             error: (_, __) => Text('Device error',
                                 style: GoogleFonts.dmSans(
-                                    color: CubieColors.error, fontSize: 14)),
+                                    color: AppColors.error, fontSize: 14)),
                           ),
                         ],
                       ),
@@ -108,7 +108,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: CubieColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Center(
@@ -117,7 +117,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ? userName[0].toUpperCase()
                               : 'U',
                           style: GoogleFonts.sora(
-                            color: CubieColors.primary,
+                            color: AppColors.primary,
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
@@ -156,22 +156,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: CubieColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: CubieColors.primary.withOpacity(0.3)),
+                            color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.warning_amber_rounded,
-                              color: CubieColors.primary, size: 20),
+                              color: AppColors.primary, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'No external storage active — files are on the SD card. '
                               'Connect a USB drive or NVMe SSD for better performance.',
                               style: GoogleFonts.dmSans(
-                                  color: CubieColors.primary,
+                                  color: AppColors.primary,
                                   fontSize: 12,
                                   height: 1.4),
                             ),
@@ -180,7 +180,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ).animate().fadeIn(delay: 200.ms).shimmer(
                           duration: 1500.ms,
-                          color: CubieColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                         ),
                   );
                 },
@@ -200,7 +200,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     Text('Storage',
                         style: GoogleFonts.sora(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
@@ -210,12 +210,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                           Text('Manage',
                               style: GoogleFonts.dmSans(
-                                  color: CubieColors.primary,
+                                  color: AppColors.primary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600)),
                           const SizedBox(width: 4),
                           const Icon(Icons.arrow_forward_ios_rounded,
-                              color: CubieColors.primary, size: 12),
+                              color: AppColors.primary, size: 12),
                         ],
                       ),
                     ),
@@ -265,7 +265,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               child: Text(
                                 '+$moreCount more device${moreCount > 1 ? 's' : ''}',
                                 style: GoogleFonts.dmSans(
-                                    color: CubieColors.primary,
+                                    color: AppColors.primary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600),
                               ),
@@ -278,17 +278,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     height: 80,
                     child: Center(
                         child: CircularProgressIndicator(
-                            color: CubieColors.primary)),
+                            color: AppColors.primary)),
                   ),
-                  error: (e, _) => CubieCard(
+                  error: (e, _) => AppCard(
                     child: Row(
                       children: [
                         const Icon(Icons.error_outline_rounded,
-                            color: CubieColors.error, size: 20),
+                            color: AppColors.error, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(friendlyError(e),
-                              style: const TextStyle(color: CubieColors.error)),
+                              style: const TextStyle(color: AppColors.error)),
                         ),
                         TextButton(
                           onPressed: () => ref.invalidate(storageDevicesProvider),
@@ -307,7 +307,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Text('System',
                     style: GoogleFonts.sora(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600)),
               ),
@@ -328,14 +328,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: s.cpuPercent.toStringAsFixed(0),
                       unit: '%',
                       icon: Icons.memory_rounded,
-                      accentColor: CubieColors.primary,
+                      accentColor: AppColors.primary,
                     ).animate().fadeIn(delay: 200.ms),
                     StatTile(
                       label: 'Memory',
                       value: s.ramPercent.toStringAsFixed(0),
                       unit: '%',
                       icon: Icons.developer_board_rounded,
-                      accentColor: CubieColors.secondary,
+                      accentColor: AppColors.secondary,
                     ).animate().fadeIn(delay: 300.ms),
                     StatTile(
                       label: 'Temperature',
@@ -343,14 +343,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       unit: '°C',
                       icon: Icons.thermostat_rounded,
                       accentColor: s.tempCelsius > 60
-                          ? CubieColors.error
-                          : CubieColors.success,
+                          ? AppColors.error
+                          : AppColors.success,
                     ).animate().fadeIn(delay: 400.ms),
                     StatTile(
                       label: 'Uptime',
                       value: _uptime(s.uptime),
                       icon: Icons.schedule_rounded,
-                      accentColor: CubieColors.textSecondary,
+                      accentColor: AppColors.textSecondary,
                     ).animate().fadeIn(delay: 500.ms),
                   ],
                 ),
@@ -359,22 +359,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       height: 200,
                       child: Center(
                           child: CircularProgressIndicator(
-                              color: CubieColors.primary))),
+                              color: AppColors.primary))),
                 ),
                 error: (e, __) => SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: CubieCard(
+                    child: AppCard(
                       child: Row(
                         children: [
                           const Icon(Icons.error_outline_rounded,
-                              color: CubieColors.error, size: 20),
+                              color: AppColors.error, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Unable to load system stats: ${friendlyError(e)}',
                               style: GoogleFonts.dmSans(
-                                  color: CubieColors.error, fontSize: 13),
+                                  color: AppColors.error, fontSize: 13),
                             ),
                           ),
                           TextButton(
@@ -395,7 +395,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Text('Network',
                     style: GoogleFonts.sora(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600)),
               ),
@@ -414,7 +414,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
                 child: statsAsync.when(
-                  data: (s) => CubieCard(
+                  data: (s) => AppCard(
                     child: Row(
                       children: [
                         Expanded(
@@ -422,34 +422,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               Icons.arrow_upward_rounded,
                               'Upload',
                               '${s.networkUpMbps.toStringAsFixed(1)} Mbps',
-                              CubieColors.success),
+                              AppColors.success),
                         ),
                         Container(
                             width: 1,
                             height: 40,
-                            color: CubieColors.cardBorder),
+                            color: AppColors.cardBorder),
                         Expanded(
                           child: _netCol(
                               Icons.arrow_downward_rounded,
                               'Download',
                               '${s.networkDownMbps.toStringAsFixed(1)} Mbps',
-                              CubieColors.secondary),
+                              AppColors.secondary),
                         ),
                       ],
                     ),
                   ).animate().fadeIn(delay: 600.ms),
                   loading: () => const SizedBox(height: 80),
-                  error: (e, __) => CubieCard(
+                  error: (e, __) => AppCard(
                     child: Row(
                       children: [
                         const Icon(Icons.error_outline_rounded,
-                            color: CubieColors.error, size: 20),
+                            color: AppColors.error, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Unable to load network speed: ${friendlyError(e)}',
                             style: GoogleFonts.dmSans(
-                                color: CubieColors.error, fontSize: 13),
+                                color: AppColors.error, fontSize: 13),
                           ),
                         ),
                         TextButton(
@@ -475,17 +475,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return TextField(
       controller: _searchCtrl,
       onChanged: _onSearchChanged,
-      style: GoogleFonts.dmSans(color: CubieColors.textPrimary, fontSize: 14),
+      style: GoogleFonts.dmSans(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: 'Search documents…',
         hintStyle: GoogleFonts.dmSans(
-            color: CubieColors.textMuted, fontSize: 14),
+            color: AppColors.textMuted, fontSize: 14),
         prefixIcon: const Icon(
-            Icons.search_rounded, color: CubieColors.textMuted, size: 20),
+            Icons.search_rounded, color: AppColors.textMuted, size: 20),
         suffixIcon: _searchCtrl.text.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear_rounded,
-                    color: CubieColors.textMuted, size: 20),
+                    color: AppColors.textMuted, size: 20),
                 onPressed: () {
                   _searchCtrl.clear();
                   _onSearchChanged('');
@@ -493,7 +493,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               )
             : null,
         filled: true,
-        fillColor: CubieColors.card,
+        fillColor: AppColors.card,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
@@ -502,11 +502,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CubieColors.cardBorder),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CubieColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
     );
@@ -515,17 +515,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _emptyStorageCard() {
     return GestureDetector(
       onTap: () => context.push('/storage-explorer'),
-      child: CubieCard(
+      child: AppCard(
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: CubieColors.primary.withOpacity(0.12),
+                color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.usb_rounded,
-                  color: CubieColors.primary, size: 22),
+                  color: AppColors.primary, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -534,18 +534,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 children: [
                   Text('No external storage',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text('Tap to manage storage devices',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12)),
+                          color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
             const Icon(Icons.arrow_forward_ios_rounded,
-                color: CubieColors.textMuted, size: 14),
+                color: AppColors.textMuted, size: 14),
           ],
         ),
       ),
@@ -561,12 +561,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 6),
           Text(value,
               style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600)),
           Text(label,
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 12)),
+                  color: AppColors.textSecondary, fontSize: 12)),
         ],
       ),
     );
@@ -583,7 +583,7 @@ class _StorageDeviceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CubieCard(
+    return AppCard(
       glowing: device.isNasActive,
       onTap: () => context.push('/storage-explorer'),
       child: Row(
@@ -592,7 +592,7 @@ class _StorageDeviceTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _color.withOpacity(0.12),
+              color: _color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(device.icon, color: _color, size: 22),
@@ -607,7 +607,7 @@ class _StorageDeviceTile extends StatelessWidget {
                 Text(
                   device.label ?? device.model ?? device.name,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textPrimary,
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600),
                   maxLines: 1,
@@ -617,7 +617,7 @@ class _StorageDeviceTile extends StatelessWidget {
                 Text(
                   '${device.typeLabel}  •  ${device.sizeDisplay}',
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 12),
+                      color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -627,7 +627,7 @@ class _StorageDeviceTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _statusColor.withOpacity(0.15),
+              color: _statusColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(_statusText,
@@ -639,16 +639,16 @@ class _StorageDeviceTile extends StatelessWidget {
 
           const SizedBox(width: 8),
           const Icon(Icons.chevron_right_rounded,
-              color: CubieColors.textMuted, size: 18),
+              color: AppColors.textMuted, size: 18),
         ],
       ),
     );
   }
 
   Color get _color => switch (device.transport) {
-        'usb' => CubieColors.primary,
-        'nvme' => CubieColors.secondary,
-        _ => CubieColors.textSecondary,
+        'usb' => AppColors.primary,
+        'nvme' => AppColors.secondary,
+        _ => AppColors.textSecondary,
       };
 
   String get _statusText {
@@ -659,10 +659,10 @@ class _StorageDeviceTile extends StatelessWidget {
   }
 
   Color get _statusColor {
-    if (device.isNasActive) return CubieColors.success;
-    if (device.mounted) return CubieColors.secondary;
-    if (device.fstype == null) return CubieColors.primary;
-    return CubieColors.textSecondary;
+    if (device.isNasActive) return AppColors.success;
+    if (device.mounted) return AppColors.secondary;
+    if (device.fstype == null) return AppColors.primary;
+    return AppColors.textSecondary;
   }
 }
 
@@ -675,7 +675,7 @@ class _NetworkStatusCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final netAsync = ref.watch(networkStatusProvider);
     return netAsync.when(
-      data: (n) => CubieCard(
+      data: (n) => AppCard(
         child: Column(
           children: [
             _netStatusRow(
@@ -689,7 +689,7 @@ class _NetworkStatusCard extends ConsumerWidget {
               connected: n.wifiConnected,
               enabled: n.wifiEnabled,
             ),
-            Divider(color: CubieColors.cardBorder, height: 1),
+            Divider(color: AppColors.cardBorder, height: 1),
             _netStatusRow(
               icon: Icons.lan_rounded,
               label: n.lanConnected ? 'Ethernet: Connected' : 'Ethernet: Disconnected',
@@ -699,7 +699,7 @@ class _NetworkStatusCard extends ConsumerWidget {
               connected: n.lanConnected,
               enabled: true,
             ),
-            Divider(color: CubieColors.cardBorder, height: 1),
+            Divider(color: AppColors.cardBorder, height: 1),
             _netStatusRow(
               icon: Icons.bluetooth_rounded,
               label: n.bluetoothEnabled ? 'Bluetooth: On' : 'Bluetooth: Off',
@@ -712,19 +712,19 @@ class _NetworkStatusCard extends ConsumerWidget {
       loading: () => const SizedBox(
         height: 60,
         child: Center(
-            child: CircularProgressIndicator(color: CubieColors.primary)),
+            child: CircularProgressIndicator(color: AppColors.primary)),
       ),
-      error: (e, _) => CubieCard(
+      error: (e, _) => AppCard(
         child: Row(
           children: [
             const Icon(Icons.error_outline_rounded,
-                color: CubieColors.error, size: 20),
+                color: AppColors.error, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Unable to load network status: ${friendlyError(e)}',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.error, fontSize: 13),
+                    color: AppColors.error, fontSize: 13),
               ),
             ),
           ],
@@ -741,10 +741,10 @@ class _NetworkStatusCard extends ConsumerWidget {
     required bool enabled,
   }) {
     final color = connected
-        ? CubieColors.success
+        ? AppColors.success
         : enabled
-            ? CubieColors.textSecondary
-            : CubieColors.textMuted;
+            ? AppColors.textSecondary
+            : AppColors.textMuted;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -757,13 +757,13 @@ class _NetworkStatusCard extends ConsumerWidget {
               children: [
                 Text(label,
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500)),
                 if (subtitle != null && subtitle.isNotEmpty)
                   Text(subtitle,
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 11)),
+                          color: AppColors.textSecondary, fontSize: 11)),
               ],
             ),
           ),
@@ -798,11 +798,11 @@ class _DocSearchResults extends ConsumerWidget {
         loading: () => const Padding(
           padding: EdgeInsets.symmetric(vertical: 32),
           child: Center(
-              child: CircularProgressIndicator(color: CubieColors.primary)),
+              child: CircularProgressIndicator(color: AppColors.primary)),
         ),
-        error: (e, _) => CubieCard(
+        error: (e, _) => AppCard(
           child: Text(friendlyError(e),
-              style: const TextStyle(color: CubieColors.error)),
+              style: const TextStyle(color: AppColors.error)),
         ),
         data: (results) {
           if (results.isEmpty) {
@@ -812,12 +812,12 @@ class _DocSearchResults extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.search_off_rounded,
-                      color: CubieColors.textMuted, size: 48),
+                      color: AppColors.textMuted, size: 48),
                   const SizedBox(height: 12),
                   Text(
                     'No documents found for "$query"',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 14),
+                        color: AppColors.textSecondary, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -849,14 +849,14 @@ class _SearchResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final file = result.toFileItem();
-    return CubieCard(
+    return AppCard(
       onTap: () => context.push('/file-preview', extra: file),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: file.iconColor.withOpacity(0.12),
+              color: file.iconColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(file.icon, color: file.iconColor, size: 20),
@@ -869,7 +869,7 @@ class _SearchResultTile extends StatelessWidget {
                 Text(
                   result.filename,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textPrimary,
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600),
                   maxLines: 1,
@@ -879,13 +879,13 @@ class _SearchResultTile extends StatelessWidget {
                 Text(
                   '${result.addedBy}  •  ${_formatDate(result.addedAt)}',
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 12),
+                      color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
             ),
           ),
           const Icon(Icons.chevron_right_rounded,
-              color: CubieColors.textMuted, size: 18),
+              color: AppColors.textMuted, size: 18),
         ],
       ),
     );
@@ -922,29 +922,29 @@ class _AdBlockingBadge extends ConsumerWidget {
         return SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: CubieCard(
+            child: AppCard(
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: CubieColors.success.withOpacity(0.12),
+                      color: AppColors.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.shield_rounded,
-                        color: CubieColors.success, size: 18),
+                        color: AppColors.success, size: 18),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: RichText(
                       text: TextSpan(
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textSecondary, fontSize: 13),
+                            color: AppColors.textSecondary, fontSize: 13),
                         children: [
                           TextSpan(
                             text: '$formatted ads',
                             style: GoogleFonts.dmSans(
-                                color: CubieColors.textPrimary,
+                                color: AppColors.textPrimary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600),
                           ),

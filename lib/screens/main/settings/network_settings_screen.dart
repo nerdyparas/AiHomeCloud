@@ -17,17 +17,17 @@ class NetworkSettingsScreen extends ConsumerWidget {
     final networkAsync = ref.watch(networkStatusProvider);
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: CubieColors.background,
+        backgroundColor: AppColors.background,
         title: Text('Network',
             style: GoogleFonts.sora(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon:
-              const Icon(Icons.arrow_back_rounded, color: CubieColors.textPrimary),
+              const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
       ),
@@ -36,7 +36,7 @@ class NetworkSettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
@@ -92,19 +92,19 @@ class NetworkSettingsScreen extends ConsumerWidget {
         ),
         loading: () => const Center(
             child:
-                CircularProgressIndicator(color: CubieColors.primary)),
+                CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(
             child: Padding(
           padding: const EdgeInsets.all(20),
           child: Text(friendlyError(e),
-              style: const TextStyle(color: CubieColors.error)),
+              style: const TextStyle(color: AppColors.error)),
         )),
       ),
     );
   }
 
   static Widget _divider() => const Divider(
-      height: 1, indent: 16, endIndent: 16, color: CubieColors.cardBorder);
+      height: 1, indent: 16, endIndent: 16, color: AppColors.cardBorder);
 }
 
 // ─── Network toggle row ─────────────────────────────────────────────────────
@@ -159,12 +159,12 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: (_on ? CubieColors.primary : CubieColors.textMuted)
-                    .withOpacity(0.12),
+                color: (_on ? AppColors.primary : AppColors.textMuted)
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(widget.icon,
-                  color: _on ? CubieColors.primary : CubieColors.textMuted,
+                  color: _on ? AppColors.primary : AppColors.textMuted,
                   size: 18),
             ),
             const SizedBox(width: 12),
@@ -174,7 +174,7 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
                 children: [
                   Text(widget.label,
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500)),
                   Row(
@@ -182,12 +182,12 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
                       Expanded(
                         child: Text(widget.subtitle,
                             style: GoogleFonts.dmSans(
-                                color: CubieColors.textSecondary,
+                                color: AppColors.textSecondary,
                                 fontSize: 12)),
                       ),
                       if (widget.onTap != null)
                         const Icon(Icons.chevron_right_rounded,
-                            color: CubieColors.textMuted, size: 18),
+                            color: AppColors.textMuted, size: 18),
                     ],
                   ),
                 ],
@@ -198,7 +198,7 @@ class _NetworkToggleRowState extends State<_NetworkToggleRow> {
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: CubieColors.primary),
+                    strokeWidth: 2, color: AppColors.primary),
               )
             else
               Switch(
@@ -255,13 +255,13 @@ class _LanStatusRow extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   color:
-                      (connected ? CubieColors.success : CubieColors.textMuted)
-                          .withOpacity(0.12),
+                      (connected ? AppColors.success : AppColors.textMuted)
+                          .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(Icons.settings_ethernet_rounded,
                     color:
-                        connected ? CubieColors.success : CubieColors.textMuted,
+                        connected ? AppColors.success : AppColors.textMuted,
                     size: 18),
               ),
               const SizedBox(width: 12),
@@ -271,7 +271,7 @@ class _LanStatusRow extends StatelessWidget {
                   children: [
                     Text('Ethernet',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w500)),
                     Text(
@@ -280,7 +280,7 @@ class _LanStatusRow extends StatelessWidget {
                               '${speed != null ? "  •  $speed" : ""}'
                           : 'Cable not connected',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12),
+                          color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -289,16 +289,16 @@ class _LanStatusRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color:
-                      (connected ? CubieColors.success : CubieColors.textMuted)
-                          .withOpacity(0.15),
+                      (connected ? AppColors.success : AppColors.textMuted)
+                          .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   connected ? 'Connected' : 'Disconnected',
                   style: GoogleFonts.dmSans(
                       color: connected
-                          ? CubieColors.success
-                          : CubieColors.textMuted,
+                          ? AppColors.success
+                          : AppColors.textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.w600),
                 ),
@@ -311,13 +311,13 @@ class _LanStatusRow extends StatelessWidget {
               child: Row(
                 children: [
                   const Icon(Icons.info_outline_rounded,
-                      size: 14, color: CubieColors.textMuted),
+                      size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Changing the LAN IP may make this device unreachable.',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textMuted,
+                          color: AppColors.textMuted,
                           fontSize: 11,
                           fontStyle: FontStyle.italic),
                     ),

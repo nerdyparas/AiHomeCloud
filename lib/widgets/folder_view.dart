@@ -138,7 +138,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
     if (widget.readOnly) return;
     showModalBottomSheet(
       context: context,
-      backgroundColor: CubieColors.card,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -160,7 +160,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                       child: Text(
                         file.name,
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w600),
                         maxLines: 1,
@@ -170,12 +170,12 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   ],
                 ),
               ),
-              const Divider(color: CubieColors.cardBorder),
+              const Divider(color: AppColors.cardBorder),
               ListTile(
                 leading: const Icon(Icons.edit_rounded,
-                    color: CubieColors.textSecondary),
+                    color: AppColors.textSecondary),
                 title: Text('Rename',
-                    style: GoogleFonts.dmSans(color: CubieColors.textPrimary)),
+                    style: GoogleFonts.dmSans(color: AppColors.textPrimary)),
                 onTap: () {
                   Navigator.pop(ctx);
                   _renameFile(file);
@@ -183,9 +183,9 @@ class _FolderViewState extends ConsumerState<FolderView> {
               ),
               ListTile(
                 leading:
-                    const Icon(Icons.delete_rounded, color: CubieColors.error),
+                    const Icon(Icons.delete_rounded, color: AppColors.error),
                 title: Text('Delete',
-                    style: GoogleFonts.dmSans(color: CubieColors.error)),
+                    style: GoogleFonts.dmSans(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(ctx);
                   _deleteFile(file);
@@ -207,7 +207,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+          style: GoogleFonts.dmSans(color: AppColors.textPrimary),
           decoration: const InputDecoration(hintText: 'New name'),
         ),
         actions: [
@@ -215,7 +215,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
                 style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -296,7 +296,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
   void _showAddMenu() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: CubieColors.card,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -312,19 +312,19 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: CubieColors.primary.withOpacity(0.12),
+                    color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.upload_file_rounded,
-                      color: CubieColors.primary),
+                      color: AppColors.primary),
                 ),
                 title: Text('Upload File',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500)),
                 subtitle: Text('Choose from your phone',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
+                        color: AppColors.textSecondary, fontSize: 12)),
                 onTap: () {
                   Navigator.pop(ctx);
                   _uploadFile();
@@ -335,19 +335,19 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: CubieColors.secondary.withOpacity(0.12),
+                    color: AppColors.secondary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.create_new_folder_rounded,
-                      color: CubieColors.secondary),
+                      color: AppColors.secondary),
                 ),
                 title: Text('New Folder',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500)),
                 subtitle: Text('Create a new directory',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
+                        color: AppColors.textSecondary, fontSize: 12)),
                 onTap: () {
                   Navigator.pop(ctx);
                   _createFolder();
@@ -369,7 +369,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+          style: GoogleFonts.dmSans(color: AppColors.textPrimary),
           decoration: const InputDecoration(hintText: 'Folder name'),
         ),
         actions: [
@@ -377,7 +377,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
                 style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -499,7 +499,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
         height: 4,
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: CubieColors.textMuted,
+          color: AppColors.textMuted,
           borderRadius: BorderRadius.circular(2),
         ),
       );
@@ -519,11 +519,11 @@ class _FolderViewState extends ConsumerState<FolderView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.usb_off_rounded,
-                size: 64, color: CubieColors.textMuted),
+                size: 64, color: AppColors.textMuted),
             const SizedBox(height: 16),
             Text('No Storage Connected',
                 style: GoogleFonts.sora(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
@@ -531,7 +531,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               'Connect a USB drive or NVMe to your Cubie to use shared storage.',
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 14),
+                  color: AppColors.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 20),
             OutlinedButton.icon(
@@ -561,7 +561,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                 child: Text(
                   widget.title,
                   style: GoogleFonts.sora(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
@@ -576,7 +576,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back_rounded,
-                          size: 20, color: CubieColors.textSecondary),
+                          size: 20, color: AppColors.textSecondary),
                       onPressed: _navigateBack,
                     ),
                     Expanded(
@@ -586,7 +586,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                             .where((s) => s.isNotEmpty)
                             .last,
                         style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary,
+                          color: AppColors.textSecondary,
                           fontSize: 13,
                         ),
                         maxLines: 1,
@@ -619,7 +619,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             Expanded(
               child: _initialLoading
                   ? const Center(
-                  child: CircularProgressIndicator(color: CubieColors.primary),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 )
                   : _error != null
                       ? _isNoStorageError(_error!)
@@ -629,10 +629,10 @@ class _FolderViewState extends ConsumerState<FolderView> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.error_outline_rounded,
-                          size: 48, color: CubieColors.error),
+                          size: 48, color: AppColors.error),
                       const SizedBox(height: 12),
                       Text(friendlyError(_error!),
-                          style: GoogleFonts.dmSans(color: CubieColors.error)),
+                          style: GoogleFonts.dmSans(color: AppColors.error)),
                       const SizedBox(height: 12),
                       OutlinedButton(
                           onPressed: _refresh, child: const Text('Retry')),
@@ -653,7 +653,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               heroTag: 'folder_fab_${widget.folderPath}',
               onPressed: _showAddMenu,
               child:
-                  const Icon(Icons.add_rounded, color: CubieColors.background),
+                  const Icon(Icons.add_rounded, color: AppColors.background),
             ),
           ),
       ],
@@ -667,16 +667,16 @@ class _FolderViewState extends ConsumerState<FolderView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.folder_open_rounded,
-                size: 64, color: CubieColors.textMuted),
+                size: 64, color: AppColors.textMuted),
             const SizedBox(height: 16),
             Text('This folder is empty',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 15)),
+                    color: AppColors.textSecondary, fontSize: 15)),
             if (!widget.readOnly) ...[
               const SizedBox(height: 8),
               Text('Upload files or create a folder to get started',
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textMuted, fontSize: 13)),
+                      color: AppColors.textMuted, fontSize: 13)),
             ],
           ],
         ),
@@ -687,8 +687,8 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
     return RefreshIndicator(
       onRefresh: _refresh,
-      color: CubieColors.primary,
-      backgroundColor: CubieColors.card,
+      color: AppColors.primary,
+      backgroundColor: AppColors.card,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
         itemCount: sorted.length + 1,
@@ -733,11 +733,11 @@ class _FolderViewState extends ConsumerState<FolderView> {
               padding: const EdgeInsets.only(right: 20),
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: CubieColors.error.withOpacity(0.15),
+                color: AppColors.error.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.delete_outline_rounded,
-                  color: CubieColors.error),
+                  color: AppColors.error),
             ),
             onDismissed: (_) => _softDeleteFile(file, i),
             child: tile,
@@ -767,7 +767,7 @@ class _UploadProgressCard extends StatelessWidget {
     final isFail = task.status == UploadStatus.failed;
     final isUploading = task.status == UploadStatus.uploading;
 
-    return CubieCard(
+    return AppCard(
       padding: const EdgeInsets.all(12),
       glowing: isUploading,
       child: Row(
@@ -776,7 +776,7 @@ class _UploadProgressCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: CubieColors.primary.withOpacity(0.12),
+              color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -786,10 +786,10 @@ class _UploadProgressCard extends StatelessWidget {
                       ? Icons.error_rounded
                       : Icons.upload_rounded,
               color: isDone
-                  ? CubieColors.success
+                  ? AppColors.success
                   : isFail
-                      ? CubieColors.error
-                      : CubieColors.primary,
+                      ? AppColors.error
+                      : AppColors.primary,
               size: 20,
             ),
           ),
@@ -801,7 +801,7 @@ class _UploadProgressCard extends StatelessWidget {
                 Text(
                   task.fileName,
                   style: GoogleFonts.dmSans(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -813,7 +813,7 @@ class _UploadProgressCard extends StatelessWidget {
                   Text(
                     task.error ?? 'Upload failed',
                     style: GoogleFonts.dmSans(
-                      color: CubieColors.error,
+                      color: AppColors.error,
                       fontSize: 11,
                     ),
                     maxLines: 2,
@@ -824,9 +824,9 @@ class _UploadProgressCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: task.progress,
-                      backgroundColor: CubieColors.cardBorder,
+                      backgroundColor: AppColors.cardBorder,
                       valueColor: AlwaysStoppedAnimation(
-                        isDone ? CubieColors.success : CubieColors.primary,
+                        isDone ? AppColors.success : AppColors.primary,
                       ),
                       minHeight: 4,
                     ),
@@ -839,7 +839,7 @@ class _UploadProgressCard extends StatelessWidget {
             Text(
               '${(task.progress * 100).toStringAsFixed(0)}%',
               style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary,
+                color: AppColors.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -849,7 +849,7 @@ class _UploadProgressCard extends StatelessWidget {
               onPressed: onRetry,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                foregroundColor: CubieColors.primary,
+                foregroundColor: AppColors.primary,
               ),
               child: Text('Retry', style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600)),
             ),
@@ -858,7 +858,7 @@ class _UploadProgressCard extends StatelessWidget {
             icon: Icon(
               isUploading ? Icons.close_rounded : Icons.clear_rounded,
               size: 18,
-              color: CubieColors.textMuted,
+              color: AppColors.textMuted,
             ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),

@@ -1,4 +1,5 @@
 /// Data-fetching providers — family users, network status, services, notifications.
+library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';

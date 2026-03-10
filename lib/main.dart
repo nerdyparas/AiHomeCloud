@@ -35,7 +35,7 @@ void main() async {
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: CubieColors.surface,
+    systemNavigationBarColor: AppColors.surface,
     systemNavigationBarIconBrightness: Brightness.light,
   ));
 
@@ -50,19 +50,19 @@ void main() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
       ],
-      child: const CubieCloudApp(),
+      child: const AiHomeCloudApp(),
     ),
   );
 }
 
-class CubieCloudApp extends ConsumerStatefulWidget {
-  const CubieCloudApp({super.key});
+class AiHomeCloudApp extends ConsumerStatefulWidget {
+  const AiHomeCloudApp({super.key});
 
   @override
-  ConsumerState<CubieCloudApp> createState() => _CubieCloudAppState();
+  ConsumerState<AiHomeCloudApp> createState() => _AiHomeCloudAppState();
 }
 
-class _CubieCloudAppState extends ConsumerState<CubieCloudApp> {
+class _AiHomeCloudAppState extends ConsumerState<AiHomeCloudApp> {
   late final ShareHandler _shareHandler;
 
   @override
@@ -88,7 +88,7 @@ class _CubieCloudAppState extends ConsumerState<CubieCloudApp> {
     return MaterialApp.router(
       title: 'AiHomeCloud',
       debugShowCheckedModeBanner: false,
-      theme: CubieTheme.dark,
+      theme: AppTheme.dark,
       routerConfig: router,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

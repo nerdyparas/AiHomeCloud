@@ -22,7 +22,7 @@ class FolderViewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(title,
             style:

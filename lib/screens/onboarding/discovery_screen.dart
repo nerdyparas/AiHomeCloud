@@ -83,7 +83,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
     });
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -101,7 +101,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                 _title(state.status),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                 ),
@@ -115,7 +115,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.timer_outlined,
-                        size: 16, color: CubieColors.textSecondary),
+                        size: 16, color: AppColors.textSecondary),
                     const SizedBox(width: 6),
                     Text(
                       _timeRemaining == Duration.zero
@@ -123,8 +123,8 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                           : 'OTP expires in ${_formatDuration(_timeRemaining)}',
                       style: GoogleFonts.dmSans(
                         color: _timeRemaining == Duration.zero
-                            ? CubieColors.error
-                            : CubieColors.textSecondary,
+                            ? AppColors.error
+                            : AppColors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -140,7 +140,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                   key: ValueKey(state.statusMessage),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary,
+                    color: AppColors.textSecondary,
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -169,7 +169,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                   onPressed: () => context.go('/qr-scan'),
                   child: Text('Scan Again',
                       style:
-                          GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                          GoogleFonts.dmSans(color: AppColors.textSecondary)),
                 ),
               ],
 
@@ -221,7 +221,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
             SelectableText(
               fingerprint.toUpperCase(),
               style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary,
+                color: AppColors.textSecondary,
                 fontSize: 12,
                 letterSpacing: 0.5,
               ),
@@ -284,9 +284,9 @@ class _StatusAnimation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colour = switch (status) {
-      DiscoveryStatus.found => CubieColors.success,
-      DiscoveryStatus.failed => CubieColors.error,
-      _ => CubieColors.primary,
+      DiscoveryStatus.found => AppColors.success,
+      DiscoveryStatus.failed => AppColors.error,
+      _ => AppColors.primary,
     };
 
     final icon = switch (status) {
@@ -312,11 +312,11 @@ class _StatusAnimation extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: colour.withOpacity(0.15),
+              color: colour.withValues(alpha: 0.15),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: colour.withOpacity(0.2),
+                  color: colour.withValues(alpha: 0.2),
                   blurRadius: 24,
                   spreadRadius: 4,
                 ),
@@ -335,7 +335,7 @@ class _StatusAnimation extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: c.withOpacity(0.15), width: 1),
+        border: Border.all(color: c.withValues(alpha: 0.15), width: 1),
       ),
     )
         .animate(onPlay: (ctrl) => ctrl.repeat(), delay: delayMs.ms)

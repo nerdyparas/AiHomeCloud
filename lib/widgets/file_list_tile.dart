@@ -45,7 +45,7 @@ class FileListTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: file.iconColor.withOpacity(0.12),
+                  color: file.iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(file.icon, color: file.iconColor, size: 24),
@@ -59,7 +59,7 @@ class FileListTile extends StatelessWidget {
                     Text(
                       file.name,
                       style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -72,7 +72,7 @@ class FileListTile extends StatelessWidget {
                           ? _relativeTime(file.modified)
                           : '${file.formattedSize}  ·  ${_relativeTime(file.modified)}',
                       style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary,
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -83,7 +83,7 @@ class FileListTile extends StatelessWidget {
                 file.isDirectory
                     ? Icons.chevron_right_rounded
                     : Icons.more_vert_rounded,
-                color: CubieColors.textMuted,
+                color: AppColors.textMuted,
                 size: 20,
               ),
             ],

@@ -19,7 +19,7 @@ class FamilyScreen extends ConsumerWidget {
     final familyAsync = ref.watch(familyUsersProvider);
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -32,18 +32,18 @@ class FamilyScreen extends ConsumerWidget {
                     Expanded(
                       child: Text('Family',
                           style: GoogleFonts.sora(
-                              color: CubieColors.textPrimary,
+                              color: AppColors.textPrimary,
                               fontSize: 22,
                               fontWeight: FontWeight.w700)),
                     ),
                     Container(
                       decoration: BoxDecoration(
-                        color: CubieColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.person_add_rounded,
-                            color: CubieColors.primary, size: 20),
+                            color: AppColors.primary, size: 20),
                         onPressed: () =>
                             _showAddDialog(context, ref),
                       ),
@@ -58,7 +58,7 @@ class FamilyScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Text('Manage family members and their storage',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 14)),
+                        color: AppColors.textSecondary, fontSize: 14)),
               ),
             ),
 
@@ -77,7 +77,7 @@ class FamilyScreen extends ConsumerWidget {
                           onTap: () => context.push('/folder-view', extra: {
                             'title': "${u.name}'s Files",
                             'folderPath':
-                                '${CubieConstants.personalBasePath}${u.name.toLowerCase()}/',
+                                '${AppConstants.personalBasePath}${u.name.toLowerCase()}/',
                             'readOnly': true,
                           }),
                           onRemove: u.isAdmin
@@ -96,12 +96,12 @@ class FamilyScreen extends ConsumerWidget {
               loading: () => const SliverFillRemaining(
                 child: Center(
                     child:
-                        CircularProgressIndicator(color: CubieColors.primary)),
+                        CircularProgressIndicator(color: AppColors.primary)),
               ),
               error: (e, _) => SliverFillRemaining(
                 child: Center(
                     child: Text(friendlyError(e),
-                        style: const TextStyle(color: CubieColors.error))),
+                        style: const TextStyle(color: AppColors.error))),
               ),
             ),
           ],
@@ -121,11 +121,11 @@ class FamilyScreen extends ConsumerWidget {
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+          style: GoogleFonts.dmSans(color: AppColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Name',
             prefixIcon:
-                Icon(Icons.person_rounded, color: CubieColors.textMuted),
+                Icon(Icons.person_rounded, color: AppColors.textMuted),
           ),
         ),
         actions: [
@@ -133,7 +133,7 @@ class FamilyScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
                 style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -163,18 +163,18 @@ class FamilyScreen extends ConsumerWidget {
         content: Text(
           'This will remove their account and all their files. '
           'This action cannot be undone.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
                 style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style:
-                ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
               await ref
                   .read(apiServiceProvider)
@@ -202,7 +202,7 @@ class _MemberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CubieCard(
+    return AppCard(
       onTap: onTap,
       child: Row(
         children: [
@@ -211,7 +211,7 @@ class _MemberCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: user.avatarColor.withOpacity(0.15),
+              color: user.avatarColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
@@ -234,7 +234,7 @@ class _MemberCard extends StatelessWidget {
                   children: [
                     Text(user.name,
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w600)),
                     if (user.isAdmin) ...[
@@ -243,12 +243,12 @@ class _MemberCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: CubieColors.primary.withOpacity(0.15),
+                          color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text('Admin',
                             style: GoogleFonts.dmSans(
-                                color: CubieColors.primary,
+                                color: AppColors.primary,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600)),
                       ),
@@ -259,18 +259,18 @@ class _MemberCard extends StatelessWidget {
                 Text(
                     '${user.folderSizeGB.toStringAsFixed(1)} GB used',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 13)),
+                        color: AppColors.textSecondary, fontSize: 13)),
               ],
             ),
           ),
           if (onRemove != null)
             IconButton(
               icon: const Icon(Icons.remove_circle_outline_rounded,
-                  color: CubieColors.error, size: 20),
+                  color: AppColors.error, size: 20),
               onPressed: onRemove,
             ),
           const Icon(Icons.chevron_right_rounded,
-              color: CubieColors.textMuted, size: 20),
+              color: AppColors.textMuted, size: 20),
         ],
       ),
     );

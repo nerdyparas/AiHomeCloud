@@ -849,7 +849,7 @@ Fix approach: replace module-level `pytest.skip()` with a `pytestmark = pytest.m
 
 ### TASK-P9-02 — Replace Deprecated withOpacity Calls
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 9 — Pre-Release Polish
 **Files:** `lib/**/*.dart`
 **Depends on:** none
@@ -858,9 +858,9 @@ Fix approach: replace module-level `pytest.skip()` with a `pytestmark = pytest.m
 `flutter analyze` reports ~60+ `info` level `deprecated_member_use` warnings for `Color.withOpacity()`. Replace with `Color.withValues(alpha: x)` throughout the codebase.
 
 **Acceptance criteria:**
-- [ ] All `withOpacity(x)` calls replaced with `withValues(alpha: x)` in `lib/`
-- [ ] `flutter analyze` shows 0 `deprecated_member_use` warnings for `withOpacity`
-- [ ] `flutter test` passes
+- [x] All `withOpacity(x)` calls replaced with `withValues(alpha: x)` in `lib/`
+- [x] `flutter analyze` shows 0 `deprecated_member_use` warnings for `withOpacity`
+- [x] `flutter test` passes
 
 **Notes:**
 Mapping: `.withOpacity(0.5)` → `.withValues(alpha: 0.5)`. Bulk search-and-replace safe for most cases. Verify visually in one screen after the change.
@@ -869,7 +869,7 @@ Mapping: `.withOpacity(0.5)` → `.withValues(alpha: 0.5)`. Bulk search-and-repl
 
 ### TASK-P9-03 — Fix Dangling Library Doc Comments
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 9 — Pre-Release Polish
 **Files:** `lib/models/*.dart`, `lib/providers/*.dart`, `lib/providers.dart`
 **Depends on:** none
@@ -878,8 +878,8 @@ Mapping: `.withOpacity(0.5)` → `.withValues(alpha: 0.5)`. Bulk search-and-repl
 `flutter analyze` reports `dangling_library_doc_comments` warnings. Fix the doc comments at the top of model and provider files.
 
 **Acceptance criteria:**
-- [ ] All `dangling_library_doc_comments` warnings resolved
-- [ ] `flutter analyze` shows 0 dangling doc comment warnings
+- [x] All `dangling_library_doc_comments` warnings resolved
+- [x] `flutter analyze` shows 0 dangling doc comment warnings
 
 **Notes:**
 Fix: either prefix with `library;` declaration or convert `///` to `//` for file-level comments.
@@ -888,7 +888,7 @@ Fix: either prefix with `library;` declaration or convert `///` to `//` for file
 
 ### TASK-P9-04 — Rename CubieCloud → AiHomeCloud in Class Names
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 9 — Pre-Release Polish
 **Files:** `lib/main.dart`, `lib/core/constants.dart`, `lib/core/theme.dart`, `lib/widgets/*.dart`
 **Depends on:** none
@@ -897,14 +897,14 @@ Fix: either prefix with `library;` declaration or convert `///` to `//` for file
 Class names and internal identifiers still use `CubieCloud` prefix (e.g., `CubieCloudApp`, `CubieColors`, `CubieTheme`, `CubieCard`, `CubieConstants`). Rename to `AiHomeCloud`-based names for brand consistency.
 
 **Acceptance criteria:**
-- [ ] `CubieCloudApp` → `AiHomeCloudApp`
-- [ ] `CubieColors` → `AppColors` (shorter, more idiomatic)
-- [ ] `CubieTheme` → `AppTheme`
-- [ ] `CubieCard` → `AppCard`
-- [ ] `CubieConstants` → `AppConstants`
-- [ ] All references updated across the codebase
-- [ ] `flutter analyze` passes
-- [ ] `flutter test` passes
+- [x] `CubieCloudApp` → `AiHomeCloudApp`
+- [x] `CubieColors` → `AppColors` (shorter, more idiomatic)
+- [x] `CubieTheme` → `AppTheme`
+- [x] `CubieCard` → `AppCard`
+- [x] `CubieConstants` → `AppConstants`
+- [x] All references updated across the codebase
+- [x] `flutter analyze` passes
+- [x] `flutter test` passes
 
 **Notes:**
 Use IDE rename/refactor to catch all references. BLE device prefix should stay as-is (hardware protocol). This is cosmetic but important for brand consistency at release.
@@ -913,7 +913,7 @@ Use IDE rename/refactor to catch all references. BLE device prefix should stay a
 
 ### TASK-P9-05 — Fix Deprecated Flutter Test APIs
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 9 — Pre-Release Polish
 **Files:** `test/widgets/cubie_card_test.dart`, `test/screens/dashboard_screen_test.dart`
 **Depends on:** none
@@ -922,10 +922,10 @@ Use IDE rename/refactor to catch all references. BLE device prefix should stay a
 Flutter tests use deprecated `window.physicalSizeTestValue`, `window.devicePixelRatioTestValue`, `clearPhysicalSizeTestValue`, `clearDevicePixelRatioTestValue`. Replace with `WidgetTester.view` equivalents.
 
 **Acceptance criteria:**
-- [ ] All deprecated `window.*` calls replaced with `tester.view.*` equivalents
-- [ ] `flutter analyze` shows 0 deprecated test API warnings
-- [ ] `flutter test` passes
-- [ ] Golden tests still produce matching output
+- [x] All deprecated `window.*` calls replaced with `tester.view.*` equivalents
+- [x] `flutter analyze` shows 0 deprecated test API warnings
+- [x] `flutter test` passes
+- [x] Golden tests still produce matching output
 
 **Notes:**
 Migration: `tester.binding.window.physicalSizeTestValue = Size(w, h)` → `tester.view.physicalSize = Size(w, h)`. Similarly for `devicePixelRatio` and cleanup methods.
@@ -1193,7 +1193,7 @@ Verify all security controls work on real hardware (not just unit tests).
 | 10 | Phase 10 | 🔴 CRITICAL | 11 tasks | Hardware validation before user testing |
 
 **Total: 45 tasks across 10 phases.**
-**Completed: 33/45 (Phase 1–6 + P9-01 done). Remaining: 12 tasks (Phase 7–10).**
+**Completed: 37/45 (Phase 1–6 + P9-01–P9-05 done). Remaining: 8 tasks (Phase 7, 8, 10).**
 
 ---
 

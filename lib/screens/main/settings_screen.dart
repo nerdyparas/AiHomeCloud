@@ -22,7 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final fingerprint = ref.watch(certFingerprintProvider);
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -30,7 +30,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 16),
             Text('Settings',
                     style: GoogleFonts.sora(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700))
                 .animate()
@@ -40,7 +40,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 24),
             _sectionLabel('General'),
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
@@ -72,39 +72,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 24),
             _sectionLabel('Security'),
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   ListTile(
                     leading: const Icon(Icons.verified_user_rounded,
-                        color: CubieColors.primary, size: 20),
+                        color: AppColors.primary, size: 20),
                     title: Text('Verify Server Certificate',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary, fontSize: 14)),
+                            color: AppColors.textPrimary, fontSize: 14)),
                     subtitle: Text(
                       fingerprint != null
                           ? fingerprint.toUpperCase()
                           : 'Not pinned yet',
                       style: GoogleFonts.dmSans(
                           color: fingerprint != null
-                              ? CubieColors.textSecondary
-                              : CubieColors.textMuted,
+                              ? AppColors.textSecondary
+                              : AppColors.textMuted,
                           fontSize: 12),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded,
-                        color: CubieColors.textMuted, size: 20),
+                        color: AppColors.textMuted, size: 20),
                     onTap: () => _verifyServerCertificate(fingerprint),
                   ),
                   _divider(),
                   ListTile(
                     leading: const Icon(Icons.lock_rounded,
-                        color: CubieColors.textSecondary, size: 20),
+                        color: AppColors.textSecondary, size: 20),
                     title: Text('Change PIN',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary, fontSize: 14)),
+                            color: AppColors.textPrimary, fontSize: 14)),
                     trailing: const Icon(Icons.chevron_right_rounded,
-                        color: CubieColors.textMuted, size: 20),
+                        color: AppColors.textMuted, size: 20),
                     onTap: _changePin,
                   ),
                 ],
@@ -113,29 +113,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             // ── Account ─────────────────────────────────────────────────────
             const SizedBox(height: 24),
-            CubieCard(
+            AppCard(
               child: ListTile(
                 leading: const Icon(Icons.logout_rounded,
-                    color: CubieColors.error, size: 20),
+                    color: AppColors.error, size: 20),
                 title: Text('Logout',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.error, fontSize: 14)),
+                        color: AppColors.error, fontSize: 14)),
                 onTap: _confirmLogout,
               ),
             ).animate().fadeIn(delay: 150.ms),
 
             // ── Power ───────────────────────────────────────────────────────
             const SizedBox(height: 16),
-            CubieCard(
+            AppCard(
               child: ListTile(
                 leading: const Icon(Icons.power_settings_new_rounded,
-                    color: CubieColors.error, size: 20),
+                    color: AppColors.error, size: 20),
                 title: Text('Turn Off Cubie',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.error, fontSize: 14)),
+                        color: AppColors.error, fontSize: 14)),
                 subtitle: Text('Stop all services and power off',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textMuted, fontSize: 12)),
+                        color: AppColors.textMuted, fontSize: 12)),
                 onTap: _confirmShutdown,
               ),
             ).animate().fadeIn(delay: 200.ms),
@@ -145,7 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Center(
               child: Text('AiHomeCloud v1.0.0',
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textMuted, fontSize: 12)),
+                      color: AppColors.textMuted, fontSize: 12)),
             ),
             const SizedBox(height: 24),
           ],
@@ -158,13 +158,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _sectionLabel(String text) => Text(text,
       style: GoogleFonts.sora(
-          color: CubieColors.textSecondary,
+          color: AppColors.textSecondary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5));
 
   Widget _divider() => const Divider(
-      height: 1, indent: 16, endIndent: 16, color: CubieColors.cardBorder);
+      height: 1, indent: 16, endIndent: 16, color: AppColors.cardBorder);
 
   Widget _categoryTile({
     required IconData icon,
@@ -177,21 +177,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: CubieColors.primary.withOpacity(0.12),
+            color: AppColors.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: CubieColors.primary, size: 18),
+          child: Icon(icon, color: AppColors.primary, size: 18),
         ),
         title: Text(title,
             style: GoogleFonts.dmSans(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500)),
         subtitle: Text(subtitle,
             style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary, fontSize: 12)),
+                color: AppColors.textSecondary, fontSize: 12)),
         trailing: const Icon(Icons.chevron_right_rounded,
-            color: CubieColors.textMuted, size: 20),
+            color: AppColors.textMuted, size: 20),
         onTap: onTap,
       );
 
@@ -230,7 +230,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             SelectableText(
               storedFingerprint?.toUpperCase() ?? 'Not set',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 12),
+                  color: AppColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 8),
             Text('Server fingerprint:',
@@ -238,12 +238,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             SelectableText(
               serverFingerprint?.toUpperCase() ?? 'Unavailable',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 12),
+                  color: AppColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 12),
             Text(message,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 12)),
+                    color: AppColors.textSecondary, fontSize: 12)),
           ],
         ),
         actions: [
@@ -282,11 +282,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               controller: oldCtrl,
               obscureText: true,
               keyboardType: TextInputType.number,
-              style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+              style: GoogleFonts.dmSans(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'Current PIN',
                 prefixIcon:
-                    Icon(Icons.lock_open_rounded, color: CubieColors.textMuted),
+                    Icon(Icons.lock_open_rounded, color: AppColors.textMuted),
               ),
             ),
             const SizedBox(height: 12),
@@ -295,11 +295,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               obscureText: true,
               keyboardType: TextInputType.number,
               maxLength: 6,
-              style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+              style: GoogleFonts.dmSans(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'New PIN',
                 prefixIcon:
-                    Icon(Icons.lock_rounded, color: CubieColors.textMuted),
+                    Icon(Icons.lock_rounded, color: AppColors.textMuted),
               ),
             ),
           ],
@@ -308,7 +308,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -345,16 +345,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'This will stop all active services, cancel file transfers, '
           'and safely power off the device. You will need physical access '
           'to turn it back on.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
               Navigator.pop(ctx);
               _performShutdown();
@@ -395,16 +395,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: Text('Logout?', style: GoogleFonts.sora()),
         content: Text(
           'You will need to pair your device again to use the app.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
               await ref.read(apiServiceProvider).logout();
               final prefs = ref.read(sharedPreferencesProvider);

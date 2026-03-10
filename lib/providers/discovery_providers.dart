@@ -1,4 +1,5 @@
 /// Discovery providers — QR payload, mDNS/BLE device discovery, fingerprint trust.
+library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants.dart';
@@ -74,7 +75,7 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
 
       await _ref.read(authSessionProvider.notifier).login(
             host: result.ip,
-            port: CubieConstants.apiPort,
+            port: AppConstants.apiPort,
             token: token,
             refreshToken: null,
             username: '',
@@ -83,7 +84,7 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
 
       final fingerprint = await _api.fetchServerFingerprint(
         host: result.ip,
-        port: CubieConstants.apiPort,
+        port: AppConstants.apiPort,
       );
       await _handleFingerprint(result, fingerprint);
     } catch (e) {

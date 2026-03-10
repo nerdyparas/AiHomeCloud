@@ -94,7 +94,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
       SnackBar(
         content: Text('Downloading ${widget.file.name}…',
             style: GoogleFonts.dmSans()),
-        backgroundColor: CubieColors.card,
+        backgroundColor: AppColors.card,
         duration: const Duration(seconds: 1),
       ),
     );
@@ -115,7 +115,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
         SnackBar(
           content: Text('Saved: ${widget.file.name}',
               style: GoogleFonts.dmSans()),
-          backgroundColor: CubieColors.card,
+          backgroundColor: AppColors.card,
         ),
       );
     } catch (e) {
@@ -133,7 +133,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           widget.file.name,
@@ -156,7 +156,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
   Widget _buildBody() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: CubieColors.primary),
+        child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
 
@@ -168,15 +168,15 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.error_outline_rounded,
-                  size: 48, color: CubieColors.error),
+                  size: 48, color: AppColors.error),
               const SizedBox(height: 16),
               Text('Failed to load file',
                   style: GoogleFonts.sora(
-                      color: CubieColors.textPrimary, fontSize: 16)),
+                      color: AppColors.textPrimary, fontSize: 16)),
               const SizedBox(height: 8),
               Text(_error!,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 13),
+                      color: AppColors.textSecondary, fontSize: 13),
                   textAlign: TextAlign.center),
             ],
           ),
@@ -206,7 +206,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
                     ? progress.cumulativeBytesLoaded /
                         progress.expectedTotalBytes!
                     : null,
-                color: CubieColors.primary,
+                color: AppColors.primary,
               ),
             );
           },
@@ -224,7 +224,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
       child: SelectableText(
         _textContent!,
         style: GoogleFonts.firaCode(
-          color: CubieColors.textPrimary,
+          color: AppColors.textPrimary,
           fontSize: 13,
           height: 1.6,
         ),
@@ -253,22 +253,22 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: CubieColors.textMuted),
+            Icon(icon, size: 64, color: AppColors.textMuted),
             const SizedBox(height: 20),
             Text(widget.file.name,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(widget.file.formattedSize,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 14)),
+                    color: AppColors.textSecondary, fontSize: 14)),
             const SizedBox(height: 16),
             Text(message,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textMuted, fontSize: 13, height: 1.5),
+                    color: AppColors.textMuted, fontSize: 13, height: 1.5),
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -288,11 +288,11 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.broken_image_rounded,
-                size: 48, color: CubieColors.textMuted),
+                size: 48, color: AppColors.textMuted),
             const SizedBox(height: 12),
             Text(msg,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 13)),
+                    color: AppColors.textSecondary, fontSize: 13)),
           ],
         ),
       );

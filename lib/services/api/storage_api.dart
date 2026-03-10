@@ -7,7 +7,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/stats'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/storage/stats'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -25,7 +25,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/devices'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/storage/devices'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -40,7 +40,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/scan'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/storage/scan'),
             headers: _headers,
           )
           .timeout(const Duration(seconds: 15)),
@@ -56,7 +56,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/format'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/storage/format'),
             headers: _headers,
             body: jsonEncode({
               'device': device,
@@ -75,7 +75,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/jobs/$jobId'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/jobs/$jobId'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -89,7 +89,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/mount'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/storage/mount'),
             headers: _headers,
             body: jsonEncode({'device': device}),
           )
@@ -105,7 +105,7 @@ extension StorageApi on ApiService {
       () => _client
           .post(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/storage/unmount?force=$force'),
+                '$_baseUrl${AppConstants.apiVersion}/storage/unmount?force=$force'),
             headers: _headers,
           )
           .timeout(const Duration(seconds: 30)),
@@ -119,7 +119,7 @@ extension StorageApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/storage/eject'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/storage/eject'),
             headers: _headers,
             body: jsonEncode({'device': device}),
           )
@@ -135,7 +135,7 @@ extension StorageApi on ApiService {
       () => _client
           .get(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/storage/check-usage'),
+                '$_baseUrl${AppConstants.apiVersion}/storage/check-usage'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),

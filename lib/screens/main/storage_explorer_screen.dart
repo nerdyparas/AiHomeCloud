@@ -79,7 +79,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('Storage Devices',
             style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),
@@ -94,8 +94,8 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: CubieColors.primary))
-                : const Icon(Icons.refresh_rounded, color: CubieColors.primary),
+                        strokeWidth: 2, color: AppColors.primary))
+                : const Icon(Icons.refresh_rounded, color: AppColors.primary),
             tooltip: 'Scan for devices',
             onPressed: _scanning ? null : _scan,
           ),
@@ -112,11 +112,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.error_outline_rounded,
-                color: CubieColors.error, size: 48),
+                color: AppColors.error, size: 48),
             const SizedBox(height: 12),
             Text('Failed to load devices',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 14)),
+                    color: AppColors.textSecondary, fontSize: 14)),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _scan,
@@ -130,7 +130,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
 
     if (_devices == null) {
       return const Center(
-          child: CircularProgressIndicator(color: CubieColors.primary));
+          child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     // Separate: external devices vs OS disks
@@ -140,7 +140,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         _devices!.where((d) => d.isOsDisk).toList();
 
     return RefreshIndicator(
-      color: CubieColors.primary,
+      color: AppColors.primary,
       onRefresh: _scan,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -194,22 +194,22 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: CubieColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.usb_rounded,
-                color: CubieColors.primary, size: 48),
+                color: AppColors.primary, size: 48),
           ),
           const SizedBox(height: 20),
           Text('No external storage detected',
               style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text('Connect a USB drive or NVMe SSD',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 14)),
+                  color: AppColors.textSecondary, fontSize: 14)),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: _scanning ? null : _scan,
@@ -223,7 +223,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
 
   Widget _sectionLabel(String text) => Text(text,
       style: GoogleFonts.sora(
-          color: CubieColors.textSecondary,
+          color: AppColors.textSecondary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5));
@@ -273,7 +273,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   Future<void> _safeRemove(StorageDevice dev) async {
     final confirm = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: CubieColors.surface,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -304,11 +304,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         builder: (ctx, setDialogState) {
           final matches = confirmCtrl.text == dev.path;
           return AlertDialog(
-            backgroundColor: CubieColors.surface,
+            backgroundColor: AppColors.surface,
             title: Row(
               children: [
                 const Icon(Icons.warning_rounded,
-                    color: CubieColors.error, size: 24),
+                    color: AppColors.error, size: 24),
                 const SizedBox(width: 8),
                 Text('Format Device', style: GoogleFonts.sora(fontSize: 18)),
               ],
@@ -321,12 +321,12 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                   'This will ERASE ALL DATA on ${dev.label ?? dev.name} '
                   '(${dev.sizeDisplay}).\nThis cannot be undone.',
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 13, height: 1.5),
+                      color: AppColors.textSecondary, fontSize: 13, height: 1.5),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: labelCtrl,
-                  style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+                  style: GoogleFonts.dmSans(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Volume label',
                     hintText: 'CubieNAS',
@@ -335,15 +335,15 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                 const SizedBox(height: 12),
                 Text('Type "${dev.path}" to confirm:',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.error, fontSize: 12)),
+                        color: AppColors.error, fontSize: 12)),
                 const SizedBox(height: 4),
                 TextField(
                   controller: confirmCtrl,
-                  style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+                  style: GoogleFonts.dmSans(color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: dev.path,
                     hintStyle: GoogleFonts.dmSans(
-                        color: CubieColors.textMuted, fontSize: 13),
+                        color: AppColors.textMuted, fontSize: 13),
                   ),
                   onChanged: (_) => setDialogState(() {}),
                 ),
@@ -353,11 +353,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: Text('Cancel',
-                    style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: matches ? CubieColors.error : CubieColors.textMuted),
+                    backgroundColor: matches ? AppColors.error : AppColors.textMuted),
                 onPressed: matches
                     ? () {
                         Navigator.pop(ctx, true);
@@ -459,14 +459,14 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     final mm = elapsed.inMinutes.toString().padLeft(2, '0');
     final ss = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
 
-    return CubieCard(
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Formatting in progress',
             style: GoogleFonts.sora(
-              color: CubieColors.textPrimary,
+              color: AppColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -475,7 +475,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           Text(
             'Status: ${_formatStatus.isEmpty ? 'running' : _formatStatus} • Elapsed: $mm:$ss',
             style: GoogleFonts.dmSans(
-              color: CubieColors.textSecondary,
+              color: AppColors.textSecondary,
               fontSize: 12,
             ),
           ),
@@ -490,11 +490,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: CubieColors.surface,
+        backgroundColor: AppColors.surface,
         title: Row(
           children: [
             const Icon(Icons.warning_amber_rounded,
-                color: CubieColors.primary, size: 24),
+                color: AppColors.primary, size: 24),
             const SizedBox(width: 8),
             Text('Files In Use', style: GoogleFonts.sora(fontSize: 16)),
           ],
@@ -506,7 +506,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             Text(
               '${blockers.length} process(es) have open files on the NAS:',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 13),
+                  color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
             Container(
@@ -521,13 +521,13 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                     child: Row(
                       children: [
                         const Icon(Icons.apps_rounded,
-                            color: CubieColors.textMuted, size: 16),
+                            color: AppColors.textMuted, size: 16),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             '${b['command']} (PID ${b['pid']})',
                             style: GoogleFonts.dmSans(
-                                color: CubieColors.textPrimary, fontSize: 13),
+                                color: AppColors.textPrimary, fontSize: 13),
                           ),
                         ),
                       ],
@@ -542,11 +542,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: CubieColors.error),
+                backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Force Remove',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -560,7 +560,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? CubieColors.error : null,
+      backgroundColor: isError ? AppColors.error : null,
     ));
   }
 }
@@ -590,7 +590,7 @@ class _DeviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CubieCard(
+    return AppCard(
       glowing: device.isNasActive,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,7 +601,7 @@ class _DeviceCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _accentColor.withOpacity(0.12),
+                  color: _accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(device.icon, color: _accentColor, size: 22),
@@ -614,7 +614,7 @@ class _DeviceCard extends StatelessWidget {
                     Text(
                       device.label ?? device.model ?? device.name,
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 15,
                           fontWeight: FontWeight.w600),
                       maxLines: 1,
@@ -624,7 +624,7 @@ class _DeviceCard extends StatelessWidget {
                     Text(
                       '${device.typeLabel}  •  ${device.sizeDisplay}',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12),
+                          color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -649,7 +649,7 @@ class _DeviceCard extends StatelessWidget {
           // ── Action buttons (external only) ─────────────────────────────
           if (!isSystem) ...[
             const SizedBox(height: 12),
-            const Divider(height: 1, color: CubieColors.cardBorder),
+            const Divider(height: 1, color: AppColors.cardBorder),
             const SizedBox(height: 12),
             if (busy)
               const Center(
@@ -657,7 +657,7 @@ class _DeviceCard extends StatelessWidget {
                   height: 24,
                   width: 24,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: CubieColors.primary),
+                      strokeWidth: 2, color: AppColors.primary),
                 ),
               )
             else
@@ -673,11 +673,11 @@ class _DeviceCard extends StatelessWidget {
     if (device.isNasActive) {
       return Row(
         children: [
-          _actionBtn(Icons.eject_rounded, 'Safely Remove', CubieColors.primary,
+          _actionBtn(Icons.eject_rounded, 'Safely Remove', AppColors.primary,
               onUnmount),
           const SizedBox(width: 8),
           if (device.transport == 'usb')
-            _actionBtn(Icons.usb_off_rounded, 'Safe Remove', CubieColors.error,
+            _actionBtn(Icons.usb_off_rounded, 'Safe Remove', AppColors.error,
                 onEject),
         ],
       );
@@ -688,14 +688,14 @@ class _DeviceCard extends StatelessWidget {
       return Row(
         children: [
           _actionBtn(
-              Icons.play_arrow_rounded, 'Activate', CubieColors.success, onMount),
+              Icons.play_arrow_rounded, 'Activate', AppColors.success, onMount),
           const SizedBox(width: 8),
-          _actionBtn(Icons.format_paint_rounded, 'Format', CubieColors.error,
+          _actionBtn(Icons.format_paint_rounded, 'Format', AppColors.error,
               onFormat),
           if (device.transport == 'usb') ...[
             const SizedBox(width: 8),
             _actionBtn(
-                Icons.eject_rounded, 'Eject', CubieColors.textSecondary, onEject),
+                Icons.eject_rounded, 'Eject', AppColors.textSecondary, onEject),
           ],
         ],
       );
@@ -705,11 +705,11 @@ class _DeviceCard extends StatelessWidget {
     return Row(
       children: [
         _actionBtn(
-            Icons.format_paint_rounded, 'Format', CubieColors.primary, onFormat),
+            Icons.format_paint_rounded, 'Format', AppColors.primary, onFormat),
         if (device.transport == 'usb') ...[
           const SizedBox(width: 8),
           _actionBtn(
-              Icons.eject_rounded, 'Eject', CubieColors.textSecondary, onEject),
+              Icons.eject_rounded, 'Eject', AppColors.textSecondary, onEject),
         ],
       ],
     );
@@ -721,7 +721,7 @@ class _DeviceCard extends StatelessWidget {
       child: OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           foregroundColor: color,
-          side: BorderSide(color: color.withOpacity(0.3)),
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
           padding: const EdgeInsets.symmetric(vertical: 8),
         ),
         onPressed: onTap,
@@ -738,25 +738,25 @@ class _DeviceCard extends StatelessWidget {
 
     if (device.isNasActive) {
       text = 'Active';
-      color = CubieColors.success;
+      color = AppColors.success;
     } else if (device.mounted) {
       text = 'Activated';
-      color = CubieColors.secondary;
+      color = AppColors.secondary;
     } else if (device.isOsDisk) {
       text = 'System';
-      color = CubieColors.textSecondary;
+      color = AppColors.textSecondary;
     } else if (device.fstype == null) {
       text = 'Unformatted';
-      color = CubieColors.primary;
+      color = AppColors.primary;
     } else {
       text = 'Ready';
-      color = CubieColors.textSecondary;
+      color = AppColors.textSecondary;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(text,
@@ -769,27 +769,27 @@ class _DeviceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: CubieColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: CubieColors.textMuted, size: 12),
+          Icon(icon, color: AppColors.textMuted, size: 12),
           const SizedBox(width: 4),
           Text(text,
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 11)),
+                  color: AppColors.textSecondary, fontSize: 11)),
         ],
       ),
     );
   }
 
   Color get _accentColor => switch (device.transport) {
-        'usb' => CubieColors.primary,
-        'nvme' => CubieColors.secondary,
-        'sd' => CubieColors.textSecondary,
-        _ => CubieColors.textSecondary,
+        'usb' => AppColors.primary,
+        'nvme' => AppColors.secondary,
+        'sd' => AppColors.textSecondary,
+        _ => AppColors.textSecondary,
       };
 }
 
@@ -813,7 +813,7 @@ class _SafeRemoveSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: CubieColors.textMuted,
+              color: AppColors.textMuted,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -823,17 +823,17 @@ class _SafeRemoveSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: CubieColors.error.withOpacity(0.12),
+              color: AppColors.error.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.eject_rounded,
-                color: CubieColors.error, size: 32),
+                color: AppColors.error, size: 32),
           ),
           const SizedBox(height: 16),
 
           Text('Safe Remove',
               style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
@@ -844,7 +844,7 @@ class _SafeRemoveSheet extends StatelessWidget {
             'Make sure all transfers are complete.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary, fontSize: 14, height: 1.5),
+                color: AppColors.textSecondary, fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 24),
 
@@ -861,7 +861,7 @@ class _SafeRemoveSheet extends StatelessWidget {
                   onPressed: () => Navigator.pop(context, false),
                   child: Text('Cancel',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary,
+                          color: AppColors.textSecondary,
                           fontWeight: FontWeight.w600)),
                 ),
               ),
@@ -869,7 +869,7 @@ class _SafeRemoveSheet extends StatelessWidget {
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: CubieColors.error),
+                      backgroundColor: AppColors.error),
                   onPressed: () => Navigator.pop(context, true),
                   child: Text('Eject Now',
                       style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -887,11 +887,11 @@ class _SafeRemoveSheet extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, color: CubieColors.textMuted, size: 18),
+          Icon(icon, color: AppColors.textMuted, size: 18),
           const SizedBox(width: 10),
           Text(text,
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 13)),
+                  color: AppColors.textSecondary, fontSize: 13)),
         ],
       ),
     );

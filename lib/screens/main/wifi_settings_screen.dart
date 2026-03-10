@@ -99,7 +99,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: CubieColors.surface,
+          backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
           title: Row(
@@ -108,14 +108,14 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                 network.signal > 0
                     ? _signalIcon(network.signal)
                     : Icons.wifi_rounded,
-                color: CubieColors.primary,
+                color: AppColors.primary,
                 size: 20,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(network.ssid,
                     style: GoogleFonts.sora(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis),
@@ -131,30 +131,30 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text('Enter new password',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12)),
+                          color: AppColors.textSecondary, fontSize: 12)),
                 )
               else
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(network.security,
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12)),
+                          color: AppColors.textSecondary, fontSize: 12)),
                 ),
               TextField(
                 controller: ctrl,
                 autofocus: true,
                 obscureText: obscure,
-                style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+                style: GoogleFonts.dmSans(color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Password',
                   prefixIcon: const Icon(Icons.lock_rounded,
-                      color: CubieColors.textMuted, size: 20),
+                      color: AppColors.textMuted, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
                       obscure
                           ? Icons.visibility_off_rounded
                           : Icons.visibility_rounded,
-                      color: CubieColors.textMuted,
+                      color: AppColors.textMuted,
                       size: 20,
                     ),
                     onPressed: () =>
@@ -175,7 +175,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: Text('Cancel',
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary)),
+                      color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -218,7 +218,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   Future<void> _showConnectedSheet(WifiNetwork network) async {
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: CubieColors.surface,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -232,12 +232,12 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               Row(
                 children: [
                   const Icon(Icons.wifi_rounded,
-                      color: CubieColors.primary, size: 24),
+                      color: AppColors.primary, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(network.ssid,
                         style: GoogleFonts.sora(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w600)),
                   ),
@@ -245,12 +245,12 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: CubieColors.success.withOpacity(0.15),
+                      color: AppColors.success.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text('Connected',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.success,
+                            color: AppColors.success,
                             fontSize: 11,
                             fontWeight: FontWeight.w600)),
                   ),
@@ -265,21 +265,21 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               _sheetAction(
                 icon: Icons.edit_rounded,
                 label: 'Edit password',
-                color: CubieColors.primary,
+                color: AppColors.primary,
                 onTap: () => Navigator.pop(ctx, 'edit'),
               ),
               const SizedBox(height: 8),
               _sheetAction(
                 icon: Icons.link_off_rounded,
                 label: 'Disconnect',
-                color: CubieColors.textSecondary,
+                color: AppColors.textSecondary,
                 onTap: () => Navigator.pop(ctx, 'disconnect'),
               ),
               const SizedBox(height: 8),
               _sheetAction(
                 icon: Icons.delete_outline_rounded,
                 label: 'Forget network',
-                color: CubieColors.error,
+                color: AppColors.error,
                 onTap: () => Navigator.pop(ctx, 'forget'),
               ),
             ],
@@ -303,7 +303,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   Future<void> _showSavedSheet(WifiNetwork network) async {
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: CubieColors.surface,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -320,14 +320,14 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     network.signal > 0
                         ? _signalIcon(network.signal)
                         : Icons.wifi_rounded,
-                    color: CubieColors.textSecondary,
+                    color: AppColors.textSecondary,
                     size: 24,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(network.ssid,
                         style: GoogleFonts.sora(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w600)),
                   ),
@@ -335,12 +335,12 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: CubieColors.primary.withOpacity(0.12),
+                      color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text('Saved',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.primary,
+                            color: AppColors.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600)),
                   ),
@@ -358,7 +358,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                 _sheetAction(
                   icon: Icons.wifi_rounded,
                   label: 'Connect',
-                  color: CubieColors.success,
+                  color: AppColors.success,
                   onTap: () => Navigator.pop(ctx, 'connect'),
                 ),
                 const SizedBox(height: 8),
@@ -366,14 +366,14 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
               _sheetAction(
                 icon: Icons.edit_rounded,
                 label: 'Edit password',
-                color: CubieColors.primary,
+                color: AppColors.primary,
                 onTap: () => Navigator.pop(ctx, 'edit'),
               ),
               const SizedBox(height: 8),
               _sheetAction(
                 icon: Icons.delete_outline_rounded,
                 label: 'Forget network',
-                color: CubieColors.error,
+                color: AppColors.error,
                 onTap: () => Navigator.pop(ctx, 'forget'),
               ),
             ],
@@ -409,7 +409,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -435,10 +435,10 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
           children: [
             Text(label,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 13)),
+                    color: AppColors.textSecondary, fontSize: 13)),
             Text(value,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500)),
           ],
@@ -464,27 +464,27 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: CubieColors.surface,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16)),
         title: Text('Forget $ssid?',
             style: GoogleFonts.sora(
-                color: CubieColors.textPrimary, fontSize: 16)),
+                color: AppColors.textPrimary, fontSize: 16)),
         content: Text(
             'This will remove the saved password. '
             'You\'ll need to enter it again to reconnect.',
             style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary, fontSize: 13)),
+                color: AppColors.textSecondary, fontSize: 13)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
                 style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: CubieColors.error),
+                backgroundColor: AppColors.error),
             onPressed: () {
               Navigator.pop(ctx);
               _forget(ssid);
@@ -521,9 +521,9 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   }
 
   static Color _signalColor(int signal) {
-    if (signal >= 60) return CubieColors.success;
-    if (signal >= 35) return CubieColors.primary;
-    return CubieColors.error;
+    if (signal >= 60) return AppColors.success;
+    if (signal >= 35) return AppColors.primary;
+    return AppColors.error;
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -531,18 +531,18 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: CubieColors.background,
+        backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded,
-              color: CubieColors.textPrimary),
+              color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Wi-Fi',
             style: GoogleFonts.sora(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600)),
         actions: [
@@ -553,13 +553,13 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: CubieColors.primary),
+                    strokeWidth: 2, color: AppColors.primary),
               ),
             )
           else
             IconButton(
               icon: const Icon(Icons.refresh_rounded,
-                  color: CubieColors.textSecondary),
+                  color: AppColors.textSecondary),
               onPressed: _loadAll,
               tooltip: 'Rescan',
             ),
@@ -578,12 +578,12 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.wifi_off_rounded,
-                  color: CubieColors.textMuted, size: 48),
+                  color: AppColors.textMuted, size: 48),
               const SizedBox(height: 16),
               Text(_error!,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary, fontSize: 14)),
+                      color: AppColors.textSecondary, fontSize: 14)),
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _loadAll,
@@ -599,7 +599,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
 
     if (_networks == null) {
       return const Center(
-        child: CircularProgressIndicator(color: CubieColors.primary),
+        child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
 
@@ -609,11 +609,11 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.wifi_find_rounded,
-                color: CubieColors.textMuted, size: 48),
+                color: AppColors.textMuted, size: 48),
             const SizedBox(height: 16),
             Text('No networks found',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 14)),
+                    color: AppColors.textSecondary, fontSize: 14)),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _loadAll,
@@ -642,7 +642,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadAll,
-      color: CubieColors.primary,
+      color: AppColors.primary,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
@@ -676,7 +676,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
         padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
         child: Text(text,
             style: GoogleFonts.sora(
-                color: CubieColors.textSecondary,
+                color: AppColors.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5)),
@@ -697,13 +697,13 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: network.inUse
-                  ? CubieColors.primary.withOpacity(0.08)
-                  : CubieColors.card,
+                  ? AppColors.primary.withValues(alpha: 0.08)
+                  : AppColors.card,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: network.inUse
-                    ? CubieColors.primary.withOpacity(0.3)
-                    : CubieColors.cardBorder,
+                    ? AppColors.primary.withValues(alpha: 0.3)
+                    : AppColors.cardBorder,
               ),
             ),
             child: Row(
@@ -714,10 +714,10 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                       ? _signalIcon(network.signal)
                       : Icons.wifi_rounded,
                   color: network.inUse
-                      ? CubieColors.primary
+                      ? AppColors.primary
                       : network.signal > 0
                           ? _signalColor(network.signal)
-                          : CubieColors.textMuted,
+                          : AppColors.textMuted,
                   size: 22,
                 ),
                 const SizedBox(width: 14),
@@ -728,7 +728,7 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     children: [
                       Text(network.ssid,
                           style: GoogleFonts.dmSans(
-                              color: CubieColors.textPrimary,
+                              color: AppColors.textPrimary,
                               fontSize: 14,
                               fontWeight: network.inUse
                                   ? FontWeight.w600
@@ -745,8 +745,8 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                                 : network.security,
                         style: GoogleFonts.dmSans(
                             color: network.inUse
-                                ? CubieColors.success
-                                : CubieColors.textSecondary,
+                                ? AppColors.success
+                                : AppColors.textSecondary,
                             fontSize: 12),
                       ),
                     ],
@@ -758,17 +758,17 @@ class _WifiSettingsScreenState extends ConsumerState<WifiSettingsScreen> {
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: CubieColors.primary),
+                        strokeWidth: 2, color: AppColors.primary),
                   )
                 else if (network.inUse)
                   const Icon(Icons.settings_rounded,
-                      color: CubieColors.textMuted, size: 20)
+                      color: AppColors.textMuted, size: 20)
                 else if (network.saved)
                   const Icon(Icons.settings_rounded,
-                      color: CubieColors.textMuted, size: 18)
+                      color: AppColors.textMuted, size: 18)
                 else if (!network.isOpen)
                   const Icon(Icons.lock_rounded,
-                      color: CubieColors.textMuted, size: 18),
+                      color: AppColors.textMuted, size: 18),
               ],
             ),
           ),

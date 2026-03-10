@@ -1,6 +1,7 @@
 /// NAS service and network models — ServiceInfo, NetworkStatus.
 ///
 /// Used by the Services tab and network configuration screens.
+library;
 import 'package:flutter/material.dart';
 
 class ServiceInfo {

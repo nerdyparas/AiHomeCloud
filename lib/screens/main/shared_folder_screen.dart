@@ -14,7 +14,7 @@ class SharedFolderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,7 +24,7 @@ class SharedFolderScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Text('Shared',
                   style: GoogleFonts.sora(
-                      color: CubieColors.textPrimary,
+                      color: AppColors.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w700)),
             ).animate().fadeIn(duration: 400.ms),
@@ -32,7 +32,7 @@ class SharedFolderScreen extends StatelessWidget {
             // ── DLNA / Samba info card ──────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: CubieCard(
+              child: AppCard(
                 padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [
@@ -40,11 +40,11 @@ class SharedFolderScreen extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: CubieColors.secondary.withOpacity(0.12),
+                        color: AppColors.secondary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.devices_rounded,
-                          color: CubieColors.secondary, size: 20),
+                          color: AppColors.secondary, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -53,14 +53,14 @@ class SharedFolderScreen extends StatelessWidget {
                         children: [
                           Text('Network Access',
                               style: GoogleFonts.dmSans(
-                                  color: CubieColors.textPrimary,
+                                  color: AppColors.textPrimary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
                             'TV & Computer Sharing  •  Smart TV Streaming',
                             style: GoogleFonts.dmSans(
-                                color: CubieColors.textSecondary,
+                                color: AppColors.textSecondary,
                                 fontSize: 11),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -69,7 +69,7 @@ class SharedFolderScreen extends StatelessWidget {
                       ),
                     ),
                     const Icon(Icons.info_outline_rounded,
-                        color: CubieColors.textMuted, size: 18),
+                        color: AppColors.textMuted, size: 18),
                   ],
                 ),
               ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05, end: 0),
@@ -79,7 +79,7 @@ class SharedFolderScreen extends StatelessWidget {
             const Expanded(
               child: FolderView(
                 title: '',
-                folderPath: CubieConstants.sharedPath,
+                folderPath: AppConstants.sharedPath,
                 readOnly: false,
                 showHeader: false,
               ),

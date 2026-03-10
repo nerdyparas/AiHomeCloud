@@ -1,4 +1,5 @@
 /// File browser providers — file listing with pagination/sort and upload task tracking.
+library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';

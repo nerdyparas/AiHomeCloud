@@ -18,17 +18,17 @@ class ServicesSettingsScreen extends ConsumerWidget {
     final servicesAsync = ref.watch(servicesProvider);
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: CubieColors.background,
+        backgroundColor: AppColors.background,
         title: Text('Sharing & Streaming',
             style: GoogleFonts.sora(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded,
-              color: CubieColors.textPrimary),
+              color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
       ),
@@ -37,7 +37,7 @@ class ServicesSettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
@@ -56,7 +56,7 @@ class ServicesSettingsScreen extends ConsumerWidget {
                           height: 1,
                           indent: 16,
                           endIndent: 16,
-                          color: CubieColors.cardBorder),
+                          color: AppColors.cardBorder),
                   ],
                 ],
               ),
@@ -65,12 +65,12 @@ class ServicesSettingsScreen extends ConsumerWidget {
           ],
         ),
         loading: () => const Center(
-            child: CircularProgressIndicator(color: CubieColors.primary)),
+            child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(
             child: Padding(
           padding: const EdgeInsets.all(20),
           child: Text(friendlyError(e),
-              style: const TextStyle(color: CubieColors.error)),
+              style: const TextStyle(color: AppColors.error)),
         )),
       ),
     );
@@ -107,12 +107,12 @@ class _ServiceToggleState extends State<_ServiceToggle> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: (_on ? CubieColors.primary : CubieColors.textMuted)
-                  .withOpacity(0.12),
+              color: (_on ? AppColors.primary : AppColors.textMuted)
+                  .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(widget.service.icon,
-                color: _on ? CubieColors.primary : CubieColors.textMuted,
+                color: _on ? AppColors.primary : AppColors.textMuted,
                 size: 18),
           ),
           const SizedBox(width: 12),
@@ -122,12 +122,12 @@ class _ServiceToggleState extends State<_ServiceToggle> {
               children: [
                 Text(_friendlyServiceName(widget.service.id),
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500)),
                 Text(widget.service.description,
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
+                        color: AppColors.textSecondary, fontSize: 12)),
               ],
             ),
           ),

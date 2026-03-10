@@ -2,6 +2,7 @@
 ///
 /// Import this single file to access every provider in the app:
 ///   import 'package:cubie_cloud/providers.dart';
+library;
 export 'providers/core_providers.dart';
 export 'providers/device_providers.dart';
 export 'providers/file_providers.dart';

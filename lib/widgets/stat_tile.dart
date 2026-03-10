@@ -22,14 +22,14 @@ class StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colour = accentColor ?? CubieColors.primary;
+    final colour = accentColor ?? AppColors.primary;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: CubieColors.card,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CubieColors.cardBorder, width: 1),
+        border: Border.all(color: AppColors.cardBorder, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,7 +39,7 @@ class StatTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colour.withOpacity(0.12),
+              color: colour.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: colour, size: 20),
@@ -49,7 +49,7 @@ class StatTile extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.dmSans(
-              color: CubieColors.textSecondary,
+              color: AppColors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -63,7 +63,7 @@ class StatTile extends StatelessWidget {
               Text(
                 value,
                 style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                 ),
@@ -73,7 +73,7 @@ class StatTile extends StatelessWidget {
                 Text(
                   unit!,
                   style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary,
+                    color: AppColors.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),

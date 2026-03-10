@@ -70,49 +70,49 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
 
     state = next;
 
-    await _prefs.setString(CubieConstants.prefDeviceIp, host);
-    await _prefs.setInt(CubieConstants.prefDevicePort, port);
-    await _prefs.setString(CubieConstants.prefAuthToken, token);
+    await _prefs.setString(AppConstants.prefDeviceIp, host);
+    await _prefs.setInt(AppConstants.prefDevicePort, port);
+    await _prefs.setString(AppConstants.prefAuthToken, token);
     if (refreshToken != null && refreshToken.isNotEmpty) {
-      await _prefs.setString(CubieConstants.prefRefreshToken, refreshToken);
+      await _prefs.setString(AppConstants.prefRefreshToken, refreshToken);
     } else {
-      await _prefs.remove(CubieConstants.prefRefreshToken);
+      await _prefs.remove(AppConstants.prefRefreshToken);
     }
-    await _prefs.setString(CubieConstants.prefUserName, username);
-    await _prefs.setBool(CubieConstants.prefIsAdmin, isAdmin);
-    await _prefs.setBool(CubieConstants.prefIsSetupDone, true);
+    await _prefs.setString(AppConstants.prefUserName, username);
+    await _prefs.setBool(AppConstants.prefIsAdmin, isAdmin);
+    await _prefs.setBool(AppConstants.prefIsSetupDone, true);
   }
 
   Future<void> logout() async {
     state = null;
-    await _prefs.remove(CubieConstants.prefAuthToken);
-    await _prefs.remove(CubieConstants.prefRefreshToken);
-    await _prefs.remove(CubieConstants.prefUserName);
-    await _prefs.remove(CubieConstants.prefIsAdmin);
-    await _prefs.remove(CubieConstants.prefDeviceIp);
-    await _prefs.remove(CubieConstants.prefDevicePort);
-    await _prefs.setBool(CubieConstants.prefIsSetupDone, false);
+    await _prefs.remove(AppConstants.prefAuthToken);
+    await _prefs.remove(AppConstants.prefRefreshToken);
+    await _prefs.remove(AppConstants.prefUserName);
+    await _prefs.remove(AppConstants.prefIsAdmin);
+    await _prefs.remove(AppConstants.prefDeviceIp);
+    await _prefs.remove(AppConstants.prefDevicePort);
+    await _prefs.setBool(AppConstants.prefIsSetupDone, false);
   }
 
   Future<void> updateToken(String token) async {
     if (state == null) return;
     state = state!.copyWith(token: token);
-    await _prefs.setString(CubieConstants.prefAuthToken, token);
+    await _prefs.setString(AppConstants.prefAuthToken, token);
   }
 
   Future<void> restoreFromPrefs() async {
-    final host = _prefs.getString(CubieConstants.prefDeviceIp);
-    final token = _prefs.getString(CubieConstants.prefAuthToken);
+    final host = _prefs.getString(AppConstants.prefDeviceIp);
+    final token = _prefs.getString(AppConstants.prefAuthToken);
 
     if (host == null || token == null || host.isEmpty || token.isEmpty) {
       state = null;
       return;
     }
 
-    final port = _prefs.getInt(CubieConstants.prefDevicePort) ?? CubieConstants.apiPort;
-    final refreshToken = _prefs.getString(CubieConstants.prefRefreshToken);
-    final username = _prefs.getString(CubieConstants.prefUserName) ?? '';
-    final isAdmin = _prefs.getBool(CubieConstants.prefIsAdmin) ?? false;
+    final port = _prefs.getInt(AppConstants.prefDevicePort) ?? AppConstants.apiPort;
+    final refreshToken = _prefs.getString(AppConstants.prefRefreshToken);
+    final username = _prefs.getString(AppConstants.prefUserName) ?? '';
+    final isAdmin = _prefs.getBool(AppConstants.prefIsAdmin) ?? false;
 
     state = AuthSession(
       host: host,

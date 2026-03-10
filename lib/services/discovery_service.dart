@@ -66,9 +66,9 @@ class DiscoveryService {
       // Look for CubieCloud service type: _cubie-nas._tcp
       await for (final PtrResourceRecord ptr in client
           .lookup<PtrResourceRecord>(
-            ResourceRecordQuery.serverPointer(CubieConstants.mdnsType),
+            ResourceRecordQuery.serverPointer(AppConstants.mdnsType),
           )
-          .timeout(CubieConstants.mdnsTimeout, onTimeout: (sink) {
+          .timeout(AppConstants.mdnsTimeout, onTimeout: (sink) {
         sink.close();
       })) {
         // Optionally match by serial in the service name
@@ -135,7 +135,7 @@ class DiscoveryService {
     try {
       // Start scanning for devices with our service UUID
       await FlutterBluePlus.startScan(
-        withServices: [Guid(CubieConstants.bleServiceUuid)],
+        withServices: [Guid(AppConstants.bleServiceUuid)],
         timeout: const Duration(seconds: 15),
       );
 
@@ -145,7 +145,7 @@ class DiscoveryService {
       await for (final results in FlutterBluePlus.onScanResults) {
         for (final r in results) {
           final name = r.device.platformName;
-          if (name.startsWith(CubieConstants.bleDevicePrefix)) {
+          if (name.startsWith(AppConstants.bleDevicePrefix)) {
             cubieDevice = r.device;
             break;
           }
@@ -168,9 +168,9 @@ class DiscoveryService {
       try {
         final services = await cubieDevice.discoverServices();
         for (final s in services) {
-          if (s.uuid == Guid(CubieConstants.bleServiceUuid)) {
+          if (s.uuid == Guid(AppConstants.bleServiceUuid)) {
             for (final c in s.characteristics) {
-              if (c.uuid == Guid(CubieConstants.bleCharUuid)) {
+              if (c.uuid == Guid(AppConstants.bleCharUuid)) {
                 final value = await c.read();
                 final ip = String.fromCharCodes(value);
                 await cubieDevice.disconnect();

@@ -97,7 +97,7 @@ class ShareHandler {
     // Backend forces uploads into .inbox/ regardless, but we target it
     // explicitly so path-safety checks pass on the server side.
     final inboxPath =
-        '${CubieConstants.personalBasePath}${session.username}/.inbox/';
+        '${AppConstants.personalBasePath}${session.username}/.inbox/';
 
     _progress.start(files.length);
     var done = 0;

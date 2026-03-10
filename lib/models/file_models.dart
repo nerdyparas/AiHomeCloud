@@ -1,6 +1,7 @@
 /// File browser models — FileItem, FileListResponse, UploadStatus, UploadTask.
 ///
 /// Used by the MyFolder / SharedFolder screens and file upload tracking.
+library;
 import 'package:flutter/material.dart';
 
 class FileItem {

@@ -35,7 +35,7 @@ class StorageDonutChart extends StatelessWidget {
             painter: _DonutPainter(
               usedPercent: (usedGB / totalGB).clamp(0.0, 1.0),
               strokeWidth: strokeWidth,
-              usedColor: CubieColors.primary,
+              usedColor: AppColors.primary,
               freeColor: const Color(0xFF2A3347),
             ),
           ),
@@ -46,7 +46,7 @@ class StorageDonutChart extends StatelessWidget {
               Text(
                 usedGB.toStringAsFixed(1),
                 style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: size * 0.17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -54,7 +54,7 @@ class StorageDonutChart extends StatelessWidget {
               Text(
                 'of ${totalGB.toStringAsFixed(0)} GB',
                 style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary,
+                  color: AppColors.textSecondary,
                   fontSize: size * 0.085,
                 ),
               ),
@@ -100,7 +100,7 @@ class _DonutPainter extends CustomPainter {
 
     // Amber glow behind the arc
     final glowPaint = Paint()
-      ..color = usedColor.withOpacity(0.25)
+      ..color = usedColor.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth + 6
       ..strokeCap = StrokeCap.round

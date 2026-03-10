@@ -7,7 +7,7 @@ extension SystemApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/info'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/info'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -25,7 +25,7 @@ extension SystemApi on ApiService {
   /// WebSocket /ws/monitor â€” streams SystemStats every 2 s.
   Stream<SystemStats> monitorSystemStats() {
     final host = _session?.host;
-    final port = _session?.port ?? CubieConstants.apiPort;
+    final port = _session?.port ?? AppConstants.apiPort;
     final token = _session?.token;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
@@ -73,7 +73,7 @@ extension SystemApi on ApiService {
   /// WebSocket /ws/events â€” real-time notification stream from the backend.
   Stream<AppNotification> notificationStream() {
     final host = _session?.host;
-    final port = _session?.port ?? CubieConstants.apiPort;
+    final port = _session?.port ?? AppConstants.apiPort;
     final token = _session?.token;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
@@ -111,7 +111,7 @@ extension SystemApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/firmware'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/firmware'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -125,7 +125,7 @@ extension SystemApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/update'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/update'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -138,7 +138,7 @@ extension SystemApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .put(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/name'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/name'),
             headers: _headers,
             body: jsonEncode({'name': name}),
           )
@@ -152,7 +152,7 @@ extension SystemApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/system/shutdown'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/shutdown'),
             headers: _headers,
           )
           .timeout(const Duration(seconds: 30)),

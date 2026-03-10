@@ -52,11 +52,11 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadRoots,
-          color: CubieColors.primary,
+          color: AppColors.primary,
           child: CustomScrollView(
             slivers: [
               // ── Title ─────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: Text('My Files',
                       style: GoogleFonts.sora(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 22,
                           fontWeight: FontWeight.w700)),
                 ).animate().fadeIn(duration: 400.ms),
@@ -77,7 +77,7 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                   child: Text('Storage Drives',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary,
+                          color: AppColors.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600)),
                 ),
@@ -89,7 +89,7 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                     padding: EdgeInsets.all(32),
                     child: Center(
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: CubieColors.primary),
+                          strokeWidth: 2, color: AppColors.primary),
                     ),
                   ),
                 )
@@ -97,21 +97,21 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: CubieCard(
+                    child: AppCard(
                       child: Row(
                         children: [
                           const Icon(Icons.error_outline_rounded,
-                              color: CubieColors.error, size: 20),
+                              color: AppColors.error, size: 20),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(_error!,
                                 style: GoogleFonts.dmSans(
-                                    color: CubieColors.textSecondary,
+                                    color: AppColors.textSecondary,
                                     fontSize: 13)),
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh_rounded,
-                                color: CubieColors.primary, size: 20),
+                                color: AppColors.primary, size: 20),
                             onPressed: _loadRoots,
                           ),
                         ],
@@ -123,17 +123,17 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: CubieCard(
+                    child: AppCard(
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: CubieColors.textMuted.withOpacity(0.12),
+                              color: AppColors.textMuted.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.usb_off_rounded,
-                                color: CubieColors.textMuted, size: 22),
+                                color: AppColors.textMuted, size: 22),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -142,13 +142,13 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                               children: [
                                 Text('No storage connected',
                                     style: GoogleFonts.dmSans(
-                                        color: CubieColors.textPrimary,
+                                        color: AppColors.textPrimary,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 2),
                                 Text('Connect a USB drive or NVMe SSD',
                                     style: GoogleFonts.dmSans(
-                                        color: CubieColors.textSecondary,
+                                        color: AppColors.textSecondary,
                                         fontSize: 12)),
                               ],
                             ),
@@ -188,7 +188,7 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                   child: Text('Quick Access',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary,
+                          color: AppColors.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600)),
                 ),
@@ -197,10 +197,10 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                  child: CubieCard(
+                  child: AppCard(
                     onTap: () => context.push('/folder-view', extra: {
                       'title': 'Personal',
-                      'folderPath': '${CubieConstants.personalBasePath}$_userName/',
+                      'folderPath': '${AppConstants.personalBasePath}$_userName/',
                       'readOnly': false,
                     }),
                     child: Row(
@@ -208,11 +208,11 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: CubieColors.primary.withOpacity(0.12),
+                            color: AppColors.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.person_rounded,
-                              color: CubieColors.primary, size: 22),
+                              color: AppColors.primary, size: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -221,19 +221,19 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                             children: [
                               Text('Personal',
                                   style: GoogleFonts.dmSans(
-                                      color: CubieColors.textPrimary,
+                                      color: AppColors.textPrimary,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600)),
                               const SizedBox(height: 2),
                               Text('Your private files',
                                   style: GoogleFonts.dmSans(
-                                      color: CubieColors.textSecondary,
+                                      color: AppColors.textSecondary,
                                       fontSize: 12)),
                             ],
                           ),
                         ),
                         const Icon(Icons.chevron_right_rounded,
-                            color: CubieColors.textMuted, size: 18),
+                            color: AppColors.textMuted, size: 18),
                       ],
                     ),
                   ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.05, end: 0),
@@ -243,10 +243,10 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                  child: CubieCard(
+                  child: AppCard(
                     onTap: () => context.push('/folder-view', extra: {
                       'title': 'Shared',
-                      'folderPath': CubieConstants.sharedPath,
+                      'folderPath': AppConstants.sharedPath,
                       'readOnly': false,
                     }),
                     child: Row(
@@ -254,11 +254,11 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: CubieColors.secondary.withOpacity(0.12),
+                            color: AppColors.secondary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.folder_shared_rounded,
-                              color: CubieColors.secondary, size: 22),
+                              color: AppColors.secondary, size: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -267,19 +267,19 @@ class _MyFolderScreenState extends ConsumerState<MyFolderScreen> {
                             children: [
                               Text('Shared',
                                   style: GoogleFonts.dmSans(
-                                      color: CubieColors.textPrimary,
+                                      color: AppColors.textPrimary,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600)),
                               const SizedBox(height: 2),
                               Text('Family shared files',
                                   style: GoogleFonts.dmSans(
-                                      color: CubieColors.textSecondary,
+                                      color: AppColors.textSecondary,
                                       fontSize: 12)),
                             ],
                           ),
                         ),
                         const Icon(Icons.chevron_right_rounded,
-                            color: CubieColors.textMuted, size: 18),
+                            color: AppColors.textMuted, size: 18),
                       ],
                     ),
                   ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.05, end: 0),
@@ -307,19 +307,19 @@ class _DriveCard extends StatelessWidget {
   Color get _color => switch (root.transport) {
         'usb' => const Color(0xFF4C9BE8),
         'nvme' => const Color(0xFFE8A84C),
-        _ => CubieColors.textSecondary,
+        _ => AppColors.textSecondary,
       };
 
   @override
   Widget build(BuildContext context) {
-    return CubieCard(
+    return AppCard(
       onTap: onTap,
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _color.withOpacity(0.12),
+              color: _color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(root.icon, color: _color, size: 22),
@@ -331,7 +331,7 @@ class _DriveCard extends StatelessWidget {
               children: [
                 Text(root.name,
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600),
                     maxLines: 1,
@@ -339,12 +339,12 @@ class _DriveCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text('${root.typeLabel}  •  ${root.sizeDisplay}',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
+                        color: AppColors.textSecondary, fontSize: 12)),
               ],
             ),
           ),
           const Icon(Icons.chevron_right_rounded,
-              color: CubieColors.textMuted, size: 18),
+              color: AppColors.textMuted, size: 18),
         ],
       ),
     );

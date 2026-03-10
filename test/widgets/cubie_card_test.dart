@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Mock CubieCard widget for testing
+/// Mock AppCard widget for testing
 /// 
 /// In a real scenario, this would be imported from:
 /// import 'package:cubiecloud/widgets/cubie_card.dart';
-class CubieCard extends StatelessWidget {
+class AppCard extends StatelessWidget {
   final String title;
   final Widget child;
   final EdgeInsets padding;
   final double elevation;
 
-  const CubieCard({
+  const AppCard({
     Key? key,
     required this.title,
     required this.child,
@@ -45,21 +45,21 @@ class CubieCard extends StatelessWidget {
 }
 
 void main() {
-  group('CubieCard Widget Golden Tests', () {
-    // 7G.5: Golden tests for CubieCard widget
-    testWidgets('CubieCard golden test with default properties', (WidgetTester tester) async {
+  group('AppCard Widget Golden Tests', () {
+    // 7G.5: Golden tests for AppCard widget
+    testWidgets('AppCard golden test with default properties', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 300);
-      tester.binding.window.devicePixelRatioTestValue = 1.0;
-      addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
-      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
+      tester.view.physicalSize = const Size(400, 300);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CubieCard(
+              child: AppCard(
                 title: 'Storage Status',
                 child: Column(
                   children: [
@@ -79,24 +79,24 @@ void main() {
 
       // Create golden file (will be auto-created on first run with --update-goldens)
       await expectLater(
-        find.byType(CubieCard),
+        find.byType(AppCard),
         matchesGoldenFile('goldens/cubie_card_default.png'),
       );
     });
 
-    testWidgets('CubieCard golden test with complex content', (WidgetTester tester) async {
+    testWidgets('AppCard golden test with complex content', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 500);
-      tester.binding.window.devicePixelRatioTestValue = 1.0;
-      addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
-      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
+      tester.view.physicalSize = const Size(400, 500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CubieCard(
+              child: AppCard(
                 title: 'System Information',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,24 +125,24 @@ void main() {
       );
 
       await expectLater(
-        find.byType(CubieCard),
+        find.byType(AppCard),
         matchesGoldenFile('goldens/cubie_card_complex.png'),
       );
     });
 
-    testWidgets('CubieCard golden test with elevated style', (WidgetTester tester) async {
+    testWidgets('AppCard golden test with elevated style', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 300);
-      tester.binding.window.devicePixelRatioTestValue = 1.0;
-      addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
-      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
+      tester.view.physicalSize = const Size(400, 300);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CubieCard(
+              child: AppCard(
                 title: 'Alert',
                 elevation: 8.0,
                 child: Container(
@@ -163,24 +163,24 @@ void main() {
       );
 
       await expectLater(
-        find.byType(CubieCard),
+        find.byType(AppCard),
         matchesGoldenFile('goldens/cubie_card_elevated.png'),
       );
     });
 
-    testWidgets('CubieCard golden test with custom padding', (WidgetTester tester) async {
+    testWidgets('AppCard golden test with custom padding', (WidgetTester tester) async {
       // Set test window size
-      tester.binding.window.physicalSizeTestValue = const Size(400, 300);
-      tester.binding.window.devicePixelRatioTestValue = 1.0;
-      addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
-      addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
+      tester.view.physicalSize = const Size(400, 300);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CubieCard(
+              child: AppCard(
                 title: 'Quick Stats',
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
@@ -234,18 +234,18 @@ void main() {
       );
 
       await expectLater(
-        find.byType(CubieCard),
+        find.byType(AppCard),
         matchesGoldenFile('goldens/cubie_card_custom_padding.png'),
       );
     });
   });
 
-  group('CubieCard Functional Tests', () {
+  group('AppCard Functional Tests', () {
     testWidgets('renders title correctly', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: CubieCard(
+            body: AppCard(
               title: 'Test Title',
               child: Text('Test content'),
             ),
@@ -261,7 +261,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: CubieCard(
+            body: AppCard(
               title: 'Elevated Card',
               elevation: 8.0,
               child: Text('Content'),
@@ -280,7 +280,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: CubieCard(
+            body: AppCard(
               title: 'Padded Card',
               padding: testPadding,
               child: Text('Padded content'),

@@ -1,6 +1,7 @@
 /// Core singleton providers — SharedPreferences, auth, certificates, API service.
 ///
 /// These are the foundational providers that almost every other provider depends on.
+library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,7 +18,7 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 final certFingerprintProvider = StateProvider<String?>((ref) {
   final stored = ref
       .read(sharedPreferencesProvider)
-      .getString(CubieConstants.kCertFingerprintPrefKey);
+      .getString(AppConstants.kCertFingerprintPrefKey);
   if (stored == null || stored.isEmpty) return null;
   return stored;
 });
@@ -52,7 +53,7 @@ final apiServiceProvider = Provider<ApiService>((ref) {
 
 Future<void> persistServerFingerprint(dynamic ref, String fingerprint) async {
   final prefs = ref.read(sharedPreferencesProvider);
-  await prefs.setString(CubieConstants.kCertFingerprintPrefKey, fingerprint);
+  await prefs.setString(AppConstants.kCertFingerprintPrefKey, fingerprint);
   ref.read(certFingerprintProvider.notifier).state = fingerprint;
   ref.read(apiServiceProvider).setTrustedFingerprint(fingerprint);
 }
@@ -63,5 +64,5 @@ final discoveryServiceProvider = Provider<DiscoveryService>((ref) {
 
 final isSetupDoneProvider = StateProvider<bool>((ref) {
   final prefs = ref.read(sharedPreferencesProvider);
-  return prefs.getBool(CubieConstants.prefIsSetupDone) ?? false;
+  return prefs.getBool(AppConstants.prefIsSetupDone) ?? false;
 });

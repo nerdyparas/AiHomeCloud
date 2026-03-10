@@ -104,7 +104,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
             Icon(Icons.timer_outlined,
                 size: 16,
                 color:
-                    isExpired ? CubieColors.error : CubieColors.textSecondary),
+                    isExpired ? AppColors.error : AppColors.textSecondary),
             const SizedBox(width: 6),
             Text(
               isExpired
@@ -112,7 +112,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                   : 'OTP expires in ${_formatDuration(remaining)}',
               style: GoogleFonts.dmSans(
                 color:
-                    isExpired ? CubieColors.error : CubieColors.textSecondary,
+                    isExpired ? AppColors.error : AppColors.textSecondary,
                 fontSize: 13,
               ),
             ),
@@ -121,8 +121,8 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
         const SizedBox(height: 6),
         LinearProgressIndicator(
           value: isExpired ? 0 : _countdownProgress,
-          color: CubieColors.error,
-          backgroundColor: CubieColors.surface.withOpacity(0.6),
+          color: AppColors.error,
+          backgroundColor: AppColors.surface.withValues(alpha: 0.6),
           minHeight: 4,
         ),
       ],
@@ -147,7 +147,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -167,9 +167,9 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Container(
                 decoration: BoxDecoration(
-                  color: CubieColors.surface,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: CubieColors.cardBorder),
+                  border: Border.all(color: AppColors.cardBorder),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
@@ -207,7 +207,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                   'on the bottom of your AiHomeCloud box',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary,
+                    color: AppColors.textSecondary,
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -249,7 +249,7 @@ class _ScannerOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     const s = 32.0;
     const w = 3.0;
-    const c = CubieColors.primary;
+    const c = AppColors.primary;
 
     return SizedBox(
       width: 200,

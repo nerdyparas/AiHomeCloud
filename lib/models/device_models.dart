@@ -1,6 +1,7 @@
 /// Device state models — CubieDevice, SystemStats, StorageStats, ConnectionStatus.
 ///
 /// Used on the dashboard and throughout system monitoring screens.
+library;
 
 class CubieDevice {
   final String serial;

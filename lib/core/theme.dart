@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 // ─── Design System Colors ──────────────────────────────────────────────────────
 
-class CubieColors {
-  CubieColors._();
+class AppColors {
+  AppColors._();
 
   static const background = Color(0xFF0D0F14);
   static const surface = Color(0xFF161B25);
@@ -34,64 +34,64 @@ class CubieRadii {
 
 // ─── Full Dark Theme ───────────────────────────────────────────────────────────
 
-class CubieTheme {
-  CubieTheme._();
+class AppTheme {
+  AppTheme._();
 
   static ThemeData get dark {
     final base = ThemeData.dark();
 
     return ThemeData(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: CubieColors.background,
+      scaffoldBackgroundColor: AppColors.background,
       colorScheme: const ColorScheme.dark(
-        primary: CubieColors.primary,
-        secondary: CubieColors.secondary,
-        surface: CubieColors.surface,
-        error: CubieColors.error,
-        onPrimary: CubieColors.background,
-        onSecondary: CubieColors.background,
-        onSurface: CubieColors.textPrimary,
-        onError: CubieColors.textPrimary,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        surface: AppColors.surface,
+        error: AppColors.error,
+        onPrimary: AppColors.background,
+        onSecondary: AppColors.background,
+        onSurface: AppColors.textPrimary,
+        onError: AppColors.textPrimary,
       ),
 
       // ── Typography ──
       textTheme: GoogleFonts.dmSansTextTheme(base.textTheme).copyWith(
-        displayLarge: GoogleFonts.sora(color: CubieColors.textPrimary),
-        displayMedium: GoogleFonts.sora(color: CubieColors.textPrimary),
-        displaySmall: GoogleFonts.sora(color: CubieColors.textPrimary),
-        headlineLarge: GoogleFonts.sora(color: CubieColors.textPrimary),
-        headlineMedium: GoogleFonts.sora(color: CubieColors.textPrimary),
-        headlineSmall: GoogleFonts.sora(color: CubieColors.textPrimary),
+        displayLarge: GoogleFonts.sora(color: AppColors.textPrimary),
+        displayMedium: GoogleFonts.sora(color: AppColors.textPrimary),
+        displaySmall: GoogleFonts.sora(color: AppColors.textPrimary),
+        headlineLarge: GoogleFonts.sora(color: AppColors.textPrimary),
+        headlineMedium: GoogleFonts.sora(color: AppColors.textPrimary),
+        headlineSmall: GoogleFonts.sora(color: AppColors.textPrimary),
         titleLarge: GoogleFonts.sora(
-            color: CubieColors.textPrimary, fontWeight: FontWeight.w600),
+            color: AppColors.textPrimary, fontWeight: FontWeight.w600),
         titleMedium: GoogleFonts.sora(
-            color: CubieColors.textPrimary, fontWeight: FontWeight.w600),
+            color: AppColors.textPrimary, fontWeight: FontWeight.w600),
         titleSmall: GoogleFonts.sora(
-            color: CubieColors.textPrimary, fontWeight: FontWeight.w600),
-        bodyLarge: GoogleFonts.dmSans(color: CubieColors.textPrimary),
-        bodyMedium: GoogleFonts.dmSans(color: CubieColors.textPrimary),
-        bodySmall: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+            color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+        bodyLarge: GoogleFonts.dmSans(color: AppColors.textPrimary),
+        bodyMedium: GoogleFonts.dmSans(color: AppColors.textPrimary),
+        bodySmall: GoogleFonts.dmSans(color: AppColors.textSecondary),
         labelLarge: GoogleFonts.dmSans(
-            color: CubieColors.textPrimary, fontWeight: FontWeight.w600),
-        labelMedium: GoogleFonts.dmSans(color: CubieColors.textSecondary),
-        labelSmall: GoogleFonts.dmSans(color: CubieColors.textMuted),
+            color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+        labelMedium: GoogleFonts.dmSans(color: AppColors.textSecondary),
+        labelSmall: GoogleFonts.dmSans(color: AppColors.textMuted),
       ),
 
       // ── Cards ──
       cardTheme: CardThemeData(
-        color: CubieColors.card,
+        color: AppColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(CubieRadii.card),
-          side: const BorderSide(color: CubieColors.cardBorder, width: 1),
+          side: const BorderSide(color: AppColors.cardBorder, width: 1),
         ),
       ),
 
       // ── Elevated Button ──
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: CubieColors.primary,
-          foregroundColor: CubieColors.background,
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.background,
           elevation: 0,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(CubieRadii.button)),
@@ -104,8 +104,8 @@ class CubieTheme {
       // ── Outlined Button ──
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: CubieColors.primary,
-          side: const BorderSide(color: CubieColors.primary),
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primary),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(CubieRadii.button)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -117,7 +117,7 @@ class CubieTheme {
       // ── Text Button ──
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: CubieColors.primary,
+          foregroundColor: AppColors.primary,
           textStyle:
               GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 14),
         ),
@@ -126,34 +126,34 @@ class CubieTheme {
       // ── Input Fields ──
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: CubieColors.surface,
+        fillColor: AppColors.surface,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(CubieRadii.input),
-          borderSide: const BorderSide(color: CubieColors.cardBorder),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(CubieRadii.input),
-          borderSide: const BorderSide(color: CubieColors.cardBorder),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(CubieRadii.input),
-          borderSide: const BorderSide(color: CubieColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(CubieRadii.input),
-          borderSide: const BorderSide(color: CubieColors.error),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
-        hintStyle: GoogleFonts.dmSans(color: CubieColors.textMuted),
-        labelStyle: GoogleFonts.dmSans(color: CubieColors.textSecondary),
-        counterStyle: GoogleFonts.dmSans(color: CubieColors.textMuted),
+        hintStyle: GoogleFonts.dmSans(color: AppColors.textMuted),
+        labelStyle: GoogleFonts.dmSans(color: AppColors.textSecondary),
+        counterStyle: GoogleFonts.dmSans(color: AppColors.textMuted),
       ),
 
       // ── NavigationBar (bottom) ──
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: CubieColors.surface,
-        indicatorColor: CubieColors.primary.withOpacity(0.12),
+        backgroundColor: AppColors.surface,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.12),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -161,36 +161,36 @@ class CubieTheme {
           return GoogleFonts.dmSans(
             fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? CubieColors.primary : CubieColors.textMuted,
+            color: selected ? AppColors.primary : AppColors.textMuted,
           );
         }),
       ),
 
       // ── AppBar ──
       appBarTheme: AppBarTheme(
-        backgroundColor: CubieColors.background,
+        backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.sora(
-          color: CubieColors.textPrimary,
+          color: AppColors.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
-        iconTheme: const IconThemeData(color: CubieColors.textPrimary),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
 
       // ── Divider ──
       dividerTheme: const DividerThemeData(
-        color: CubieColors.cardBorder,
+        color: AppColors.cardBorder,
         thickness: 1,
         space: 1,
       ),
 
       // ── FAB ──
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: CubieColors.primary,
-        foregroundColor: CubieColors.background,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.background,
         elevation: 0,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(CubieRadii.button)),
@@ -198,25 +198,25 @@ class CubieTheme {
 
       // ── SnackBar ──
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: CubieColors.card,
-        contentTextStyle: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+        backgroundColor: AppColors.card,
+        contentTextStyle: GoogleFonts.dmSans(color: AppColors.textPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(CubieRadii.input),
-          side: const BorderSide(color: CubieColors.cardBorder),
+          side: const BorderSide(color: AppColors.cardBorder),
         ),
         behavior: SnackBarBehavior.floating,
       ),
 
       // ── Dialog ──
       dialogTheme: DialogThemeData(
-        backgroundColor: CubieColors.card,
+        backgroundColor: AppColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(CubieRadii.card),
-          side: const BorderSide(color: CubieColors.cardBorder),
+          side: const BorderSide(color: AppColors.cardBorder),
         ),
         titleTextStyle: GoogleFonts.sora(
-          color: CubieColors.textPrimary,
+          color: AppColors.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
@@ -224,7 +224,7 @@ class CubieTheme {
 
       // ── BottomSheet ──
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: CubieColors.card,
+        backgroundColor: AppColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -235,25 +235,25 @@ class CubieTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return CubieColors.primary;
+            return AppColors.primary;
           }
-          return CubieColors.textMuted;
+          return AppColors.textMuted;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return CubieColors.primary.withOpacity(0.3);
+            return AppColors.primary.withValues(alpha: 0.3);
           }
-          return CubieColors.surface;
+          return AppColors.surface;
         }),
         trackOutlineColor: WidgetStateProperty.resolveWith((states) {
-          return CubieColors.cardBorder;
+          return AppColors.cardBorder;
         }),
       ),
 
       // ── Progress Indicator ──
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: CubieColors.primary,
-        linearTrackColor: CubieColors.cardBorder,
+        color: AppColors.primary,
+        linearTrackColor: AppColors.cardBorder,
       ),
     );
   }

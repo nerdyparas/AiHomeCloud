@@ -13,7 +13,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/list')
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/list')
                 .replace(queryParameters: {
               'path': path,
               'page': '$page',
@@ -54,7 +54,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/mkdir'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/mkdir'),
             headers: _headers,
             body: jsonEncode({'path': fullPath}),
           )
@@ -68,7 +68,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .delete(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/delete')
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/delete')
                 .replace(queryParameters: {'path': path}),
             headers: _headers,
           )
@@ -82,7 +82,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .put(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/rename'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/rename'),
             headers: _headers,
             body: jsonEncode({'oldPath': path, 'newName': newName}),
           )
@@ -97,7 +97,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/download')
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/download')
                 .replace(queryParameters: {'path': filePath}),
             headers: _headers,
           )
@@ -109,7 +109,7 @@ extension FilesApi on ApiService {
 
   /// Returns the download URL for a file (for image display etc.)
   String getDownloadUrl(String filePath) {
-    return '$_baseUrl${CubieConstants.apiVersion}/files/download?path=${Uri.encodeComponent(filePath)}';
+    return '$_baseUrl${AppConstants.apiVersion}/files/download?path=${Uri.encodeComponent(filePath)}';
   }
 
   /// Returns auth headers for use in image widgets.
@@ -129,7 +129,7 @@ extension FilesApi on ApiService {
     () async {
       try {
         final uri =
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/upload')
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/upload')
                 .replace(queryParameters: {'path': destinationPath});
 
         // Build a MultipartRequest to derive the Content-Type header (which
@@ -205,7 +205,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/search')
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/search')
                 .replace(queryParameters: {'q': query, 'limit': '10'}),
             headers: _headers,
           )
@@ -224,7 +224,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/trash'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/trash'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -242,7 +242,7 @@ extension FilesApi on ApiService {
       () => _client
           .post(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/files/trash/${Uri.encodeComponent(id)}/restore'),
+                '$_baseUrl${AppConstants.apiVersion}/files/trash/${Uri.encodeComponent(id)}/restore'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -256,7 +256,7 @@ extension FilesApi on ApiService {
       () => _client
           .delete(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/files/trash/${Uri.encodeComponent(id)}'),
+                '$_baseUrl${AppConstants.apiVersion}/files/trash/${Uri.encodeComponent(id)}'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -269,7 +269,7 @@ extension FilesApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/roots'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/roots'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),

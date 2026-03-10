@@ -7,7 +7,7 @@ extension FamilyApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/family'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/family'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -34,7 +34,7 @@ extension FamilyApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/users/family'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/family'),
             headers: _headers,
             body: jsonEncode({'name': name}),
           )
@@ -60,7 +60,7 @@ extension FamilyApi on ApiService {
       () => _client
           .delete(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/users/family/$userId'),
+                '$_baseUrl${AppConstants.apiVersion}/users/family/$userId'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),

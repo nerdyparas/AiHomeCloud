@@ -23,17 +23,17 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
     final deviceAsync = ref.watch(deviceInfoProvider);
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: CubieColors.background,
+        backgroundColor: AppColors.background,
         title: Text('Device',
             style: GoogleFonts.sora(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded,
-              color: CubieColors.textPrimary),
+              color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
       ),
@@ -45,14 +45,14 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
           _sectionLabel('Information'),
           const SizedBox(height: 12),
           deviceAsync.when(
-            data: (d) => CubieCard(
+            data: (d) => AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _row('Name', d.name,
                       trailing: IconButton(
                         icon: const Icon(Icons.edit_rounded,
-                            size: 18, color: CubieColors.textMuted),
+                            size: 18, color: AppColors.textMuted),
                         onPressed: () => _editName(d.name),
                       )),
                   _divider(),
@@ -64,13 +64,13 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
                 ],
               ),
             ).animate().fadeIn(duration: 300.ms),
-            loading: () => const CubieCard(
+            loading: () => const AppCard(
                 child: SizedBox(
                     height: 160,
                     child: Center(
                         child: CircularProgressIndicator(
-                            color: CubieColors.primary)))),
-            error: (e, _) => CubieCard(child: Text(friendlyError(e))),
+                            color: AppColors.primary)))),
+            error: (e, _) => AppCard(child: Text(friendlyError(e))),
           ),
 
           const SizedBox(height: 24),
@@ -83,7 +83,7 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
 
   Widget _sectionLabel(String text) => Text(text,
       style: GoogleFonts.sora(
-          color: CubieColors.textSecondary,
+          color: AppColors.textSecondary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5));
@@ -94,11 +94,11 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
           children: [
             Text(label,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 13)),
+                    color: AppColors.textSecondary, fontSize: 13)),
             const Spacer(),
             Text(value,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500)),
             if (trailing != null) trailing,
@@ -107,7 +107,7 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
       );
 
   Widget _divider() => const Divider(
-      height: 1, indent: 16, endIndent: 16, color: CubieColors.cardBorder);
+      height: 1, indent: 16, endIndent: 16, color: AppColors.cardBorder);
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
 
@@ -120,14 +120,14 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+          style: GoogleFonts.dmSans(color: AppColors.textPrimary),
           decoration: const InputDecoration(hintText: 'Enter device name'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {

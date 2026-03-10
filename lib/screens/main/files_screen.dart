@@ -31,7 +31,7 @@ class _FilesScreenState extends State<FilesScreen> {
       children: [
         // ── Header + segment control ─────────────────────────────────────
         Container(
-          color: CubieColors.background,
+          color: AppColors.background,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: SafeArea(
             bottom: false,
@@ -41,7 +41,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 Text(
                   'Files',
                   style: GoogleFonts.sora(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
@@ -70,7 +70,7 @@ class _FilesScreenState extends State<FilesScreen> {
               _KeepAliveChild(
                 child: FolderView(
                   title: 'Videos',
-                  folderPath: '${CubieConstants.sharedPath}Videos/',
+                  folderPath: '${AppConstants.sharedPath}Videos/',
                   readOnly: false,
                   showHeader: false,
                 ),
@@ -101,9 +101,9 @@ class _SegmentBar extends StatelessWidget {
     return Container(
       height: 36,
       decoration: BoxDecoration(
-        color: CubieColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: CubieColors.cardBorder),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Row(
         children: [
@@ -115,7 +115,7 @@ class _SegmentBar extends StatelessWidget {
                   duration: const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
                     color: selected == i
-                        ? CubieColors.primary.withOpacity(0.15)
+                        ? AppColors.primary.withValues(alpha: 0.15)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(9),
                   ),
@@ -124,8 +124,8 @@ class _SegmentBar extends StatelessWidget {
                       labels[i],
                       style: GoogleFonts.dmSans(
                         color: selected == i
-                            ? CubieColors.primary
-                            : CubieColors.textSecondary,
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
                         fontSize: 13,
                         fontWeight: selected == i
                             ? FontWeight.w600

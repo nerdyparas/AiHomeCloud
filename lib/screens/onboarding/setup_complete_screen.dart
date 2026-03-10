@@ -51,16 +51,16 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
 
       final prefs = ref.read(sharedPreferencesProvider);
       if (_pinCtrl.text.isNotEmpty) {
-        await prefs.setString(CubieConstants.prefUserPin, _pinCtrl.text);
+        await prefs.setString(AppConstants.prefUserPin, _pinCtrl.text);
       }
       await prefs.setString(
-          CubieConstants.prefDeviceSerial,
-          prefs.getString(CubieConstants.prefDeviceSerial) ?? '');
-      await prefs.setString(CubieConstants.prefDeviceName, 'My AiHomeCloud');
+          AppConstants.prefDeviceSerial,
+          prefs.getString(AppConstants.prefDeviceSerial) ?? '');
+      await prefs.setString(AppConstants.prefDeviceName, 'My AiHomeCloud');
 
       await ref.read(authSessionProvider.notifier).login(
             host: deviceIp,
-            port: previous?.port ?? CubieConstants.apiPort,
+            port: previous?.port ?? AppConstants.apiPort,
             token: previous?.token ?? '',
             refreshToken: previous?.refreshToken,
             username: _nameCtrl.text.trim(),
@@ -83,7 +83,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -100,11 +100,11 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: CubieColors.success.withOpacity(0.15),
+                      color: AppColors.success.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Icon(Icons.check_circle_rounded,
-                        color: CubieColors.success, size: 36),
+                        color: AppColors.success, size: 36),
                   )
                       .animate()
                       .fadeIn(duration: 500.ms)
@@ -120,7 +120,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 Center(
                   child: Text('Device Paired!',
                           style: GoogleFonts.sora(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                           ))
@@ -131,7 +131,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 Center(
                   child: Text("Let's set up your profile",
                           style: GoogleFonts.dmSans(
-                              color: CubieColors.textSecondary, fontSize: 15))
+                              color: AppColors.textSecondary, fontSize: 15))
                       .animate(delay: 300.ms)
                       .fadeIn(duration: 400.ms),
                 ),
@@ -141,7 +141,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 // ── Name field ──────────────────────────────────────────────
                 Text('Your Name',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textSecondary,
+                            color: AppColors.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600))
                     .animate(delay: 400.ms)
@@ -149,11 +149,11 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _nameCtrl,
-                  style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+                  style: GoogleFonts.dmSans(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     hintText: 'e.g. Dad, Mom, Alex…',
                     prefixIcon:
-                        Icon(Icons.person_rounded, color: CubieColors.textMuted),
+                        Icon(Icons.person_rounded, color: AppColors.textMuted),
                   ),
                   textInputAction: TextInputAction.next,
                   validator: (v) => (v == null || v.trim().isEmpty)
@@ -169,7 +169,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 // ── PIN field ───────────────────────────────────────────────
                 Text('PIN (Optional)',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textSecondary,
+                            color: AppColors.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600))
                     .animate(delay: 500.ms)
@@ -177,11 +177,11 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _pinCtrl,
-                  style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+                  style: GoogleFonts.dmSans(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     hintText: '4-digit PIN',
                     prefixIcon:
-                        Icon(Icons.lock_rounded, color: CubieColors.textMuted),
+                        Icon(Icons.lock_rounded, color: AppColors.textMuted),
                   ),
                   keyboardType: TextInputType.number,
                   obscureText: true,
@@ -201,7 +201,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                 Text(
                   'A PIN adds a layer of privacy for your personal folder.',
                   style:
-                      GoogleFonts.dmSans(color: CubieColors.textMuted, fontSize: 12),
+                      GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
                 ).animate(delay: 600.ms).fadeIn(),
 
                 const SizedBox(height: 48),
@@ -218,7 +218,7 @@ class _SetupCompleteScreenState extends ConsumerState<SetupCompleteScreen> {
                             height: 22,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: CubieColors.background),
+                                color: AppColors.background),
                           )
                         : Text('Get Started',
                             style: GoogleFonts.dmSans(

@@ -99,10 +99,10 @@ class ApiService {
   /// Fetch the server certificate fingerprint from the backend.
   Future<String?> fetchServerFingerprint({String? host, int? port}) async {
     final resolvedHost = host ?? _session?.host;
-    final resolvedPort = port ?? _session?.port ?? CubieConstants.apiPort;
+    final resolvedPort = port ?? _session?.port ?? AppConstants.apiPort;
     if (resolvedHost == null || resolvedHost.isEmpty) return null;
     final uri = Uri.parse(
-      'https://$resolvedHost:$resolvedPort${CubieConstants.apiVersion}/auth/cert-fingerprint',
+      'https://$resolvedHost:$resolvedPort${AppConstants.apiVersion}/auth/cert-fingerprint',
     );
     final res = await _withAutoRefresh(
       () => _client.get(uri, headers: _headers).timeout(_timeout),
@@ -137,7 +137,7 @@ class ApiService {
 
   String get _baseUrl {
     final host = _session?.host;
-    final port = _session?.port ?? CubieConstants.apiPort;
+    final port = _session?.port ?? AppConstants.apiPort;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
     }
@@ -217,7 +217,7 @@ class ApiService {
     String? refreshToken,
   }) async {
     final resolvedHost = host ?? _session?.host;
-    final resolvedPort = port ?? _session?.port ?? CubieConstants.apiPort;
+    final resolvedPort = port ?? _session?.port ?? AppConstants.apiPort;
     final token = refreshToken ?? _session?.refreshToken;
     if (resolvedHost == null ||
         resolvedHost.isEmpty ||
@@ -226,7 +226,7 @@ class ApiService {
       throw StateError('Refresh credentials are missing');
     }
     final uri = Uri.parse(
-      'https://$resolvedHost:$resolvedPort${CubieConstants.apiVersion}/auth/refresh',
+      'https://$resolvedHost:$resolvedPort${AppConstants.apiVersion}/auth/refresh',
     );
     final res = await _client
         .post(

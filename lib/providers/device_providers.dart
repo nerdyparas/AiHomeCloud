@@ -1,5 +1,6 @@
 /// Device state providers — device info, system stats stream, connection status,
 /// storage stats, and storage device listing.
+library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

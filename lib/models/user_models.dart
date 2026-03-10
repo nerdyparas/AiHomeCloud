@@ -1,6 +1,7 @@
 /// User and pairing models — FamilyUser, QrPairPayload.
 ///
 /// Used by family management and onboarding QR-code pairing screens.
+library;
 import 'package:flutter/material.dart';
 
 class FamilyUser {

@@ -28,7 +28,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     final servicesAsync = ref.watch(servicesProvider);
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -36,7 +36,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 16),
             Text('More',
                     style: GoogleFonts.sora(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700))
                 .animate()
@@ -54,30 +54,30 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     (s) => s?.id == 'dlna',
                     orElse: () => null);
                 if (dlna == null) {
-                  return CubieCard(
+                  return AppCard(
                     padding: EdgeInsets.zero,
                     child: ListTile(
-                      leading: _iconBox(Icons.tv_rounded, CubieColors.secondary),
+                      leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
                       title: Text('Smart TV Streaming',
                           style: GoogleFonts.dmSans(
-                              color: CubieColors.textPrimary,
+                              color: AppColors.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w500)),
                       subtitle: Text('Not available',
                           style: GoogleFonts.dmSans(
-                              color: CubieColors.textMuted, fontSize: 12)),
+                              color: AppColors.textMuted, fontSize: 12)),
                       trailing: const Icon(Icons.info_outline_rounded,
-                          color: CubieColors.textMuted, size: 18),
+                          color: AppColors.textMuted, size: 18),
                     ),
                   ).animate().fadeIn(delay: 50.ms);
                 }
-                return CubieCard(
+                return AppCard(
                   padding: EdgeInsets.zero,
                   child: ListTile(
-                    leading: _iconBox(Icons.tv_rounded, CubieColors.secondary),
+                    leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
                     title: Text('Smart TV Streaming',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w500)),
                     subtitle: Text(
@@ -85,7 +85,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                             ? 'Streaming to nearby TVs'
                             : 'Stream media to your Smart TV',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textSecondary, fontSize: 12)),
+                            color: AppColors.textSecondary, fontSize: 12)),
                     trailing: Switch(
                       value: dlna.isEnabled,
                       onChanged: (v) async {
@@ -102,42 +102,42 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                           }
                         }
                       },
-                      activeColor: CubieColors.primary,
+                      activeColor: AppColors.primary,
                     ),
                   ),
                 ).animate().fadeIn(delay: 50.ms);
               },
-              loading: () => CubieCard(
+              loading: () => AppCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
-                  leading: _iconBox(Icons.tv_rounded, CubieColors.secondary),
+                  leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
                   title: Text('Smart TV Streaming',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500)),
                   trailing: const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: CubieColors.primary),
+                        strokeWidth: 2, color: AppColors.primary),
                   ),
                 ),
               ),
-              error: (e, _) => CubieCard(
+              error: (e, _) => AppCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   leading:
-                      _iconBox(Icons.tv_rounded, CubieColors.textSecondary),
+                      _iconBox(Icons.tv_rounded, AppColors.textSecondary),
                   title: Text('Smart TV Streaming',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary, fontSize: 14)),
+                          color: AppColors.textPrimary, fontSize: 14)),
                   subtitle: Text(friendlyError(e),
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textMuted, fontSize: 12)),
+                          color: AppColors.textMuted, fontSize: 12)),
                   trailing: IconButton(
                     icon: const Icon(Icons.refresh_rounded,
-                        color: CubieColors.primary, size: 20),
+                        color: AppColors.primary, size: 20),
                     onPressed: () => ref.invalidate(servicesProvider),
                   ),
                 ),
@@ -157,21 +157,21 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               const SizedBox(height: 24),
               _sectionLabel('Telegram Bot'),
               const SizedBox(height: 12),
-              CubieCard(
+              AppCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   leading:
-                      _iconBox(Icons.smart_toy_rounded, CubieColors.primary),
+                      _iconBox(Icons.smart_toy_rounded, AppColors.primary),
                   title: Text('Telegram Bot',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500)),
                   subtitle: Text('Find documents via Telegram',
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 12)),
+                          color: AppColors.textSecondary, fontSize: 12)),
                   trailing: const Icon(Icons.chevron_right_rounded,
-                      color: CubieColors.textMuted, size: 20),
+                      color: AppColors.textMuted, size: 20),
                   onTap: () => context.push('/telegram-setup'),
                 ),
               ).animate().fadeIn(delay: 100.ms),
@@ -185,41 +185,41 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 24),
             _sectionLabel('Security'),
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   ListTile(
                     leading: const Icon(Icons.verified_user_rounded,
-                        color: CubieColors.primary, size: 20),
+                        color: AppColors.primary, size: 20),
                     title: Text('Verify Server Certificate',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary, fontSize: 14)),
+                            color: AppColors.textPrimary, fontSize: 14)),
                     subtitle: Text(
                       fingerprint != null
                           ? fingerprint.toUpperCase()
                           : 'Not pinned yet',
                       style: GoogleFonts.dmSans(
                           color: fingerprint != null
-                              ? CubieColors.textSecondary
-                              : CubieColors.textMuted,
+                              ? AppColors.textSecondary
+                              : AppColors.textMuted,
                           fontSize: 12),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded,
-                        color: CubieColors.textMuted, size: 20),
+                        color: AppColors.textMuted, size: 20),
                     onTap: () => _verifyServerCertificate(fingerprint),
                   ),
                   _divider(),
                   ListTile(
                     leading: _iconBox(
-                        Icons.lock_rounded, CubieColors.textSecondary),
+                        Icons.lock_rounded, AppColors.textSecondary),
                     title: Text('Change my PIN',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w500)),
                     trailing: const Icon(Icons.chevron_right_rounded,
-                        color: CubieColors.textMuted, size: 20),
+                        color: AppColors.textMuted, size: 20),
                     onTap: _changePin,
                   ),
                 ],
@@ -230,13 +230,13 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 24),
             _sectionLabel('Storage & Network'),
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _navTile(
                     icon: Icons.storage_rounded,
-                    color: CubieColors.secondary,
+                    color: AppColors.secondary,
                     title: 'Storage Drive',
                     subtitle: 'Manage drives and storage',
                     onTap: () => context.push('/storage-explorer'),
@@ -244,7 +244,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   _divider(),
                   _navTile(
                     icon: Icons.wifi_rounded,
-                    color: CubieColors.primary,
+                    color: AppColors.primary,
                     title: 'Network',
                     subtitle: 'Wi-Fi, Hotspot, Ethernet',
                     onTap: () => context.push('/settings/network'),
@@ -253,7 +253,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     _divider(),
                     _navTile(
                       icon: Icons.developer_board_rounded,
-                      color: CubieColors.textSecondary,
+                      color: AppColors.textSecondary,
                       title: 'Device',
                       subtitle: 'Device info and name',
                       onTap: () => context.push('/settings/device'),
@@ -267,7 +267,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 24),
             _sectionLabel('About'),
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -277,11 +277,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: CubieColors.primary.withOpacity(0.12),
+                          color: AppColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.home_rounded,
-                            color: CubieColors.primary, size: 22),
+                            color: AppColors.primary, size: 22),
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -289,12 +289,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                         children: [
                           Text('AiHomeCloud',
                               style: GoogleFonts.sora(
-                                  color: CubieColors.textPrimary,
+                                  color: AppColors.textPrimary,
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700)),
                           Text('v1.0.0',
                               style: GoogleFonts.dmSans(
-                                  color: CubieColors.textSecondary,
+                                  color: AppColors.textSecondary,
                                   fontSize: 12)),
                         ],
                       ),
@@ -304,7 +304,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   Text(
                     'Your personal home NAS — files, family, and streaming in one place.',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary,
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                         height: 1.5),
                   ),
@@ -316,29 +316,29 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 24),
             _sectionLabel('Account'),
             const SizedBox(height: 12),
-            CubieCard(
+            AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   ListTile(
                     leading: const Icon(Icons.logout_rounded,
-                        color: CubieColors.error, size: 20),
+                        color: AppColors.error, size: 20),
                     title: Text('Log Out',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.error, fontSize: 14)),
+                            color: AppColors.error, fontSize: 14)),
                     onTap: _confirmLogout,
                   ),
                   if (isAdmin) ...[
                     _divider(),
                     ListTile(
                       leading: const Icon(Icons.power_settings_new_rounded,
-                          color: CubieColors.error, size: 20),
+                          color: AppColors.error, size: 20),
                       title: Text('Shut Down AiHomeCloud',
                           style: GoogleFonts.dmSans(
-                              color: CubieColors.error, fontSize: 14)),
+                              color: AppColors.error, fontSize: 14)),
                       subtitle: Text('Stop all services and power off',
                           style: GoogleFonts.dmSans(
-                              color: CubieColors.textMuted, fontSize: 12)),
+                              color: AppColors.textMuted, fontSize: 12)),
                       onTap: _confirmShutdown,
                     ),
                   ],
@@ -357,19 +357,19 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
   Widget _sectionLabel(String text) => Text(text,
       style: GoogleFonts.sora(
-          color: CubieColors.textSecondary,
+          color: AppColors.textSecondary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5));
 
   Widget _divider() => const Divider(
-      height: 1, indent: 16, endIndent: 16, color: CubieColors.cardBorder);
+      height: 1, indent: 16, endIndent: 16, color: AppColors.cardBorder);
 
   Widget _iconBox(IconData icon, Color color) => Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: color, size: 18),
@@ -386,14 +386,14 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         leading: _iconBox(icon, color),
         title: Text(title,
             style: GoogleFonts.dmSans(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500)),
         subtitle: Text(subtitle,
             style: GoogleFonts.dmSans(
-                color: CubieColors.textSecondary, fontSize: 12)),
+                color: AppColors.textSecondary, fontSize: 12)),
         trailing: const Icon(Icons.chevron_right_rounded,
-            color: CubieColors.textMuted, size: 20),
+            color: AppColors.textMuted, size: 20),
         onTap: onTap,
       );
 
@@ -431,19 +431,19 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             SelectableText(
               storedFingerprint?.toUpperCase() ?? 'Not set',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 12),
+                  color: AppColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 8),
             Text('Server fingerprint:', style: GoogleFonts.dmSans(fontSize: 12)),
             SelectableText(
               serverFingerprint?.toUpperCase() ?? 'Unavailable',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary, fontSize: 12),
+                  color: AppColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 12),
             Text(message,
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 12)),
+                    color: AppColors.textSecondary, fontSize: 12)),
           ],
         ),
         actions: [
@@ -482,11 +482,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               controller: oldCtrl,
               obscureText: true,
               keyboardType: TextInputType.number,
-              style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+              style: GoogleFonts.dmSans(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'Current PIN',
                 prefixIcon:
-                    Icon(Icons.lock_open_rounded, color: CubieColors.textMuted),
+                    Icon(Icons.lock_open_rounded, color: AppColors.textMuted),
               ),
             ),
             const SizedBox(height: 12),
@@ -495,11 +495,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               obscureText: true,
               keyboardType: TextInputType.number,
               maxLength: 6,
-              style: GoogleFonts.dmSans(color: CubieColors.textPrimary),
+              style: GoogleFonts.dmSans(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'New PIN',
                 prefixIcon:
-                    Icon(Icons.lock_rounded, color: CubieColors.textMuted),
+                    Icon(Icons.lock_rounded, color: AppColors.textMuted),
               ),
             ),
           ],
@@ -508,7 +508,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -545,16 +545,16 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           'This will stop all active services, cancel file transfers, '
           'and safely power off the device. You will need physical access '
           'to turn it back on.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
               Navigator.pop(ctx);
               _performShutdown();
@@ -595,16 +595,16 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         title: Text('Log Out?', style: GoogleFonts.sora()),
         content: Text(
           'You will need to pair your device again to use the app.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
               await ref.read(apiServiceProvider).logout();
               final prefs = ref.read(sharedPreferencesProvider);
@@ -659,55 +659,55 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return CubieCard(
+      return AppCard(
         padding: EdgeInsets.zero,
         child: ListTile(
           leading: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: CubieColors.primary.withOpacity(0.12),
+              color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child:
-                const Icon(Icons.shield_rounded, color: CubieColors.primary, size: 18),
+                const Icon(Icons.shield_rounded, color: AppColors.primary, size: 18),
           ),
           title: Text('Ad Blocking',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textPrimary, fontSize: 14)),
+                  color: AppColors.textPrimary, fontSize: 14)),
           trailing: const SizedBox(
             width: 20,
             height: 20,
             child:
-                CircularProgressIndicator(strokeWidth: 2, color: CubieColors.primary),
+                CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
           ),
         ),
       );
     }
 
     if (_unavailable || _stats == null) {
-      return CubieCard(
+      return AppCard(
         padding: EdgeInsets.zero,
         child: ListTile(
           leading: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: CubieColors.textMuted.withOpacity(0.12),
+              color: AppColors.textMuted.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.shield_outlined,
-                color: CubieColors.textMuted, size: 18),
+                color: AppColors.textMuted, size: 18),
           ),
           title: Text('Ad Blocking',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textPrimary, fontSize: 14)),
+                  color: AppColors.textPrimary, fontSize: 14)),
           subtitle: Text('Not configured — run install-adguard.sh on your Cubie',
               style:
-                  GoogleFonts.dmSans(color: CubieColors.textMuted, fontSize: 12)),
+                  GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12)),
           trailing: IconButton(
             icon: const Icon(Icons.refresh_rounded,
-                color: CubieColors.primary, size: 20),
+                color: AppColors.primary, size: 20),
             onPressed: _load,
           ),
         ),
@@ -720,7 +720,7 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
     final topBlocked =
         (_stats!['top_blocked'] as List<dynamic>? ?? []).cast<String>();
 
-    return CubieCard(
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -731,11 +731,11 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: CubieColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.shield_rounded,
-                    color: CubieColors.primary, size: 18),
+                    color: AppColors.primary, size: 18),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -744,13 +744,13 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                   children: [
                     Text('Ad Blocking',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w500)),
                     Text(
                         '$blocked of $queries queries blocked today (${percent.toStringAsFixed(0)}%)',
                         style: GoogleFonts.dmSans(
-                            color: CubieColors.textSecondary, fontSize: 12)),
+                            color: AppColors.textSecondary, fontSize: 12)),
                   ],
                 ),
               ),
@@ -761,7 +761,7 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
             const SizedBox(height: 10),
             Text('Top blocked:',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textMuted,
+                    color: AppColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
@@ -773,12 +773,12 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: CubieColors.cardBorder.withOpacity(0.5),
+                    color: AppColors.cardBorder.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(domain,
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary, fontSize: 11)),
+                          color: AppColors.textSecondary, fontSize: 11)),
                 );
               }).toList(),
             ),
@@ -797,12 +797,12 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                 const Spacer(),
                 Text('Enable',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
+                        color: AppColors.textSecondary, fontSize: 12)),
                 const SizedBox(width: 4),
                 Switch(
                   value: _stats!['protection_enabled'] as bool? ?? true,
                   onChanged: (v) => _toggle(v),
-                  activeColor: CubieColors.primary,
+                  activeColor: AppColors.primary,
                 ),
               ],
             ],
@@ -877,34 +877,34 @@ class _TrashCard extends ConsumerWidget {
         final totalBytes =
             items.fold<int>(0, (sum, item) => sum + item.sizeBytes);
         final sizeLabel = totalBytes > 0 ? _formatSize(totalBytes) : '0 B';
-        return CubieCard(
+        return AppCard(
           padding: EdgeInsets.zero,
           child: ListTile(
             leading: Container(
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: CubieColors.error.withOpacity(0.12),
+                color: AppColors.error.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.delete_outline_rounded,
-                  color: CubieColors.error, size: 18),
+                  color: AppColors.error, size: 18),
             ),
             title: Text('Trash',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500)),
             subtitle: Text('Trash: $sizeLabel',
                 style: GoogleFonts.dmSans(
-                    color: CubieColors.textSecondary, fontSize: 12)),
+                    color: AppColors.textSecondary, fontSize: 12)),
             trailing: items.isEmpty
                 ? null
                 : TextButton(
                     onPressed: () =>
                         _confirmEmptyTrash(context, ref, items),
                     style: TextButton.styleFrom(
-                        foregroundColor: CubieColors.error),
+                        foregroundColor: AppColors.error),
                     child: Text('Empty',
                         style: GoogleFonts.dmSans(
                             fontSize: 12,
@@ -913,52 +913,52 @@ class _TrashCard extends ConsumerWidget {
           ),
         );
       },
-      loading: () => CubieCard(
+      loading: () => AppCard(
         padding: EdgeInsets.zero,
         child: ListTile(
           leading: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: CubieColors.textMuted.withOpacity(0.12),
+              color: AppColors.textMuted.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.delete_outline_rounded,
-                color: CubieColors.textMuted, size: 18),
+                color: AppColors.textMuted, size: 18),
           ),
           title: Text('Trash',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textPrimary, fontSize: 14)),
+                  color: AppColors.textPrimary, fontSize: 14)),
           trailing: const SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(
-                strokeWidth: 2, color: CubieColors.primary),
+                strokeWidth: 2, color: AppColors.primary),
           ),
         ),
       ),
-      error: (e, _) => CubieCard(
+      error: (e, _) => AppCard(
         padding: EdgeInsets.zero,
         child: ListTile(
           leading: Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: CubieColors.textMuted.withOpacity(0.12),
+              color: AppColors.textMuted.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.delete_outline_rounded,
-                color: CubieColors.textMuted, size: 18),
+                color: AppColors.textMuted, size: 18),
           ),
           title: Text('Trash',
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textPrimary, fontSize: 14)),
+                  color: AppColors.textPrimary, fontSize: 14)),
           subtitle: Text(friendlyError(e),
               style: GoogleFonts.dmSans(
-                  color: CubieColors.textMuted, fontSize: 12)),
+                  color: AppColors.textMuted, fontSize: 12)),
           trailing: IconButton(
             icon: const Icon(Icons.refresh_rounded,
-                color: CubieColors.primary, size: 20),
+                color: AppColors.primary, size: 20),
             onPressed: () => ref.invalidate(trashItemsProvider),
           ),
         ),
@@ -978,18 +978,18 @@ class _TrashCard extends ConsumerWidget {
         content: Text(
           'This will permanently delete ${items.length} '
           'item${items.length == 1 ? '' : 's'}. This cannot be undone.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancel',
                 style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+                    GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: CubieColors.error),
+                backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Empty Trash',
                 style: GoogleFonts.dmSans(

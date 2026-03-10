@@ -7,7 +7,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/services'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/services'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -31,7 +31,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .post(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/services/$serviceId/toggle'),
+                '$_baseUrl${AppConstants.apiVersion}/services/$serviceId/toggle'),
             headers: _headers,
             body: jsonEncode({'enabled': enabled}),
           )
@@ -45,7 +45,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/status'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/network/status'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -59,7 +59,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/wifi'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/network/wifi'),
             headers: _headers,
             body: jsonEncode({'enabled': enabled}),
           )
@@ -73,7 +73,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/network/hotspot'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/network/hotspot'),
             headers: _headers,
             body: jsonEncode({'enabled': enabled}),
           )
@@ -88,7 +88,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .post(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/network/bluetooth'),
+                '$_baseUrl${AppConstants.apiVersion}/network/bluetooth'),
             headers: _headers,
             body: jsonEncode({'enabled': enabled}),
           )
@@ -103,7 +103,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .get(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/network/wifi/scan'),
+                '$_baseUrl${AppConstants.apiVersion}/network/wifi/scan'),
             headers: _headers,
           )
           .timeout(const Duration(seconds: 15)),
@@ -119,7 +119,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .post(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/network/wifi/connect'),
+                '$_baseUrl${AppConstants.apiVersion}/network/wifi/connect'),
             headers: _headers,
             body: jsonEncode({'ssid': ssid, 'password': password}),
           )
@@ -135,7 +135,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .post(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/network/wifi/disconnect'),
+                '$_baseUrl${AppConstants.apiVersion}/network/wifi/disconnect'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -150,7 +150,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .delete(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/network/wifi/saved/$encoded'),
+                '$_baseUrl${AppConstants.apiVersion}/network/wifi/saved/$encoded'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -164,7 +164,7 @@ extension ServicesNetworkApi on ApiService {
       () => _client
           .get(
             Uri.parse(
-                '$_baseUrl${CubieConstants.apiVersion}/network/wifi/saved'),
+                '$_baseUrl${AppConstants.apiVersion}/network/wifi/saved'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -181,7 +181,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/adguard/stats'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/stats'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -195,7 +195,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/adguard/toggle'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/toggle'),
             headers: _headers,
             body: jsonEncode({'enabled': enabled}),
           )
@@ -209,7 +209,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/adguard/pause'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/pause'),
             headers: _headers,
             body: jsonEncode({'minutes': minutes}),
           )
@@ -225,7 +225,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .get(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/telegram/config'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/telegram/config'),
             headers: _headers,
           )
           .timeout(ApiService._timeout),
@@ -239,7 +239,7 @@ extension ServicesNetworkApi on ApiService {
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/telegram/config'),
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/telegram/config'),
             headers: _headers,
             body: jsonEncode({'bot_token': botToken, 'allowed_ids': allowedIds}),
           )

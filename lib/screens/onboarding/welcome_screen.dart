@@ -11,7 +11,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -35,7 +35,7 @@ class WelcomeScreen extends StatelessWidget {
                 'Welcome to\nAiHomeCloud',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.sora(
-                  color: CubieColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
@@ -54,7 +54,7 @@ class WelcomeScreen extends StatelessWidget {
                 'No subscriptions, no limits.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
-                  color: CubieColors.textSecondary,
+                  color: AppColors.textSecondary,
                   fontSize: 15,
                   height: 1.5,
                 ),
@@ -113,8 +113,8 @@ class _Illustration extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 colors: [
-                  CubieColors.primary.withOpacity(0.15),
-                  CubieColors.primary.withOpacity(0.03),
+                  AppColors.primary.withValues(alpha: 0.15),
+                  AppColors.primary.withValues(alpha: 0.03),
                   Colors.transparent,
                 ],
                 radius: 0.8,
@@ -127,7 +127,7 @@ class _Illustration extends StatelessWidget {
             height: 160,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: CubieColors.cardBorder, width: 1),
+              border: Border.all(color: AppColors.cardBorder, width: 1),
             ),
           ),
           // Inner ring
@@ -137,7 +137,7 @@ class _Illustration extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                  color: CubieColors.primary.withOpacity(0.3), width: 1),
+                  color: AppColors.primary.withValues(alpha: 0.3), width: 1),
             ),
           ),
           // Centre cloud icon
@@ -145,20 +145,20 @@ class _Illustration extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: CubieColors.card,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                  color: CubieColors.primary.withOpacity(0.4), width: 1.5),
+                  color: AppColors.primary.withValues(alpha: 0.4), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: CubieColors.primary.withOpacity(0.2),
+                  color: AppColors.primary.withValues(alpha: 0.2),
                   blurRadius: 24,
                   spreadRadius: 4,
                 ),
               ],
             ),
             child: const Icon(Icons.cloud_rounded,
-                color: CubieColors.primary, size: 40),
+                color: AppColors.primary, size: 40),
           ),
           // Orbiting device icons
           Positioned(
@@ -177,10 +177,10 @@ class _Illustration extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: CubieColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: CubieColors.cardBorder),
+          border: Border.all(color: AppColors.cardBorder),
         ),
-        child: Icon(icon, color: CubieColors.textSecondary, size: 18),
+        child: Icon(icon, color: AppColors.textSecondary, size: 18),
       );
 }

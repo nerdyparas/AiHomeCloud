@@ -56,7 +56,7 @@ class NetworkScanner {
     return '${parts[0]}.${parts[1]}.${parts[2]}.';
   }
 
-  /// Scan the local /24 subnet for hosts with port [CubieConstants.apiPort]
+  /// Scan the local /24 subnet for hosts with port [AppConstants.apiPort]
   /// open, then probe for CubieCloud health endpoint.
   ///
   /// [onFound] is called each time a host is discovered (for live UI updates).
@@ -100,7 +100,7 @@ class NetworkScanner {
       // Quick TCP connect check
       final socket = await Socket.connect(
         ip,
-        CubieConstants.apiPort,
+        AppConstants.apiPort,
         timeout: const Duration(milliseconds: 800),
       );
       socket.destroy();
@@ -122,7 +122,7 @@ class NetworkScanner {
       // Try health endpoint first
       final healthReq = await client
           .getUrl(Uri.parse(
-              '${CubieConstants.apiScheme}://$ip:${CubieConstants.apiPort}/api/health'))
+              '${AppConstants.apiScheme}://$ip:${AppConstants.apiPort}/api/health'))
           .timeout(const Duration(seconds: 3));
       final healthResp =
           await healthReq.close().timeout(const Duration(seconds: 3));
@@ -135,7 +135,7 @@ class NetworkScanner {
         try {
           final rootReq = await client
               .getUrl(Uri.parse(
-                  '${CubieConstants.apiScheme}://$ip:${CubieConstants.apiPort}/'))
+                  '${AppConstants.apiScheme}://$ip:${AppConstants.apiPort}/'))
               .timeout(const Duration(seconds: 2));
           final rootResp =
               await rootReq.close().timeout(const Duration(seconds: 2));

@@ -1,6 +1,6 @@
 /// App-wide constants for CubieCloud.
-class CubieConstants {
-  CubieConstants._();
+class AppConstants {
+  AppConstants._();
 
   // ── API ────────────────────────────────────────────────────────────────────
   static const int apiPort = 8443;

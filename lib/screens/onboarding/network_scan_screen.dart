@@ -106,7 +106,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
       // Log in via auth session
       await ref.read(authSessionProvider.notifier).login(
             host: host.ip,
-            port: CubieConstants.apiPort,
+            port: AppConstants.apiPort,
             token: token,
             refreshToken: null,
             username: '',
@@ -117,7 +117,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
       try {
         final fingerprint = await api.fetchServerFingerprint(
           host: host.ip,
-          port: CubieConstants.apiPort,
+          port: AppConstants.apiPort,
         );
         if (fingerprint != null) {
           await persistServerFingerprint(ref, fingerprint);
@@ -147,7 +147,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
     final otherHosts = _hosts.where((h) => !h.isCubie).toList();
 
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -163,13 +163,13 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: CubieColors.card,
+                      color: AppColors.card,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: CubieColors.cardBorder),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: const Icon(
                       Icons.wifi_find_rounded,
-                      color: CubieColors.primary,
+                      color: AppColors.primary,
                       size: 24,
                     ),
                   ),
@@ -181,7 +181,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                         Text(
                           'Find Your Cubie',
                           style: GoogleFonts.sora(
-                            color: CubieColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                           ),
@@ -190,7 +190,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                           Text(
                             'Scanning from $_localIp',
                             style: GoogleFonts.dmSans(
-                              color: CubieColors.textSecondary,
+                              color: AppColors.textSecondary,
                               fontSize: 13,
                             ),
                           ),
@@ -201,7 +201,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                     IconButton(
                       onPressed: _startScan,
                       icon: const Icon(Icons.refresh_rounded),
-                      color: CubieColors.primary,
+                      color: AppColors.primary,
                       tooltip: 'Rescan',
                     ),
                 ],
@@ -217,8 +217,8 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: _progress,
-                        backgroundColor: CubieColors.card,
-                        color: CubieColors.primary,
+                        backgroundColor: AppColors.card,
+                        color: AppColors.primary,
                         minHeight: 4,
                       ),
                     ),
@@ -226,7 +226,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                     Text(
                       '${(_progress * 100).toInt()}% — scanning network…',
                       style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary,
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -239,7 +239,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                   child: Text(
                     'No devices found on the network.',
                     style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary,
+                      color: AppColors.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -251,21 +251,21 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                   margin: const EdgeInsets.only(top: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: CubieColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: CubieColors.error.withOpacity(0.3)),
+                        color: AppColors.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.error_outline_rounded,
-                          color: CubieColors.error, size: 20),
+                          color: AppColors.error, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _error!,
                           style: GoogleFonts.dmSans(
-                            color: CubieColors.error,
+                            color: AppColors.error,
                             fontSize: 13,
                           ),
                         ),
@@ -323,9 +323,9 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                               fontWeight: FontWeight.w600, fontSize: 14),
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: CubieColors.textSecondary,
+                          foregroundColor: AppColors.textSecondary,
                           side: const BorderSide(
-                              color: CubieColors.cardBorder),
+                              color: AppColors.cardBorder),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -347,7 +347,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
     return Text(
       title,
       style: GoogleFonts.sora(
-        color: CubieColors.textSecondary,
+        color: AppColors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 1,
@@ -381,12 +381,12 @@ class _DeviceTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: CubieColors.card,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isCubie
-                    ? CubieColors.primary.withOpacity(0.4)
-                    : CubieColors.cardBorder,
+                    ? AppColors.primary.withValues(alpha: 0.4)
+                    : AppColors.cardBorder,
               ),
             ),
             child: Row(
@@ -397,8 +397,8 @@ class _DeviceTile extends StatelessWidget {
                   height: 42,
                   decoration: BoxDecoration(
                     color: isCubie
-                        ? CubieColors.primary.withOpacity(0.15)
-                        : CubieColors.surface,
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -406,8 +406,8 @@ class _DeviceTile extends StatelessWidget {
                         ? Icons.cloud_rounded
                         : Icons.devices_other_rounded,
                     color: isCubie
-                        ? CubieColors.primary
-                        : CubieColors.textMuted,
+                        ? AppColors.primary
+                        : AppColors.textMuted,
                     size: 22,
                   ),
                 ),
@@ -423,7 +423,7 @@ class _DeviceTile extends StatelessWidget {
                             ? (host.deviceName ?? 'AiHomeCloud')
                             : host.ip,
                         style: GoogleFonts.dmSans(
-                          color: CubieColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 15,
                           fontWeight:
                               isCubie ? FontWeight.w600 : FontWeight.w400,
@@ -433,9 +433,9 @@ class _DeviceTile extends StatelessWidget {
                       Text(
                         isCubie
                             ? host.ip
-                            : 'Port ${CubieConstants.apiPort} open',
+                            : 'Port ${AppConstants.apiPort} open',
                         style: GoogleFonts.dmSans(
-                          color: CubieColors.textSecondary,
+                          color: AppColors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
@@ -449,13 +449,13 @@ class _DeviceTile extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: CubieColors.primary.withOpacity(0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       'Connect',
                       style: GoogleFonts.dmSans(
-                        color: CubieColors.primary,
+                        color: AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -467,13 +467,13 @@ class _DeviceTile extends StatelessWidget {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: CubieColors.primary,
+                      color: AppColors.primary,
                     ),
                   ),
                 if (!isCubie)
                   Icon(
                     Icons.block_rounded,
-                    color: CubieColors.textMuted.withOpacity(0.5),
+                    color: AppColors.textMuted.withValues(alpha: 0.5),
                     size: 18,
                   ),
               ],

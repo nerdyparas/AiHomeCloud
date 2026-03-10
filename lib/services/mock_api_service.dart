@@ -78,7 +78,7 @@ class MockApiService {
         networkUpMbps: 0.5 + _rng.nextDouble() * 15.0,
         networkDownMbps: 1.0 + _rng.nextDouble() * 45.0,
         storage: StorageStats(
-          totalGB: CubieConstants.totalStorageGB,
+          totalGB: AppConstants.totalStorageGB,
           usedGB: 127.3 + _rng.nextDouble() * 0.1,
         ),
       );
@@ -89,7 +89,7 @@ class MockApiService {
   Future<StorageStats> getStorageStats() async {
     await _delay();
     return StorageStats(
-      totalGB: CubieConstants.totalStorageGB,
+      totalGB: AppConstants.totalStorageGB,
       usedGB: 127.3 + _rng.nextDouble() * 0.1,
     );
   }
@@ -125,8 +125,8 @@ class MockApiService {
   /// TODO: GET https://<host>:8443/api/v1/files/list?path=<path>
   Future<List<FileItem>> listFiles(String path) async {
     await _delay();
-    if (path == CubieConstants.sharedPath) return _sharedFiles();
-    if (path.startsWith(CubieConstants.personalBasePath)) {
+    if (path == AppConstants.sharedPath) return _sharedFiles();
+    if (path.startsWith(AppConstants.personalBasePath)) {
       return _personalFiles(path);
     }
     return _genericFiles(path);
@@ -157,7 +157,7 @@ class MockApiService {
     int uploaded = 0;
 
     Timer.periodic(const Duration(milliseconds: 150), (timer) {
-      final chunk = min(CubieConstants.uploadChunkSize, totalBytes - uploaded);
+      final chunk = min(AppConstants.uploadChunkSize, totalBytes - uploaded);
       uploaded += chunk;
       ctrl.add(uploaded);
 
@@ -272,38 +272,38 @@ class MockApiService {
     return [
       FileItem(
           name: 'Family Photos',
-          path: '${CubieConstants.sharedPath}Family Photos/',
+          path: '${AppConstants.sharedPath}Family Photos/',
           isDirectory: true,
           sizeBytes: 0,
           modified: now.subtract(const Duration(hours: 2))),
       FileItem(
           name: 'Movies',
-          path: '${CubieConstants.sharedPath}Movies/',
+          path: '${AppConstants.sharedPath}Movies/',
           isDirectory: true,
           sizeBytes: 0,
           modified: now.subtract(const Duration(days: 5))),
       FileItem(
           name: 'Music',
-          path: '${CubieConstants.sharedPath}Music/',
+          path: '${AppConstants.sharedPath}Music/',
           isDirectory: true,
           sizeBytes: 0,
           modified: now.subtract(const Duration(days: 12))),
       FileItem(
           name: 'Documents',
-          path: '${CubieConstants.sharedPath}Documents/',
+          path: '${AppConstants.sharedPath}Documents/',
           isDirectory: true,
           sizeBytes: 0,
           modified: now.subtract(const Duration(days: 1))),
       FileItem(
           name: 'vacation_2025.mp4',
-          path: '${CubieConstants.sharedPath}vacation_2025.mp4',
+          path: '${AppConstants.sharedPath}vacation_2025.mp4',
           isDirectory: false,
           sizeBytes: 2147483648,
           modified: now.subtract(const Duration(days: 30)),
           mimeType: 'video/mp4'),
       FileItem(
           name: 'recipe_collection.pdf',
-          path: '${CubieConstants.sharedPath}recipe_collection.pdf',
+          path: '${AppConstants.sharedPath}recipe_collection.pdf',
           isDirectory: false,
           sizeBytes: 15728640,
           modified: now.subtract(const Duration(days: 3)),

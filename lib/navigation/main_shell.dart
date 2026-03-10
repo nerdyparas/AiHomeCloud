@@ -34,7 +34,7 @@ class MainShell extends ConsumerWidget {
             if (connection == ConnectionStatus.reconnecting)
               Container(
                 width: double.infinity,
-                color: CubieColors.primary.withOpacity(0.18),
+                color: AppColors.primary.withValues(alpha: 0.18),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: const Row(
                   children: [
@@ -51,7 +51,7 @@ class MainShell extends ConsumerWidget {
             if (upload.active)
               Container(
                 width: double.infinity,
-                color: CubieColors.primary.withOpacity(0.18),
+                color: AppColors.primary.withValues(alpha: 0.18),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   children: [
@@ -71,7 +71,7 @@ class MainShell extends ConsumerWidget {
             else if (upload.total > 0)
               Container(
                 width: double.infinity,
-                color: Colors.green.withOpacity(0.18),
+                color: Colors.green.withValues(alpha: 0.18),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   children: [
@@ -88,11 +88,11 @@ class MainShell extends ConsumerWidget {
             if (connection == ConnectionStatus.disconnected)
               Container(
                 width: double.infinity,
-                color: CubieColors.error.withOpacity(0.2),
+                color: AppColors.error.withValues(alpha: 0.2),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   children: [
-                    const Icon(Icons.cloud_off_rounded, size: 14, color: CubieColors.error),
+                    const Icon(Icons.cloud_off_rounded, size: 14, color: AppColors.error),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -105,7 +105,7 @@ class MainShell extends ConsumerWidget {
                       icon: const Icon(Icons.wifi_find_rounded, size: 14),
                       label: const Text('Find Cubie', style: TextStyle(fontSize: 12)),
                       style: TextButton.styleFrom(
-                        foregroundColor: CubieColors.primary,
+                        foregroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -120,12 +120,12 @@ class MainShell extends ConsumerWidget {
         bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(
-            top: BorderSide(color: CubieColors.cardBorder, width: 1),
+            top: BorderSide(color: AppColors.cardBorder, width: 1),
           ),
         ),
         child: NavigationBar(
-          backgroundColor: CubieColors.surface,
-          indicatorColor: CubieColors.primary.withOpacity(0.12),
+          backgroundColor: AppColors.surface,
+          indicatorColor: AppColors.primary.withValues(alpha: 0.12),
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           height: 68,
@@ -162,9 +162,9 @@ class MainShell extends ConsumerWidget {
       IconData icon, IconData activeIcon, String label, bool active) {
     return NavigationDestination(
       icon: Icon(icon,
-          color: active ? CubieColors.primary : CubieColors.textMuted,
+          color: active ? AppColors.primary : AppColors.textMuted,
           size: 22),
-      selectedIcon: Icon(activeIcon, color: CubieColors.primary, size: 22),
+      selectedIcon: Icon(activeIcon, color: AppColors.primary, size: 22),
       label: label,
     );
   }

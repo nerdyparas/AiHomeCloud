@@ -108,20 +108,20 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CubieColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: CubieColors.surface,
-        foregroundColor: CubieColors.textPrimary,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         title: Text('Telegram Bot',
             style: GoogleFonts.sora(
-                color: CubieColors.textPrimary,
+                color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600)),
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: CubieColors.primary))
+              child: CircularProgressIndicator(color: AppColors.primary))
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -130,13 +130,13 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 const SizedBox(height: 24),
 
                 // Instructions
-                CubieCard(
+                AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('How to set up',
                           style: GoogleFonts.sora(
-                              color: CubieColors.textPrimary,
+                              color: AppColors.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
@@ -155,7 +155,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 // Token input
                 Text('Bot Token',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary,
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5)),
@@ -164,33 +164,33 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   controller: _tokenCtrl,
                   obscureText: _obscureToken,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textPrimary, fontSize: 14),
+                      color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: _configured
                         ? 'Enter new token to replace existing'
                         : '1234567890:ABCdefGHIjklMNOpqrSTUvwxyz',
                     hintStyle: GoogleFonts.dmSans(
-                        color: CubieColors.textMuted, fontSize: 13),
+                        color: AppColors.textMuted, fontSize: 13),
                     filled: true,
-                    fillColor: CubieColors.surface,
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CubieColors.cardBorder),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CubieColors.cardBorder),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CubieColors.primary, width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
                           _obscureToken
                               ? Icons.visibility_off_rounded
                               : Icons.visibility_rounded,
-                          color: CubieColors.textMuted,
+                          color: AppColors.textMuted,
                           size: 18),
                       onPressed: () =>
                           setState(() => _obscureToken = !_obscureToken),
@@ -204,37 +204,37 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 // Allowed IDs input
                 Text('Allowed Chat IDs (optional)',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary,
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5)),
                 const SizedBox(height: 4),
                 Text('Comma-separated — leave empty to allow anyone',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textMuted, fontSize: 11)),
+                        color: AppColors.textMuted, fontSize: 11)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _idsCtrl,
                   keyboardType: TextInputType.number,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textPrimary, fontSize: 14),
+                      color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: '123456789, 987654321',
                     hintStyle: GoogleFonts.dmSans(
-                        color: CubieColors.textMuted, fontSize: 13),
+                        color: AppColors.textMuted, fontSize: 13),
                     filled: true,
-                    fillColor: CubieColors.surface,
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CubieColors.cardBorder),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CubieColors.cardBorder),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CubieColors.primary, width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
@@ -247,7 +247,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   const SizedBox(height: 8),
                   Text(_errorMsg!,
                       style: GoogleFonts.dmSans(
-                          color: CubieColors.error, fontSize: 13)),
+                          color: AppColors.error, fontSize: 13)),
                 ],
                 const SizedBox(height: 24),
 
@@ -257,7 +257,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   child: FilledButton(
                     onPressed: _saving ? null : _save,
                     style: FilledButton.styleFrom(
-                      backgroundColor: CubieColors.primary,
+                      backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -291,13 +291,13 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
               width: 20,
               height: 20,
               decoration: BoxDecoration(
-                color: CubieColors.primary.withAlpha(30),
+                color: AppColors.primary.withAlpha(30),
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: Text(num,
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.primary,
+                        color: AppColors.primary,
                         fontSize: 11,
                         fontWeight: FontWeight.w700)),
               ),
@@ -306,7 +306,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
             Expanded(
               child: Text(text,
                   style: GoogleFonts.dmSans(
-                      color: CubieColors.textSecondary,
+                      color: AppColors.textSecondary,
                       fontSize: 13,
                       height: 1.4)),
             ),
@@ -323,10 +323,10 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = running
-        ? CubieColors.success
+        ? AppColors.success
         : configured
-            ? CubieColors.primary
-            : CubieColors.textMuted;
+            ? AppColors.primary
+            : AppColors.textMuted;
     final icon = running
         ? Icons.check_circle_rounded
         : configured
@@ -338,7 +338,7 @@ class _StatusCard extends StatelessWidget {
             ? 'Configured but not running'
             : 'Not configured';
 
-    return CubieCard(
+    return AppCard(
       child: Row(
         children: [
           Container(
@@ -356,7 +356,7 @@ class _StatusCard extends StatelessWidget {
               children: [
                 Text('Telegram Bot',
                     style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
+                        color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
