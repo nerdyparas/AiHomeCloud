@@ -820,6 +820,361 @@ From old tasks.md Milestone 9B. Not needed until AI features are built.
 
 ---
 
+## Phase 9 — Pre-Release Polish & Bug Fixes
+
+> Fix deprecations, branding, and test infrastructure issues before user testing.
+
+---
+
+### TASK-P9-01 — Fix Hardware Integration Test on Windows
+**Priority:** 🟠 High
+**Status:** ⬜ todo
+**Phase:** Phase 9 — Pre-Release Polish
+**Files:** `backend/tests/test_hardware_integration.py`
+**Depends on:** none
+
+**Goal:**
+The module-level `pytest.skip()` in `test_hardware_integration.py` causes an `INTERNALERROR` on Windows that prevents all backend tests from running unless `--ignore` is used. The event_loop session fixture teardown crashes when the skip fires during collection.
+
+**Acceptance criteria:**
+- [ ] Tests can run on Windows without `--ignore=tests/test_hardware_integration.py`
+- [ ] Hardware tests still skip cleanly on non-hardware environments
+- [ ] `cd backend && python -m pytest tests/ -q` — all non-hardware tests pass, hardware tests show as skipped (not INTERNALERROR)
+- [ ] Hardware tests still run correctly on the Cubie
+
+**Notes:**
+Fix approach: replace module-level `pytest.skip()` with a `pytestmark = pytest.mark.skipif(not Path("/var/lib/cubie/users.json").exists(), reason="...")` module-level marker, or move skip logic into fixtures. The current `pytest.skip(allow_module_level=True)` conflicts with the session-scoped `event_loop` fixture.
+
+---
+
+### TASK-P9-02 — Replace Deprecated withOpacity Calls
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 9 — Pre-Release Polish
+**Files:** `lib/**/*.dart`
+**Depends on:** none
+
+**Goal:**
+`flutter analyze` reports ~60+ `info` level `deprecated_member_use` warnings for `Color.withOpacity()`. Replace with `Color.withValues(alpha: x)` throughout the codebase.
+
+**Acceptance criteria:**
+- [ ] All `withOpacity(x)` calls replaced with `withValues(alpha: x)` in `lib/`
+- [ ] `flutter analyze` shows 0 `deprecated_member_use` warnings for `withOpacity`
+- [ ] `flutter test` passes
+
+**Notes:**
+Mapping: `.withOpacity(0.5)` → `.withValues(alpha: 0.5)`. Bulk search-and-replace safe for most cases. Verify visually in one screen after the change.
+
+---
+
+### TASK-P9-03 — Fix Dangling Library Doc Comments
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 9 — Pre-Release Polish
+**Files:** `lib/models/*.dart`, `lib/providers/*.dart`, `lib/providers.dart`
+**Depends on:** none
+
+**Goal:**
+`flutter analyze` reports `dangling_library_doc_comments` warnings. Fix the doc comments at the top of model and provider files.
+
+**Acceptance criteria:**
+- [ ] All `dangling_library_doc_comments` warnings resolved
+- [ ] `flutter analyze` shows 0 dangling doc comment warnings
+
+**Notes:**
+Fix: either prefix with `library;` declaration or convert `///` to `//` for file-level comments.
+
+---
+
+### TASK-P9-04 — Rename CubieCloud → AiHomeCloud in Class Names
+**Priority:** 🟢 Low
+**Status:** ⬜ todo
+**Phase:** Phase 9 — Pre-Release Polish
+**Files:** `lib/main.dart`, `lib/core/constants.dart`, `lib/core/theme.dart`, `lib/widgets/*.dart`
+**Depends on:** none
+
+**Goal:**
+Class names and internal identifiers still use `CubieCloud` prefix (e.g., `CubieCloudApp`, `CubieColors`, `CubieTheme`, `CubieCard`, `CubieConstants`). Rename to `AiHomeCloud`-based names for brand consistency.
+
+**Acceptance criteria:**
+- [ ] `CubieCloudApp` → `AiHomeCloudApp`
+- [ ] `CubieColors` → `AppColors` (shorter, more idiomatic)
+- [ ] `CubieTheme` → `AppTheme`
+- [ ] `CubieCard` → `AppCard`
+- [ ] `CubieConstants` → `AppConstants`
+- [ ] All references updated across the codebase
+- [ ] `flutter analyze` passes
+- [ ] `flutter test` passes
+
+**Notes:**
+Use IDE rename/refactor to catch all references. BLE device prefix should stay as-is (hardware protocol). This is cosmetic but important for brand consistency at release.
+
+---
+
+### TASK-P9-05 — Fix Deprecated Flutter Test APIs
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 9 — Pre-Release Polish
+**Files:** `test/widgets/cubie_card_test.dart`, `test/screens/dashboard_screen_test.dart`
+**Depends on:** none
+
+**Goal:**
+Flutter tests use deprecated `window.physicalSizeTestValue`, `window.devicePixelRatioTestValue`, `clearPhysicalSizeTestValue`, `clearDevicePixelRatioTestValue`. Replace with `WidgetTester.view` equivalents.
+
+**Acceptance criteria:**
+- [ ] All deprecated `window.*` calls replaced with `tester.view.*` equivalents
+- [ ] `flutter analyze` shows 0 deprecated test API warnings
+- [ ] `flutter test` passes
+- [ ] Golden tests still produce matching output
+
+**Notes:**
+Migration: `tester.binding.window.physicalSizeTestValue = Size(w, h)` → `tester.view.physicalSize = Size(w, h)`. Similarly for `devicePixelRatio` and cleanup methods.
+
+---
+
+## Phase 10 — Hardware Validation (BEFORE User Testing)
+
+> Complete end-to-end validation on real Cubie hardware. Every item must pass before handing to users.
+
+---
+
+### TASK-P10-01 — Deploy Latest Code to Cubie
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** `deploy.sh`, `backend/requirements.txt`
+**Depends on:** Phase 9 complete
+
+**Goal:**
+Deploy latest main branch to Cubie hardware, install any new dependencies, restart service, verify backend starts cleanly.
+
+**Acceptance criteria:**
+- [ ] `git pull` on Cubie brings in all latest changes
+- [ ] `pip install -r requirements.txt` succeeds in venv
+- [ ] `sudo systemctl restart cubie-backend` completes without error
+- [ ] `journalctl -u cubie-backend --no-pager -n 50` shows clean startup (no tracebacks)
+- [ ] `curl -sk https://localhost:8443/api/v1/system/info` returns valid JSON
+
+**Notes:**
+Use `deploy.sh` or manual SSH. Check for any new env vars needed in systemd service file.
+
+---
+
+### TASK-P10-02 — Full Backend Test Suite on Hardware
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** `backend/tests/`
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Run complete backend test suite on the Cubie to verify all tests pass on ARM64 Linux (not just Windows dev machine).
+
+**Acceptance criteria:**
+- [ ] `cd backend && venv/bin/python -m pytest tests/ -q` — all tests pass (expect ~270+ pass, ≤4 skip, 0 fail)
+- [ ] Hardware integration tests pass (28+ pass, ≤2 skip)
+- [ ] No event loop errors, no import errors, no permission errors
+- [ ] Test results logged in `logs.md`
+
+**Notes:**
+Windows-only failures (`test_run_command_basic`, `test_run_command_timeout`) should pass on Linux. The 2 skipped tests in hardware integration are expected (download/delete cascade from InboxWatcher auto-sort).
+
+---
+
+### TASK-P10-03 — Board Detection & System Info
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Verify board detection, thermal monitoring, and system info endpoint return correct data on live hardware.
+
+**Acceptance criteria:**
+- [ ] `GET /api/v1/system/info` returns `boardModel: "Radxa CUBIE A7A"` (not "unknown")
+- [ ] CPU temperature reads valid value (20–80°C range)
+- [ ] LAN interface detected as `eth0`
+- [ ] Memory and disk stats are realistic
+- [ ] System uptime is non-zero
+
+---
+
+### TASK-P10-04 — Storage Mount / Unmount / Format Cycle
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Test complete external storage lifecycle on real hardware with a USB drive.
+
+**Acceptance criteria:**
+- [ ] `GET /api/v1/storage/devices` lists USB drive correctly (not marked as OS disk)
+- [ ] `POST /api/v1/storage/format` formats USB drive with ext4 (confirm with `lsblk`)
+- [ ] `POST /api/v1/storage/mount` mounts USB at `/srv/nas/`
+- [ ] `GET /api/v1/storage/stats` shows correct capacity after mount
+- [ ] `POST /api/v1/storage/unmount` cleanly unmounts
+- [ ] `POST /api/v1/storage/eject` powers off USB device
+- [ ] Auto-remount on service restart works (storage.json persists mount config)
+- [ ] OS partitions (mmcblk0, mtdblock0, zram) are blocked from formatting
+
+---
+
+### TASK-P10-05 — File Upload → Auto-Sort → Search Pipeline
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-04
+
+**Goal:**
+Test complete file lifecycle: upload → auto-sort → index → search → download → trash → restore.
+
+**Acceptance criteria:**
+- [ ] Upload a .jpg to `.inbox/` → InboxWatcher sorts to `Photos/` within 30s
+- [ ] Upload a small .jpg (< 800KB) named "aadhaar_card.jpg" → sorts to `Documents/`
+- [ ] Upload a .pdf → sorts to `Documents/` → indexed in FTS5 (if pdftotext available)
+- [ ] Upload a .mp4 → sorts to `Videos/`
+- [ ] `GET /api/v1/files/search?q=aadhaar` returns the document
+- [ ] Download the sorted file via `GET /api/v1/files/download`
+- [ ] Soft-delete file → appears in `GET /api/v1/files/trash`
+- [ ] Restore from trash → file back at original path
+- [ ] Permanent delete from trash → file gone
+
+---
+
+### TASK-P10-06 — Service Toggle Verification
+**Priority:** 🟠 High
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Verify all NAS service toggles actually start/stop the systemd units.
+
+**Acceptance criteria:**
+- [ ] Toggle Samba ON → `systemctl is-active smbd` returns `active`
+- [ ] Toggle Samba OFF → `systemctl is-active smbd` returns `inactive`
+- [ ] Toggle SSH ON/OFF works
+- [ ] Toggle DLNA ON/OFF works (if minidlna installed)
+- [ ] Toggle AdGuard ON/OFF works (if AdGuard installed)
+- [ ] Service states persist across backend restart
+
+---
+
+### TASK-P10-07 — Network & Wi-Fi Verification
+**Priority:** 🟠 High
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Verify network status endpoint and Wi-Fi operations on real hardware.
+
+**Acceptance criteria:**
+- [ ] `GET /api/v1/network/status` returns correct LAN IP, gateway, DNS
+- [ ] `GET /api/v1/network/wifi/scan` returns nearby Wi-Fi networks
+- [ ] Wi-Fi connect/disconnect works (if Wi-Fi adapter present)
+- [ ] Auto-AP activates when no network is available (if configured)
+- [ ] Saved networks list shows connected Wi-Fi
+
+---
+
+### TASK-P10-08 — App QR Pairing + Full UI Flow
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Test complete app flow: QR scan → pair → login → browse files → upload → search → manage family.
+
+**Acceptance criteria:**
+- [ ] Build release APK: `flutter build apk --release`
+- [ ] Install on Android phone
+- [ ] QR scan from Cubie's console output or `/pair/qr` endpoint
+- [ ] Pairing completes, JWT tokens received
+- [ ] Dashboard loads with real system stats
+- [ ] File browser shows sorted folders (Photos, Videos, Documents, Others)
+- [ ] Upload from phone → file appears in `.inbox/` → auto-sorts
+- [ ] Document search finds uploaded documents
+- [ ] Family member creation works
+- [ ] Family member login with separate account works
+- [ ] Admin-only features (service toggle, format) restricted for members
+- [ ] App reconnects after Cubie service restart
+
+---
+
+### TASK-P10-09 — Telegram Bot Verification
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-05
+
+**Goal:**
+Verify Telegram bot connects and responds to commands on real hardware.
+
+**Acceptance criteria:**
+- [ ] Configure bot token via `POST /api/v1/telegram/config`
+- [ ] Bot comes online in Telegram (green dot)
+- [ ] `/start` returns welcome message
+- [ ] `/list` returns recent documents
+- [ ] Plain text search finds indexed documents
+- [ ] Number reply sends the correct file
+- [ ] Unauthorized user gets rejection message
+- [ ] Bot survives service restart
+
+---
+
+### TASK-P10-10 — Stress Test & Resource Monitoring
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-05
+
+**Goal:**
+Verify the system handles concurrent load and stays within RAM budget.
+
+**Acceptance criteria:**
+- [ ] 10 concurrent file-list requests complete without deadlock (< 2s)
+- [ ] 5 simultaneous uploads don't crash the backend
+- [ ] RAM usage stays under 500MB during normal operations (check with `free -h`)
+- [ ] CPU temp stays under 70°C during sustained load
+- [ ] WebSocket monitor stream stays connected for 5+ minutes
+- [ ] No memory leaks after 100+ requests (compare RSS before/after)
+
+---
+
+### TASK-P10-11 — Security Smoke Test on Hardware
+**Priority:** 🟠 High
+**Status:** ⬜ todo
+**Phase:** Phase 10 — Hardware Validation
+**Files:** none (verification only)
+**Depends on:** TASK-P10-01
+
+**Goal:**
+Verify all security controls work on real hardware (not just unit tests).
+
+**Acceptance criteria:**
+- [ ] Expired JWT token returns 401 (not 500)
+- [ ] Wrong PIN returns 401, not 500
+- [ ] 10+ failed logins triggers lockout (HTTP 429)
+- [ ] Path traversal attempt (`../../../etc/passwd`) returns 403
+- [ ] Blocked extension upload (`.sh`, `.py`) returns 415
+- [ ] CORS header not reflected for evil origin
+- [ ] TLS cert is self-signed and served on port 8443
+- [ ] JWT secret file at `/var/lib/cubie/jwt_secret` has mode 600
+- [ ] No plaintext PINs in `/var/lib/cubie/users.json`
+
+---
+
 ## Priority Order Summary
 
 **Work in this exact sequence — each phase unblocks the next:**
@@ -834,10 +1189,13 @@ From old tasks.md Milestone 9B. Not needed until AI features are built.
 | 6 | Phase 6 | 🟡 MEDIUM | 4 tasks | Deployment readiness (audit, hardware test) |
 | 7 | Phase 7 | 🟡 MEDIUM | 2 tasks | Remaining Flutter tests |
 | 8 | Phase 8 | 🟢 LOW | 3 tasks | Future features (Tailscale, events, AI prep) |
+| 9 | Phase 9 | 🟠 HIGH | 5 tasks | Pre-release polish & bug fixes |
+| 10 | Phase 10 | 🔴 CRITICAL | 11 tasks | Hardware validation before user testing |
 
-**Total: 32 tasks across 8 phases.**
+**Total: 45 tasks across 10 phases.**
+**Completed: 32/45 (Phase 1–6 done). Remaining: 13 tasks (Phase 7–10).**
 
 ---
 
-*AiHomeCloud TASKSv2 — Generated 2025-03-10*
+*AiHomeCloud TASKSv2 — Updated 2026-03-10*
 *Reference: v1 branch preserves all completed work from Milestones 1–8.*
