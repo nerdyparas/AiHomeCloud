@@ -262,6 +262,8 @@ class NetworkStatus(BaseModel):
     lan_connected: bool = Field(alias="lanConnected")
     lan_ip: Optional[str] = Field(None, alias="lanIp")
     lan_speed: Optional[str] = Field(None, alias="lanSpeed")  # "1000Mb/s"
+    gateway: Optional[str] = None
+    dns: Optional[list[str]] = None
 
     model_config = {"populate_by_name": True}
 

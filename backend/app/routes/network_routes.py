@@ -160,16 +160,49 @@ async def _lan_info() -> dict:
     }
 
 
+async def _gateway_dns_info() -> dict:
+    """Return default gateway IP and DNS nameservers."""
+    gateway = None
+    dns_servers: list[str] = []
+
+    # Gateway from ip route
+    rc, out, _ = await _run(["ip", "route", "show", "default"])
+    if rc == 0:
+        for line in out.splitlines():
+            if "default via" in line:
+                parts = line.split()
+                try:
+                    gateway = parts[parts.index("via") + 1]
+                    break
+                except (ValueError, IndexError):
+                    pass
+
+    # DNS from resolv.conf
+    try:
+        with open("/etc/resolv.conf") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("nameserver"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        dns_servers.append(parts[1])
+    except OSError:
+        pass
+
+    return {"gateway": gateway, "dns": dns_servers or None}
+
+
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
 @router.get("/status", response_model=NetworkStatus)
 async def get_network_status(user: dict = Depends(get_current_user)):
     """Aggregated network status — WiFi, hotspot, Bluetooth, LAN."""
-    wifi, hotspot, bt, lan = await asyncio.gather(
+    wifi, hotspot, bt, lan, gw = await asyncio.gather(
         _wifi_info(),
         _hotspot_info(),
         _bluetooth_info(),
         _lan_info(),
+        _gateway_dns_info(),
     )
 
     return NetworkStatus(
@@ -183,6 +216,8 @@ async def get_network_status(user: dict = Depends(get_current_user)):
         lan_connected=lan["connected"],
         lan_ip=lan["ip"],
         lan_speed=lan["speed"],
+        gateway=gw["gateway"],
+        dns=gw["dns"],
     )
 
 

@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-03-10 — Phase 10 Hardware Validation (TASK-P10-07 through P10-09)
+
+### What was done
+- **TASK-P10-07 — Network & Wi-Fi**: Added `gateway` and `dns` fields to `NetworkStatus` model and wired a new `_gateway_dns_info()` helper into `GET /api/v1/network/status`. Verified: LAN IP 192.168.0.212, gateway 192.168.0.1, DNS 192.168.0.1, wlan0 connected to Neo6G (100%), 12 networks in Wi-Fi scan, saved network Neo6G shown inUse=true, auto-AP enabled (not active — network available). Wi-Fi connect/disconnect skipped to avoid dropping active connection.
+- **TASK-P10-08 — QR Pairing (backend side)**: `GET /api/v1/pair/qr` returns `{qrValue, serial, ip, host, expiresAt}` with correct IP 192.168.0.212. `POST /api/v1/pair` with `{serial, key}` returns device JWT ✅. Full app UI flow (install, scan, browse) requires a physical Android phone — Flutter SDK not available on the Cubie ARM64 device; APK must be built on dev machine.
+- **TASK-P10-09 — Telegram Bot**: **Skipped** — requires creating a bot via BotFather first to get a bot token. Resume when token is available.
+
+### Code changes
+- `backend/app/models.py`: Added `gateway: Optional[str]` and `dns: Optional[list[str]]` to `NetworkStatus`
+- `backend/app/routes/network_routes.py`: Added `_gateway_dns_info()` async helper (reads `ip route show default` + `/etc/resolv.conf`), included in `asyncio.gather()` call in `get_network_status()`
+
+---
+
 ## 2026-03-10 — Phase 10 Hardware Validation (TASK-P10-02 through P10-06)
 
 ### What was done
