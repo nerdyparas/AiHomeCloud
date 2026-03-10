@@ -84,20 +84,54 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
 
     try {
       final api = ref.read(apiServiceProvider);
+      final previousFingerprint = ref.read(certFingerprintProvider);
+      final stopwatch = Stopwatch()..start();
+      debugPrint('[onboarding/connect] start ip=${host.ip}');
+
+      // Bootstrap pairing against a discovered LAN host without strict pinning.
+      // We pin again immediately after fetching the server fingerprint.
+      api.setTrustedFingerprint(null);
+      debugPrint('[onboarding/connect] tls pinning temporarily disabled');
 
       // Fetch pairing info from the discovered device
+      debugPrint('[onboarding/connect] fetchPairingInfo:start');
       final pairingInfo = await api.fetchPairingInfo(host.ip);
-      final serial = pairingInfo['serial'] as String;
-      final key = pairingInfo['key'] as String? ?? '';
+      debugPrint('[onboarding/connect] fetchPairingInfo:ok +${stopwatch.elapsedMilliseconds}ms');
+      final serial = pairingInfo['serial'] as String? ?? '';
+      String key = pairingInfo['key'] as String? ?? '';
+
+      // Backward-compat: some backend builds do not expose top-level `key`
+      // in /pair/qr JSON. In that case, read it from qrValue query params.
+      if (key.isEmpty) {
+        final qrValue = pairingInfo['qrValue'] as String?;
+        if (qrValue != null && qrValue.isNotEmpty) {
+          try {
+            final uri = Uri.parse(qrValue);
+            key = uri.queryParameters['key'] ?? '';
+          } catch (_) {
+            // Keep default empty key and fail with user-friendly error below.
+          }
+        }
+      }
+
+      if (serial.isEmpty || key.isEmpty) {
+        debugPrint('[onboarding/connect] pairing payload incomplete serial=${serial.isNotEmpty} key=${key.isNotEmpty}');
+        throw Exception(
+          'Pairing data is incomplete from this device. Please rescan QR or update backend.',
+        );
+      }
 
       // Pair with the device
+      debugPrint('[onboarding/connect] pairDevice:start');
       final token = await api.pairDevice(
         serial,
         key,
         hostOverride: host.ip,
       );
+      debugPrint('[onboarding/connect] pairDevice:ok +${stopwatch.elapsedMilliseconds}ms');
 
       // Log in via auth session
+      debugPrint('[onboarding/connect] login:start');
       await ref.read(authSessionProvider.notifier).login(
             host: host.ip,
             port: AppConstants.apiPort,
@@ -106,26 +140,43 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
             username: '',
             isAdmin: true,
           );
+      debugPrint('[onboarding/connect] login:ok +${stopwatch.elapsedMilliseconds}ms');
 
       // Fetch and persist TLS fingerprint
       try {
+        debugPrint('[onboarding/connect] fetchServerFingerprint:start');
         final fingerprint = await api.fetchServerFingerprint(
           host: host.ip,
           port: AppConstants.apiPort,
         );
+        debugPrint('[onboarding/connect] fetchServerFingerprint:ok +${stopwatch.elapsedMilliseconds}ms hasFingerprint=${fingerprint != null && fingerprint.isNotEmpty}');
         if (fingerprint != null) {
           await persistServerFingerprint(ref, fingerprint);
+          debugPrint('[onboarding/connect] fingerprint persisted');
+        } else if (previousFingerprint != null && previousFingerprint.isNotEmpty) {
+          api.setTrustedFingerprint(previousFingerprint);
+          debugPrint('[onboarding/connect] fingerprint missing, restored previous pin');
         }
       } catch (_) {
-        // Non-fatal — pinning can happen later
+        // Non-fatal — restore previous pin if we had one.
+        if (previousFingerprint != null && previousFingerprint.isNotEmpty) {
+          api.setTrustedFingerprint(previousFingerprint);
+          debugPrint('[onboarding/connect] fingerprint fetch failed, restored previous pin');
+        }
       }
 
       if (!mounted) return;
 
       // If already set up, go straight to dashboard; otherwise create profile
       final isSetupDone = ref.read(isSetupDoneProvider);
+      debugPrint('[onboarding/connect] success -> ${isSetupDone ? '/dashboard' : '/setup'} +${stopwatch.elapsedMilliseconds}ms');
       context.go(isSetupDone ? '/dashboard' : '/setup');
     } catch (e) {
+      final previousFingerprint = ref.read(certFingerprintProvider);
+      if (previousFingerprint != null && previousFingerprint.isNotEmpty) {
+        ref.read(apiServiceProvider).setTrustedFingerprint(previousFingerprint);
+      }
+      debugPrint('[onboarding/connect] failed error=$e');
       if (!mounted) return;
       setState(() {
         _connecting = false;
