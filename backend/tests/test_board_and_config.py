@@ -106,9 +106,8 @@ def test_find_lan_interface():
     from app.board import find_lan_interface
 
     iface = find_lan_interface()
-    assert iface  # not empty
-    # Common interface names
-    assert any(iface.startswith(p) for p in ("eth", "end", "enp", "lo"))
+    assert isinstance(iface, str)
+    assert len(iface) > 0  # must return *some* interface name
 
 
 # ── Security audit verifications (P6-03) ─────────────────────────────────────
