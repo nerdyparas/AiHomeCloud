@@ -8,7 +8,7 @@ OS partition protection, and graceful error handling.
 import pytest
 from httpx import AsyncClient
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 
 @pytest.mark.asyncio
@@ -337,3 +337,224 @@ async def test_storage_stats_does_not_require_admin(client: AsyncClient, admin_t
         headers={"Authorization": f"Bearer {member_token}"}
     )
     assert response.status_code == 200, "Non-admin should be able to read stats"
+
+
+# ── smart-activate tests ─────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_smart_activate_already_active_returns_200(authenticated_client: AsyncClient):
+    """
+    TASK-DRIVE-02: State D — drive already active → idempotent 200 + action=already_active.
+    """
+    with patch(
+        "app.store.get_storage_state",
+        new=AsyncMock(return_value={"activeDevice": "/dev/sda1", "displayName": "Test Drive"}),
+    ), patch(
+        "app.routes.storage_routes.list_block_devices",
+        new=AsyncMock(return_value=[]),
+    ):
+        response = await authenticated_client.post(
+            "/api/v1/storage/smart-activate",
+            json={"device": "/dev/sda"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["action"] == "already_active"
+    assert "display_name" in data
+
+
+@pytest.mark.asyncio
+async def test_smart_activate_nonexistent_device_returns_404(authenticated_client: AsyncClient):
+    """
+    TASK-DRIVE-02: Non-existent device → 404.
+    """
+    with patch(
+        "app.routes.storage_routes.list_block_devices",
+        new=AsyncMock(return_value=[]),
+    ):
+        response = await authenticated_client.post(
+            "/api/v1/storage/smart-activate",
+            json={"device": "/dev/nonexistent99"},
+        )
+    assert response.status_code == 404
+    assert "not found" in response.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_smart_activate_requires_admin(client: AsyncClient):
+    """
+    TASK-DRIVE-02: smart-activate requires admin auth.
+    """
+    response = await client.post(
+        "/api/v1/storage/smart-activate",
+        json={"device": "/dev/sda"},
+    )
+    assert response.status_code in (401, 403), "smart-activate should require admin"
+
+
+# ── TASK-DRIVE-06: full coverage of all 4 smart-activate states ──────────────
+
+
+_MOCK_USB_DISK = {
+    "name": "sda",
+    "size": 500107862016,
+    "type": "disk",
+    "mountpoint": None,
+    "fstype": None,
+    "label": None,
+    "model": "Samsung T7",
+    "tran": "usb",
+    "serial": "ABC123",
+    "children": [],
+}
+
+_MOCK_EXT4_DISK = {
+    **_MOCK_USB_DISK,
+    "children": [
+        {
+            "name": "sda1",
+            "size": 500107862016,
+            "type": "part",
+            "mountpoint": None,
+            "fstype": "ext4",
+            "label": "AiHomeCloud",
+            "model": None,
+            "tran": "usb",
+            "serial": None,
+            "children": [],
+        }
+    ],
+}
+
+_MOCK_MMCBLK_DISK = {
+    "name": "mmcblk0",
+    "size": 31268536320,
+    "type": "disk",
+    "mountpoint": None,
+    "fstype": None,
+    "label": None,
+    "model": "SD32G",
+    "tran": "mmc",
+    "serial": None,
+    "children": [
+        {
+            "name": "mmcblk0p1",
+            "size": 268435456,
+            "type": "part",
+            "mountpoint": "/boot",
+            "fstype": "vfat",
+            "label": None,
+            "model": None,
+            "tran": None,
+            "serial": None,
+            "children": [],
+        }
+    ],
+}
+
+
+@pytest.mark.asyncio
+async def test_smart_activate_ext4_partition_mounts_without_format(
+    authenticated_client: AsyncClient,
+):
+    """
+    TASK-DRIVE-06: State A — disk already has ext4 partition.
+    smart-activate must mount it directly without calling mkfs.ext4.
+    """
+    mount_calls = []
+
+    async def _mock_run_command(cmd, **kwargs):
+        mount_calls.append(cmd)
+        return 0, "", ""
+
+    with patch(
+        "app.store.get_storage_state",
+        new=AsyncMock(return_value={}),
+    ), patch(
+        "app.routes.storage_routes.list_block_devices",
+        new=AsyncMock(return_value=[_MOCK_EXT4_DISK]),
+    ), patch(
+        "app.routes.storage_routes.run_command",
+        new=AsyncMock(side_effect=_mock_run_command),
+    ), patch(
+        "app.routes.storage_routes._post_mount_setup",
+        new=AsyncMock(),
+    ), patch(
+        "app.routes.storage_routes.emit_device_mounted",
+        new=AsyncMock(),
+    ):
+        response = await authenticated_client.post(
+            "/api/v1/storage/smart-activate",
+            json={"device": "/dev/sda"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["action"] == "mounted", f"Expected mounted, got {data}"
+    assert "display_name" in data
+
+    cmd_strings = [" ".join(c) for c in mount_calls]
+    assert any("mount" in s for s in cmd_strings), "mount must be called"
+    assert not any("mkfs" in s for s in cmd_strings), "mkfs must NOT be called for ext4 disk"
+
+
+@pytest.mark.asyncio
+async def test_smart_activate_unformatted_starts_format_job(
+    authenticated_client: AsyncClient,
+):
+    """
+    TASK-DRIVE-06: State B/C — disk has no ext4 / no partitions.
+    smart-activate must start a background format job and return jobId.
+    """
+    created_tasks = []
+
+    def _mock_create_task(coro):
+        # Discard the coroutine — we don't want actual formatting to run.
+        coro.close()
+        created_tasks.append(True)
+
+    with patch(
+        "app.store.get_storage_state",
+        new=AsyncMock(return_value={}),
+    ), patch(
+        "app.routes.storage_routes.list_block_devices",
+        new=AsyncMock(return_value=[_MOCK_USB_DISK]),
+    ), patch(
+        "asyncio.create_task",
+        side_effect=_mock_create_task,
+    ):
+        response = await authenticated_client.post(
+            "/api/v1/storage/smart-activate",
+            json={"device": "/dev/sda"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["action"] == "formatting", f"Expected formatting, got {data}"
+    assert "jobId" in data and data["jobId"], "formatting response must include jobId"
+    assert "display_name" in data
+    assert len(created_tasks) == 1, "One background task should have been created"
+
+
+@pytest.mark.asyncio
+async def test_smart_activate_os_disk_blocked(
+    authenticated_client: AsyncClient,
+):
+    """
+    TASK-DRIVE-06: OS disk (mmcblk) must be rejected with 403.
+    """
+    with patch(
+        "app.store.get_storage_state",
+        new=AsyncMock(return_value={}),
+    ), patch(
+        "app.routes.storage_routes.list_block_devices",
+        new=AsyncMock(return_value=[_MOCK_MMCBLK_DISK]),
+    ):
+        response = await authenticated_client.post(
+            "/api/v1/storage/smart-activate",
+            json={"device": "/dev/mmcblk0"},
+        )
+
+    assert response.status_code == 403, (
+        f"OS disk should be blocked with 403, got {response.status_code}"
+    )

@@ -160,32 +160,114 @@ async def find_partition(device_path: str) -> Optional[dict]:
     )
 
 
-def build_device_list(partitions: list) -> list[StorageDevice]:
-    """Convert raw lsblk partitions to StorageDevice models."""
+def _partition_path(disk_name: str) -> str:
+    """Derive the first partition device path from a disk name.
+
+    sda     → /dev/sda1       (traditional SCSI/SATA disk)
+    nvme0n1 → /dev/nvme0n1p1  (NVMe — name ends with a digit)
+    mmcblk0 → /dev/mmcblk0p1  (eMMC — same rule)
+    """
+    if disk_name and disk_name[-1].isdigit():
+        return f"/dev/{disk_name}p1"
+    return f"/dev/{disk_name}1"
+
+
+def _display_name(disk: dict) -> str:
+    """Return a human-friendly drive name. No /dev/ paths or technical terms."""
+    model = (disk.get("model") or "").strip()
+    tran = classify_transport(disk)
+    size_bytes = int(disk.get("size") or 0)
+    size_str = _human_size(size_bytes)
+    transport_label = {"usb": "USB Drive", "nvme": "NVMe Drive"}.get(tran, "Drive")
+    if model:
+        return f"{model} ({size_str})"
+    return f"{size_str} {transport_label}"
+
+
+def _find_best_partition(children: list) -> Optional[dict]:
+    """Find the best usable partition for mounting/activating.
+
+    Priority:
+    1. Largest ext4 partition that is not an OS partition
+    2. Largest non-OS partition of any filesystem
+    Returns None if all partitions are OS partitions or none exist.
+    """
+    usable = [p for p in children if not is_os_partition(p)]
+    if not usable:
+        return None
+    # Prefer ext4 — ready to mount without formatting
+    ext4_parts = [p for p in usable if (p.get("fstype") or "") == "ext4"]
+    if ext4_parts:
+        return max(ext4_parts, key=lambda p: int(p.get("size") or 0))
+    # Fall back to largest usable partition of any type
+    return max(usable, key=lambda p: int(p.get("size") or 0))
+
+
+def build_device_list(raw_devices: list) -> list[StorageDevice]:
+    """Convert raw lsblk disk-level devices to StorageDevice models.
+
+    Returns ONE entry per physical disk (not per partition).
+    OS disks and unsupported transports are filtered out.
+    Call with the output of list_block_devices() directly — no need to
+    flatten first.  flatten_devices() is still available for other uses
+    (e.g. find_partition).
+    """
     nas_root_str = str(settings.nas_root)
     result: list[StorageDevice] = []
 
-    for part in partitions:
-        name = part.get("name", "")
-        transport = classify_transport(part)
+    for disk in raw_devices:
+        dev_type = (disk.get("type") or "").lower()
+        if dev_type != "disk":
+            continue
+
+        # Filter by transport — only external hot-plug storage
+        transport = classify_transport(disk)
         if transport not in ("usb", "nvme"):
             continue
-        mountpoint = part.get("mountpoint")
-        size_bytes = int(part.get("size") or 0)
+
+        # Skip OS disks (mmcblk, zram, loop, system-mount prefixes)
+        if is_os_partition(disk):
+            continue
+
+        children = disk.get("children", [])
+        best = _find_best_partition(children)
+        best_partition_path: Optional[str] = (
+            f"/dev/{best['name']}" if best else None
+        )
+
+        # Determine mount / NAS-active state across all partitions
+        # (an unpartitioned disk can itself be mounted directly)
+        candidates = children if children else [disk]
+        active_candidate = next(
+            (c for c in candidates if c.get("mountpoint") == nas_root_str),
+            None,
+        )
+        any_mounted_candidate = next(
+            (c for c in candidates if c.get("mountpoint")),
+            None,
+        )
+        mount_point: Optional[str] = (
+            (active_candidate or any_mounted_candidate or {}).get("mountpoint")
+        )
+
+        name = disk.get("name", "")
+        size_bytes = int(disk.get("size") or 0)
 
         result.append(StorageDevice(
             name=name,
             path=f"/dev/{name}",
             sizeBytes=size_bytes,
             sizeDisplay=_human_size(size_bytes),
-            fstype=part.get("fstype"),
-            label=part.get("label"),
-            model=(part.get("model") or "").strip() or None,
+            fstype=best.get("fstype") if best else None,
+            label=best.get("label") if best else None,
+            model=(disk.get("model") or "").strip() or None,
             transport=transport,
-            mounted=bool(mountpoint),
-            mountPoint=mountpoint,
-            isNasActive=(mountpoint == nas_root_str),
-            isOsDisk=is_os_partition(part),
+            mounted=bool(any_mounted_candidate),
+            mountPoint=mount_point,
+            isNasActive=bool(active_candidate),
+            isOsDisk=False,
+            displayName=_display_name(disk),
+            bestPartition=best_partition_path,
         ))
 
     return result

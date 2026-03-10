@@ -103,19 +103,21 @@ class ServiceInfo(BaseModel):
 # ─── StorageDevice ───────────────────────────────────────────────────────────
 
 class StorageDevice(BaseModel):
-    """A block device (partition) detected on the system."""
-    name: str                                          # "sda1", "nvme0n1p1"
-    path: str                                          # "/dev/sda1"
-    size_bytes: int = Field(alias="sizeBytes")          # raw byte count
-    size_display: str = Field(alias="sizeDisplay")      # "64.0 GB"
-    fstype: Optional[str] = None                        # "ext4", None if unformatted
-    label: Optional[str] = None                         # partition label
-    model: Optional[str] = None                         # "SanDisk Ultra"
-    transport: str                                      # "usb", "nvme", "sd"
+    """A physical drive detected on the system (one entry per disk, not per partition)."""
+    name: str                                              # "sda", "nvme0n1"
+    path: str                                              # "/dev/sda"
+    size_bytes: int = Field(alias="sizeBytes")              # raw byte count
+    size_display: str = Field(alias="sizeDisplay")          # "64.0 GB"
+    fstype: Optional[str] = None                            # fstype of best partition
+    label: Optional[str] = None                             # label of best partition
+    model: Optional[str] = None                             # "SanDisk Ultra"
+    transport: str                                          # "usb", "nvme"
     mounted: bool = False
     mount_point: Optional[str] = Field(None, alias="mountPoint")
     is_nas_active: bool = Field(False, alias="isNasActive")
-    is_os_disk: bool = Field(False, alias="isOsDisk")   # True for SD card OS
+    is_os_disk: bool = Field(False, alias="isOsDisk")       # True for SD card OS
+    display_name: str = Field(alias="displayName")          # "Samsung T7 (500 GB)" — no /dev/ paths
+    best_partition: Optional[str] = Field(None, alias="bestPartition")  # "/dev/sda1" or None
 
     model_config = {"populate_by_name": True}
 
@@ -139,6 +141,11 @@ class MountRequest(BaseModel):
 class EjectRequest(BaseModel):
     """Eject a specific device (unmount + power off)."""
     device: str                                         # "/dev/sda1"
+
+
+class SmartActivateRequest(BaseModel):
+    """One-tap drive activation. Call with a whole disk path (e.g. /dev/sda)."""
+    device: str                                         # "/dev/sda" (disk, not partition)
 
 
 # ─── Request / Response helpers ──────────────────────────────────────────────

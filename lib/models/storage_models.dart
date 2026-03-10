@@ -5,20 +5,22 @@
 library;
 import 'package:flutter/material.dart';
 
-/// A block device (partition) detected on the Cubie hardware.
+/// A physical drive detected on the Cubie hardware (one entry per disk, not per partition).
 class StorageDevice {
-  final String name; // "sda1", "nvme0n1p1"
-  final String path; // "/dev/sda1"
+  final String name; // "sda", "nvme0n1"
+  final String path; // "/dev/sda"
   final int sizeBytes;
   final String sizeDisplay; // "64.0 GB"
-  final String? fstype; // "ext4", null if unformatted
+  final String? fstype; // "ext4" if best partition is ext4, null otherwise
   final String? label;
   final String? model; // "SanDisk Ultra"
-  final String transport; // "usb", "nvme", "sd"
+  final String transport; // "usb", "nvme"
   final bool mounted;
   final String? mountPoint;
   final bool isNasActive; // currently used as NAS storage
-  final bool isOsDisk; // SD card OS partition
+  final bool isOsDisk; // SD card OS partition — always hidden in UI
+  final String displayName; // "Samsung T7 (500 GB)" — no /dev/ paths
+  final String? bestPartition; // "/dev/sda1" or null
 
   const StorageDevice({
     required this.name,
@@ -33,6 +35,8 @@ class StorageDevice {
     this.mountPoint,
     required this.isNasActive,
     required this.isOsDisk,
+    required this.displayName,
+    this.bestPartition,
   });
 
   factory StorageDevice.fromJson(Map<String, dynamic> json) {
@@ -49,6 +53,8 @@ class StorageDevice {
       mountPoint: json['mountPoint'] as String?,
       isNasActive: json['isNasActive'] as bool,
       isOsDisk: json['isOsDisk'] as bool,
+      displayName: json['displayName'] as String? ?? json['name'] as String,
+      bestPartition: json['bestPartition'] as String?,
     );
   }
 
@@ -56,7 +62,6 @@ class StorageDevice {
   String get typeLabel => switch (transport) {
         'usb' => 'USB Drive',
         'nvme' => 'NVMe SSD',
-        'sd' => 'SD Card',
         _ => transport.toUpperCase(),
       };
 

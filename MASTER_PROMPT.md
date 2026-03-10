@@ -470,6 +470,7 @@ Hide the firmware update UI section entirely.
 
 ---
 
+
 ## 🚫 AI_RULES — Never Violate These
 
 ### Repository rules

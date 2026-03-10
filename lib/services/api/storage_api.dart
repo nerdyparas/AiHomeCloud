@@ -128,7 +128,24 @@ extension StorageApi on ApiService {
     _check(res);
     return jsonDecode(res.body);
   }
-
+  /// POST /api/v1/storage/smart-activate  body: {device}
+  ///
+  /// Accepts a whole-disk path (e.g. /dev/sda). Returns:
+  ///   {action: 'mounted'|'formatting'|'already_active', display_name, jobId?}
+  Future<Map<String, dynamic>> smartActivate(String diskPath) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/storage/smart-activate'),
+            headers: _headers,
+            body: jsonEncode({'device': diskPath}),
+          )
+          .timeout(const Duration(seconds: 30)),
+    );
+    _check(res);
+    return jsonDecode(res.body);
+  }
   /// GET /api/v1/storage/check-usage â€” pre-unmount blocker check
   Future<Map<String, dynamic>> checkStorageUsage() async {
     final res = await _withAutoRefresh(

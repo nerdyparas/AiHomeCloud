@@ -510,10 +510,10 @@ async def search_files(
 @router.get("/roots")
 async def storage_roots(user: dict = Depends(get_current_user)):
     """Return browseable storage roots — mounted USB/NVMe drives."""
-    from .storage_helpers import build_device_list, flatten_devices, list_block_devices
+    from .storage_helpers import build_device_list, list_block_devices
 
     raw = await list_block_devices()
-    devices = build_device_list(flatten_devices(raw))
+    devices = build_device_list(raw)
     roots = []
     for dev in devices:
         if dev.mounted and dev.mount_point:

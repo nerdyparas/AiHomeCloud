@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,8 +11,8 @@ import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
 
-/// Full storage explorer — pushed from the Home storage tile.
-/// Shows all detected devices with status, actions (mount/unmount/format/eject).
+/// Storage explorer â€” shows each physical drive as one card.
+/// No partition names, no /dev/ paths, no filesystem terms shown to the user.
 class StorageExplorerScreen extends ConsumerStatefulWidget {
   const StorageExplorerScreen({super.key});
 
@@ -25,14 +25,13 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   bool _scanning = false;
   List<StorageDevice>? _devices;
   String? _error;
-  String? _busyDevice; // device currently being acted on
-  String? _formatJobId;
-  DateTime? _formatStartedAt;
-  String _formatStatus = '';
+  String? _busyDevice;
+  String? _activateJobId;
+  DateTime? _activateStartedAt;
   Timer? _jobPollTimer;
   Timer? _elapsedTimer;
 
-  bool get _formatInProgress => _formatJobId != null;
+  bool get _activateInProgress => _activateJobId != null;
 
   @override
   void initState() {
@@ -96,7 +95,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.primary))
                 : const Icon(Icons.refresh_rounded, color: AppColors.primary),
-            tooltip: 'Scan for devices',
+            tooltip: 'Scan for drives',
             onPressed: _scanning ? null : _scan,
           ),
         ],
@@ -114,7 +113,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             const Icon(Icons.error_outline_rounded,
                 color: AppColors.error, size: 48),
             const SizedBox(height: 12),
-            Text('Failed to load devices',
+            Text('Could not load drives',
                 style: GoogleFonts.dmSans(
                     color: AppColors.textSecondary, fontSize: 14)),
             const SizedBox(height: 16),
@@ -133,11 +132,8 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           child: CircularProgressIndicator(color: AppColors.primary));
     }
 
-    // Separate: external devices vs OS disks
-    final external_ =
-        _devices!.where((d) => !d.isOsDisk).toList();
-    final osDisk =
-        _devices!.where((d) => d.isOsDisk).toList();
+    // OS disks hidden entirely â€” backend filters them, extra guard client-side.
+    final drives = _devices!.where((d) => !d.isOsDisk).toList();
 
     return RefreshIndicator(
       color: AppColors.primary,
@@ -145,48 +141,32 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          if (_formatInProgress) ...[
-            _buildFormatProgressCard(),
+          if (_activateInProgress) ...[
+            _buildActivateProgressCard(),
             const SizedBox(height: 12),
           ],
-
-          // ── External storage ───────────────────────────────────────────
-          if (external_.isEmpty)
-            _emptyExternalBanner()
-          else ...[
-            _sectionLabel('External Storage'),
-            const SizedBox(height: 8),
-            for (final dev in external_)
+          if (drives.isEmpty)
+            _emptyBanner()
+          else
+            for (final dev in drives)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _DeviceCard(
+                child: _DriveCard(
                   device: dev,
                   busy: _busyDevice == dev.path,
-                  onMount: () => _mountDevice(dev),
-                  onUnmount: () => _unmountDevice(dev),
-                  onFormat: () => _showFormatDialog(dev),
-                  onEject: () => _safeRemove(dev),
+                  onActivate: () => _smartActivate(dev),
+                  onPrepare: () => _showPrepareDialog(dev),
+                  onSafelyRemove: () => dev.transport == 'usb'
+                      ? _safeRemove(dev)
+                      : _unmountDevice(dev),
                 ),
               ),
-          ],
-
-          // ── System storage ─────────────────────────────────────────────
-          if (osDisk.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _sectionLabel('System (OS)'),
-            const SizedBox(height: 8),
-            for (final dev in osDisk)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _DeviceCard(device: dev, isSystem: true),
-              ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _emptyExternalBanner() {
+  Widget _emptyBanner() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
@@ -201,43 +181,49 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                 color: AppColors.primary, size: 48),
           ),
           const SizedBox(height: 20),
-          Text('No external storage detected',
+          Text('Connect a USB or hard drive',
               style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-            Text('Connect a USB drive or storage device',
+          Text('Plug in a USB drive or NVMe to your AiHomeCloud',
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 14)),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: _scanning ? null : _scan,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: Text(_scanning ? 'Scanning…' : 'Scan Again'),
+            label: Text(_scanning ? 'Scanningâ€¦' : 'Scan Again'),
           ),
         ],
       ).animate().fadeIn(duration: 400.ms),
     );
   }
 
-  Widget _sectionLabel(String text) => Text(text,
-      style: GoogleFonts.sora(
-          color: AppColors.textSecondary,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5));
+  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  // ── Actions ─────────────────────────────────────────────────────────────
-
-  Future<void> _mountDevice(StorageDevice dev) async {
+  Future<void> _smartActivate(StorageDevice dev) async {
     setState(() => _busyDevice = dev.path);
     try {
-      await ref.read(apiServiceProvider).mountDevice(dev.path);
-      _showSnack('${dev.label ?? dev.name} is ready to use');
-      await _loadDevices();
+      final result =
+          await ref.read(apiServiceProvider).smartActivate(dev.path);
+      if (!mounted) return;
+      final action = result['action'] as String? ?? '';
+      switch (action) {
+        case 'already_active':
+          await _loadDevices();
+        case 'mounted':
+          _showSnack('Storage activated!');
+          await _loadDevices();
+        case 'formatting':
+          final jobId = result['jobId'] as String?;
+          if (jobId != null) _startJobPolling(jobId);
+        default:
+          await _loadDevices();
+      }
     } catch (e) {
-      _showSnack('Could not connect storage: ${friendlyError(e)}', isError: true);
+      _showSnack(friendlyError(e), isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -246,7 +232,6 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   Future<void> _unmountDevice(StorageDevice dev) async {
     setState(() => _busyDevice = dev.path);
     try {
-      // Check for open files first
       final usage = await ref.read(apiServiceProvider).checkStorageUsage();
       final blockers = (usage['blockers'] as List?) ?? [];
 
@@ -258,13 +243,13 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         }
       }
 
-      await ref.read(apiServiceProvider).unmountDevice(
-            force: blockers.isNotEmpty,
-          );
-      _showSnack('Storage stopped and ready to remove');
+      await ref
+          .read(apiServiceProvider)
+          .unmountDevice(force: blockers.isNotEmpty);
+      _showSnack('${dev.displayName} stopped. Safe to remove.');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Could not stop using storage: ${friendlyError(e)}', isError: true);
+      _showSnack(friendlyError(e), isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -285,152 +270,83 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     setState(() => _busyDevice = dev.path);
     try {
       await ref.read(apiServiceProvider).ejectDevice(dev.path);
-      _showSnack('${dev.label ?? dev.name} is safe to unplug');
+      _showSnack('${dev.displayName} is safe to unplug');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Could not remove storage safely: ${friendlyError(e)}', isError: true);
+      _showSnack(friendlyError(e), isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
   }
 
-  void _showFormatDialog(StorageDevice dev) {
-    final confirmCtrl = TextEditingController();
-    final labelCtrl = TextEditingController(text: 'AiHomeNAS');
-
-    showDialog(
+  void _showPrepareDialog(StorageDevice dev) {
+    showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final matches = confirmCtrl.text == dev.path;
-          return AlertDialog(
-            backgroundColor: AppColors.surface,
-            title: Row(
-              children: [
-                const Icon(Icons.warning_rounded,
-                    color: AppColors.error, size: 24),
-                const SizedBox(width: 8),
-                Text('Prepare Device', style: GoogleFonts.sora(fontSize: 18)),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'All files on ${dev.label ?? dev.name} '
-                  '(${dev.sizeDisplay}) will be permanently deleted.\nThis cannot be undone.',
-                  style: GoogleFonts.dmSans(
-                      color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: labelCtrl,
-                  style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Volume label',
-                    hintText: 'AiHomeNAS',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text('Type "${dev.path}" to confirm:',
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.error, fontSize: 12)),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: confirmCtrl,
-                  style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: dev.path,
-                    hintStyle: GoogleFonts.dmSans(
-                        color: AppColors.textMuted, fontSize: 13),
-                  ),
-                  onChanged: (_) => setDialogState(() {}),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('Cancel',
-                    style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: matches ? AppColors.error : AppColors.textMuted),
-                onPressed: matches
-                    ? () {
-                        Navigator.pop(ctx, true);
-                      }
-                    : null,
-                child: Text('Format',
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-              ),
-            ],
-          );
-        },
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Row(
+          children: [
+            const Icon(Icons.warning_rounded, color: AppColors.error, size: 24),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Prepare this drive?')),
+          ],
+        ),
+        titleTextStyle: GoogleFonts.sora(
+            color: AppColors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w600),
+        content: Text(
+          'This will erase all files on ${dev.displayName} and set it up '
+          'for AiHomeCloud. This cannot be undone.',
+          style: GoogleFonts.dmSans(
+              color: AppColors.textSecondary, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Prepare',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
-    ).then((confirmed) async {
-      if (confirmed != true || !mounted) return;
-      setState(() => _busyDevice = dev.path);
-      try {
-        final started = await ref.read(apiServiceProvider).startFormatJob(
-              dev.path,
-              labelCtrl.text.trim().isEmpty ? 'AiHomeNAS' : labelCtrl.text.trim(),
-              dev.path,
-            );
-
-        final jobId = started['jobId'] as String?;
-        if (jobId == null || jobId.isEmpty) {
-          throw Exception('Format job start returned no jobId');
-        }
-
-        _startFormatPolling(jobId);
-        _showSnack('Preparing ${dev.name}. Tracking progress…');
-      } catch (e) {
-        _showSnack('Could not prepare device: ${friendlyError(e)}', isError: true);
-      } finally {
-        if (mounted) setState(() => _busyDevice = null);
-      }
+    ).then((confirmed) {
+      if (confirmed == true && mounted) _smartActivate(dev);
     });
   }
 
-  void _startFormatPolling(String jobId) {
+  void _startJobPolling(String jobId) {
     _jobPollTimer?.cancel();
     _elapsedTimer?.cancel();
 
     setState(() {
-      _formatJobId = jobId;
-      _formatStartedAt = DateTime.now();
-      _formatStatus = 'running';
+      _activateJobId = jobId;
+      _activateStartedAt = DateTime.now();
     });
 
     _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _formatInProgress) {
-        setState(() {});
-      }
+      if (mounted && _activateInProgress) setState(() {});
     });
 
     _jobPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-      final id = _formatJobId;
+      final id = _activateJobId;
       if (id == null) return;
       try {
         final status = await ref.read(apiServiceProvider).getJobStatus(id);
         if (!mounted) return;
-
-        setState(() {
-          _formatStatus = status.status;
-          _formatStartedAt ??= status.startedAt;
-        });
+        setState(() => _activateStartedAt ??= status.startedAt);
 
         if (status.status == 'completed') {
           _jobPollTimer?.cancel();
           _elapsedTimer?.cancel();
-          setState(() {
-            _formatJobId = null;
-            _formatStatus = '';
-          });
-          _showSnack('Device is ready to use');
+          setState(() => _activateJobId = null);
+          _showSnack('Storage ready!');
           await _loadDevices();
           return;
         }
@@ -438,46 +354,48 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         if (status.status == 'failed') {
           _jobPollTimer?.cancel();
           _elapsedTimer?.cancel();
-          setState(() {
-            _formatJobId = null;
-            _formatStatus = '';
-          });
-          _showSnack('Could not prepare device: ${status.error ?? 'Unknown error'}',
+          setState(() => _activateJobId = null);
+          _showSnack(
+              'Could not activate drive. Check the USB connection and try again.',
               isError: true);
         }
       } catch (e) {
-        if (!mounted) return;
-        _showSnack('Job polling error: ${friendlyError(e)}', isError: true);
+        if (mounted) _showSnack(friendlyError(e), isError: true);
       }
     });
   }
 
-  Widget _buildFormatProgressCard() {
-    final started = _formatStartedAt;
+  Widget _buildActivateProgressCard() {
+    final started = _activateStartedAt;
     final elapsed =
         started == null ? Duration.zero : DateTime.now().difference(started);
-    final mm = elapsed.inMinutes.toString().padLeft(2, '0');
-    final ss = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final mm = elapsed.inMinutes;
+    final ss = elapsed.inSeconds.remainder(60);
+    final elapsedStr = mm > 0 ? '$mm min $ss sec' : '$ss sec';
 
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Preparing device',
+            'Preparing your storage driveâ€¦',
             style: GoogleFonts.sora(
               color: AppColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
-            'Status: ${_formatStatus.isEmpty ? 'running' : _formatStatus} • Elapsed: $mm:$ss',
+            'This takes about 2 minutes. Please keep the app open.',
             style: GoogleFonts.dmSans(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-            ),
+                color: AppColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            elapsedStr,
+            style:
+                GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
           ),
           const SizedBox(height: 10),
           const LinearProgressIndicator(minHeight: 4),
@@ -545,8 +463,8 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Remove Anyway',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
@@ -565,27 +483,23 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// DEVICE CARD
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// DRIVE CARD â€” one card per physical drive, no partition/path/fstype shown
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-class _DeviceCard extends StatelessWidget {
+class _DriveCard extends StatelessWidget {
   final StorageDevice device;
-  final bool isSystem;
   final bool busy;
-  final VoidCallback? onMount;
-  final VoidCallback? onUnmount;
-  final VoidCallback? onFormat;
-  final VoidCallback? onEject;
+  final VoidCallback? onActivate;     // ext4 ready â†’ mount
+  final VoidCallback? onPrepare;      // no ext4 â†’ format + mount
+  final VoidCallback? onSafelyRemove; // active â†’ unmount / eject
 
-  const _DeviceCard({
+  const _DriveCard({
     required this.device,
-    this.isSystem = false,
-    this.busy = false,
-    this.onMount,
-    this.onUnmount,
-    this.onFormat,
-    this.onEject,
+    required this.busy,
+    this.onActivate,
+    this.onPrepare,
+    this.onSafelyRemove,
   });
 
   @override
@@ -595,7 +509,7 @@ class _DeviceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row ─────────────────────────────────────────────────
+          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Row(
             children: [
               Container(
@@ -612,7 +526,7 @@ class _DeviceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      device.label ?? device.model ?? device.name,
+                      device.displayName,
                       style: GoogleFonts.dmSans(
                           color: AppColors.textPrimary,
                           fontSize: 15,
@@ -622,7 +536,7 @@ class _DeviceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${device.typeLabel}  •  ${device.sizeDisplay}',
+                      device.typeLabel,
                       style: GoogleFonts.dmSans(
                           color: AppColors.textSecondary, fontSize: 12),
                     ),
@@ -633,124 +547,95 @@ class _DeviceCard extends StatelessWidget {
             ],
           ),
 
-          // ── Detail row ─────────────────────────────────────────────────
+          // â”€â”€ Action area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           const SizedBox(height: 12),
-          Row(
-            children: [
-              _infoChip(Icons.code_rounded, device.path),
-              const SizedBox(width: 8),
-              if (device.fstype != null)
-                _infoChip(Icons.disc_full_rounded, device.fstype!),
-              if (device.fstype == null)
-                _infoChip(Icons.disc_full_rounded, 'Unformatted'),
-            ],
-          ),
-
-          // ── Action buttons (external only) ─────────────────────────────
-          if (!isSystem) ...[
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.cardBorder),
-            const SizedBox(height: 12),
-            if (busy)
-              const Center(
+          const Divider(height: 1, color: AppColors.cardBorder),
+          const SizedBox(height: 12),
+          if (busy)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
                 child: SizedBox(
                   height: 24,
                   width: 24,
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: AppColors.primary),
                 ),
-              )
-            else
-              _actionRow(),
-          ],
+              ),
+            )
+          else
+            _actionRow(),
         ],
       ),
     );
   }
 
   Widget _actionRow() {
-    // Case 1: NAS active → unmount / eject
     if (device.isNasActive) {
-      return Row(
-        children: [
-          _actionBtn(Icons.pause_circle_outline_rounded, 'Stop using', AppColors.primary,
-              onUnmount),
-          const SizedBox(width: 8),
-          if (device.transport == 'usb')
-            _actionBtn(Icons.usb_off_rounded, 'Remove safely', AppColors.error,
-                onEject),
-        ],
-      );
-    }
-
-    // Case 2: Has filesystem, not mounted → mount
-    if (device.fstype != null && !device.mounted) {
-      return Row(
-        children: [
-          _actionBtn(
-              Icons.play_arrow_rounded, 'Connect', AppColors.success, onMount),
-          const SizedBox(width: 8),
-          _actionBtn(Icons.format_paint_rounded, 'Prepare device', AppColors.error,
-              onFormat),
-          if (device.transport == 'usb') ...[
-            const SizedBox(width: 8),
-            _actionBtn(
-                Icons.eject_rounded, 'Remove safely', AppColors.textSecondary, onEject),
-          ],
-        ],
-      );
-    }
-
-    // Case 3: No filesystem → format
-    return Row(
-      children: [
-        _actionBtn(
-            Icons.format_paint_rounded, 'Prepare device', AppColors.primary, onFormat),
-        if (device.transport == 'usb') ...[
-          const SizedBox(width: 8),
-          _actionBtn(
-              Icons.eject_rounded, 'Remove safely', AppColors.textSecondary, onEject),
-        ],
-      ],
-    );
-  }
-
-  Widget _actionBtn(
-      IconData icon, String label, Color color, VoidCallback? onTap) {
-    return Expanded(
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color.withValues(alpha: 0.3)),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.error,
+            side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+          ),
+          onPressed: onSafelyRemove,
+          icon: const Icon(Icons.eject_rounded, size: 16),
+          label: Text('Safely Remove',
+              style: GoogleFonts.dmSans(
+                  fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        onPressed: onTap,
-        icon: Icon(icon, size: 16),
-        label: Text(label,
-            style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600)),
+      );
+    }
+
+    if (device.fstype == 'ext4') {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.black,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+          ),
+          onPressed: onActivate,
+          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+          label: Text('Activate',
+              style: GoogleFonts.dmSans(
+                  fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+        onPressed: onPrepare,
+        icon: const Icon(Icons.drive_eta_rounded, size: 18),
+        label: Text('Prepare as Storage',
+            style:
+                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600)),
       ),
     );
   }
 
   Widget _statusBadge() {
-    String text;
-    Color color;
+    final String text;
+    final Color color;
 
     if (device.isNasActive) {
-      text = 'Active';
+      text = 'âœ“ Active Storage';
       color = AppColors.success;
-    } else if (device.mounted) {
-      text = 'Activated';
-      color = AppColors.secondary;
-    } else if (device.isOsDisk) {
-      text = 'System';
-      color = AppColors.textSecondary;
-    } else if (device.fstype == null) {
-      text = 'Unformatted';
-      color = AppColors.primary;
-    } else {
+    } else if (device.fstype == 'ext4') {
       text = 'Ready';
-      color = AppColors.textSecondary;
+      color = AppColors.secondary;
+    } else {
+      text = 'Not ready yet';
+      color = AppColors.primary;
     }
 
     return Container(
@@ -765,37 +650,16 @@ class _DeviceCard extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.textMuted, size: 12),
-          const SizedBox(width: 4),
-          Text(text,
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 11)),
-        ],
-      ),
-    );
-  }
-
   Color get _accentColor => switch (device.transport) {
         'usb' => AppColors.primary,
         'nvme' => AppColors.secondary,
-        'sd' => AppColors.textSecondary,
         _ => AppColors.textSecondary,
       };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SAFE REMOVE BOTTOM SHEET
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _SafeRemoveSheet extends StatelessWidget {
   final StorageDevice device;
@@ -808,7 +672,6 @@ class _SafeRemoveSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             width: 40,
             height: 4,
@@ -818,8 +681,6 @@ class _SafeRemoveSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Icon
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -830,30 +691,25 @@ class _SafeRemoveSheet extends StatelessWidget {
                 color: AppColors.error, size: 32),
           ),
           const SizedBox(height: 16),
-
-            Text('Remove safely',
+          Text('Remove safely',
               style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-
           Text(
             'We will stop sharing, disconnect '
-            '${device.label ?? device.name}, and make it safe to unplug.\n\n'
+            '${device.displayName}, and make it safe to unplug.\n\n'
             'Make sure all transfers are complete first.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
                 color: AppColors.textSecondary, fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 24),
-
-          // Steps preview
           _step(Icons.stop_circle_outlined, 'Stop sharing'),
           _step(Icons.sync_rounded, 'Finish pending transfers'),
           _step(Icons.usb_off_rounded, 'Make it safe to unplug'),
           const SizedBox(height: 24),
-
           Row(
             children: [
               Expanded(
@@ -871,8 +727,9 @@ class _SafeRemoveSheet extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error),
                   onPressed: () => Navigator.pop(context, true),
-                    child: Text('Remove safely',
-                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+                  child: Text('Remove safely',
+                      style:
+                          GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -897,3 +754,4 @@ class _SafeRemoveSheet extends StatelessWidget {
     );
   }
 }
+

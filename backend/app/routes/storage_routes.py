@@ -21,6 +21,7 @@ from ..models import (
     EjectRequest,
     FormatRequest,
     MountRequest,
+    SmartActivateRequest,
     StorageDevice,
     StorageStats,
 )
@@ -29,12 +30,14 @@ from .. import store
 from ..subprocess_runner import run_command
 from .event_routes import emit_device_mounted, emit_device_ejected
 from .storage_helpers import (
+    _display_name,
+    _find_best_partition,
+    _partition_path,
     build_device_list,
     check_open_handles,
     classify_transport,
     do_unmount,
     find_partition,
-    flatten_devices,
     is_os_partition,
     list_block_devices,
     start_nas_services,
@@ -47,10 +50,9 @@ router = APIRouter(prefix="/api/v1/storage", tags=["storage"])
 
 @router.get("/devices", response_model=List[StorageDevice])
 async def list_devices(user: dict = Depends(get_current_user)):
-    """List all block-device partitions on the system."""
+    """List all physical drives on the system (one entry per disk)."""
     raw_devices = await list_block_devices()
-    partitions = flatten_devices(raw_devices)
-    return build_device_list(partitions)
+    return build_device_list(raw_devices)
 
 
 # â”€â”€ 2A.2  Scan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -69,11 +71,158 @@ async def scan_devices(user: dict = Depends(get_current_user)):
 
     # Return fresh device list (reuse existing logic)
     raw_devices = await list_block_devices()
-    partitions = flatten_devices(raw_devices)
-    return build_device_list(partitions)
+    return build_device_list(raw_devices)
 
 
-# â”€â”€ 2B.2  Pre-unmount check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Smart-activate helpers ───────────────────────────────────────────────────
+
+async def _post_mount_setup(partition_path: str, disk: dict, display_name: str) -> None:
+    """After a successful mount: create dirs, persist storage state, start services."""
+    nas_root = str(settings.nas_root)
+    settings.personal_path.mkdir(parents=True, exist_ok=True)
+    settings.shared_path.mkdir(parents=True, exist_ok=True)
+    await store.save_storage_state({
+        "activeDevice": partition_path,
+        "mountedAt": nas_root,
+        "displayName": display_name,
+        "transport": classify_transport(disk),
+        "model": (disk.get("model") or "").strip(),
+        "mountedSince": datetime.now(timezone.utc).isoformat(),
+    })
+    await start_nas_services()
+
+
+async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str) -> None:
+    """Async job: wipe disk → GPT partition → mkfs.ext4 → mount → post-setup.
+
+    Uses run_command() — never shell=True.
+    Uses settings.nas_root — never a hardcoded path.
+    """
+    disk_path = f"/dev/{disk_name}"
+    partition_path = _partition_path(disk_name)
+    try:
+        nas_root = str(settings.nas_root)
+
+        # Step 1a: Wipe existing GPT/MBR signatures (non-fatal if it fails)
+        logger.warning("SMART-ACTIVATE: wiping signatures on %s", disk_path)
+        await run_command(["sudo", "sgdisk", "-Z", disk_path], timeout=30)
+
+        # Step 1b: Create new GPT with one Linux-data partition spanning the whole disk
+        rc, _, stderr = await run_command(
+            ["sudo", "sgdisk", "-n", "1:0:0", "-t", "1:8300", disk_path],
+            timeout=30,
+        )
+        if rc != 0:
+            update_job(job_id, status=JobStatus.failed, error=f"Partitioning failed: {stderr}")
+            return
+
+        # Step 2: Let udev create the new partition device node
+        await asyncio.sleep(2)
+        await run_command(["sudo", "udevadm", "settle", "--timeout=5"])
+
+        # Step 3: Format as ext4
+        logger.warning("SMART-ACTIVATE: formatting %s as ext4", partition_path)
+        rc, _, stderr = await run_command(
+            ["sudo", "mkfs.ext4", "-F", "-L", "AiHomeCloud", partition_path],
+            timeout=600,
+        )
+        if rc != 0:
+            update_job(job_id, status=JobStatus.failed, error=f"Format failed: {stderr}")
+            return
+
+        # Step 4: Mount
+        settings.nas_root.mkdir(parents=True, exist_ok=True)
+        rc, _, stderr = await run_command(
+            ["sudo", "mount", partition_path, nas_root],
+            timeout=30,
+        )
+        if rc != 0:
+            update_job(job_id, status=JobStatus.failed, error=f"Mount failed: {stderr}")
+            return
+
+        # Step 5: Post-mount setup (dirs, state, services, event)
+        disk_stub = {"name": disk_name, "tran": "", "model": ""}
+        await _post_mount_setup(partition_path, disk_stub, display_name)
+        await emit_device_mounted(partition_path, nas_root)
+
+        update_job(
+            job_id,
+            status=JobStatus.completed,
+            result={"action": "formatted_and_mounted", "device": partition_path},
+        )
+        logger.info("SMART-ACTIVATE: %s ready at %s", partition_path, nas_root)
+    except Exception as e:
+        update_job(job_id, status=JobStatus.failed, error=str(e))
+        logger.exception("SMART-ACTIVATE job failed: %s", e)
+
+
+# ── Smart-activate endpoint ──────────────────────────────────────────────────
+
+@router.post("/smart-activate")
+async def smart_activate(
+    req: SmartActivateRequest,
+    user: dict = Depends(require_admin),
+):
+    """One-tap drive setup.
+
+    Accepts a whole-disk path (e.g. /dev/sda). Detects the drive state
+    and does the right thing automatically:
+      A  Has ext4 partition  → mount it, return action=mounted
+      B/C No ext4 / bare disk → start format job, return action=formatting + jobId
+      D  Already active       → return action=already_active (idempotent)
+
+    Response always includes display_name (no /dev/ paths or tech jargon).
+    """
+    # ── State D: already active ──────────────────────────────────────────────
+    storage_state = await store.get_storage_state()
+    active_device = storage_state.get("activeDevice", "")
+    if active_device and active_device.startswith(req.device):
+        # Re-read lsblk for a fresh display_name if possible
+        raw = await list_block_devices()
+        disk = next((d for d in raw if f"/dev/{d['name']}" == req.device), None)
+        display = (
+            _display_name(disk) if disk
+            else storage_state.get("displayName", req.device)
+        )
+        return {"action": "already_active", "display_name": display}
+
+    # ── Find disk in lsblk ───────────────────────────────────────────────────
+    raw = await list_block_devices()
+    disk = next((d for d in raw if f"/dev/{d['name']}" == req.device), None)
+    if disk is None:
+        raise HTTPException(404, f"Drive not found: {req.device}")
+
+    # ── Security: never touch OS storage ─────────────────────────────────────
+    if is_os_partition(disk):
+        raise HTTPException(403, "Cannot use system storage as a data drive")
+
+    display = _display_name(disk)
+    disk_name = disk["name"]
+    children = disk.get("children", [])
+
+    # ── State A: has an ext4 partition ready to mount ─────────────────────────
+    best = _find_best_partition(children)
+    if best and (best.get("fstype") or "") == "ext4":
+        partition_dev = f"/dev/{best['name']}"
+        nas_root = str(settings.nas_root)
+        settings.nas_root.mkdir(parents=True, exist_ok=True)
+        rc, _, stderr = await run_command(
+            ["sudo", "mount", partition_dev, nas_root], timeout=30
+        )
+        if rc != 0:
+            raise HTTPException(500, f"Could not activate drive: {stderr}")
+        await _post_mount_setup(partition_dev, disk, display)
+        await emit_device_mounted(partition_dev, nas_root)
+        return {"action": "mounted", "display_name": display}
+
+    # ── State B/C: needs formatting — start async job ─────────────────────────
+    job = create_job()
+    update_job(job.id, status=JobStatus.running)
+    asyncio.create_task(_smart_format_and_mount(job.id, disk_name, display))
+    return {"action": "formatting", "display_name": display, "jobId": job.id}
+
+
+# ── 2B.2  Pre-unmount check ──────────────────────────────────────────────────
 
 @router.get("/check-usage")
 async def check_usage(user: dict = Depends(get_current_user)):

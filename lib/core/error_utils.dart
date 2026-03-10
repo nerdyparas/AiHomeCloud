@@ -52,9 +52,24 @@ String friendlyError(Object error) {
     return 'No device paired. Please set up your AiHomeCloud first.';
   }
 
+  // ── Storage conflict — drive already active (HTTP 409) ─────────────────
+  if (msg.contains('mounted') &&
+      (msg.contains('already') ||
+          msg.contains('currently') ||
+          msg.contains('unmount'))) {
+    return 'Another drive is already active. Safely remove it first.';
+  }
+
+  // ── Storage server failure (HTTP 500) ────────────────────────────────────
+  if (msg.contains('Internal Server Error')) {
+    return 'Could not activate drive. Check the USB connection and try again.';
+  }
+
   // ── Generic Exception wrapper — strip "Exception: " prefix ─────────────
   if (msg.startsWith('Exception: ')) {
-    return msg.substring(11);
+    final inner = msg.substring(11);
+    // Re-run through the same checks now that the prefix is stripped.
+    return friendlyError(Exception(inner));
   }
 
   // ── Fallback ────────────────────────────────────────────────────────────
