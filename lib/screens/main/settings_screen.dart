@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
 import '../../providers.dart';
-import '../../widgets/cubie_card.dart';
+import '../../widgets/app_card.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});

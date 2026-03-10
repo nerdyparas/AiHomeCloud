@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
 import '../../providers.dart';
-import '../../widgets/cubie_card.dart';
+import '../../widgets/app_card.dart';
 
 /// Admin-only Telegram Bot setup screen.
 /// Accessible from More tab → Telegram Bot row.

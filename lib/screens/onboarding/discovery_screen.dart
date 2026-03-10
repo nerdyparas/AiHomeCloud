@@ -21,6 +21,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
   int? _expiresAtSeconds;
   Timer? _countdownTimer;
   bool _fingerprintDialogVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +35,6 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
       }
     });
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
       if (_expiresAtSeconds == null) return;
       if (_timeRemaining == Duration.zero) {
         _countdownTimer?.cancel();
@@ -114,13 +114,13 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.timer_outlined,
+                    const Icon(Icons.timer_outlined,
                         size: 16, color: AppColors.textSecondary),
                     const SizedBox(width: 6),
                     Text(
                       _timeRemaining == Duration.zero
-                          ? 'OTP expired — scan again'
-                          : 'OTP expires in ${_formatDuration(_timeRemaining)}',
+                          ? 'Pairing code expired — scan again'
+                          : 'Pairing code valid for ${_formatDuration(_timeRemaining)}',
                       style: GoogleFonts.dmSans(
                         color: _timeRemaining == Duration.zero
                             ? AppColors.error

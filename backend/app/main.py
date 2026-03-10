@@ -1,5 +1,5 @@
 """
-CubieCloud Backend — FastAPI application.
+AiHomeCloud Backend — FastAPI application.
 Run with: python -m app.main (auto-configures TLS)
 """
 
@@ -71,11 +71,11 @@ async def lifespan(app: FastAPI):
         try:
             cert, key = await ensure_tls_cert()
             logger.info("TLS enabled — cert=%s key=%s", cert, key)
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.warning("TLS cert generation failed, running without TLS: %s", e)
             settings.tls_enabled = False
 
-    logger.info("CubieCloud backend starting on %s:%s", settings.host, settings.port)
+    logger.info("AiHomeCloud backend starting on %s:%s", settings.host, settings.port)
     logger.info("  NAS root : %s", settings.nas_root)
     logger.info("  Data dir : %s", settings.data_dir)
     logger.info("  TLS      : %s", 'enabled' if settings.tls_enabled else 'disabled')
@@ -89,13 +89,13 @@ async def lifespan(app: FastAPI):
             logger.info("JWT secret provided via environment variable")
         else:
             logger.info("JWT secret: using default placeholder (insecure)")
-    except Exception:
+    except OSError:
         logger.debug("Unable to check JWT secret file existence")
 
     # Auto-remount previously-mounted storage device
     try:
         await storage_routes.try_auto_remount()
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("Auto-remount failed: %s", e)
 
     # Purge old refresh tokens (cleanup tokens.json) older than 30 days past expiry
@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI):
         removed = await _store_module.purge_expired_tokens(cutoff)
         if removed:
             logger.info("Purged %d expired refresh tokens", removed)
-    except Exception:
+    except (OSError, ValueError):
         logger.debug("Token purge skipped or failed")
 
     # Clear expired pairing OTPs on startup
@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI):
             if int(otp.get("expires_at", 0)) < int(datetime.now(timezone.utc).timestamp()):
                 await _store_module.clear_otp()
                 logger.info("Cleared expired pairing OTP on startup")
-    except Exception:
+    except (OSError, ValueError):
         logger.debug("Pairing OTP cleanup skipped or failed")
 
     # Migrate any plaintext PINs from early development
@@ -129,34 +129,34 @@ async def lifespan(app: FastAPI):
         migrated = await migrate_plaintext_pins()
         if migrated:
             logger.info("Startup PIN migration: hashed %d plaintext PIN(s)", migrated)
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("PIN migration failed: %s", e)
 
     # Auto-AP: start hotspot if no network is available
     try:
         await maybe_start_auto_ap()
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("Auto-AP startup failed: %s", e)
 
     # Initialise document search index (FTS5)
     try:
         from .document_index import init_db as _init_doc_db
         await _init_doc_db()
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("document_index init failed: %s", e)
 
     # Start InboxWatcher for auto-sorting uploaded files
     try:
         from .file_sorter import get_watcher as _get_watcher
         _get_watcher().start()
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("InboxWatcher startup failed: %s", e)
 
     # Start Telegram bot (optional — skipped if token not set)
     try:
         from .telegram_bot import start_bot as _start_bot
         await _start_bot()
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("Telegram bot startup failed: %s", e)
 
     yield
@@ -165,27 +165,27 @@ async def lifespan(app: FastAPI):
     try:
         from .telegram_bot import stop_bot as _stop_bot
         await _stop_bot()
-    except Exception:
+    except (OSError, RuntimeError, ValueError):
         logger.debug("Telegram bot shutdown skipped")
 
     # Stop InboxWatcher
     try:
         from .file_sorter import get_watcher as _get_watcher
         await _get_watcher().stop()
-    except Exception:
+    except (OSError, RuntimeError, ValueError):
         logger.debug("InboxWatcher shutdown skipped")
 
     # Shutdown: cancel Auto-AP background monitor
     try:
         await shutdown_auto_ap()
-    except Exception:
+    except (OSError, RuntimeError, ValueError):
         logger.debug("Auto-AP shutdown cleanup skipped")
 
 
 app = FastAPI(
-    title="CubieCloud API",
+    title="AiHomeCloud API",
     version="0.1.0",
-    description="Backend API for the CubieCloud home NAS",
+    description="Backend API for the AiHomeCloud home NAS",
     lifespan=lifespan,
 )
 
@@ -251,7 +251,7 @@ async def health():
 @app.get("/")
 async def root():
     return {
-        "service": "CubieCloud",
+        "service": "AiHomeCloud",
         "version": "0.1.0",
         "deviceName": settings.device_name,
         "serial": settings.device_serial,
@@ -281,6 +281,6 @@ if __name__ == "__main__":
             cert, key = asyncio.get_event_loop().run_until_complete(ensure_tls_cert())
             kwargs["ssl_certfile"] = str(cert)
             kwargs["ssl_keyfile"] = str(key)
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             logger.warning("Starting without TLS")
     uvicorn.run(**kwargs)

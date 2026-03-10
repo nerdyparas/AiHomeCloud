@@ -10,6 +10,7 @@ import sys
 import pytest
 from httpx import AsyncClient
 from pathlib import Path
+from fastapi import HTTPException
 
 
 @pytest.mark.asyncio
@@ -219,3 +220,20 @@ async def test_boot_directory_access_blocked(authenticated_client: AsyncClient):
     response = await authenticated_client.get("/api/v1/files/list?path=/boot")
     # path=/boot → nas_root/boot (safe, auto-created on Linux; may error on Windows)
     assert response.status_code in (200, 403, 500), f"Accessing /boot returned {response.status_code}"
+
+
+def test_similar_prefix_path_outside_nas_root_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """Paths like /srv/nasty must not be treated as inside /srv/nas."""
+    from app.routes.file_routes import _safe_resolve
+    from app.config import settings
+
+    nas_root = tmp_path / "nas"
+    nas_root.mkdir(parents=True)
+    monkeypatch.setattr(settings, "nas_root", nas_root)
+
+    outside = str(tmp_path / "nasty" / "secret")
+    with pytest.raises(HTTPException) as exc_info:
+        _safe_resolve(outside)
+
+    assert exc_info.value.status_code == 403
+    assert "Path outside NAS root" in str(exc_info.value.detail)

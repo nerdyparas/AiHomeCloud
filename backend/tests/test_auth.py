@@ -404,6 +404,8 @@ async def test_pair_qr_does_not_expose_key(client: AsyncClient):
 
     # The 'key' field must not appear in the JSON response body
     assert "key" not in data, "'key' must not be exposed directly in the /pair/qr JSON response"
+    assert "otp" in data, "OTP must be returned for fallback manual pairing"
+    assert len(data["otp"]) == 6 and data["otp"].isdigit(), "OTP must be a 6-digit string"
 
     # The QR value string must still contain the key embedded in the payload
     qr_value = data.get("qrValue", "")

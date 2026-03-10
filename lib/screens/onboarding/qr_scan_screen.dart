@@ -108,8 +108,8 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
             const SizedBox(width: 6),
             Text(
               isExpired
-                  ? 'OTP expired — please scan again'
-                  : 'OTP expires in ${_formatDuration(remaining)}',
+                ? 'Pairing code expired — please scan again'
+                : 'Pairing code valid for ${_formatDuration(remaining)}',
               style: GoogleFonts.dmSans(
                 color:
                     isExpired ? AppColors.error : AppColors.textSecondary,
@@ -151,7 +151,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/welcome'),
+          onPressed: () => context.go('/'),
         ),
         title: Text('Scan QR Code',
             style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),

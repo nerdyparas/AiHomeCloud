@@ -10,6 +10,8 @@ class StatTile extends StatelessWidget {
   final String? unit;
   final IconData icon;
   final Color? accentColor;
+  final String? helperText;
+  final Color? helperColor;
 
   const StatTile({
     super.key,
@@ -18,6 +20,8 @@ class StatTile extends StatelessWidget {
     this.unit,
     required this.icon,
     this.accentColor,
+    this.helperText,
+    this.helperColor,
   });
 
   @override
@@ -81,6 +85,17 @@ class StatTile extends StatelessWidget {
               ],
             ],
           ),
+          if (helperText != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              helperText!,
+              style: GoogleFonts.dmSans(
+                color: helperColor ?? AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );

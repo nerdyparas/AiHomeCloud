@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Mock AppCard widget for testing
-/// 
-/// In a real scenario, this would be imported from:
-/// import 'package:cubiecloud/widgets/cubie_card.dart';
+/// Mock AppCard widget for testing.
+///
+/// In the real app, this maps to the AppCard widget in lib/widgets/app_card.dart.
 class AppCard extends StatelessWidget {
   final String title;
   final Widget child;
@@ -12,12 +11,12 @@ class AppCard extends StatelessWidget {
   final double elevation;
 
   const AppCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.child,
     this.padding = const EdgeInsets.all(16.0),
     this.elevation = 2.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,16 +45,14 @@ class AppCard extends StatelessWidget {
 
 void main() {
   group('AppCard Widget Golden Tests', () {
-    // 7G.5: Golden tests for AppCard widget
     testWidgets('AppCard golden test with default properties', (WidgetTester tester) async {
-      // Set test window size
       tester.view.physicalSize = const Size(400, 300);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -63,7 +60,7 @@ void main() {
                 title: 'Storage Status',
                 child: Column(
                   children: [
-                    LinearProgressIndicator(
+                    const LinearProgressIndicator(
                       value: 0.65,
                       minHeight: 8,
                     ),
@@ -77,22 +74,20 @@ void main() {
         ),
       );
 
-      // Create golden file (will be auto-created on first run with --update-goldens)
       await expectLater(
         find.byType(AppCard),
-        matchesGoldenFile('goldens/cubie_card_default.png'),
+        matchesGoldenFile('goldens/app_card_default.png'),
       );
     });
 
     testWidgets('AppCard golden test with complex content', (WidgetTester tester) async {
-      // Set test window size
       tester.view.physicalSize = const Size(400, 500);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -126,12 +121,11 @@ void main() {
 
       await expectLater(
         find.byType(AppCard),
-        matchesGoldenFile('goldens/cubie_card_complex.png'),
+        matchesGoldenFile('goldens/app_card_complex.png'),
       );
     });
 
     testWidgets('AppCard golden test with elevated style', (WidgetTester tester) async {
-      // Set test window size
       tester.view.physicalSize = const Size(400, 300);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -164,19 +158,18 @@ void main() {
 
       await expectLater(
         find.byType(AppCard),
-        matchesGoldenFile('goldens/cubie_card_elevated.png'),
+        matchesGoldenFile('goldens/app_card_elevated.png'),
       );
     });
 
     testWidgets('AppCard golden test with custom padding', (WidgetTester tester) async {
-      // Set test window size
       tester.view.physicalSize = const Size(400, 300);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -186,8 +179,8 @@ void main() {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Column(
-                      children: const [
+                    const Column(
+                      children: [
                         Text('CPU'),
                         SizedBox(height: 4),
                         Text(
@@ -199,8 +192,8 @@ void main() {
                         ),
                       ],
                     ),
-                    Column(
-                      children: const [
+                    const Column(
+                      children: [
                         Text('RAM'),
                         SizedBox(height: 4),
                         Text(
@@ -212,8 +205,8 @@ void main() {
                         ),
                       ],
                     ),
-                    Column(
-                      children: const [
+                    const Column(
+                      children: [
                         Text('Storage'),
                         SizedBox(height: 4),
                         Text(
@@ -235,7 +228,7 @@ void main() {
 
       await expectLater(
         find.byType(AppCard),
-        matchesGoldenFile('goldens/cubie_card_custom_padding.png'),
+        matchesGoldenFile('goldens/app_card_custom_padding.png'),
       );
     });
   });

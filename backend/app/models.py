@@ -125,7 +125,7 @@ class StorageDevice(BaseModel):
 class FormatRequest(BaseModel):
     """Format a block device. confirmDevice must match device for safety."""
     device: str                                         # "/dev/sda1"
-    label: str = "CubieNAS"                             # ext4 label
+    label: str = "AiHomeNAS"                           # ext4 label
     confirm_device: str = Field(alias="confirmDevice")  # must match device
 
     model_config = {"populate_by_name": True}

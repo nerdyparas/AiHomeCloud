@@ -25,7 +25,7 @@ async def test_root_endpoint_returns_device_info(client: AsyncClient):
     response = await client.get("/")
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "CubieCloud"
+    assert data["service"] == "AiHomeCloud"
     assert "serial" in data
 
 

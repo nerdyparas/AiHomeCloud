@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 
-/// Standard card matching the CubieCloud design system.
+/// Standard card matching the AiHomeCloud design system.
 /// Set [glowing] to `true` for an amber glow on active elements.
 class AppCard extends StatelessWidget {
   final Widget child;

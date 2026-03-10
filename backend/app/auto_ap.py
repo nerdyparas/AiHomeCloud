@@ -2,7 +2,7 @@
 Auto-AP: automatically start the Wi-Fi hotspot when no network is available.
 
 On startup, checks if Ethernet or Wi-Fi station is connected.
-If neither is available, starts the CubieCloud hotspot so the user
+If neither is available, starts the AiHomeCloud hotspot so the user
 can connect and configure the device.
 
 A background task periodically checks connectivity:
@@ -94,7 +94,7 @@ async def _is_hotspot_active() -> bool:
 
 
 async def _start_hotspot() -> bool:
-    """Start the CubieCloud hotspot. Returns True on success."""
+    """Start the AiHomeCloud hotspot. Returns True on success."""
     global _auto_ap_active
 
     # Check if a hotspot profile already exists

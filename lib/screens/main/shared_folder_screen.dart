@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
-import '../../widgets/cubie_card.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/folder_view.dart';
 
 /// Tab 4 — shared folder browser with a DLNA / SMB info card at the top.

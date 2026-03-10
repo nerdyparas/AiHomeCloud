@@ -1,5 +1,5 @@
 """
-TLS certificate management for CubieCloud.
+TLS certificate management for AiHomeCloud.
 Auto-generates a self-signed certificate on first boot.
 """
 
@@ -57,7 +57,7 @@ async def ensure_tls_cert() -> tuple[Path, Path]:
         "-out", str(cert_path),
         "-days", "3650",
         "-nodes",
-        "-subj", f"/CN={hostname}/O=CubieCloud",
+        "-subj", f"/CN={hostname}/O=AiHomeCloud",
         "-addext", f"subjectAltName={san_string}",
     ]
 

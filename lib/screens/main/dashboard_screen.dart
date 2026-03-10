@@ -10,7 +10,7 @@ import '../../core/theme.dart';
 import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
-import '../../widgets/cubie_card.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/stat_tile.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -52,6 +52,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (days > 0) return '${days}d ${hrs}h';
     if (hrs > 0) return '${hrs}h ${mins}m';
     return '${mins}m';
+  }
+
+  String _healthLabel(double value, {required double highThreshold}) {
+    return value >= highThreshold ? 'High' : 'Normal';
+  }
+
+  Color _healthColor(double value, {required double highThreshold}) {
+    return value >= highThreshold ? AppColors.error : AppColors.success;
   }
 
   @override
@@ -329,6 +337,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       unit: '%',
                       icon: Icons.memory_rounded,
                       accentColor: AppColors.primary,
+                      helperText: _healthLabel(s.cpuPercent, highThreshold: 80),
+                      helperColor: _healthColor(s.cpuPercent, highThreshold: 80),
                     ).animate().fadeIn(delay: 200.ms),
                     StatTile(
                       label: 'Memory',
@@ -336,6 +346,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       unit: '%',
                       icon: Icons.developer_board_rounded,
                       accentColor: AppColors.secondary,
+                      helperText: _healthLabel(s.ramPercent, highThreshold: 85),
+                      helperColor: _healthColor(s.ramPercent, highThreshold: 85),
                     ).animate().fadeIn(delay: 300.ms),
                     StatTile(
                       label: 'Temperature',
@@ -345,6 +357,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       accentColor: s.tempCelsius > 60
                           ? AppColors.error
                           : AppColors.success,
+                      helperText: _healthLabel(s.tempCelsius, highThreshold: 65),
+                      helperColor: _healthColor(s.tempCelsius, highThreshold: 65),
                     ).animate().fadeIn(delay: 400.ms),
                     StatTile(
                       label: 'Uptime',
@@ -689,7 +703,7 @@ class _NetworkStatusCard extends ConsumerWidget {
               connected: n.wifiConnected,
               enabled: n.wifiEnabled,
             ),
-            Divider(color: AppColors.cardBorder, height: 1),
+            const Divider(color: AppColors.cardBorder, height: 1),
             _netStatusRow(
               icon: Icons.lan_rounded,
               label: n.lanConnected ? 'Ethernet: Connected' : 'Ethernet: Disconnected',
@@ -699,7 +713,7 @@ class _NetworkStatusCard extends ConsumerWidget {
               connected: n.lanConnected,
               enabled: true,
             ),
-            Divider(color: AppColors.cardBorder, height: 1),
+            const Divider(color: AppColors.cardBorder, height: 1),
             _netStatusRow(
               icon: Icons.bluetooth_rounded,
               label: n.bluetoothEnabled ? 'Bluetooth: On' : 'Bluetooth: Off',

@@ -89,21 +89,36 @@ class MainShell extends ConsumerWidget {
               Container(
                 width: double.infinity,
                 color: AppColors.error.withValues(alpha: 0.2),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.cloud_off_rounded, size: 14, color: AppColors.error),
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 2),
+                                    child: Icon(Icons.cloud_off_rounded, size: 14, color: AppColors.error),
+                                  ),
                     const SizedBox(width: 8),
                     const Expanded(
-                      child: Text(
-                        'AiHomeCloud is unreachable.',
-                        style: TextStyle(fontSize: 12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'AiHomeCloud is not responding.',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Check power, make sure you are on the same Wi-Fi, then try reconnecting.',
+                                          style: TextStyle(fontSize: 11),
+                                        ),
+                                      ],
                       ),
                     ),
+                                  const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: () => context.go('/scan-network'),
                       icon: const Icon(Icons.wifi_find_rounded, size: 14),
-                      label: const Text('Find Cubie', style: TextStyle(fontSize: 12)),
+                      label: const Text('Reconnect', style: TextStyle(fontSize: 12)),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 8),

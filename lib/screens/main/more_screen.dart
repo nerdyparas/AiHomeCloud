@@ -8,7 +8,7 @@ import '../../core/theme.dart';
 import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
-import '../../widgets/cubie_card.dart';
+import '../../widgets/app_card.dart';
 
 /// Tab 4 — More: a hub for sharing, security, storage, network, and account.
 /// Replaces the old 5-tab Settings screen and consolidates all settings here.

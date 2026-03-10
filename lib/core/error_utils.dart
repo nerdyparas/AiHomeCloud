@@ -12,11 +12,11 @@ String friendlyError(Object error) {
   // ── Network / connectivity ──────────────────────────────────────────────
   if (error is SocketException || msg.contains('SocketException')) {
     if (msg.contains('Connection refused')) {
-      return 'CubieCloud is not reachable. Make sure it\'s powered on and connected to your network.';
+      return 'AiHomeCloud is not reachable. Make sure it\'s powered on and connected to your network.';
     }
     if (msg.contains('Network is unreachable') ||
         msg.contains('No route to host')) {
-      return 'You are not connected to the same network as your Cubie. Check your Wi-Fi connection.';
+      return 'You are not connected to the same network as your AiHomeCloud. Check your Wi-Fi connection.';
     }
     if (msg.contains('Connection reset')) {
       return 'Connection to AiHomeCloud was interrupted. Please try again.';
@@ -49,7 +49,7 @@ String friendlyError(Object error) {
 
   // ── StateError (session not configured) ─────────────────────────────────
   if (error is StateError || msg.contains('Host is not configured')) {
-    return 'No device paired. Please set up your Cubie first.';
+    return 'No device paired. Please set up your AiHomeCloud first.';
   }
 
   // ── Generic Exception wrapper — strip "Exception: " prefix ─────────────

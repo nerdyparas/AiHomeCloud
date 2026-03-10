@@ -54,7 +54,7 @@ Device:   Radxa Cubie A5E (primary) — treat RAM as 1GB always
 CPU:      ARM Cortex-A55, 4 core, 1.8 GHz
 Storage:  16GB microSD (OS) + user-supplied USB HDD or NVMe at /srv/nas/
 Network:  Ethernet primary, WiFi fallback
-OS:       Ubuntu 24 ARM64
+OS:       Ubuntu 24 ARM64, Debian 12 ARM64, or similar
 ```
 
 ### Strict RAM Budget — never exceed

@@ -8,7 +8,7 @@ import '../../../core/theme.dart';
 import '../../../core/error_utils.dart';
 import '../../../models/models.dart';
 import '../../../providers.dart';
-import '../../../widgets/cubie_card.dart';
+import '../../../widgets/app_card.dart';
 
 class ServicesSettingsScreen extends ConsumerWidget {
   const ServicesSettingsScreen({super.key});

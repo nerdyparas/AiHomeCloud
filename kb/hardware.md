@@ -1,4 +1,4 @@
-# Hardware Reference — Radxa Cubie A7Z
+# Hardware Reference — Radxa Cubie A7A
 
 ## Board Specs
 

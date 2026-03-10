@@ -60,28 +60,15 @@ async def get_pairing_qr():
     key = settings.pairing_key
     host = f"cubie-{serial}.local"
 
-    # Ensure a persistent OTP exists for pairing (survives restarts).
-    # OTP plaintext is not returned here; the device UI is expected to display it.
+    # Always generate a fresh short-lived OTP so the caller can display it.
     import hashlib
     import secrets
     from datetime import datetime, timedelta, timezone
 
-    now = int(datetime.now(timezone.utc).timestamp())
-    otp_record = await store.get_otp()
-    expires_at = None
-    if otp_record and otp_record.get("expires_at"):
-        try:
-            if int(otp_record.get("expires_at", 0)) > now:
-                expires_at = int(otp_record.get("expires_at"))
-        except Exception:
-            expires_at = None
-
-    if not expires_at:
-        # Generate a short-lived 6-digit OTP and persist its hash + expiry.
-        otp = f"{secrets.randbelow(10**6):06d}"
-        otp_hash = hashlib.sha256(otp.encode()).hexdigest()
-        expires_at = int((datetime.now(timezone.utc) + timedelta(seconds=300)).timestamp())
-        await store.save_otp(otp_hash, expires_at)
+    otp = f"{secrets.randbelow(10**6):06d}"
+    otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+    expires_at = int((datetime.now(timezone.utc) + timedelta(seconds=300)).timestamp())
+    await store.save_otp(otp_hash, expires_at)
 
     qr_value = (
         f"cubie://pair"
@@ -93,6 +80,7 @@ async def get_pairing_qr():
 
     return {
         "qrValue": qr_value,
+        "otp": otp,
         "serial": serial,
         "ip": ip,
         "host": host,

@@ -43,7 +43,7 @@ void main() async {
 
   // Auto-reconnect: if a device was previously paired, the AuthSessionNotifier
   // will restore the session from SharedPreferences on init. If not, the
-  // router guard sends the user to /welcome → /scan-network for first-time setup.
+  // router guard sends the user through the onboarding flow for first-time setup.
 
   runApp(
     ProviderScope(

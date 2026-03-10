@@ -4,6 +4,8 @@ import 'dart:io';
 
 import '../core/constants.dart';
 
+const _recognizedServiceNames = {'CubieCloud', 'AiHomeCloud'};
+
 /// A discovered host on the local network.
 class DiscoveredHost {
   final String ip;
@@ -180,7 +182,7 @@ class NetworkScanner {
             final rootBody =
                 await rootResp.transform(utf8.decoder).join();
             final json = jsonDecode(rootBody) as Map<String, dynamic>;
-            if (json['service'] == 'CubieCloud') {
+            if (_recognizedServiceNames.contains(json['service'])) {
               deviceName = json['deviceName'] as String?;
               serial = json['serial'] as String?;
             }

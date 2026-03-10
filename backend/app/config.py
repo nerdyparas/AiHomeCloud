@@ -1,5 +1,5 @@
 """
-CubieCloud backend configuration.
+AiHomeCloud backend configuration.
 All settings can be overridden via environment variables prefixed with CUBIE_.
 """
 
@@ -88,11 +88,11 @@ class Settings(BaseSettings):
 
     # ── Device ────────────────────────────────────────────────────────────────
     device_serial: str = ""  # auto-generated from MAC address if empty
-    device_name: str = "My CubieCloud"
+    device_name: str = "My AiHomeCloud"
     firmware_version: str = "2.1.4"
     pairing_key: str = ""  # auto-generated and persisted if empty
     hotspot_password: str = ""  # auto-generated if empty
-    hotspot_ssid: str = "CubieCloud"
+    hotspot_ssid: str = "AiHomeCloud"
     auto_ap_enabled: bool = True  # auto-start hotspot when no network
 
     # ── Storage ───────────────────────────────────────────────────────────────

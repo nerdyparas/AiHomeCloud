@@ -11,7 +11,7 @@ import '../core/theme.dart';
 import '../core/error_utils.dart';
 import '../models/models.dart';
 import '../providers.dart';
-import 'cubie_card.dart';
+import 'app_card.dart';
 import 'file_list_tile.dart';
 
 /// Reusable file-browser widget embedded in My Files, Shared, and the
@@ -97,7 +97,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = friendlyError(e);
         _initialLoading = false;
       });
     }

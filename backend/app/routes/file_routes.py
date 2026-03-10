@@ -65,7 +65,9 @@ def _safe_resolve(raw_path: str) -> Path:
     # Strip the nas_root prefix if present so we don't double it.
     nas_prefix = str(settings.nas_root)
     if raw_path.startswith(nas_prefix):
-        raw_path = raw_path[len(nas_prefix):]
+        boundary = len(nas_prefix)
+        if len(raw_path) == boundary or raw_path[boundary] in ("/", "\\"):
+            raw_path = raw_path[boundary:]
 
     try:
         resolved = (settings.nas_root / raw_path.lstrip("/")).resolve()
@@ -73,8 +75,9 @@ def _safe_resolve(raw_path: str) -> Path:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
     nas_resolved = settings.nas_root.resolve()
-    # Use os.sep suffix to prevent prefix-match attacks (e.g. /srv/nasty)
-    if resolved != nas_resolved and not str(resolved).startswith(str(nas_resolved) + os.sep):
+    try:
+        resolved.relative_to(nas_resolved)
+    except ValueError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
     return resolved
 

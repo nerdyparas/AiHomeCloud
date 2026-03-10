@@ -9,7 +9,7 @@ import '../../core/theme.dart';
 import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
-import '../../widgets/cubie_card.dart';
+import '../../widgets/app_card.dart';
 
 /// Full storage explorer — pushed from the Home storage tile.
 /// Shows all detected devices with status, actions (mount/unmount/format/eject).
@@ -52,7 +52,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       final devices = await ref.read(apiServiceProvider).getStorageDevices();
       if (mounted) setState(() => _devices = devices);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = friendlyError(e));
     }
   }
 
@@ -70,7 +70,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       if (mounted) {
         setState(() {
           _scanning = false;
-          _error = e.toString();
+          _error = friendlyError(e);
         });
       }
     }
@@ -81,7 +81,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Storage Devices',
+        title: Text('Storage',
             style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -207,7 +207,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                   fontSize: 16,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text('Connect a USB drive or NVMe SSD',
+            Text('Connect a USB drive or storage device',
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 14)),
           const SizedBox(height: 20),
@@ -234,10 +234,10 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     setState(() => _busyDevice = dev.path);
     try {
       await ref.read(apiServiceProvider).mountDevice(dev.path);
-      _showSnack('${dev.label ?? dev.name} activated as NAS storage');
+      _showSnack('${dev.label ?? dev.name} is ready to use');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Activate failed: ${friendlyError(e)}', isError: true);
+      _showSnack('Could not connect storage: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -261,10 +261,10 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       await ref.read(apiServiceProvider).unmountDevice(
             force: blockers.isNotEmpty,
           );
-      _showSnack('Storage safely removed');
+      _showSnack('Storage stopped and ready to remove');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Remove failed: ${friendlyError(e)}', isError: true);
+      _showSnack('Could not stop using storage: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -285,10 +285,10 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     setState(() => _busyDevice = dev.path);
     try {
       await ref.read(apiServiceProvider).ejectDevice(dev.path);
-      _showSnack('${dev.label ?? dev.name} safely ejected — you can remove it');
+      _showSnack('${dev.label ?? dev.name} is safe to unplug');
       await _loadDevices();
     } catch (e) {
-      _showSnack('Eject failed: ${friendlyError(e)}', isError: true);
+      _showSnack('Could not remove storage safely: ${friendlyError(e)}', isError: true);
     } finally {
       if (mounted) setState(() => _busyDevice = null);
     }
@@ -296,7 +296,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
 
   void _showFormatDialog(StorageDevice dev) {
     final confirmCtrl = TextEditingController();
-    final labelCtrl = TextEditingController(text: 'CubieNAS');
+    final labelCtrl = TextEditingController(text: 'AiHomeNAS');
 
     showDialog(
       context: context,
@@ -310,7 +310,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                 const Icon(Icons.warning_rounded,
                     color: AppColors.error, size: 24),
                 const SizedBox(width: 8),
-                Text('Format Device', style: GoogleFonts.sora(fontSize: 18)),
+                Text('Prepare Device', style: GoogleFonts.sora(fontSize: 18)),
               ],
             ),
             content: Column(
@@ -318,8 +318,8 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'This will ERASE ALL DATA on ${dev.label ?? dev.name} '
-                  '(${dev.sizeDisplay}).\nThis cannot be undone.',
+                  'All files on ${dev.label ?? dev.name} '
+                  '(${dev.sizeDisplay}) will be permanently deleted.\nThis cannot be undone.',
                   style: GoogleFonts.dmSans(
                       color: AppColors.textSecondary, fontSize: 13, height: 1.5),
                 ),
@@ -329,7 +329,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                   style: GoogleFonts.dmSans(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Volume label',
-                    hintText: 'CubieNAS',
+                    hintText: 'AiHomeNAS',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -376,7 +376,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       try {
         final started = await ref.read(apiServiceProvider).startFormatJob(
               dev.path,
-              labelCtrl.text.trim().isEmpty ? 'CubieNAS' : labelCtrl.text.trim(),
+              labelCtrl.text.trim().isEmpty ? 'AiHomeNAS' : labelCtrl.text.trim(),
               dev.path,
             );
 
@@ -386,9 +386,9 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         }
 
         _startFormatPolling(jobId);
-        _showSnack('Format started for ${dev.name}. Tracking progress…');
+        _showSnack('Preparing ${dev.name}. Tracking progress…');
       } catch (e) {
-        _showSnack('Format failed: ${friendlyError(e)}', isError: true);
+        _showSnack('Could not prepare device: ${friendlyError(e)}', isError: true);
       } finally {
         if (mounted) setState(() => _busyDevice = null);
       }
@@ -430,7 +430,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             _formatJobId = null;
             _formatStatus = '';
           });
-          _showSnack('Format completed successfully');
+          _showSnack('Device is ready to use');
           await _loadDevices();
           return;
         }
@@ -442,7 +442,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             _formatJobId = null;
             _formatStatus = '';
           });
-          _showSnack('Format failed: ${status.error ?? 'Unknown error'}',
+          _showSnack('Could not prepare device: ${status.error ?? 'Unknown error'}',
               isError: true);
         }
       } catch (e) {
@@ -464,7 +464,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Formatting in progress',
+            'Preparing device',
             style: GoogleFonts.sora(
               color: AppColors.textPrimary,
               fontSize: 14,
@@ -504,7 +504,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${blockers.length} process(es) have open files on the NAS:',
+              '${blockers.length} app(s) are still using this storage:',
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 13),
             ),
@@ -548,7 +548,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Force Remove',
+            child: Text('Remove Anyway',
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -673,11 +673,11 @@ class _DeviceCard extends StatelessWidget {
     if (device.isNasActive) {
       return Row(
         children: [
-          _actionBtn(Icons.eject_rounded, 'Safely Remove', AppColors.primary,
+          _actionBtn(Icons.pause_circle_outline_rounded, 'Stop using', AppColors.primary,
               onUnmount),
           const SizedBox(width: 8),
           if (device.transport == 'usb')
-            _actionBtn(Icons.usb_off_rounded, 'Safe Remove', AppColors.error,
+            _actionBtn(Icons.usb_off_rounded, 'Remove safely', AppColors.error,
                 onEject),
         ],
       );
@@ -688,14 +688,14 @@ class _DeviceCard extends StatelessWidget {
       return Row(
         children: [
           _actionBtn(
-              Icons.play_arrow_rounded, 'Activate', AppColors.success, onMount),
+              Icons.play_arrow_rounded, 'Connect', AppColors.success, onMount),
           const SizedBox(width: 8),
-          _actionBtn(Icons.format_paint_rounded, 'Format', AppColors.error,
+          _actionBtn(Icons.format_paint_rounded, 'Prepare device', AppColors.error,
               onFormat),
           if (device.transport == 'usb') ...[
             const SizedBox(width: 8),
             _actionBtn(
-                Icons.eject_rounded, 'Eject', AppColors.textSecondary, onEject),
+                Icons.eject_rounded, 'Remove safely', AppColors.textSecondary, onEject),
           ],
         ],
       );
@@ -705,11 +705,11 @@ class _DeviceCard extends StatelessWidget {
     return Row(
       children: [
         _actionBtn(
-            Icons.format_paint_rounded, 'Format', AppColors.primary, onFormat),
+            Icons.format_paint_rounded, 'Prepare device', AppColors.primary, onFormat),
         if (device.transport == 'usb') ...[
           const SizedBox(width: 8),
           _actionBtn(
-              Icons.eject_rounded, 'Eject', AppColors.textSecondary, onEject),
+              Icons.eject_rounded, 'Remove safely', AppColors.textSecondary, onEject),
         ],
       ],
     );
@@ -831,7 +831,7 @@ class _SafeRemoveSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          Text('Safe Remove',
+            Text('Remove safely',
               style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
                   fontSize: 18,
@@ -839,9 +839,9 @@ class _SafeRemoveSheet extends StatelessWidget {
           const SizedBox(height: 8),
 
           Text(
-            'This will stop NAS services, unmount '
-            '${device.label ?? device.name}, and power off the USB port.\n\n'
-            'Make sure all transfers are complete.',
+            'We will stop sharing, disconnect '
+            '${device.label ?? device.name}, and make it safe to unplug.\n\n'
+            'Make sure all transfers are complete first.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
                 color: AppColors.textSecondary, fontSize: 14, height: 1.5),
@@ -849,9 +849,9 @@ class _SafeRemoveSheet extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Steps preview
-          _step(Icons.stop_circle_outlined, 'Stop file sharing services'),
-          _step(Icons.sync_rounded, 'Flush writes & unmount'),
-          _step(Icons.usb_off_rounded, 'Power off USB port'),
+          _step(Icons.stop_circle_outlined, 'Stop sharing'),
+          _step(Icons.sync_rounded, 'Finish pending transfers'),
+          _step(Icons.usb_off_rounded, 'Make it safe to unplug'),
           const SizedBox(height: 24),
 
           Row(
@@ -871,7 +871,7 @@ class _SafeRemoveSheet extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error),
                   onPressed: () => Navigator.pop(context, true),
-                  child: Text('Eject Now',
+                    child: Text('Remove safely',
                       style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
                 ),
               ),

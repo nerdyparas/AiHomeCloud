@@ -3,6 +3,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants.dart';
+import '../core/error_utils.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/discovery_service.dart';
@@ -90,7 +91,7 @@ class DiscoveryNotifier extends StateNotifier<DiscoveryState> {
     } catch (e) {
       state = state.copyWith(
         status: DiscoveryStatus.failed,
-        statusMessage: e.toString(),
+        statusMessage: friendlyError(e),
         pendingFingerprint: null,
       );
     }
