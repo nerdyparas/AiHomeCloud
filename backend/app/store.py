@@ -400,3 +400,26 @@ async def set_value(key: str, value: Any) -> None:
         data: Dict[str, Any] = _read_json(settings.data_dir / "kv.json", {})
         data[key] = value
         _write_json(settings.data_dir / "kv.json", data)
+
+
+# ---------------------------------------------------------------------------
+# Trash metadata (trash.json)
+# ---------------------------------------------------------------------------
+
+async def get_trash_items() -> List[dict]:
+    """Return all trash item metadata records."""
+    cached = _get_cached("trash")
+    if cached is not None:
+        return cached
+
+    async with _store_lock:
+        items = _read_json(settings.trash_file, [])
+        _set_cached("trash", items)
+        return items
+
+
+async def save_trash_items(items: List[dict]) -> None:
+    """Persist the trash metadata list to disk."""
+    async with _store_lock:
+        _write_json(settings.trash_file, items)
+        _set_cached("trash", items)

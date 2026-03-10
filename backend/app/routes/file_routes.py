@@ -6,6 +6,8 @@ External storage must be mounted at nas_root; SD card fallback is blocked.
 
 import mimetypes
 import os
+import shutil
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,7 +16,8 @@ from fastapi.responses import FileResponse
 
 from ..auth import get_current_user
 from ..config import settings
-from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest
+from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest, TrashItem
+from .. import store
 from .event_routes import emit_upload_complete
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
@@ -176,17 +179,189 @@ async def delete_file(
     path: str = Query(...),
     user: dict = Depends(get_current_user),
 ):
-    """Delete a file or directory (recursively)."""
+    """Soft-delete: move file/directory to the per-user trash folder."""
     _require_external_storage()
     resolved = _safe_resolve(path)
     if not resolved.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
 
-    if resolved.is_dir():
-        import shutil
-        shutil.rmtree(resolved)
+    user_id = user.get("sub", "")
+    filename = resolved.name
+    ts = int(datetime.now(timezone.utc).timestamp())
+    trash_name = f"{ts}_{filename}"
+
+    # Per-user trash directory: {nas_root}/.cubie_trash/{user_id}/
+    user_trash_dir = settings.trash_dir / user_id
+    user_trash_dir.mkdir(parents=True, exist_ok=True)
+
+    # Guard against name collision inside trash
+    trash_path = user_trash_dir / trash_name
+    counter = 1
+    while trash_path.exists():
+        trash_path = user_trash_dir / f"{ts}_{counter}_{filename}"
+        counter += 1
+
+    # Calculate size before moving
+    if resolved.is_file():
+        size_bytes = resolved.stat().st_size
     else:
-        resolved.unlink()
+        size_bytes = sum(f.stat().st_size for f in resolved.rglob("*") if f.is_file())
+
+    shutil.move(str(resolved), str(trash_path))
+
+    item = {
+        "id": str(uuid.uuid4()),
+        "originalPath": path,
+        "trashPath": str(trash_path),
+        "filename": filename,
+        "deletedAt": datetime.now(timezone.utc).isoformat(),
+        "sizeBytes": size_bytes,
+        "deletedBy": user_id,
+    }
+
+    items = await store.get_trash_items()
+    items.append(item)
+    await store.save_trash_items(items)
+
+    await _purge_trash_if_needed()
+
+
+# ─── Trash helpers ────────────────────────────────────────────────────────────
+
+_TRASH_MAX_DAYS = 30
+
+
+def _validate_trash_path(trash_path_str: str) -> Path:
+    """Ensure a stored trash_path is actually inside trash_dir (prevents metadata tampering)."""
+    p = Path(trash_path_str).resolve()
+    trash_resolved = settings.trash_dir.resolve()
+    if p != trash_resolved and not str(p).startswith(str(trash_resolved) + os.sep):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid trash path")
+    return p
+
+
+async def _purge_trash_if_needed() -> None:
+    """Auto-purge oldest trash items when trash exceeds 10% of NAS capacity or items >30 days old."""
+    try:
+        usage = shutil.disk_usage(settings.nas_root)
+        quota_bytes = usage.total * 0.10
+    except Exception:
+        quota_bytes = float("inf")
+
+    now = datetime.now(timezone.utc)
+    items = await store.get_trash_items()
+    to_keep: list[dict] = []
+
+    # First pass: drop items older than TRASH_MAX_DAYS regardless of quota
+    for item in items:
+        try:
+            deleted_at = datetime.fromisoformat(item["deletedAt"])
+            if deleted_at.tzinfo is None:
+                deleted_at = deleted_at.replace(tzinfo=timezone.utc)
+            age_days = (now - deleted_at).days
+        except Exception:
+            age_days = 0
+
+        if age_days >= _TRASH_MAX_DAYS:
+            _unlink_trash_item(item)
+        else:
+            to_keep.append(item)
+
+    # Second pass: purge oldest until total trash size is under quota
+    total_size = sum(i.get("sizeBytes", 0) for i in to_keep)
+    if total_size > quota_bytes:
+        to_keep.sort(key=lambda i: i.get("deletedAt", ""))
+        final: list[dict] = []
+        for item in to_keep:
+            if total_size <= quota_bytes:
+                final.append(item)
+            else:
+                _unlink_trash_item(item)
+                total_size -= item.get("sizeBytes", 0)
+        to_keep = final
+
+    await store.save_trash_items(to_keep)
+
+
+def _unlink_trash_item(item: dict) -> None:
+    """Permanently remove the physical file/dir for a trash item, best-effort."""
+    try:
+        p = Path(item.get("trashPath", ""))
+        if p.is_dir():
+            shutil.rmtree(p)
+        elif p.exists():
+            p.unlink()
+    except Exception:
+        pass
+
+
+# ─── Trash CRUD endpoints ─────────────────────────────────────────────────────
+
+@router.get("/trash", response_model=list[TrashItem])
+async def list_trash(user: dict = Depends(get_current_user)):
+    """List the caller's trash items (files they deleted)."""
+    user_id = user.get("sub", "")
+    all_items = await store.get_trash_items()
+    user_items = [i for i in all_items if i.get("deletedBy") == user_id]
+    return [TrashItem(**i) for i in user_items]
+
+
+@router.post("/trash/{item_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_trash_item(item_id: str, user: dict = Depends(get_current_user)):
+    """Restore a trash item back to its original path."""
+    _require_external_storage()
+    user_id = user.get("sub", "")
+
+    all_items = await store.get_trash_items()
+    match = next((i for i in all_items if i.get("id") == item_id), None)
+    if match is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Trash item not found")
+
+    # Admins can restore any item; members only their own
+    if match.get("deletedBy") != user_id and not (user.get("is_admin") or user.get("type") == "device"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Cannot restore other user's trash")
+
+    trash_path = _validate_trash_path(match["trashPath"])
+    if not trash_path.exists():
+        # Physical file gone — remove metadata and 404
+        remaining = [i for i in all_items if i.get("id") != item_id]
+        await store.save_trash_items(remaining)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Trash file no longer exists")
+
+    original_path = _safe_resolve(match["originalPath"])
+    original_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Handle restore collision — add "_restored" suffix
+    dest = original_path
+    if dest.exists():
+        stem = dest.stem
+        suffix = dest.suffix
+        dest = dest.parent / f"{stem}_restored{suffix}"
+
+    shutil.move(str(trash_path), str(dest))
+
+    remaining = [i for i in all_items if i.get("id") != item_id]
+    await store.save_trash_items(remaining)
+
+
+@router.delete("/trash/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def permanent_delete_trash_item(item_id: str, user: dict = Depends(get_current_user)):
+    """Permanently delete a trash item (cannot be undone)."""
+    user_id = user.get("sub", "")
+
+    all_items = await store.get_trash_items()
+    match = next((i for i in all_items if i.get("id") == item_id), None)
+    if match is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Trash item not found")
+
+    if match.get("deletedBy") != user_id and not (user.get("is_admin") or user.get("type") == "device"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Cannot permanently delete other user's trash")
+
+    _validate_trash_path(match["trashPath"])
+    _unlink_trash_item(match)
+
+    remaining = [i for i in all_items if i.get("id") != item_id]
+    await store.save_trash_items(remaining)
 
 
 @router.put("/rename", status_code=status.HTTP_204_NO_CONTENT)
@@ -232,8 +407,7 @@ async def upload_file(
     if user.get("type") == "device":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Device tokens cannot upload files")
     # Resolve the user's personal .inbox/ directory
-    from .. import store as _store
-    user_record = await _store.find_user(user.get("sub", ""))
+    user_record = await store.find_user(user.get("sub", ""))
     if user_record is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User not found")
     safe_username = Path(user_record["name"]).name

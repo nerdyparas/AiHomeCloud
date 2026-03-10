@@ -232,6 +232,23 @@ class FirmwareInfo(BaseModel):
 
 # ─── Network ─────────────────────────────────────────────────────────────────
 
+# ─── TrashItem ───────────────────────────────────────────────────────────────
+
+class TrashItem(BaseModel):
+    """Metadata for a soft-deleted file stored in the trash."""
+    id: str
+    original_path: str = Field(alias="originalPath")
+    trash_path: str = Field(alias="trashPath")   # absolute path inside trash_dir
+    filename: str
+    deleted_at: datetime = Field(alias="deletedAt")
+    size_bytes: int = Field(alias="sizeBytes")
+    deleted_by: str = Field(alias="deletedBy")   # user_id
+
+    model_config = {"populate_by_name": True}
+
+
+# ─── Network ─────────────────────────────────────────────────────────────────
+
 class NetworkStatus(BaseModel):
     """Aggregated network state for the Cubie device."""
     wifi_enabled: bool = Field(alias="wifiEnabled")

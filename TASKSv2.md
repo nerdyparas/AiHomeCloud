@@ -560,27 +560,27 @@ Backend: `GET/POST /api/v1/telegram/config` — reads/writes `kv.json` via new `
 
 ### TASK-P5-01 — Backend Trash Infrastructure
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 5 — Soft Delete / Trash
-**Files:** `backend/app/config.py`, `backend/app/models.py`, `backend/app/routes/file_routes.py`
+**Files:** `backend/app/config.py`, `backend/app/models.py`, `backend/app/store.py`, `backend/app/routes/file_routes.py`, `backend/tests/test_trash.py` (new)
 **Depends on:** none
 
 **Goal:**
 Replace hard delete with soft delete (move to trash). Add trash listing, restore, and permanent delete endpoints.
 
 **Acceptance criteria:**
-- [ ] `trash_dir` property in config.py: `{nas_root}/.cubie_trash/`
-- [ ] `TrashItem` Pydantic model: `id`, `original_path`, `deleted_at`, `size_bytes`, `deleted_by`
-- [ ] File delete → move to `trash_dir/{user_id}/{timestamp}_{filename}` instead of `os.remove()`
-- [ ] `GET /api/v1/files/trash` — list caller's trash items
-- [ ] `POST /api/v1/files/trash/{id}/restore` — move back to original path
-- [ ] `DELETE /api/v1/files/trash/{id}` — permanent delete
-- [ ] Trash quota guard: if trash > 10% of NAS capacity, auto-purge oldest
-- [ ] Test added
-- [ ] Backend tests pass
+- [x] `trash_dir` property in config.py: `{nas_root}/.cubie_trash/`
+- [x] `TrashItem` Pydantic model: `id`, `original_path`, `deleted_at`, `size_bytes`, `deleted_by`
+- [x] File delete → move to `trash_dir/{user_id}/{timestamp}_{filename}` instead of `os.remove()`
+- [x] `GET /api/v1/files/trash` — list caller's trash items
+- [x] `POST /api/v1/files/trash/{id}/restore` — move back to original path
+- [x] `DELETE /api/v1/files/trash/{id}` — permanent delete
+- [x] Trash quota guard: if trash > 10% of NAS capacity, auto-purge oldest
+- [x] Test added
+- [x] Backend tests pass
 
 **Notes:**
-Store trash metadata in `trash.json` via store.py pattern. Keep trash items for 30 days max.
+Store trash metadata in `trash.json` via `store.get_trash_items()`/`save_trash_items()`. Quota purge also removes items older than 30 days. Restore handles collision by appending `_restored` suffix. Admin users can restore/permanently-delete any user's trash items.
 
 ---
 

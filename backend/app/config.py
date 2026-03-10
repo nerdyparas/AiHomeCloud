@@ -153,6 +153,16 @@ class Settings(BaseSettings):
     def tls_key_path(self) -> Path:
         return Path(self.tls_key_file) if self.tls_key_file else self.cert_dir / "key.pem"
 
+    @property
+    def trash_dir(self) -> Path:
+        """Hidden trash directory at the root of the NAS mount."""
+        return self.nas_root / ".cubie_trash"
+
+    @property
+    def trash_file(self) -> Path:
+        """JSON metadata file for trash items."""
+        return self.data_dir / "trash.json"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value):
