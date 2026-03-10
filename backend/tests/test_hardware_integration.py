@@ -38,13 +38,14 @@ TLS_VERIFY = False  # self-signed cert — skip verify for local testing
 # monkeypatched by unit tests running in the same pytest session).
 _REAL_DATA_DIR = Path("/var/lib/cubie")
 
-# Skip the entire module when not running on real hardware (CI, dev machines, etc.).
-if not _REAL_DATA_DIR.joinpath("users.json").exists():
-    pytest.skip(
-        "Hardware integration tests require /var/lib/cubie/users.json — "
-        "skipping on non-hardware environments.",
-        allow_module_level=True,
-    )
+# Skip all tests in this module when not running on real hardware.
+# Using pytestmark (not module-level pytest.skip) to avoid INTERNALERROR
+# with the session-scoped event_loop fixture on Windows/CI environments.
+pytestmark = pytest.mark.skipif(
+    not _REAL_DATA_DIR.joinpath("users.json").exists(),
+    reason="Hardware integration tests require /var/lib/cubie/users.json — "
+           "skipping on non-hardware environments.",
+)
 
 
 def _make_admin_token() -> str:

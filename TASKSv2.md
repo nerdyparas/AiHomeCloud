@@ -828,7 +828,7 @@ From old tasks.md Milestone 9B. Not needed until AI features are built.
 
 ### TASK-P9-01 — Fix Hardware Integration Test on Windows
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 9 — Pre-Release Polish
 **Files:** `backend/tests/test_hardware_integration.py`
 **Depends on:** none
@@ -837,10 +837,10 @@ From old tasks.md Milestone 9B. Not needed until AI features are built.
 The module-level `pytest.skip()` in `test_hardware_integration.py` causes an `INTERNALERROR` on Windows that prevents all backend tests from running unless `--ignore` is used. The event_loop session fixture teardown crashes when the skip fires during collection.
 
 **Acceptance criteria:**
-- [ ] Tests can run on Windows without `--ignore=tests/test_hardware_integration.py`
-- [ ] Hardware tests still skip cleanly on non-hardware environments
-- [ ] `cd backend && python -m pytest tests/ -q` — all non-hardware tests pass, hardware tests show as skipped (not INTERNALERROR)
-- [ ] Hardware tests still run correctly on the Cubie
+- [x] Tests can run on Windows without `--ignore=tests/test_hardware_integration.py`
+- [x] Hardware tests still skip cleanly on non-hardware environments
+- [x] `cd backend && python -m pytest tests/ -q` — all non-hardware tests pass, hardware tests show as skipped (not INTERNALERROR)
+- [x] Hardware tests still run correctly on the Cubie
 
 **Notes:**
 Fix approach: replace module-level `pytest.skip()` with a `pytestmark = pytest.mark.skipif(not Path("/var/lib/cubie/users.json").exists(), reason="...")` module-level marker, or move skip logic into fixtures. The current `pytest.skip(allow_module_level=True)` conflicts with the session-scoped `event_loop` fixture.
@@ -1193,7 +1193,7 @@ Verify all security controls work on real hardware (not just unit tests).
 | 10 | Phase 10 | 🔴 CRITICAL | 11 tasks | Hardware validation before user testing |
 
 **Total: 45 tasks across 10 phases.**
-**Completed: 32/45 (Phase 1–6 done). Remaining: 13 tasks (Phase 7–10).**
+**Completed: 33/45 (Phase 1–6 + P9-01 done). Remaining: 12 tasks (Phase 7–10).**
 
 ---
 
