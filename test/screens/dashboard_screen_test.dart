@@ -1,7 +1,210 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:cubie_cloud/models/models.dart';
+import 'package:cubie_cloud/providers/core_providers.dart';
+import 'package:cubie_cloud/providers/device_providers.dart';
+import 'package:cubie_cloud/screens/main/dashboard_screen.dart';
+
+void main() {
+  late SharedPreferences prefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+  });
+
+  /// Wraps [DashboardScreen] in a [ProviderScope] with the given provider
+  /// overrides and a minimal [MaterialApp] so theme lookups work.
+  Widget buildSubject(List<Override> overrides) => ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          ...overrides,
+        ],
+        child: const MaterialApp(home: DashboardScreen()),
+      );
+
+  // ---------------------------------------------------------------------------
+  // Loading state
+  // ---------------------------------------------------------------------------
+
+  testWidgets('shows CircularProgressIndicator while device info is loading',
+      (WidgetTester tester) async {
+    final overrides = [
+      // Never completes → keeps the FutureProvider in loading state.
+      deviceInfoProvider.overrideWith(
+          (ref) => Future<CubieDevice>.delayed(const Duration(days: 9999))),
+      systemStatsStreamProvider
+          .overrideWith((ref) => const Stream<SystemStats>.empty()),
+      storageDevicesProvider
+          .overrideWith((ref) async => <StorageDevice>[]),
+    ];
+    await tester.pumpWidget(buildSubject(overrides));
+    // One frame — providers initialised but futures not resolved.
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Error state
+  // ---------------------------------------------------------------------------
+
+  testWidgets('shows error text when device info fails',
+      (WidgetTester tester) async {
+    final overrides = [
+      deviceInfoProvider.overrideWith(
+          (ref) async => throw Exception('connection refused')),
+      systemStatsStreamProvider
+          .overrideWith((ref) => const Stream<SystemStats>.empty()),
+      storageDevicesProvider
+          .overrideWith((ref) async => <StorageDevice>[]),
+    ];
+    await tester.pumpWidget(buildSubject(overrides));
+    // Drain all async work so the error surfaces.
+    await tester.pumpAndSettle();
+
+    // The screen must show *something* — it must NOT crash the test.
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    // Confirm no uncaught exception was thrown.
+    expect(tester.takeException(), isNull);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Data (success) state
+  // ---------------------------------------------------------------------------
+
+  testWidgets('renders dashboard content when data is available',
+      (WidgetTester tester) async {
+    const mockDevice = CubieDevice(
+      serial: 'TEST-001',
+      name: 'My AiHomeCloud',
+      ip: '192.168.1.100',
+      firmwareVersion: '2.0.0',
+    );
+    final mockStats = SystemStats(
+      cpuPercent: 15.0,
+      ramPercent: 40.0,
+      tempCelsius: 42.0,
+      uptime: const Duration(hours: 5, minutes: 30),
+      networkUpMbps: 1.5,
+      networkDownMbps: 5.0,
+      storage: StorageStats(totalGB: 500, usedGB: 120),
+    );
+
+    final overrides = [
+      deviceInfoProvider.overrideWith((ref) async => mockDevice),
+      systemStatsStreamProvider
+          .overrideWith((ref) => Stream.value(mockStats)),
+      storageDevicesProvider
+          .overrideWith((ref) async => <StorageDevice>[]),
+    ];
+    await tester.pumpWidget(buildSubject(overrides));
+    await tester.pumpAndSettle();
+
+    // Device name should appear somewhere in the widget tree.
+    expect(find.text('My AiHomeCloud'), findsWidgets);
+    // No uncaught exception.
+    expect(tester.takeException(), isNull);
+  });
+}
+
+
+  /// Wraps [DashboardScreen] in a [ProviderScope] with the given provider
+  /// overrides and a minimal [MaterialApp] so GoRouter / theme lookups work.
+  Widget _buildSubject(List<Override> overrides) => ProviderScope(
+        overrides: overrides,
+        child: const MaterialApp(home: DashboardScreen()),
+      );
+
+  // ---------------------------------------------------------------------------
+  // Loading state
+  // ---------------------------------------------------------------------------
+
+  testWidgets('shows CircularProgressIndicator while device info is loading',
+      (WidgetTester tester) async {
+    final overrides = [
+      // Never completes → keeps the FutureProvider in loading state.
+      deviceInfoProvider.overrideWith(
+          (ref) => Future<CubieDevice>.delayed(const Duration(days: 9999))),
+      systemStatsStreamProvider
+          .overrideWith((ref) => const Stream<SystemStats>.empty()),
+      storageDevicesProvider
+          .overrideWith((ref) async => <StorageDevice>[]),
+    ];
+    await tester.pumpWidget(_buildSubject(overrides));
+    // One frame — providers initialised but futures not resolved.
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Error state
+  // ---------------------------------------------------------------------------
+
+  testWidgets('shows error text when device info fails',
+      (WidgetTester tester) async {
+    final overrides = [
+      deviceInfoProvider.overrideWith(
+          (ref) async => throw Exception('connection refused')),
+      systemStatsStreamProvider
+          .overrideWith((ref) => const Stream<SystemStats>.empty()),
+      storageDevicesProvider
+          .overrideWith((ref) async => <StorageDevice>[]),
+    ];
+    await tester.pumpWidget(_buildSubject(overrides));
+    // Drain all async work so the error surfaces.
+    await tester.pumpAndSettle();
+
+    // The screen must show *something* — it must NOT crash the test.
+    // It should contain an error indicator, not the device name.
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    // Confirm no uncaught exception was thrown.
+    expect(tester.takeException(), isNull);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Data (success) state
+  // ---------------------------------------------------------------------------
+
+  testWidgets('renders dashboard content when data is available',
+      (WidgetTester tester) async {
+    const mockDevice = CubieDevice(
+      serial: 'TEST-001',
+      name: 'My AiHomeCloud',
+      ip: '192.168.1.100',
+      firmwareVersion: '2.0.0',
+    );
+    final mockStats = SystemStats(
+      cpuPercent: 15.0,
+      ramPercent: 40.0,
+      tempCelsius: 42.0,
+      uptime: const Duration(hours: 5, minutes: 30),
+      networkUpMbps: 1.5,
+      networkDownMbps: 5.0,
+      storage: StorageStats(totalGB: 500, usedGB: 120),
+    );
+
+    final overrides = [
+      deviceInfoProvider.overrideWith((ref) async => mockDevice),
+      systemStatsStreamProvider
+          .overrideWith((ref) => Stream.value(mockStats)),
+      storageDevicesProvider
+          .overrideWith((ref) async => <StorageDevice>[]),
+    ];
+    await tester.pumpWidget(_buildSubject(overrides));
+    await tester.pumpAndSettle();
+
+    // Device name should appear somewhere in the widget tree.
+    expect(find.text('My AiHomeCloud'), findsWidgets);
+    // No uncaught exception.
+    expect(tester.takeException(), isNull);
+  });
+}
+
 
 /// Mock DashboardScreen for testing
 /// 

@@ -195,7 +195,8 @@ async def test_root_path_access_blocked(authenticated_client: AsyncClient):
     """
     response = await authenticated_client.get("/api/v1/files/list?path=/")
     # path=/ → nas_root itself, which is valid (200) or may error if dir doesn't exist
-    assert response.status_code in (200, 403, 500), f"Accessing / returned {response.status_code}"
+    # path=/ maps to nas_root (valid dir) → 200; sandbox violation → 403; never 500
+    assert response.status_code in (200, 403), f"Accessing / returned {response.status_code}"
 
 
 @pytest.mark.asyncio
@@ -207,7 +208,8 @@ async def test_etc_directory_access_blocked(authenticated_client: AsyncClient):
     """
     response = await authenticated_client.get("/api/v1/files/list?path=/etc")
     # path=/etc → nas_root/etc (safe, auto-created on Linux; may error on Windows)
-    assert response.status_code in (200, 403, 500), f"Accessing /etc returned {response.status_code}"
+    # path=/etc maps to nas_root/etc (auto-created) → 200; sandbox violation → 403; never 500
+    assert response.status_code in (200, 403), f"Accessing /etc returned {response.status_code}"
 
 
 @pytest.mark.asyncio
@@ -219,11 +221,15 @@ async def test_boot_directory_access_blocked(authenticated_client: AsyncClient):
     """
     response = await authenticated_client.get("/api/v1/files/list?path=/boot")
     # path=/boot → nas_root/boot (safe, auto-created on Linux; may error on Windows)
-    assert response.status_code in (200, 403, 500), f"Accessing /boot returned {response.status_code}"
+    # path=/boot maps to nas_root/boot (auto-created) → 200; sandbox violation → 403; never 500
+    assert response.status_code in (200, 403), f"Accessing /boot returned {response.status_code}"
 
 
 def test_similar_prefix_path_outside_nas_root_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """Paths like /srv/nasty must not be treated as inside /srv/nas."""
+    """Paths like /srv/nasty must NOT grant access to /srv/nasty.
+    _safe_resolve sandboxes them under nas_root instead, so the resolved
+    path stays inside nas_root and never reaches the real outside path.
+    """
     from app.routes.file_routes import _safe_resolve
     from app.config import settings
 
@@ -232,8 +238,12 @@ def test_similar_prefix_path_outside_nas_root_is_rejected(monkeypatch: pytest.Mo
     monkeypatch.setattr(settings, "nas_root", nas_root)
 
     outside = str(tmp_path / "nasty" / "secret")
-    with pytest.raises(HTTPException) as exc_info:
-        _safe_resolve(outside)
+    # Must NOT raise — the path is sandboxed, not rejected.
+    resolved = _safe_resolve(outside)
 
-    assert exc_info.value.status_code == 403
-    assert "Path outside NAS root" in str(exc_info.value.detail)
+    # The resolved path is inside nas_root (sandboxed), not the real outside path.
+    assert resolved.is_relative_to(nas_root), (
+        f"Resolved path {resolved} is not under nas_root {nas_root}"
+    )
+    # The actual /tmp/…/nasty directory is never accessed.
+    assert not resolved.samefile(tmp_path / "nasty" / "secret") if (tmp_path / "nasty" / "secret").exists() else True

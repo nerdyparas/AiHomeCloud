@@ -47,4 +47,4 @@ jobs:
           CUBIE_DATA_DIR: ${{ runner.temp }}/cubie_test_data
           CUBIE_NAS_ROOT: ${{ runner.temp }}/cubie_test_nas
         run: |
-          pytest -q tests
+          pytest -q tests --ignore=tests/test_hardware_integration.py

@@ -65,20 +65,17 @@ async def test_mount_returns_409_when_nas_has_open_file_handles(authenticated_cl
     # First, we'd need to mock the storage state to simulate an already-mounted device
     # For now, we verify the endpoint rejects when something is already mounted
     
+    # Use a guaranteed-nonexistent device so no real mount occurs and
+    # pytest can clean up the tmp directory safely.
     response = await authenticated_client.post(
         "/api/v1/storage/mount",
-        json={"device": "/dev/sda1"}
+        json={"device": "/dev/nonexistent_test_device"}
     )
     
-    # The response depends on whether a device is already mounted in the test environment
-    # If mount succeeds, it's because no device was previously mounted (200)
-    # If it fails with 409, it's because a device is already mounted
-    # If lsblk is unavailable (Windows), we get 404
-    # If the device is an OS partition (CI Linux), we get 403
-    # If mount subprocess fails on real hardware, we get 500
-    # All are acceptable outcomes for this test
-    assert response.status_code in (200, 403, 404, 409, 500), \
-        f"Mount should return 200, 403, 404, 409, or 500, got {response.status_code}"
+    # 404 expected (device not found). 200/403/409 also valid in other environments.
+    # 500 is never acceptable — a server crash is always a bug.
+    assert response.status_code in (200, 403, 404, 409), \
+        f"Mount should return 200, 403, 404, or 409, got {response.status_code}"
     
     if response.status_code == 409:
         assert "already mounted" in response.json().get("detail", "").lower()
@@ -163,15 +160,22 @@ async def test_format_mounted_device_returns_409(authenticated_client: AsyncClie
     
     devices = response.json()
     
-    # Find a mounted device
+    # Find a mounted device — use bestPartition path for the format request
+    # since format_device requires a partition path (not a whole-disk path).
     mounted_device = None
     for dev in devices:
-        if dev.get("mountPoint"):
-            mounted_device = dev.get("path")
-            break
+        if dev.get("mountPoint") and not dev.get("isOsDisk"):
+            # Prefer bestPartition; fall back to path only if it looks like a partition
+            candidate = dev.get("bestPartition") or dev.get("path", "")
+            if candidate and not candidate.startswith("/dev/mmcblk"):
+                # Verify it's an actual partition (has a digit suffix after the disk name)
+                import re
+                if re.search(r'(\d+p\d+|[a-z]\d+)$', candidate):
+                    mounted_device = candidate
+                    break
     
-    if mounted_device and not mounted_device.startswith("/dev/mmcblk"):
-        # Try to format the mounted device
+    if mounted_device:
+        # Try to format the mounted device (partition path) — expect 409
         response = await authenticated_client.post(
             "/api/v1/storage/format",
             json={
