@@ -159,10 +159,9 @@ class FamilyScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Remove ${user.name}?', style: GoogleFonts.sora()),
+        title: Text('Remove ${user.name} from your family?', style: GoogleFonts.sora()),
         content: Text(
-          'This will remove their account and all their files. '
-          'This action cannot be undone.',
+          'Their personal folder will be removed from this device.',
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
@@ -174,7 +173,7 @@ class FamilyScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             style:
-                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
             onPressed: () async {
               await ref
                   .read(apiServiceProvider)

@@ -65,6 +65,11 @@ String friendlyError(Object error) {
     return 'Could not activate drive. Check the USB connection and try again.';
   }
 
+  // ── HTTP 401 Unauthorized ──────────────────────────────────────────────
+  if (msg.contains('401') || msg.contains('Unauthorized')) {
+    return 'Please sign in again.';
+  }
+
   // ── Generic Exception wrapper — strip "Exception: " prefix ─────────────
   if (msg.startsWith('Exception: ')) {
     final inner = msg.substring(11);

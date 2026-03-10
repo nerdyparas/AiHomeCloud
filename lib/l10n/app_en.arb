@@ -37,7 +37,7 @@
 
   "storageStatusActive": "Active",
   "storageStatusMounted": "Activated",
-  "storageStatusUnformatted": "Unformatted",
+  "storageStatusUnformatted": "Not ready yet",
   "storageStatusReady": "Ready",
   "storageStatusSystem": "System",
 
@@ -49,7 +49,7 @@
   "familyNameHint": "Name",
   "familyRemoveTitle": "Remove {name}?",
   "@familyRemoveTitle": { "placeholders": { "name": { "type": "String" } } },
-  "familyRemoveWarning": "This will remove their account and all their files. This action cannot be undone.",
+  "familyRemoveWarning": "Their personal folder will be removed from this device.",
   "familyAdminBadge": "Admin",
   "familyStorageUsed": "{size} GB used",
   "@familyStorageUsed": { "placeholders": { "size": { "type": "String" } } },

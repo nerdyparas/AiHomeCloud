@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,9 +10,17 @@ import '../providers.dart';
 import '../widgets/notification_listener.dart';
 
 /// Persistent bottom navigation bar shell used by the main app routes.
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
+
+  @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  bool _showDisconnected = false;
+  Timer? _disconnectTimer;
 
   int _indexOf(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -22,12 +32,33 @@ class MainShell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _disconnectTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final idx = _indexOf(context);
     final connection = ref.watch(connectionProvider);
     final upload = ref.watch(shareUploadProvider);
     final api = ref.read(apiServiceProvider);
     final isRemote = api.connectionMode == ConnectionMode.remote;
+
+    // Debounce disconnect banner — only show after 10 continuous seconds
+    if (connection == ConnectionStatus.disconnected) {
+      if (_disconnectTimer == null) {
+        _disconnectTimer = Timer(const Duration(seconds: 10), () {
+          if (mounted) setState(() => _showDisconnected = true);
+        });
+      }
+    } else {
+      _disconnectTimer?.cancel();
+      _disconnectTimer = null;
+      if (_showDisconnected) {
+        _showDisconnected = false;
+      }
+    }
 
     return CubieNotificationOverlay(
       child: Scaffold(
@@ -106,7 +137,7 @@ class MainShell extends ConsumerWidget {
                   ],
                 ),
               ),
-            if (connection == ConnectionStatus.disconnected)
+            if (_showDisconnected)
               Container(
                 width: double.infinity,
                 color: AppColors.error.withValues(alpha: 0.2),
@@ -124,12 +155,12 @@ class MainShell extends ConsumerWidget {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'AiHomeCloud is not responding.',
+                                          'AiHomeCloud is not reachable.',
                                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                                         ),
                                         SizedBox(height: 2),
                                         Text(
-                                          'Check power, make sure you are on the same Wi-Fi, then try reconnecting.',
+                                          'Check your Wi-Fi and make sure the device is powered on.',
                                           style: TextStyle(fontSize: 11),
                                         ),
                                       ],
@@ -150,7 +181,7 @@ class MainShell extends ConsumerWidget {
                   ],
                 ),
               ),
-            Expanded(child: child),
+            Expanded(child: widget.child),
           ],
         ),
         bottomNavigationBar: Container(

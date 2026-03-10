@@ -7,7 +7,7 @@ import '../../core/theme.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/folder_view.dart';
 
-/// Tab 4 — shared folder browser with a DLNA / SMB info card at the top.
+/// Tab 4 — shared folder browser with a network sharing info card at the top.
 class SharedFolderScreen extends StatelessWidget {
   const SharedFolderScreen({super.key});
 
@@ -29,7 +29,7 @@ class SharedFolderScreen extends StatelessWidget {
                       fontWeight: FontWeight.w700)),
             ).animate().fadeIn(duration: 400.ms),
 
-            // ── DLNA / Samba info card ──────────────────────────────────────
+            // ── Network sharing info card ────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
               child: AppCard(

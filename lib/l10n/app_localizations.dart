@@ -265,7 +265,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageStatusUnformatted.
   ///
   /// In en, this message translates to:
-  /// **'Unformatted'**
+  /// **'Not ready yet'**
   String get storageStatusUnformatted;
 
   /// No description provided for @storageStatusReady.
@@ -319,7 +319,7 @@ abstract class AppLocalizations {
   /// No description provided for @familyRemoveWarning.
   ///
   /// In en, this message translates to:
-  /// **'This will remove their account and all their files. This action cannot be undone.'**
+  /// **'Their personal folder will be removed from this device.'**
   String get familyRemoveWarning;
 
   /// No description provided for @familyAdminBadge.

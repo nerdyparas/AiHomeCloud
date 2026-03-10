@@ -54,8 +54,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return '${mins}m';
   }
 
-  String _healthLabel(double value, {required double highThreshold}) {
-    return value >= highThreshold ? 'High' : 'Normal';
+  String _healthLabel(double value, {required double highThreshold, bool isTemp = false}) {
+    if (value >= highThreshold) return isTemp ? 'Hot' : 'High';
+    if (isTemp && value >= highThreshold - 10) return 'Warm';
+    return 'Normal';
   }
 
   Color _healthColor(double value, {required double highThreshold}) {
@@ -211,7 +213,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'No drive connected',
+                              'Connect a USB drive to get started',
                               style: GoogleFonts.dmSans(
                                   color: AppColors.primary,
                                   fontSize: 13,
@@ -388,7 +390,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       accentColor: s.tempCelsius > 60
                           ? AppColors.error
                           : AppColors.success,
-                      helperText: _healthLabel(s.tempCelsius, highThreshold: 65),
+                      helperText: _healthLabel(s.tempCelsius, highThreshold: 65, isTemp: true),
                       helperColor: _healthColor(s.tempCelsius, highThreshold: 65),
                     ).animate().fadeIn(delay: 400.ms),
                     StatTile(
@@ -577,13 +579,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('No external storage',
+                  Text('No storage drive',
                       style: GoogleFonts.dmSans(
                           color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text('Tap to manage storage devices',
+                  Text('Connect a USB drive to get started',
                       style: GoogleFonts.dmSans(
                           color: AppColors.textSecondary, fontSize: 12)),
                 ],

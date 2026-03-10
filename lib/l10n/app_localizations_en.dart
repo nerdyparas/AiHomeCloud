@@ -100,7 +100,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageStatusMounted => 'Activated';
 
   @override
-  String get storageStatusUnformatted => 'Unformatted';
+  String get storageStatusUnformatted => 'Not ready yet';
 
   @override
   String get storageStatusReady => 'Ready';
@@ -132,7 +132,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get familyRemoveWarning =>
-      'This will remove their account and all their files. This action cannot be undone.';
+      'Their personal folder will be removed from this device.';
 
   @override
   String get familyAdminBadge => 'Admin';
