@@ -2,43 +2,68 @@
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# CubieCloud deploy helper
+# AiHomeCloud deploy script
+#
+# Pushes backend code to the Cubie device, installs ARM64-pinned dependencies,
+# restarts the systemd service, and verifies via health check.
 #
 # Required env vars:
 #   TARGET_HOST   - Cubie host or IP (e.g. 192.168.0.212)
 #
 # Optional env vars:
+#   TARGET_USER   - SSH user on the Cubie (default: cubie)
 #   TARGET_PORT   - API port (default: 8443)
 #   CUBIE_CERT    - Path to server certificate PEM for TLS verification
-#
-# Health check behavior:
-#   - If CUBIE_CERT is set: curl --cacert "$CUBIE_CERT" https://...
-#   - If CUBIE_CERT is not set: warns loudly and uses curl -k (insecure)
+#   DEPLOY_DIR    - Remote install dir (default: /opt/aihomecloud)
 # -----------------------------------------------------------------------------
 
 TARGET_HOST="${TARGET_HOST:-}"
+TARGET_USER="${TARGET_USER:-cubie}"
 TARGET_PORT="${TARGET_PORT:-8443}"
+DEPLOY_DIR="${DEPLOY_DIR:-/opt/aihomecloud}"
 
 if [[ -z "$TARGET_HOST" ]]; then
   echo "ERROR: TARGET_HOST is required"
+  echo "Usage: TARGET_HOST=192.168.0.212 ./deploy.sh"
   exit 1
 fi
 
+REMOTE="${TARGET_USER}@${TARGET_HOST}"
 HEALTH_URL="https://${TARGET_HOST}:${TARGET_PORT}/api/health"
 
-echo "Checking backend health at: ${HEALTH_URL}"
+# --- 1. Sync backend code ---------------------------------------------------
+echo "==> Syncing backend to ${REMOTE}:${DEPLOY_DIR}/backend ..."
+rsync -az --delete \
+  --exclude '__pycache__' \
+  --exclude '.pytest_cache' \
+  --exclude 'tests/' \
+  --exclude 'build/' \
+  backend/ "${REMOTE}:${DEPLOY_DIR}/backend/"
+
+# --- 2. Install ARM64-pinned dependencies -----------------------------------
+echo "==> Installing ARM64 dependencies ..."
+ssh "${REMOTE}" "cd ${DEPLOY_DIR} && \
+  python3 -m pip install --quiet --requirement backend/requirements-arm64.txt"
+
+# --- 3. Restart service ------------------------------------------------------
+echo "==> Restarting cubie-backend service ..."
+ssh "${REMOTE}" "sudo systemctl restart cubie-backend"
+sleep 3
+
+# --- 4. Health check ---------------------------------------------------------
+echo "==> Checking backend health at: ${HEALTH_URL}"
 
 if [[ -n "${CUBIE_CERT:-}" ]]; then
-  echo "Using CA cert: ${CUBIE_CERT}"
+  echo "    Using CA cert: ${CUBIE_CERT}"
   curl --fail --silent --show-error --max-time 10 \
     --cacert "${CUBIE_CERT}" \
     "${HEALTH_URL}" >/dev/null
 else
-  echo "WARNING: CUBIE_CERT is not set. Falling back to insecure TLS verification bypass (-k)."
-  echo "WARNING: This should only be used for local/dev workflows."
+  echo "    WARNING: CUBIE_CERT is not set — using insecure TLS bypass (-k)."
+  echo "    WARNING: This should only be used for local/dev workflows."
   curl --fail --silent --show-error --max-time 10 \
     -k \
     "${HEALTH_URL}" >/dev/null
 fi
 
-echo "Health check passed."
+echo "==> Deploy complete. Health check passed."
