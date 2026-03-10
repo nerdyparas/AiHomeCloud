@@ -82,7 +82,7 @@ class _ToastEntry {
   const _ToastEntry({required this.id, required this.notification});
 }
 
-/// Themed toast card matching CubieCloud design system.
+/// Themed toast card matching AiHomeCloud design system.
 class _CubieToast extends StatelessWidget {
   final AppNotification notification;
   final VoidCallback onDismiss;

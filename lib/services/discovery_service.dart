@@ -63,7 +63,7 @@ class DiscoveryService {
     try {
       await client.start();
 
-      // Look for CubieCloud service type: _cubie-nas._tcp
+      // Look for AiHomeCloud service type: _cubie-nas._tcp
       await for (final PtrResourceRecord ptr in client
           .lookup<PtrResourceRecord>(
             ResourceRecordQuery.serverPointer(AppConstants.mdnsType),
@@ -130,7 +130,7 @@ class DiscoveryService {
       return null;
     }
 
-    onStatus('Scanning for CubieCloud via Bluetooth…');
+    onStatus('Scanning for AiHomeCloud via Bluetooth…');
 
     try {
       // Start scanning for devices with our service UUID
@@ -156,7 +156,7 @@ class DiscoveryService {
       await FlutterBluePlus.stopScan();
 
       if (cubieDevice == null) {
-        onStatus('No CubieCloud device found via Bluetooth');
+        onStatus('No AiHomeCloud device found via Bluetooth');
         return null;
       }
 

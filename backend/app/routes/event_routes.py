@@ -1,5 +1,5 @@
 """
-In-app event bus for CubieCloud.
+In-app event bus for AiHomeCloud.
 Broadcasts events to all connected WebSocket clients (Flutter apps).
 """
 

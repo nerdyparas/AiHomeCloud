@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Mock StorageDonutChart widget for testing
 /// 
 /// In a real scenario, this would be imported from:
-/// import 'package:cubiecloud/widgets/storage_donut_chart.dart';
+/// import 'package:cubie_cloud/widgets/storage_donut_chart.dart';
 class StorageDonutChart extends StatelessWidget {
   final double usedGB;
   final double totalGB;

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# CubieCloud Backend Test Runner
+# AiHomeCloud Backend Test Runner
 #
 # Convenience script to run backend tests with verbose output and short tracebacks.
 # Usage:
@@ -17,7 +17,7 @@ set -e
 
 cd "$(dirname "$0")"
 
-echo "Running CubieCloud backend tests..."
+echo "Running AiHomeCloud backend tests..."
 echo ""
 
 # Run pytest with verbose output and short tracebacks

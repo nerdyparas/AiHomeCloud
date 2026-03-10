@@ -19,7 +19,7 @@ part 'api/storage_api.dart';
 part 'api/family_api.dart';
 part 'api/services_network_api.dart';
 
-/// CubieCloud API service — singleton HTTP + WebSocket client.
+/// AiHomeCloud API service — singleton HTTP + WebSocket client.
 ///
 /// Core infrastructure: TLS pinning, auto-refresh tokens, session management.
 /// Domain-specific methods are split into part files under `api/`:

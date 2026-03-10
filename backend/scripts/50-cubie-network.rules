@@ -1,5 +1,5 @@
 // Allow users in the "sudo" group full control over NetworkManager.
-// This is required for the CubieCloud backend to manage Wi-Fi connections,
+// This is required for the AiHomeCloud backend to manage Wi-Fi connections,
 // hotspot, and network toggles via nmcli without root privileges.
 // Note: subject.local/active checks are omitted because the backend
 // runs as a background service (not an interactive session).

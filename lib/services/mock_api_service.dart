@@ -60,7 +60,7 @@ class MockApiService {
     await _delay();
     return const CubieDevice(
       serial: 'CUBIE-A5E-2024-001',
-      name: 'My CubieCloud',
+      name: 'My AiHomeCloud',
       ip: '192.168.1.42',
       firmwareVersion: '2.1.4',
     );

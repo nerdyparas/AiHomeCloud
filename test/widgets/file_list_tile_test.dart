@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Mock FileListTile widget for testing
 /// 
 /// In a real scenario, this would be imported from:
-/// import 'package:cubiecloud/widgets/file_list_tile.dart';
+/// import 'package:cubie_cloud/widgets/file_list_tile.dart';
 class FileListTile extends StatelessWidget {
   final String name;
   final bool isDirectory;

@@ -1,4 +1,4 @@
-/// App-wide constants for CubieCloud.
+/// App-wide constants for AiHomeCloud.
 class AppConstants {
   AppConstants._();
 

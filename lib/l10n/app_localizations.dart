@@ -721,7 +721,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerVolumeLabelHint.
   ///
   /// In en, this message translates to:
-  /// **'AiHomeNAS'**
+  /// **'AiHomeCloud'**
   String get storageExplorerVolumeLabelHint;
 
   /// No description provided for @storageExplorerTypeToConfirm.

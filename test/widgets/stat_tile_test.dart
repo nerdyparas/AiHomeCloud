@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Mock StatTile widget for testing
 /// 
 /// In a real scenario, this would be imported from:
-/// import 'package:cubiecloud/widgets/stat_tile.dart';
+/// import 'package:cubie_cloud/widgets/stat_tile.dart';
 class StatTile extends StatelessWidget {
   final String label;
   final String value;

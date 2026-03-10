@@ -1,6 +1,6 @@
-# CubieCloud Backend
+# AiHomeCloud Backend
 
-FastAPI backend for the CubieCloud home NAS, designed to run on the **Radxa Cubie A7A** (ARM, 8 GB RAM).
+FastAPI backend for the AiHomeCloud home NAS, designed to run on the **Radxa Cubie A7A** (ARM, 8 GB RAM).
 
 ## Quick Start (Development)
 
