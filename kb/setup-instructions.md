@@ -124,7 +124,23 @@ sudo systemctl restart polkit
 
 `ResultInactive=yes` is required because the backend runs as a daemon (no interactive session).
 
-### Step 9 — Start the service
+### Step 9 — Register mDNS advertisement
+
+This enables instant LAN discovery (~1-2 s) in the app. Without it, the app
+falls back to a slower /24 TCP subnet scan.
+
+```bash
+sudo cp backend/scripts/aihomecloud-mdns.service /etc/avahi/services/aihomecloud.service
+sudo systemctl reload avahi-daemon
+```
+
+Verify it's broadcasting:
+```bash
+sudo journalctl -u avahi-daemon -n 5 --no-pager
+# Should show: Service "AiHomeCloud on <hostname>" successfully established.
+```
+
+### Step 10 — Start the service
 
 ```bash
 sudo systemctl daemon-reload

@@ -1,0 +1,23 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!--
+  Avahi mDNS service advertisement for AiHomeCloud.
+
+  Deploy to: /etc/avahi/services/aihomecloud.service
+  This makes the device discoverable via the _cubie-nas._tcp mDNS service
+  type, which the Flutter app uses for instant LAN discovery (~1-2 s) instead
+  of a full /24 TCP subnet scan.
+
+  Install:
+    sudo cp backend/scripts/aihomecloud-mdns.service /etc/avahi/services/aihomecloud.service
+    sudo systemctl reload avahi-daemon
+-->
+<service-group>
+  <name replace-wildcards="yes">AiHomeCloud on %h</name>
+  <service>
+    <type>_cubie-nas._tcp</type>
+    <port>8443</port>
+    <txt-record>service=AiHomeCloud</txt-record>
+    <txt-record>version=0.1.0</txt-record>
+  </service>
+</service-group>
