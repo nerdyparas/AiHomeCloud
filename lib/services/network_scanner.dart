@@ -38,18 +38,20 @@ class NetworkScanner {
   /// Wi-Fi Direct, rmnet, dummy, tun, etc.) and skip reserved/virtual address
   /// ranges (`169.254.*`, `192.0.0.*`, `100.64.*`).
   Future<String?> getLocalIp() async {
-    // Strategy 1: routing trick — most reliable on Android/iOS
+    // Strategy 1: routing trick — most reliable on Android/iOS.
+    // RawSocket.address returns the LOCAL address (unlike Socket.address which
+    // returns the remote address). No data is actually sent.
     try {
-      final socket = await Socket.connect(
-        '8.8.8.8', // destination only used for route selection – no data sent
+      final raw = await RawSocket.connect(
+        '8.8.8.8',
         443,
         timeout: const Duration(seconds: 2),
       );
-      final ip = socket.address.address;
-      socket.destroy();
+      final ip = raw.address.address; // RawSocket.address == local address
+      raw.close();
       if (ip.isNotEmpty && ip != '0.0.0.0') return ip;
     } catch (_) {
-      // No internet access – fall through to interface enumeration
+      // No internet path – fall through to interface enumeration
     }
 
     // Strategy 2: interface enumeration, filtered and sorted
@@ -59,7 +61,7 @@ class NetworkScanner {
         includeLoopback: false,
       );
 
-      int _ifaceScore(NetworkInterface iface) {
+      int ifaceScore(NetworkInterface iface) {
         final n = iface.name.toLowerCase();
         if (n.startsWith('wlan') || n.startsWith('wifi')) return 0;
         if (n.startsWith('en') || n.startsWith('eth')) return 1;
@@ -67,7 +69,7 @@ class NetworkScanner {
       }
 
       final sorted = [...interfaces]
-        ..sort((a, b) => _ifaceScore(a).compareTo(_ifaceScore(b)));
+        ..sort((a, b) => ifaceScore(a).compareTo(ifaceScore(b)));
 
       for (final iface in sorted) {
         for (final addr in iface.addresses) {

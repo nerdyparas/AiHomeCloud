@@ -10,7 +10,6 @@ import '../../core/constants.dart';
 import '../../core/error_utils.dart';
 import '../../core/theme.dart';
 import '../../providers.dart';
-import '../../services/api_service.dart';
 import '../../services/network_scanner.dart';
 
 class NetworkScanScreen extends ConsumerStatefulWidget {
@@ -179,7 +178,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Find Your Cubie',
+                          'Find Your AiHomeCloud',
                           style: GoogleFonts.sora(
                             color: AppColors.textPrimary,
                             fontSize: 22,
