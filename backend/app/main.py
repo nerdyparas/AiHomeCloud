@@ -35,6 +35,7 @@ from .routes import (
     storage_routes,
     network_routes,
     event_routes,
+    telegram_routes,
 )
 
 logger = logging.getLogger("cubie.main")
@@ -238,6 +239,7 @@ app.include_router(storage_routes.router)
 app.include_router(network_routes.router)
 app.include_router(event_routes.router)
 app.include_router(adguard_routes.router)
+app.include_router(telegram_routes.router)
 
 
 @app.get("/api/health")

@@ -217,4 +217,34 @@ extension ServicesNetworkApi on ApiService {
     );
     _check(res);
   }
+
+  // ── Telegram Bot config endpoints ─────────────────────────────────────────
+
+  /// GET /api/v1/telegram/config
+  Future<Map<String, dynamic>> getTelegramConfig() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/telegram/config'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return (jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// POST /api/v1/telegram/config  body: {bot_token, allowed_ids}
+  Future<void> saveTelegramConfig(String botToken, String allowedIds) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/telegram/config'),
+            headers: _headers,
+            body: jsonEncode({'bot_token': botToken, 'allowed_ids': allowedIds}),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
 }

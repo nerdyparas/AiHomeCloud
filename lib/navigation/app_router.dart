@@ -11,6 +11,7 @@ import '../screens/main/more_screen.dart';
 import '../screens/main/settings/device_settings_screen.dart';
 import '../screens/main/settings/network_settings_screen.dart';
 import '../screens/main/settings/services_settings_screen.dart';
+import '../screens/main/telegram_setup_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
 import '../screens/main/wifi_settings_screen.dart';
 import '../screens/onboarding/discovery_screen.dart';
@@ -117,6 +118,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/services',
         builder: (_, __) => const ServicesSettingsScreen(),
+      ),
+
+      // ── Telegram setup (pushed on top, no bottom nav) ──────────────────────
+      GoRoute(
+        path: '/telegram-setup',
+        builder: (_, __) => const TelegramSetupScreen(),
       ),
 
       // ── File preview (pushed on top, no bottom nav) ────────────────────────

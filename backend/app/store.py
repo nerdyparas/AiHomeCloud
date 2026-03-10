@@ -374,3 +374,29 @@ async def clear_otp() -> None:
     async with _store_lock:
         # Remove file if it exists; write empty dict for atomicity.
         _write_json(settings.data_dir / "pairing.json", {})
+
+
+# ---------------------------------------------------------------------------
+# Generic key-value store (kv.json) — for simple config blobs
+# ---------------------------------------------------------------------------
+
+async def get_value(key: str, default: Any = None) -> Any:
+    """Read a value from the generic key-value store (kv.json)."""
+    cached = _get_cached(f"kv:{key}")
+    if cached is not None:
+        return cached
+
+    async with _store_lock:
+        data: Dict[str, Any] = _read_json(settings.data_dir / "kv.json", {})
+        value = data.get(key, default)
+        _set_cached(f"kv:{key}", value)
+        return value
+
+
+async def set_value(key: str, value: Any) -> None:
+    """Write a value to the generic key-value store (kv.json)."""
+    _set_cached(f"kv:{key}", None)
+    async with _store_lock:
+        data: Dict[str, Any] = _read_json(settings.data_dir / "kv.json", {})
+        data[key] = value
+        _write_json(settings.data_dir / "kv.json", data)

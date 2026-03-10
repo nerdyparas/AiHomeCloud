@@ -531,24 +531,24 @@ Pause is useful for banking apps that break with ad blocking.
 
 ### TASK-P4-06 — More Tab: Telegram Bot Setup
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 4 — UI Language & Structure
-**Files:** `lib/screens/main/more_screen.dart` or `lib/screens/main/telegram_setup_screen.dart` (new)
+**Files:** `lib/screens/main/telegram_setup_screen.dart` (new), `lib/screens/main/more_screen.dart`, `lib/navigation/app_router.dart`, `lib/services/api/services_network_api.dart`, `backend/app/routes/telegram_routes.py` (new), `backend/app/store.py`, `backend/app/main.py`
 **Depends on:** TASK-P2-03, TASK-P4-01
 
 **Goal:**
 Add Telegram Bot setup sub-page accessible from More tab. Admin can enter bot token and allowed chat IDs.
 
 **Acceptance criteria:**
-- [ ] Telegram Bot row in More tab → navigates to setup page
-- [ ] Setup page has: Bot Token input, Allowed Chat IDs input
-- [ ] Save sends config to backend (new endpoint or existing config route)
-- [ ] Shows bot status (connected/disconnected)
-- [ ] Admin only
-- [ ] `flutter analyze` passes
+- [x] Telegram Bot row in More tab → navigates to setup page
+- [x] Setup page has: Bot Token input, Allowed Chat IDs input
+- [x] Save sends config to backend (new endpoint or existing config route)
+- [x] Shows bot status (connected/disconnected)
+- [x] Admin only
+- [x] `flutter analyze` passes
 
 **Notes:**
-Consider adding a backend endpoint to save/load telegram config, or use the existing settings mechanism.
+Backend: `GET/POST /api/v1/telegram/config` — reads/writes `kv.json` via new `store.get_value()`/`store.set_value()` helpers; restarts bot on save. Flutter: `TelegramSetupScreen` with masked token, allowed IDs, status badge, step-by-step BotFather instructions.
 
 ---
 

@@ -152,27 +152,30 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 .animate()
                 .fadeIn(delay: 80.ms),
 
-            // ── Telegram Bot ─────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Telegram Bot'),
-            const SizedBox(height: 12),
-            CubieCard(
-              padding: EdgeInsets.zero,
-              child: ListTile(
-                leading: _iconBox(Icons.smart_toy_rounded, CubieColors.primary),
-                title: Text('Telegram Bot',
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500)),
-                subtitle: Text('Find documents via Telegram',
-                    style: GoogleFonts.dmSans(
-                        color: CubieColors.textSecondary, fontSize: 12)),
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: CubieColors.textMuted, size: 20),
-                onTap: () => _showTelegramBotPlaceholder(),
-              ),
-            ).animate().fadeIn(delay: 100.ms),
+            // ── Telegram Bot (admin only) ─────────────────────────────────
+            if (isAdmin) ...[
+              const SizedBox(height: 24),
+              _sectionLabel('Telegram Bot'),
+              const SizedBox(height: 12),
+              CubieCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  leading:
+                      _iconBox(Icons.smart_toy_rounded, CubieColors.primary),
+                  title: Text('Telegram Bot',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500)),
+                  subtitle: Text('Find documents via Telegram',
+                      style: GoogleFonts.dmSans(
+                          color: CubieColors.textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right_rounded,
+                      color: CubieColors.textMuted, size: 20),
+                  onTap: () => context.push('/telegram-setup'),
+                ),
+              ).animate().fadeIn(delay: 100.ms),
+            ],
 
             // ── Security ─────────────────────────────────────────────────
             const SizedBox(height: 24),
@@ -391,25 +394,6 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
       );
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
-
-  void _showTelegramBotPlaceholder() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Telegram Bot', style: GoogleFonts.sora()),
-        content: Text(
-          'Telegram Bot setup is coming soon. You will be able to set a bot token and search documents directly from Telegram.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('OK', style: GoogleFonts.dmSans()),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _verifyServerCertificate(String? storedFingerprint) async {
     final api = ref.read(apiServiceProvider);
