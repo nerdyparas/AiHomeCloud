@@ -615,7 +615,7 @@ Use `Dismissible` widget with `SnackBarAction` for undo.
 
 ### TASK-P6-01 — DLNA + AdGuard Service Registration
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 6 — Deployment Readiness
 **Files:** `backend/app/routes/service_routes.py`
 **Depends on:** none
