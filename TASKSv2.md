@@ -1207,11 +1207,204 @@ All 9 tests added to TestSecuritySmokeHardware class in test_hardware_integratio
 | 8 | Phase 8 | 🟢 LOW | 3 tasks | Future features (Tailscale, events, AI prep) |
 | 9 | Phase 9 | 🟠 HIGH | 5 tasks | Pre-release polish & bug fixes |
 | 10 | Phase 10 | 🔴 CRITICAL | 11 tasks | Hardware validation before user testing |
+| 11 | Phase 11 | 🟠 HIGH | 10 tasks | Audit fixes (bugs, branding, UX — see critique.md) |
 
-**Total: 45 tasks across 10 phases.**
-**Completed: 39/45 (Phase 1–6 + P9-01–P9-05 + P10-10–P10-11 done). Remaining: 6 tasks (Phase 7, 8, P10-08 phone UI, P10-09 Telegram).**
+**Total: 45 tasks across 10 phases + 10 audit tasks in Phase 11.**
+**Completed: 39/45 main tasks. Remaining: 6 main + 10 audit tasks.**
 
 ---
 
-*AiHomeCloud TASKSv2 — Updated 2026-03-10*
+## Phase 11 — Audit Fixes (from critique.md)
+
+> Findings from full project audit. See `critique.md` for detailed descriptions.
+> Each task references exact files — an LLM can fix each by reading only the listed files.
+
+---
+
+### TASK-P11-01 — Fix QR Scan Back Button Crash (BUG-F01)
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `lib/screens/onboarding/qr_scan_screen.dart`
+**Depends on:** none
+
+**Goal:**
+The back button on QR scan screen calls `context.go('/welcome')` — this route was removed. App crashes.
+
+**Acceptance criteria:**
+- [ ] Line 149: Change `context.go('/welcome')` → `context.go('/')`
+- [ ] `flutter analyze` passes
+- [ ] `flutter test` passes
+
+---
+
+### TASK-P11-02 — Fix Network Scanner Service Name Check (BUG-F02)
+**Priority:** 🔴 Critical
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `lib/services/network_scanner.dart`, `backend/app/main.py`
+**Depends on:** none
+
+**Goal:**
+Network scanner checks `json['service'] == 'CubieCloud'`. If backend returns a different name, devices won't be discovered.
+
+**Acceptance criteria:**
+- [ ] Line 136: Change check to accept both `'CubieCloud'` and `'AiHomeCloud'`, OR update both backend and Flutter to use the same string
+- [ ] Verify backend `/api/v1/system/info` response to confirm what service name it returns
+- [ ] `flutter analyze` passes
+
+---
+
+### TASK-P11-03 — Replace Raw `e.toString()` with `friendlyError(e)` (BUG-F03)
+**Priority:** 🟠 High
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `lib/widgets/folder_view.dart`, `lib/screens/main/storage_explorer_screen.dart`, `lib/screens/main/file_preview_screen.dart`, `lib/providers/discovery_providers.dart`, `lib/core/error_utils.dart`
+**Depends on:** none
+
+**Goal:**
+5 locations show raw exception text to users instead of friendly error messages.
+
+**Acceptance criteria:**
+- [ ] `lib/widgets/folder_view.dart` line 77: `e.toString()` → `friendlyError(e)`
+- [ ] `lib/screens/main/storage_explorer_screen.dart` line 58: `e.toString()` → `friendlyError(e)`
+- [ ] `lib/screens/main/storage_explorer_screen.dart` line 71: `e.toString()` → `friendlyError(e)`
+- [ ] `lib/screens/main/file_preview_screen.dart` line 47: `e.toString()` → `friendlyError(e)`
+- [ ] `lib/providers/discovery_providers.dart` line 73: `e.toString()` → `friendlyError(e)`
+- [ ] Add `import 'package:aihomecloud/core/error_utils.dart';` where missing
+- [ ] `flutter analyze` passes
+
+---
+
+### TASK-P11-04 — Full Branding Sweep: "CubieCloud"/"Cubie" → "AiHomeCloud" (BUG-B02 + BUG-F04 + BUG-F05)
+**Priority:** 🟠 High
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `backend/app/config.py`, `backend/app/main.py`, `backend/app/models.py`, `backend/app/tls.py`, `backend/app/auto_ap.py`, `lib/core/error_utils.dart`, `lib/navigation/main_shell.dart`
+**Depends on:** none
+
+**Goal:**
+20+ branding inconsistencies across backend and Flutter. All user-facing text should say "AiHomeCloud".
+
+**Acceptance criteria:**
+- [ ] `backend/app/config.py` line 42: `"My CubieCloud"` → `"My AiHomeCloud"`
+- [ ] `backend/app/config.py` line 45: `"CubieCloud"` → `"AiHomeCloud"` (hotspot SSID)
+- [ ] `backend/app/models.py` line 128: `"CubieNAS"` → `"AiHomeNAS"` or `"AiHomeCloud"` (ext4 label)
+- [ ] `backend/app/main.py` line 83: `"CubieCloud backend"` → `"AiHomeCloud backend"`
+- [ ] `backend/app/main.py` lines 176-177: API title/description → `"AiHomeCloud API"`
+- [ ] `backend/app/tls.py`: cert org → `"AiHomeCloud"`
+- [ ] `lib/core/error_utils.dart`: all 9 error messages → consistent "AiHomeCloud"
+- [ ] `lib/navigation/main_shell.dart` line 111: `"Find Cubie"` → `"Reconnect"` or `"Find Device"`
+- [ ] `flutter analyze` passes
+- [ ] `cd backend && python -m pytest tests/ -q` passes
+
+---
+
+### TASK-P11-05 — Delete Dead Code: welcome_screen.dart (BUG-F06)
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `lib/screens/onboarding/welcome_screen.dart`
+**Depends on:** none
+
+**Goal:**
+`welcome_screen.dart` is dead code — unreachable after the onboarding merge. Delete it.
+
+**Acceptance criteria:**
+- [ ] Delete `lib/screens/onboarding/welcome_screen.dart`
+- [ ] Remove any imports referencing it (grep for `welcome_screen`)
+- [ ] `flutter analyze` passes
+
+---
+
+### TASK-P11-06 — Fix `_safe_resolve()` Path Validation (BUG-B04)
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `backend/app/routes/file_routes.py`, `backend/tests/test_path_safety.py`
+**Depends on:** none
+
+**Goal:**
+`_safe_resolve()` uses `startswith()` for path sandboxing. Replace with `Path.relative_to()`.
+
+**Acceptance criteria:**
+- [ ] Lines 52 and 60-61: Replace `startswith()` checks with `Path.relative_to()` + `except ValueError`
+- [ ] Add test: path like `/srv/nasty/secret` is rejected when `nas_root=/srv/nas`
+- [ ] Existing path traversal tests still pass
+- [ ] `cd backend && python -m pytest tests/ -q` passes
+
+---
+
+### TASK-P11-07 — Return OTP in `/pair/qr` Response (BUG-B01)
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `backend/app/routes/auth_routes.py`, `backend/tests/test_auth.py`
+**Depends on:** none
+
+**Goal:**
+The `/pair/qr` endpoint generates a 6-digit OTP but never returns it. Add it to the response for fallback manual pairing.
+
+**Acceptance criteria:**
+- [ ] Add `"otp": otp` to the `/pair/qr` JSON response
+- [ ] Add test: verify `/pair/qr` response contains `otp` field (6 digits)
+- [ ] `cd backend && python -m pytest tests/ -q` passes
+
+---
+
+### TASK-P11-08 — Narrow `except Exception` in main.py Lifespan (BUG-B03)
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `backend/app/main.py`
+**Depends on:** none
+
+**Goal:**
+8 bare `except Exception` handlers in lifespan mask critical startup failures. Replace with specific exception types.
+
+**Acceptance criteria:**
+- [ ] Each try/except block catches only expected exceptions (`OSError`, `FileNotFoundError`, `asyncio.TimeoutError`, `ValueError`, etc.)
+- [ ] Unexpected exceptions propagate and cause startup failure (visible in health check)
+- [ ] `cd backend && python -m pytest tests/ -q` passes
+
+---
+
+### TASK-P11-09 — Rename `cubie_card.dart` → `app_card.dart` (BUG-F07)
+**Priority:** 🟢 Low
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `lib/widgets/cubie_card.dart` → `lib/widgets/app_card.dart`, all files importing it
+**Depends on:** none
+
+**Goal:**
+File name `cubie_card.dart` doesn't match the renamed class `AppCard`.
+
+**Acceptance criteria:**
+- [ ] Rename file to `app_card.dart`
+- [ ] Update all imports from `cubie_card.dart` → `app_card.dart`
+- [ ] `flutter analyze` passes
+
+---
+
+### TASK-P11-10 — UX Improvements — Jargon & Scary Language (UX-01 through UX-06)
+**Priority:** 🟡 Medium
+**Status:** ⬜ todo
+**Phase:** Phase 11 — Audit Fixes
+**Files:** `lib/l10n/app_en.arb`, `lib/screens/main/storage_explorer_screen.dart`, `lib/screens/main/dashboard_screen.dart`, `lib/navigation/main_shell.dart`, `lib/core/error_utils.dart`
+**Depends on:** TASK-P11-04
+
+**Goal:**
+Replace technical jargon with user-friendly language. See `critique.md` UX-01 through UX-06 for full details.
+
+**Acceptance criteria:**
+- [ ] Storage: "Mount" → "Connect", "Unmount" → "Stop using", "Eject" → "Remove safely", "Format" → "Prepare device"
+- [ ] QR flow: "OTP" → "Pairing code"
+- [ ] Dashboard: Add context labels to CPU/Temp/RAM (green = "Normal", red = "High")
+- [ ] Disconnect banner: Add checklist tips + change button to "Reconnect"
+- [ ] ARB strings updated
+- [ ] `flutter analyze` passes
+
+---
+
+*AiHomeCloud TASKSv2 — Updated 2025-03-10*
 *Reference: v1 branch preserves all completed work from Milestones 1–8.*
