@@ -812,7 +812,7 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                         color: CubieColors.textSecondary, fontSize: 12)),
                 const SizedBox(width: 4),
                 Switch(
-                  value: true,
+                  value: _stats!['protection_enabled'] as bool? ?? true,
                   onChanged: (v) => _toggle(v),
                   activeColor: CubieColors.primary,
                 ),

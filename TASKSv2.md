@@ -509,20 +509,20 @@ Use a FutureProvider with error suppression — if AdGuard isn't running, just h
 
 ### TASK-P4-05 — More Tab: AdGuard Section
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 4 — UI Language & Structure
-**Files:** `lib/screens/main/more_screen.dart`
+**Files:** `lib/screens/main/more_screen.dart`, `backend/app/routes/adguard_routes.py`
 **Depends on:** TASK-P2-04, TASK-P4-01
 
 **Goal:**
 Add Ad Blocking section in More tab: toggle (admin only), stats, and pause buttons.
 
 **Acceptance criteria:**
-- [ ] Toggle: On/Off (admin only, uses `POST /api/v1/adguard/toggle`)
-- [ ] Stat: "X ads blocked today"
-- [ ] Button: "Pause for 5 min" (any user)
-- [ ] Button: "Pause for 1 hour" (any user)
-- [ ] `flutter analyze` passes
+- [x] Toggle: On/Off (admin only, uses `POST /api/v1/adguard/toggle`)
+- [x] Stat: "X ads blocked today"
+- [x] Button: "Pause for 5 min" (any user)
+- [x] Button: "Pause for 1 hour" (any user)
+- [x] `flutter analyze` passes
 
 **Notes:**
 Pause is useful for banking apps that break with ad blocking.

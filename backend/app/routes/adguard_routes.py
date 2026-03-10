@@ -103,6 +103,7 @@ class AdGuardStats(BaseModel):
     blocked_today: int = 0
     blocked_percent: float = 0.0
     top_blocked: list[str] = []
+    protection_enabled: bool = True
 
 
 class PauseRequest(BaseModel):
@@ -138,11 +139,20 @@ async def get_stats(user: dict = Depends(get_current_user)):
         for entry in top_raw[:10]
     ]
 
+    # Fetch protection enabled status from /protection endpoint
+    protection_enabled = True
+    try:
+        prot = await _adguard_get("/protection")
+        protection_enabled = bool(prot.get("enabled", True))
+    except Exception:
+        pass  # degrade gracefully — assume enabled if we can't fetch
+
     return AdGuardStats(
         dns_queries=dns_queries,
         blocked_today=blocked,
         blocked_percent=round(percent, 1),
         top_blocked=top_blocked,
+        protection_enabled=protection_enabled,
     )
 
 
