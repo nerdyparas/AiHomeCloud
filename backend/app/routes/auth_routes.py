@@ -82,6 +82,7 @@ async def get_pairing_qr():
         "qrValue": qr_value,
         "otp": otp,
         "serial": serial,
+        "key": key,
         "ip": ip,
         "host": host,
         "expiresAt": expires_at,
