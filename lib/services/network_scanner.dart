@@ -26,27 +26,62 @@ class NetworkScanner {
   NetworkScanner._();
   static final NetworkScanner instance = NetworkScanner._();
 
-  /// Discover local IP by connecting to a public DNS and reading the socket
-  /// address. No data is sent.
+  /// Discover the local Wi-Fi/LAN IP.
+  ///
+  /// Strategy 1 — routing trick: open a TCP socket toward a well-known
+  /// external IP; the OS selects the correct outbound interface and we read
+  /// back [Socket.address]. No data is actually sent because we destroy the
+  /// socket immediately after reading the address.
+  ///
+  /// Strategy 2 — interface enumeration fallback: walk [NetworkInterface.list]
+  /// sorted to prefer `wlan`/`eth` over virtual interfaces (USB tethering,
+  /// Wi-Fi Direct, rmnet, dummy, tun, etc.) and skip reserved/virtual address
+  /// ranges (`169.254.*`, `192.0.0.*`, `100.64.*`).
   Future<String?> getLocalIp() async {
+    // Strategy 1: routing trick — most reliable on Android/iOS
     try {
-      final socket =
-          await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-      socket.close();
-      // Alternative: use interface lookup
+      final socket = await Socket.connect(
+        '8.8.8.8', // destination only used for route selection – no data sent
+        443,
+        timeout: const Duration(seconds: 2),
+      );
+      final ip = socket.address.address;
+      socket.destroy();
+      if (ip.isNotEmpty && ip != '0.0.0.0') return ip;
+    } catch (_) {
+      // No internet access – fall through to interface enumeration
+    }
+
+    // Strategy 2: interface enumeration, filtered and sorted
+    try {
       final interfaces = await NetworkInterface.list(
         type: InternetAddressType.IPv4,
         includeLoopback: false,
       );
-      for (final iface in interfaces) {
+
+      int _ifaceScore(NetworkInterface iface) {
+        final n = iface.name.toLowerCase();
+        if (n.startsWith('wlan') || n.startsWith('wifi')) return 0;
+        if (n.startsWith('en') || n.startsWith('eth')) return 1;
+        return 10; // virtual: rmnet, dummy, p2p, tun, usb, ccmni, v4-, etc.
+      }
+
+      final sorted = [...interfaces]
+        ..sort((a, b) => _ifaceScore(a).compareTo(_ifaceScore(b)));
+
+      for (final iface in sorted) {
         for (final addr in iface.addresses) {
-          if (!addr.isLoopback) return addr.address;
+          final ip = addr.address;
+          if (addr.isLoopback) continue;
+          if (ip.startsWith('169.254.')) continue; // link-local (APIPA)
+          if (ip.startsWith('192.0.0.')) continue; // IANA DS-Lite reserved
+          if (ip.startsWith('100.64.')) continue;  // CGNAT shared space
+          return ip;
         }
       }
-      return null;
-    } catch (_) {
-      return null;
-    }
+    } catch (_) {}
+
+    return null;
   }
 
   /// Get the /24 subnet prefix from a local IP address.
