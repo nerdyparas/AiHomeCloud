@@ -278,3 +278,119 @@ async def test_auto_ap_get_returns_status(client, admin_token):
     assert "enabled" in body
     assert "hotspotSsid" in body
     assert "autoApActive" in body
+
+
+# ── is_auto_ap_active ───────────────────────────────────────────────────────
+
+def test_is_auto_ap_active_reflects_state():
+    """is_auto_ap_active returns the module-level sentinel."""
+    from app.auto_ap import is_auto_ap_active
+
+    auto_ap_module._auto_ap_active = False
+    assert is_auto_ap_active() is False
+
+    auto_ap_module._auto_ap_active = True
+    assert is_auto_ap_active() is True
+
+    # Reset
+    auto_ap_module._auto_ap_active = False
+
+
+# ── wifi_setup_connect ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_wifi_setup_connect_success():
+    """wifi_setup_connect succeeds on first attempt."""
+    from app.auto_ap import wifi_setup_connect
+
+    auto_ap_module._auto_ap_active = True
+
+    with patch("app.auto_ap._stop_hotspot", new_callable=AsyncMock) as mock_stop, \
+         patch("app.auto_ap.run_command", new_callable=AsyncMock) as mock_run, \
+         patch("app.auto_ap._has_wifi_station", new_callable=AsyncMock, return_value=True), \
+         patch("app.auto_ap.asyncio.sleep", new_callable=AsyncMock):
+        mock_run.return_value = (0, "", "")
+        result = await wifi_setup_connect("HomeWifi", "secret123")
+
+    assert result is True
+    mock_stop.assert_called_once()
+    assert auto_ap_module._auto_ap_active is False
+
+
+@pytest.mark.asyncio
+async def test_wifi_setup_connect_retries_then_poweroff():
+    """wifi_setup_connect powers off after exhausting retries."""
+    from app.auto_ap import wifi_setup_connect
+
+    auto_ap_module._auto_ap_active = True
+
+    poweroff_called = False
+    original_total = auto_ap_module._WIFI_RETRY_TOTAL
+    auto_ap_module._WIFI_RETRY_TOTAL = 10  # shorten for test
+
+    async def mock_run_cmd(cmd, timeout=5):
+        nonlocal poweroff_called
+        if cmd[:2] == ["sudo", "systemctl"]:
+            poweroff_called = True
+            return (0, "", "")
+        if cmd[:2] == ["nmcli", "radio"]:
+            return (0, "", "")
+        if cmd[:2] == ["nmcli", "device"]:
+            return (1, "", "No network found")
+        if cmd[:2] == ["nmcli", "connection"]:
+            return (0, "", "")
+        return (1, "", "")
+
+    with patch("app.auto_ap._stop_hotspot", new_callable=AsyncMock), \
+         patch("app.auto_ap.run_command", side_effect=mock_run_cmd), \
+         patch("app.auto_ap._has_wifi_station", new_callable=AsyncMock, return_value=False), \
+         patch("app.auto_ap.asyncio.sleep", new_callable=AsyncMock):
+        result = await wifi_setup_connect("BadSSID", "wrong")
+
+    assert result is False
+    assert poweroff_called is True
+
+    # Restore
+    auto_ap_module._WIFI_RETRY_TOTAL = original_total
+    auto_ap_module._auto_ap_active = False
+
+
+# ── POST /network/wifi/setup endpoint ───────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_wifi_setup_accepted_when_auto_ap_active(client):
+    """POST /network/wifi/setup succeeds when auto-AP is active and no users exist."""
+    with patch("app.auto_ap._auto_ap_active", True), \
+         patch("app.auto_ap.wifi_setup_connect", new_callable=AsyncMock) as mock_connect:
+        mock_connect.return_value = True
+        resp = await client.post(
+            "/api/v1/network/wifi/setup",
+            json={"ssid": "HomeWifi", "password": "secret123"},
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["accepted"] is True
+
+
+@pytest.mark.asyncio
+async def test_wifi_setup_rejected_when_users_exist_and_ap_off(client, admin_token):
+    """POST /network/wifi/setup returns 403 when users exist and AP is off."""
+    with patch("app.auto_ap._auto_ap_active", False):
+        resp = await client.post(
+            "/api/v1/network/wifi/setup",
+            json={"ssid": "HomeWifi", "password": "secret123"},
+        )
+
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_wifi_setup_empty_ssid(client):
+    """POST /network/wifi/setup rejects empty SSID."""
+    with patch("app.auto_ap._auto_ap_active", True):
+        resp = await client.post(
+            "/api/v1/network/wifi/setup",
+            json={"ssid": "  ", "password": "pass"},
+        )
+    assert resp.status_code == 400

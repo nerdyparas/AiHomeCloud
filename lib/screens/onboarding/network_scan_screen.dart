@@ -279,12 +279,62 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
               if (!_scanning && _hosts.isEmpty && _error == null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'No devices found on the network.',
-                    style: GoogleFonts.dmSans(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'No devices found on the network.',
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () => context.go('/hotspot-connect'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.wifi_tethering_rounded,
+                                  color: AppColors.primary, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Device not on this network?',
+                                      style: GoogleFonts.dmSans(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Set up via AiHomeCloud hotspot',
+                                      style: GoogleFonts.dmSans(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textSecondary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 

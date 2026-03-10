@@ -304,3 +304,15 @@ class WifiConnectionResult(BaseModel):
     success: bool
     message: str
     ip: Optional[str] = None
+
+
+class WifiSetupRequest(BaseModel):
+    """Initial onboarding Wi-Fi setup — sent from app via hotspot."""
+    ssid: str
+    password: str = ""
+
+
+class WifiSetupResponse(BaseModel):
+    """Acknowledgement that Wi-Fi setup has been accepted."""
+    accepted: bool
+    message: str

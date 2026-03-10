@@ -15,10 +15,12 @@ import '../screens/main/telegram_setup_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
 import '../screens/main/wifi_settings_screen.dart';
 import '../screens/onboarding/discovery_screen.dart';
+import '../screens/onboarding/hotspot_connect_screen.dart';
 import '../screens/onboarding/network_scan_screen.dart';
 import '../screens/onboarding/qr_scan_screen.dart';
 import '../screens/onboarding/setup_complete_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
+import '../screens/onboarding/wifi_setup_screen.dart';
 import '../providers.dart';
 import 'main_shell.dart';
 
@@ -30,7 +32,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (_, state) {
       final loc = state.matchedLocation;
       final onOnboarding =
-          loc == '/' || loc == '/scan-network' || loc == '/qr-scan' || loc == '/discovery' || loc == '/setup';
+          loc == '/' || loc == '/scan-network' || loc == '/qr-scan' || loc == '/discovery' || loc == '/setup' || loc == '/hotspot-connect' || loc == '/wifi-setup';
 
       if (authSession == null && !onOnboarding) {
         return '/';
@@ -49,6 +51,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/scan-network', builder: (_, __) => const NetworkScanScreen()),
       GoRoute(path: '/qr-scan', builder: (_, __) => const QrScanScreen()),
       GoRoute(path: '/discovery', builder: (_, __) => const DiscoveryScreen()),
+      GoRoute(path: '/hotspot-connect', builder: (_, __) => const HotspotConnectScreen()),
+      GoRoute(path: '/wifi-setup', builder: (_, __) => const WifiSetupScreen()),
       GoRoute(
           path: '/setup', builder: (_, __) => const SetupCompleteScreen()),
 

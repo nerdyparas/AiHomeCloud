@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     device_name: str = "My AiHomeCloud"
     firmware_version: str = "2.1.4"
     pairing_key: str = ""  # auto-generated and persisted if empty
-    hotspot_password: str = ""  # auto-generated if empty
+    hotspot_password: str = "aihomecloud123"
     hotspot_ssid: str = "AiHomeCloud"
     auto_ap_enabled: bool = True  # auto-start hotspot when no network
 

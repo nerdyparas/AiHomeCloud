@@ -11,7 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user, require_admin
 from ..config import settings
-from ..models import NetworkStatus, ToggleRequest, WifiNetwork, WifiConnectRequest, WifiConnectionResult
+from ..models import (
+    NetworkStatus, ToggleRequest, WifiNetwork, WifiConnectRequest,
+    WifiConnectionResult, WifiSetupRequest, WifiSetupResponse,
+)
 from ..subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.network")
@@ -574,6 +577,44 @@ async def connect_wifi(
         success=True,
         message=f"Connected to {ssid}",
         ip=ip_addr,
+    )
+
+
+@router.post("/wifi/setup", response_model=WifiSetupResponse)
+async def wifi_setup(body: WifiSetupRequest):
+    """Accept home Wi-Fi credentials during initial onboarding.
+
+    **No authentication required** — the endpoint is only available when:
+    - The auto-AP hotspot is currently active, OR
+    - No users have been created yet (first-time setup).
+
+    On success, the backend tears down the hotspot and connects to the
+    specified Wi-Fi network in a background task (retries every 10 s,
+    up to 120 s total).  If all attempts fail the device powers off.
+    """
+    from ..auto_ap import is_auto_ap_active, wifi_setup_connect
+    from ..store import get_users
+
+    # Gate: only during initial setup
+    users = await get_users()
+    if not is_auto_ap_active() and len(users) > 0:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Wi-Fi setup is only available during initial device setup.",
+        )
+
+    ssid = body.ssid.strip()
+    if not ssid:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "SSID is required.")
+
+    # Kick off the connect-with-retry in a background task so the response
+    # reaches the client before the hotspot is torn down.
+    asyncio.create_task(wifi_setup_connect(ssid, body.password))
+
+    logger.info("wifi_setup_accepted ssid=%s", ssid)
+    return WifiSetupResponse(
+        accepted=True,
+        message="Wi-Fi credentials accepted. AiHomeCloud is connecting to your network.",
     )
 
 
