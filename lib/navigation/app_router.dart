@@ -19,7 +19,6 @@ import '../screens/onboarding/network_scan_screen.dart';
 import '../screens/onboarding/qr_scan_screen.dart';
 import '../screens/onboarding/setup_complete_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
-import '../screens/onboarding/welcome_screen.dart';
 import '../providers.dart';
 import 'main_shell.dart';
 
@@ -31,10 +30,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (_, state) {
       final loc = state.matchedLocation;
       final onOnboarding =
-          loc == '/' || loc == '/welcome' || loc == '/scan-network' || loc == '/qr-scan' || loc == '/discovery' || loc == '/setup';
+          loc == '/' || loc == '/scan-network' || loc == '/qr-scan' || loc == '/discovery' || loc == '/setup';
 
       if (authSession == null && !onOnboarding) {
-        return '/welcome';
+        return '/';
       }
 
       // Allow /scan-network when authenticated (for reconnection)
@@ -47,7 +46,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       // ── Onboarding ────────────────────────────────────────────────────────
       GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
       GoRoute(path: '/scan-network', builder: (_, __) => const NetworkScanScreen()),
       GoRoute(path: '/qr-scan', builder: (_, __) => const QrScanScreen()),
       GoRoute(path: '/discovery', builder: (_, __) => const DiscoveryScreen()),
