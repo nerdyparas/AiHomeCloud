@@ -18,6 +18,8 @@ from ..auth import get_current_user
 from ..config import settings
 from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest, TrashItem
 from .. import store
+from ..file_sorter import _destination_folder
+from ..events import file_event_bus, FileEvent
 from .event_routes import emit_upload_complete
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
@@ -225,6 +227,13 @@ async def delete_file(
     items = await store.get_trash_items()
     items.append(item)
     await store.save_trash_items(items)
+
+    # Publish file-event for downstream consumers (AI features, audit log)
+    await file_event_bus.publish(FileEvent(
+        path=path,
+        action="delete",
+        user=user_id,
+    ))
 
     await _purge_trash_if_needed()
 
@@ -456,10 +465,21 @@ async def upload_file(
     user_name = user.get("sub", "unknown")
     await emit_upload_complete(safe_name, user_name)
 
+    # Publish file-event for downstream consumers (AI features, audit log)
+    await file_event_bus.publish(FileEvent(
+        path=str(resolved_dest),
+        action="upload",
+        user=user_name,
+    ))
+
+    # Determine the folder the InboxWatcher will sort this file into.
+    sorted_to = _destination_folder(resolved_dest)
+
     return {
         "name": safe_name,
         "path": "/" + str(resolved_dest.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
         "sizeBytes": total,
+        "sortedTo": sorted_to,
     }
 
 

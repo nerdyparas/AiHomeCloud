@@ -360,7 +360,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageExplorerVolumeLabel => 'Volume label';
 
   @override
-  String get storageExplorerVolumeLabelHint => 'AiHomeNAS';
+  String get storageExplorerVolumeLabelHint => 'AiHomeCloud';
 
   @override
   String storageExplorerTypeToConfirm(String path) {

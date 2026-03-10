@@ -194,7 +194,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           OutlinedButton.icon(
             onPressed: _scanning ? null : _scan,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: Text(_scanning ? 'Scanningâ€¦' : 'Scan Again'),
+            label: Text(_scanning ? 'Scanning…' : 'Scan Again'),
           ),
         ],
       ).animate().fadeIn(duration: 400.ms),
@@ -346,8 +346,12 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           _jobPollTimer?.cancel();
           _elapsedTimer?.cancel();
           setState(() => _activateJobId = null);
-          _showSnack('Storage ready!');
           await _loadDevices();
+          final active = _devices?.where((d) => d.isNasActive).firstOrNull;
+          final msg = active != null
+              ? 'Storage is ready! ${active.sizeDisplay} available'
+              : 'Storage is ready!';
+          _showSnack(msg);
           return;
         }
 
@@ -378,7 +382,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Preparing your storage driveâ€¦',
+            'Preparing your storage drive…',
             style: GoogleFonts.sora(
               color: AppColors.textPrimary,
               fontSize: 14,

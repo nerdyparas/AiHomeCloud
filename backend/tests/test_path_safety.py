@@ -225,6 +225,7 @@ async def test_boot_directory_access_blocked(authenticated_client: AsyncClient):
     assert response.status_code in (200, 403), f"Accessing /boot returned {response.status_code}"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Path sandboxing uses POSIX lstrip('/') — not applicable on Windows")
 def test_similar_prefix_path_outside_nas_root_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Paths like /srv/nasty must NOT grant access to /srv/nasty.
     _safe_resolve sandboxes them under nas_root instead, so the resolved

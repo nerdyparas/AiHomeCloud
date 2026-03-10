@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
+import '../../core/constants.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
@@ -26,6 +27,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     final isAdmin = session?.isAdmin ?? false;
     final fingerprint = ref.watch(certFingerprintProvider);
     final servicesAsync = ref.watch(servicesProvider);
+    final tailscaleAsync = ref.watch(tailscaleStatusProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -143,6 +145,14 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 ),
               ),
             ),
+
+            // ── Remote Access (Tailscale) ────────────────────────────────
+            const SizedBox(height: 24),
+            _sectionLabel('Remote Access'),
+            const SizedBox(height: 12),
+            _TailscaleCard(isAdmin: isAdmin, statusAsync: tailscaleAsync)
+                .animate()
+                .fadeIn(delay: 70.ms),
 
             // ── Ad Blocking ──────────────────────────────────────────────
             const SizedBox(height: 24),
@@ -302,7 +312,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Your personal home NAS — files, family, and streaming in one place.',
+                    'Your personal cloud — files, family, and streaming in one place.',
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -617,6 +627,118 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Remote Access (Tailscale) card ─────────────────────────────────────────
+
+class _TailscaleCard extends ConsumerStatefulWidget {
+  final bool isAdmin;
+  final AsyncValue<Map<String, dynamic>?> statusAsync;
+  const _TailscaleCard({required this.isAdmin, required this.statusAsync});
+
+  @override
+  ConsumerState<_TailscaleCard> createState() => _TailscaleCardState();
+}
+
+class _TailscaleCardState extends ConsumerState<_TailscaleCard> {
+  bool _loading = false;
+
+  Widget _iconBox(IconData icon, Color color) => Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 18),
+      );
+
+  Future<void> _enableTailscale() async {
+    if (!widget.isAdmin) return;
+    setState(() => _loading = true);
+    try {
+      final result = await ref.read(apiServiceProvider).tailscaleUp();
+      final ip = result['tailscaleIp'] as String?;
+      if (ip != null && ip.isNotEmpty) {
+        // Persist Tailscale IP for future remote connections
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setString(AppConstants.prefTailscaleIp, ip);
+        // Tell ApiService about it so fallback routing is immediate
+        ref.read(apiServiceProvider).setTailscaleIp(ip);
+      }
+      ref.invalidate(tailscaleStatusProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ip != null ? 'Remote access active — $ip' : 'Tailscale connected',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = widget.statusAsync.value;
+    final connected = status?['connected'] as bool? ?? false;
+    final ip = status?['tailscaleIp'] as String?;
+    final installed = status?['installed'] as bool? ?? false;
+
+    final subtitle = switch ((connected, installed)) {
+      (true, _) => 'Connected — $ip',
+      (false, false) => 'Install Tailscale on your Cubie to enable',
+      _ => 'Tap to connect via Tailscale',
+    };
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        leading: _iconBox(Icons.vpn_lock_rounded,
+            connected ? AppColors.success : AppColors.textSecondary),
+        title: Text('Remote Access',
+            style: GoogleFonts.dmSans(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle,
+            style: GoogleFonts.dmSans(
+                color: connected
+                    ? AppColors.success
+                    : AppColors.textSecondary,
+                fontSize: 12)),
+        trailing: widget.isAdmin && installed && !connected
+            ? (_loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.primary),
+                  )
+                : TextButton(
+                    onPressed: _enableTailscale,
+                    child: Text('Enable',
+                        style: GoogleFonts.dmSans(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                  ))
+            : connected
+                ? const Icon(Icons.check_circle_rounded,
+                    color: AppColors.success, size: 20)
+                : null,
       ),
     );
   }

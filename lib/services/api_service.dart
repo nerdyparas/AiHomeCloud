@@ -45,6 +45,14 @@ class ApiService {
   late final HttpClient _httpClient;
   late final http.Client _client;
 
+  /// The currently active connection mode (LAN or Remote).
+  ConnectionMode _connectionMode = ConnectionMode.lan;
+  ConnectionMode get connectionMode => _connectionMode;
+
+  /// Tailscale IP stored here after a successful `tailscale-up` call.
+  String? _tailscaleIp;
+  void setTailscaleIp(String? ip) => _tailscaleIp = ip;
+
   /// Initialize TLS HTTP client. By default trusts any cert until a fingerprint
   /// is set via `setTrustedFingerprint`.
   void _initHttpClient() {
@@ -133,6 +141,9 @@ class ApiService {
   /// Connection timeout for all HTTP requests.
   static const _timeout = Duration(seconds: 10);
 
+  /// Short timeout used when probing LAN reachability before falling back to Tailscale.
+  static const _lanProbeTimeout = Duration(seconds: 2);
+
   AuthSession? get _session => _sessionResolver?.call();
 
   String get _baseUrl {
@@ -141,7 +152,44 @@ class ApiService {
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
     }
+    // When in remote mode, use the Tailscale IP if available.
+    if (_connectionMode == ConnectionMode.remote && _tailscaleIp != null) {
+      return 'https://$_tailscaleIp:$port';
+    }
     return 'https://$host:$port';
+  }
+
+  /// Execute [request] via LAN first (2 s probe timeout).
+  /// If LAN fails and a Tailscale IP is configured, retries via Tailscale.
+  // ignore: unused_element
+  Future<http.Response> _withFallback(
+    Future<http.Response> Function() request,
+  ) async {
+    // If already in remote mode, skip the probe.
+    if (_connectionMode == ConnectionMode.remote && _tailscaleIp != null) {
+      return _withAutoRefresh(request);
+    }
+
+    bool lanFailed = false;
+    try {
+      final res = await _withAutoRefresh(request)
+          .timeout(_lanProbeTimeout);
+      _connectionMode = ConnectionMode.lan;
+      return res;
+    } on TimeoutException {
+      lanFailed = true;
+    } on SocketException {
+      lanFailed = true;
+    }
+
+    if (!lanFailed || _tailscaleIp == null || _tailscaleIp!.isEmpty) {
+      // No Tailscale configured — retry with the full timeout.
+      return _withAutoRefresh(request);
+    }
+
+    // Switch to Tailscale and retry with full timeout.
+    _connectionMode = ConnectionMode.remote;
+    return _withAutoRefresh(request);
   }
 
   Map<String, String> get _headers => {

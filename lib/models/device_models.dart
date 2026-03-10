@@ -61,3 +61,6 @@ class SystemStats {
 }
 
 enum ConnectionStatus { connected, reconnecting, disconnected }
+
+/// Whether the app is currently routing via the home LAN or Tailscale remote.
+enum ConnectionMode { lan, remote }

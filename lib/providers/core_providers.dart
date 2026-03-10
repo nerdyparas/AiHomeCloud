@@ -48,6 +48,10 @@ final apiServiceProvider = Provider<ApiService>((ref) {
   api.bindTokenUpdater(
     (token) => ref.read(authSessionProvider.notifier).updateToken(token),
   );
+  // Restore persisted Tailscale IP so remote fallback works after relaunch.
+  final prefs = ref.read(sharedPreferencesProvider);
+  final tailscaleIp = prefs.getString(AppConstants.prefTailscaleIp);
+  api.setTailscaleIp(tailscaleIp);
   return api;
 });
 

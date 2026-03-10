@@ -358,7 +358,7 @@ These are critical paths that currently have zero test coverage.
 
 ### TASK-POL-01 — Dashboard: Active storage badge in health row
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** POLISH
 **Files:** `lib/screens/main/dashboard_screen.dart`
 **Depends on:** TASK-DRIVE-01
@@ -378,7 +378,7 @@ displayName so users feel confident the storage is working.
 
 ### TASK-POL-02 — Upload sort feedback: "Sorted to Photos"
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** POLISH
 **Files:** `lib/screens/main/files_screen.dart`, `lib/screens/main/my_folder_screen.dart`
 **Depends on:** none
@@ -404,7 +404,7 @@ poll (500ms) or by triggering sort inline and returning the result.
 
 ### TASK-POL-03 — Format progress: human-friendly text
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** POLISH
 **Files:** `lib/screens/main/storage_explorer_screen.dart`
 **Depends on:** TASK-DRIVE-03
@@ -424,7 +424,7 @@ which is developer text. Replace with warm, friendly messaging.
 
 ### TASK-POL-04 — Full language audit: grep for technical terms in UI
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** POLISH
 **Files:** All Flutter files under `lib/`
 **Depends on:** TASK-DRIVE-05
@@ -448,7 +448,7 @@ and fix every remaining instance.
 
 ### TASK-P8-01 — Remote Access via Tailscale
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** FUTURE
 **Files:** Multiple
 **Depends on:** Phase POLISH complete
@@ -469,7 +469,7 @@ Tailscale on phone and Cubie, toggle in app.
 
 ### TASK-P8-02 — Internal Event Bus
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** FUTURE
 **Files:** `backend/app/events.py` (new)
 **Depends on:** Phase POLISH complete
@@ -488,7 +488,7 @@ smart search). Foundation only — no UI changes.
 
 ### TASK-P8-03 — SQLite Schema for File Index (Feature Flagged)
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** FUTURE
 **Files:** `backend/app/config.py`, `backend/app/db_stub.py` (new)
 **Depends on:** Phase POLISH complete

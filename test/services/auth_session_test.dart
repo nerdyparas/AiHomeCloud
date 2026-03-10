@@ -5,6 +5,7 @@
 ///   - ConnectionNotifier: grace period debounce before marking disconnected
 library;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

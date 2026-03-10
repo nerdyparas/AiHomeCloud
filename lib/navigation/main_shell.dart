@@ -26,6 +26,8 @@ class MainShell extends ConsumerWidget {
     final idx = _indexOf(context);
     final connection = ref.watch(connectionProvider);
     final upload = ref.watch(shareUploadProvider);
+    final api = ref.read(apiServiceProvider);
+    final isRemote = api.connectionMode == ConnectionMode.remote;
 
     return CubieNotificationOverlay(
       child: Scaffold(
@@ -45,6 +47,25 @@ class MainShell extends ConsumerWidget {
                     ),
                     SizedBox(width: 8),
                     Text('Reconnecting…'),
+                  ],
+                ),
+              ),
+            if (isRemote)
+              Container(
+                width: double.infinity,
+                color: AppColors.secondary.withValues(alpha: 0.18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                child: const Row(
+                  children: [
+                    Icon(Icons.vpn_lock_rounded,
+                        size: 13, color: AppColors.secondary),
+                    SizedBox(width: 6),
+                    Text(
+                      'via Remote',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.secondary),
+                    ),
                   ],
                 ),
               ),

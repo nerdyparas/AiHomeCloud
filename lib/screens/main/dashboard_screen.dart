@@ -152,13 +152,48 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ] else ...[
 
-            // ── SD-only warning banner (2C.7) ───────────────────────────────
+            // ── Active storage badge / no-drive indicator (POL-01) ────────
             SliverToBoxAdapter(
               child: storageAsync.when(
                 data: (devices) {
-                  final hasActive =
-                      devices.any((d) => d.isNasActive && !d.isOsDisk);
-                  if (hasActive) return const SizedBox.shrink();
+                  final activeDevices =
+                      devices.where((d) => d.isNasActive && !d.isOsDisk);
+                  if (activeDevices.isNotEmpty) {
+                    final active = activeDevices.first;
+                    final freeGB = statsAsync.value?.storage.freeGB;
+                    final freeText = freeGB != null
+                        ? ' · ${freeGB.toStringAsFixed(0)} GB free'
+                        : '';
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.success.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('⚡',
+                                style: TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${active.displayName}$freeText',
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.success,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ).animate().fadeIn(duration: 300.ms),
+                    );
+                  }
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Container(
@@ -176,20 +211,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'No external storage active — files are on the SD card. '
-                              'Connect a USB drive or NVMe SSD for better performance.',
+                              'No drive connected',
                               style: GoogleFonts.dmSans(
                                   color: AppColors.primary,
-                                  fontSize: 12,
-                                  height: 1.4),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
                       ),
-                    ).animate().fadeIn(delay: 200.ms).shimmer(
-                          duration: 1500.ms,
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                        ),
+                    ).animate().fadeIn(delay: 200.ms),
                   );
                 },
                 loading: () => const SizedBox.shrink(),

@@ -33,6 +33,7 @@ class AppConstants {
   static const String prefDevicePort = 'device_port';
   static const String prefIsAdmin = 'is_admin';
   static const String kCertFingerprintPrefKey = 'cubieFingerprint';
+  static const String prefTailscaleIp = 'tailscale_ip';
 
   // ── Storage ────────────────────────────────────────────────────────────────
   static const double totalStorageGB = 500.0;

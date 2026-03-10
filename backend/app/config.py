@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""   # CUBIE_TELEGRAM_BOT_TOKEN
     telegram_allowed_ids: str = ""  # CUBIE_TELEGRAM_ALLOWED_IDS — comma-sep chat IDs; empty = no restriction
 
+    # ── SQLite file index (feature-flagged — off by default) ──────────────────
+    enable_sqlite: bool = False   # CUBIE_ENABLE_SQLITE — creates file_index + ai_jobs tables when True
+
     # ── Data (JSON-file-based persistence for users, services, etc.) ─────────
     data_dir: Path = Path("/var/lib/cubie")
 

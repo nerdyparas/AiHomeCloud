@@ -131,7 +131,7 @@
   "storageExplorerFormatWarning": "All files on {name} ({size}) will be permanently deleted.\nThis cannot be undone.",
   "@storageExplorerFormatWarning": { "placeholders": { "name": { "type": "String" }, "size": { "type": "String" } } },
   "storageExplorerVolumeLabel": "Volume label",
-  "storageExplorerVolumeLabelHint": "AiHomeNAS",
+  "storageExplorerVolumeLabelHint": "AiHomeCloud",
   "storageExplorerTypeToConfirm": "Type \"{path}\" to confirm:",
   "@storageExplorerTypeToConfirm": { "placeholders": { "path": { "type": "String" } } },
   "storageExplorerFormatted": "{name} prepared for use",

@@ -36,6 +36,7 @@ from .routes import (
     network_routes,
     event_routes,
     telegram_routes,
+    tailscale_routes,
 )
 
 logger = logging.getLogger("cubie.main")
@@ -145,6 +146,13 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("document_index init failed: %s", e)
 
+    # Initialise SQLite file index (feature-flagged, off by default)
+    try:
+        from .db_stub import init_db as _init_sqlite_db
+        await _init_sqlite_db()
+    except (OSError, RuntimeError, ValueError, ImportError) as e:
+        logger.warning("SQLite file index init skipped: %s", e)
+
     # Start InboxWatcher for auto-sorting uploaded files
     try:
         from .file_sorter import get_watcher as _get_watcher
@@ -240,6 +248,7 @@ app.include_router(network_routes.router)
 app.include_router(event_routes.router)
 app.include_router(adguard_routes.router)
 app.include_router(telegram_routes.router)
+app.include_router(tailscale_routes.router)
 
 
 @app.get("/api/health")

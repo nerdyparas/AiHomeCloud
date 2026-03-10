@@ -434,11 +434,14 @@ class _FolderViewState extends ConsumerState<FolderView> {
     ref.read(uploadTasksProvider.notifier).addTask(task);
     ref.read(uploadTasksProvider.notifier).updateTask(task.id, status: UploadStatus.uploading);
 
+    final sortedToCompleter = Completer<String?>();
+
     final stream = api.uploadFile(
       task.destinationPath!,
       task.fileName,
       task.totalBytes,
       filePath: task.filePath!,
+      sortedToCompleter: sortedToCompleter,
     );
 
     final sub = stream.listen(
@@ -447,13 +450,14 @@ class _FolderViewState extends ConsumerState<FolderView> {
           ref.read(uploadTasksProvider.notifier).updateTask(task.id, uploadedBytes: bytes);
         }
       },
-      onDone: () {
+      onDone: () async {
         _uploadSubscriptions.remove(task.id);
         if (!mounted) return;
         ref.read(uploadTasksProvider.notifier).updateTask(task.id, status: UploadStatus.completed);
         _loadFiles(reset: true);
+        final sortedTo = await sortedToCompleter.future;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${task.fileName} uploaded successfully')),
+          SnackBar(content: Text(_uploadSnackMessage(task.fileName, sortedTo))),
         );
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) ref.read(uploadTasksProvider.notifier).removeTask(task.id);
@@ -493,6 +497,16 @@ class _FolderViewState extends ConsumerState<FolderView> {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /// Map the backend sortedTo folder name to a friendly snackbar message.
+  String _uploadSnackMessage(String fileName, String? sortedTo) {
+    return switch (sortedTo) {
+      'Photos' => '📸 $fileName sorted to Photos',
+      'Videos' => '🎬 $fileName sorted to Videos',
+      'Documents' => '📄 $fileName sorted to Documents',
+      _ => '✅ $fileName uploaded',
+    };
+  }
 
   Widget _handle() => Container(
         width: 40,

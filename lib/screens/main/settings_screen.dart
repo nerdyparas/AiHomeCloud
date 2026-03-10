@@ -61,7 +61,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _categoryTile(
                     icon: Icons.apps_rounded,
                     title: 'Services',
-                    subtitle: 'Manage NAS services',
+                    subtitle: 'Manage services',
                     onTap: () => context.push('/settings/services'),
                   ),
                 ],

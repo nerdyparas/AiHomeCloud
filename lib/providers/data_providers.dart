@@ -52,3 +52,13 @@ final adGuardStatsSilentProvider =
     return null;
   }
 });
+
+/// Tailscale remote-access status — silently returns null on error.
+final tailscaleStatusProvider =
+    FutureProvider<Map<String, dynamic>?>((ref) async {
+  try {
+    return await ref.read(apiServiceProvider).getTailscaleStatus();
+  } catch (_) {
+    return null;
+  }
+});

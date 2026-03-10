@@ -123,7 +123,7 @@ extension FilesApi on ApiService {
   /// real percentage progress (divide by [totalBytes]).
   Stream<int> uploadFile(
       String destinationPath, String fileName, int totalBytes,
-      {String? filePath}) {
+      {String? filePath, Completer<String?>? sortedToCompleter}) {
     final ctrl = StreamController<int>();
 
     () async {
@@ -183,15 +183,26 @@ extension FilesApi on ApiService {
         );
 
         final response = await _client.send(streamedRequest);
-        await response.stream.drain<void>();
+        final responseBody = await response.stream.bytesToString();
         if (response.statusCode >= 200 && response.statusCode < 300) {
+          // Extract the sortedTo folder from the JSON response if requested.
+          if (sortedToCompleter != null) {
+            try {
+              final json = jsonDecode(responseBody) as Map<String, dynamic>;
+              sortedToCompleter.complete(json['sortedTo'] as String?);
+            } catch (_) {
+              sortedToCompleter.complete(null);
+            }
+          }
           ctrl.add(totalBytes); // guarantee a 100 % event
           await ctrl.close();
         } else {
+          sortedToCompleter?.complete(null);
           ctrl.addError(Exception('Upload failed: ${response.statusCode}'));
           await ctrl.close();
         }
       } catch (e) {
+        sortedToCompleter?.complete(null);
         ctrl.addError(e);
         await ctrl.close();
       }

@@ -1,3 +1,6 @@
+@Tags(['golden'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -231,7 +234,7 @@ void main() {
         matchesGoldenFile('goldens/app_card_custom_padding.png'),
       );
     });
-  }, tags: 'golden');
+  });
 
   group('AppCard Functional Tests', () {
     testWidgets('renders title correctly', (WidgetTester tester) async {
