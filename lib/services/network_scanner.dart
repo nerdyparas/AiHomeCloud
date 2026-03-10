@@ -164,54 +164,79 @@ class NetworkScanner {
     }
 
     // ── Phase 2: parallel subnet sweep ───────────────────────────────────
+    // Step 1: Fast TCP connect scan to find IPs with port 8443 open.
+    // Step 2: HTTPS verify only the handful of IPs that passed TCP check.
     final prefix = _subnetPrefix(localIp);
     const total = 254;
     int scanned = 0;
-
-    // Higher concurrency + short timeouts for Fing-like speed.
     const batchSize = 50;
+
+    final openIps = <String>[];
 
     for (int batchStart = 1; batchStart <= total; batchStart += batchSize) {
       final batchEnd = (batchStart + batchSize - 1).clamp(1, total);
-      final futures = <Future<DiscoveredHost?>>[];
+      final futures = <Future<String?>>[];
 
       for (int i = batchStart; i <= batchEnd; i++) {
         final ip = '$prefix$i';
-        if (found.contains(ip)) {
-          // Already found via mDNS — skip.
-          continue;
-        }
-        futures.add(_probeService(ip));
+        if (found.contains(ip)) continue;
+        futures.add(_tcpCheck(ip));
       }
 
       final results = await Future.wait(futures);
       scanned = batchEnd.clamp(0, total);
       onProgress?.call(scanned, total);
 
-      for (final host in results) {
-        if (host != null && !found.contains(host.ip)) {
-          found.add(host.ip);
-          yield host;
-        }
+      for (final ip in results) {
+        if (ip != null) openIps.add(ip);
+      }
+    }
+
+    // Step 2: HTTPS verify only the IPs with open port 8443.
+    // Typically 0-3 hosts, so sequential is fine — avoids socket exhaustion.
+    for (final ip in openIps) {
+      if (found.contains(ip)) continue;
+      final host = await _probeService(ip);
+      if (host != null) {
+        found.add(host.ip);
+        yield host;
       }
     }
   }
 
-  // ── Single-host probe ───────────────────────────────────────────────────
+  // ── TCP pre-check ───────────────────────────────────────────────────────
 
-  /// Probe a single IP for the AiHomeCloud root endpoint.
-  /// Returns null if the host is unreachable, port closed, or not our service.
+  /// Lightweight TCP connect to check if port 8443 is open.
+  /// Returns the IP if open, null otherwise. No TLS, no HTTP — just TCP SYN.
+  Future<String?> _tcpCheck(String ip) async {
+    try {
+      final socket = await Socket.connect(
+        ip,
+        AppConstants.apiPort,
+        timeout: const Duration(milliseconds: 800),
+      );
+      socket.destroy();
+      return ip;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── Single-host HTTPS probe ─────────────────────────────────────────────
+
+  /// Probe a single IP for the AiHomeCloud root endpoint via HTTPS.
+  /// Returns null if not our service or unreachable.
   Future<DiscoveredHost?> _probeService(String ip) async {
     final client = HttpClient()
-      ..connectionTimeout = const Duration(milliseconds: 1500)
+      ..connectionTimeout = const Duration(seconds: 4)
       ..badCertificateCallback = (_, __, ___) => true; // self-signed OK
 
     try {
       final req = await client
           .getUrl(Uri.parse(
               '${AppConstants.apiScheme}://$ip:${AppConstants.apiPort}/'))
-          .timeout(const Duration(seconds: 2));
-      final resp = await req.close().timeout(const Duration(seconds: 2));
+          .timeout(const Duration(seconds: 5));
+      final resp = await req.close().timeout(const Duration(seconds: 5));
 
       if (resp.statusCode != 200) {
         await resp.drain<void>();
@@ -222,7 +247,7 @@ class NetworkScanner {
       final json = jsonDecode(body) as Map<String, dynamic>;
 
       if (!_recognizedServiceNames.contains(json['service'])) {
-        return null; // Not our service — ignore entirely.
+        return null;
       }
 
       return DiscoveredHost(
@@ -232,7 +257,7 @@ class NetworkScanner {
         serial: json['serial'] as String?,
       );
     } catch (_) {
-      return null; // Unreachable, port closed, TLS error, etc.
+      return null;
     } finally {
       client.close();
     }
