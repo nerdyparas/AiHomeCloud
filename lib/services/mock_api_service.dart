@@ -233,8 +233,8 @@ class MockApiService {
     return const [
       ServiceInfo(
           id: 'samba',
-          name: 'Samba (SMB)',
-          description: 'Windows file sharing',
+          name: 'TV & Computer Sharing',
+          description: 'Share files with your TV and computer',
           isEnabled: true,
           icon: Icons.desktop_windows_rounded),
       ServiceInfo(
@@ -251,8 +251,8 @@ class MockApiService {
           icon: Icons.terminal_rounded),
       ServiceInfo(
           id: 'dlna',
-          name: 'DLNA',
-          description: 'Media streaming to smart TVs',
+          name: 'Smart TV Streaming',
+          description: 'Stream photos and videos to your TV',
           isEnabled: true,
           icon: Icons.tv_rounded),
     ];

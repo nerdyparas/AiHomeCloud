@@ -161,5 +161,7 @@ async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
             await asyncio.sleep(2)
     except WebSocketDisconnect:
         pass
+    except asyncio.CancelledError:
+        pass
     except Exception:
         await ws.close()

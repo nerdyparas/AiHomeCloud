@@ -3,12 +3,15 @@ Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
 
 import hmac
+import logging
 import time
 from typing import Dict, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..limiter import limiter
+
+logger = logging.getLogger("cubie.auth")
 
 # In-memory account lockout: IP → (fail_count, lockout_until_timestamp)
 _failed_logins: Dict[str, Tuple[int, float]] = {}
@@ -70,13 +73,14 @@ async def get_pairing_qr():
     expires_at = int((datetime.now(timezone.utc) + timedelta(seconds=300)).timestamp())
     await store.save_otp(otp_hash, expires_at)
 
-    qr_value = (
-        f"cubie://pair"
-        f"?serial={serial}"
-        f"&key={key}"
-        f"&host={host}"
-        f"&expiresAt={expires_at}"
-    )
+    from urllib.parse import urlencode
+    params = {
+        "serial": serial,
+        "key": key,
+        "host": host,
+        "expiresAt": str(expires_at),
+    }
+    qr_value = "cubie://pair?" + urlencode(params)
 
     return {
         "qrValue": qr_value,
@@ -228,8 +232,8 @@ async def login(request: Request, body: LoginRequest):
     if str(stored_pin).startswith("$2"):
         ok = await verify_password(body.pin, stored_pin)
     else:
-        # Legacy plaintext pin compatibility — constant-time compare
-        ok = hmac.compare_digest(body.pin.encode(), str(stored_pin).encode())
+        logger.warning("Non-bcrypt PIN found for user %s — rejecting", body.name)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     if not ok:
         _record_failure(client_ip)

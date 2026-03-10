@@ -247,7 +247,9 @@ def _validate_trash_path(trash_path_str: str) -> Path:
     """Ensure a stored trash_path is actually inside trash_dir (prevents metadata tampering)."""
     p = Path(trash_path_str).resolve()
     trash_resolved = settings.trash_dir.resolve()
-    if p != trash_resolved and not str(p).startswith(str(trash_resolved) + os.sep):
+    try:
+        p.relative_to(trash_resolved)
+    except ValueError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid trash path")
     return p
 
@@ -395,7 +397,9 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
     new_path = resolved.parent / safe_new_name
     # Verify new path is still inside NAS root
     nas_resolved = settings.nas_root.resolve()
-    if new_path.resolve() != nas_resolved and not str(new_path.resolve()).startswith(str(nas_resolved) + os.sep):
+    try:
+        new_path.resolve().relative_to(nas_resolved)
+    except ValueError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
     if new_path.exists():
         raise HTTPException(status.HTTP_409_CONFLICT, "A file with that name already exists")
