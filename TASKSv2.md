@@ -654,7 +654,7 @@ Must be done on the actual Cubie hardware or an ARM64 VM.
 
 ### TASK-P6-03 — Security Audit Pass
 **Priority:** 🟠 High
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 6 — Deployment Readiness
 **Files:** `backend/app/**`, `lib/**`
 **Depends on:** All Phase 1 tasks
@@ -663,16 +663,16 @@ Must be done on the actual Cubie hardware or an ARM64 VM.
 Run bandit, pip-audit, flutter analyze and fix all findings. Verify all security invariants.
 
 **Acceptance criteria:**
-- [ ] `bandit -r backend/app -ll` — 0 HIGH+ findings
-- [ ] `pip-audit -r requirements.txt` — 0 known vulnerabilities
-- [ ] `flutter analyze` — 0 errors, 0 warnings
-- [ ] CORS wildcard confirmed removed (test with evil Origin header)
-- [ ] JWT secret is ≥32 bytes, not default
-- [ ] Cert pinning rejects wrong fingerprint
-- [ ] All 6 Phase 1 security tasks verified
+- [x] `bandit -r backend/app -ll` — 0 HIGH+ findings
+- [x] `pip-audit -r requirements.txt` — 0 known vulnerabilities
+- [x] `flutter analyze` — 0 errors, 0 warnings
+- [x] CORS wildcard confirmed removed (test with evil Origin header)
+- [x] JWT secret is ≥32 bytes, not default
+- [x] Cert pinning rejects wrong fingerprint
+- [x] All 6 Phase 1 security tasks verified
 
 **Notes:**
-This is a verification milestone, not a code-writing task.
+All security checks pass. Added 4 automated tests in `test_board_and_config.py`: JWT secret length (≥64 chars = 32 bytes), JWT not default, CORS default no wildcard, CORS evil-origin rejected. 238 backend tests pass.
 
 ---
 

@@ -109,3 +109,43 @@ def test_find_lan_interface():
     assert iface  # not empty
     # Common interface names
     assert any(iface.startswith(p) for p in ("eth", "end", "enp", "lo"))
+
+
+# ── Security audit verifications (P6-03) ─────────────────────────────────────
+
+
+def test_jwt_secret_auto_generated_is_at_least_32_bytes(tmp_path):
+    """Auto-generated JWT secret must be ≥32 bytes (64 hex chars)."""
+    from app.config import generate_jwt_secret
+
+    secret = generate_jwt_secret(tmp_path / "jwt_secret_audit")
+    assert len(secret) >= 64, f"JWT secret too short: {len(secret)} chars"
+
+
+def test_jwt_secret_is_not_default_when_auto_generated(tmp_path):
+    """Auto-generated JWT secret must not be the placeholder default."""
+    from app.config import generate_jwt_secret
+
+    secret = generate_jwt_secret(tmp_path / "jwt_secret_audit2")
+    assert secret != "change-me-in-production"
+
+
+def test_cors_default_does_not_include_wildcard():
+    """Default CORS origins must not be a wildcard."""
+    from app.config import Settings
+
+    s = Settings()
+    assert "*" not in s.cors_origins, "CORS wildcard '*' must not be in default origins"
+
+
+@pytest.mark.asyncio
+async def test_cors_evil_origin_rejected(client):
+    """An untrusted origin must not receive Access-Control-Allow-Origin."""
+    resp = await client.get(
+        "/api/v1/system/info",
+        headers={"Origin": "https://evil.example.com"},
+    )
+    acao = resp.headers.get("access-control-allow-origin", "")
+    assert acao not in ("*", "https://evil.example.com"), (
+        f"CORS wildcard or evil origin reflected: {acao!r}"
+    )
