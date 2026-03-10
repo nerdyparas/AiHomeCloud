@@ -635,7 +635,7 @@ These are systemd unit names. The existing service start/stop infrastructure han
 
 ### TASK-P6-02 — ARM64 pip-compile for Requirements
 **Priority:** 🟢 Low
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 6 — Deployment Readiness
 **Files:** `backend/requirements.txt`
 **Depends on:** none
