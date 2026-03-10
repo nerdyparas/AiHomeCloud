@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:multicast_dns/multicast_dns.dart';
+
 import '../core/constants.dart';
 
 const _recognizedServiceNames = {'CubieCloud', 'AiHomeCloud'};
 
-/// A discovered host on the local network.
+/// A discovered AiHomeCloud device on the local network.
 class DiscoveredHost {
   final String ip;
   final String? hostname;
@@ -23,40 +25,45 @@ class DiscoveredHost {
   });
 }
 
-/// Scans the local /24 subnet for devices and identifies CubieCloud backends.
+/// Fast, service-based network scanner.
+///
+/// Discovery strategy (ordered by speed):
+///   1. **mDNS** — query `_cubie-nas._tcp` for instant results (~1-2 s)
+///   2. **Subnet sweep** — parallel HTTP probes on port 8443 to the root
+///      endpoint, checking the `service` field for AiHomeCloud identity
+///
+/// Only AiHomeCloud backends are returned. Random hosts with port 8443 open
+/// are silently ignored. This is hardware-agnostic — any board running the
+/// backend (Radxa, RPi, x86, etc.) will be discovered.
 class NetworkScanner {
   NetworkScanner._();
   static final NetworkScanner instance = NetworkScanner._();
 
   /// Discover the local Wi-Fi/LAN IP.
   ///
-  /// Strategy 1 — routing trick: open a TCP socket toward a well-known
-  /// external IP; the OS selects the correct outbound interface and we read
-  /// back [Socket.address]. No data is actually sent because we destroy the
-  /// socket immediately after reading the address.
+  /// Strategy 1 — routing trick: open a raw TCP socket toward a well-known
+  /// external IP (8.8.8.8); the OS selects the correct outbound interface
+  /// and we read back the *local* address. No data is sent.
   ///
   /// Strategy 2 — interface enumeration fallback: walk [NetworkInterface.list]
-  /// sorted to prefer `wlan`/`eth` over virtual interfaces (USB tethering,
-  /// Wi-Fi Direct, rmnet, dummy, tun, etc.) and skip reserved/virtual address
-  /// ranges (`169.254.*`, `192.0.0.*`, `100.64.*`).
+  /// sorted to prefer wlan/eth over virtual interfaces and skip reserved
+  /// address ranges.
   Future<String?> getLocalIp() async {
     // Strategy 1: routing trick — most reliable on Android/iOS.
-    // RawSocket.address returns the LOCAL address (unlike Socket.address which
-    // returns the remote address). No data is actually sent.
     try {
       final raw = await RawSocket.connect(
         '8.8.8.8',
         443,
         timeout: const Duration(seconds: 2),
       );
-      final ip = raw.address.address; // RawSocket.address == local address
+      final ip = raw.address.address;
       raw.close();
       if (ip.isNotEmpty && ip != '0.0.0.0') return ip;
     } catch (_) {
-      // No internet path – fall through to interface enumeration
+      // No internet path — fall through to interface enumeration.
     }
 
-    // Strategy 2: interface enumeration, filtered and sorted
+    // Strategy 2: interface enumeration, filtered and sorted.
     try {
       final interfaces = await NetworkInterface.list(
         type: InternetAddressType.IPv4,
@@ -67,7 +74,7 @@ class NetworkScanner {
         final n = iface.name.toLowerCase();
         if (n.startsWith('wlan') || n.startsWith('wifi')) return 0;
         if (n.startsWith('en') || n.startsWith('eth')) return 1;
-        return 10; // virtual: rmnet, dummy, p2p, tun, usb, ccmni, v4-, etc.
+        return 10;
       }
 
       final sorted = [...interfaces]
@@ -77,9 +84,9 @@ class NetworkScanner {
         for (final addr in iface.addresses) {
           final ip = addr.address;
           if (addr.isLoopback) continue;
-          if (ip.startsWith('169.254.')) continue; // link-local (APIPA)
-          if (ip.startsWith('192.0.0.')) continue; // IANA DS-Lite reserved
-          if (ip.startsWith('100.64.')) continue;  // CGNAT shared space
+          if (ip.startsWith('169.254.')) continue;
+          if (ip.startsWith('192.0.0.')) continue;
+          if (ip.startsWith('100.64.')) continue;
           return ip;
         }
       }
@@ -88,124 +95,146 @@ class NetworkScanner {
     return null;
   }
 
-  /// Get the /24 subnet prefix from a local IP address.
-  /// e.g. "192.168.0.105" → "192.168.0."
+  // ── mDNS fast path ──────────────────────────────────────────────────────
+
+  /// Try mDNS service discovery for up to [timeout].
+  /// Returns all AiHomeCloud devices found during that window.
+  Future<List<DiscoveredHost>> _mdnsDiscover({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    final results = <DiscoveredHost>[];
+    final MDnsClient client = MDnsClient();
+
+    try {
+      await client.start();
+
+      await for (final PtrResourceRecord ptr in client
+          .lookup<PtrResourceRecord>(
+            ResourceRecordQuery.serverPointer(AppConstants.mdnsType),
+          )
+          .timeout(timeout, onTimeout: (sink) => sink.close())) {
+        await for (final SrvResourceRecord srv in client
+            .lookup<SrvResourceRecord>(
+              ResourceRecordQuery.service(ptr.domainName),
+            )
+            .timeout(const Duration(seconds: 2), onTimeout: (sink) => sink.close())) {
+          await for (final IPAddressResourceRecord ip in client
+              .lookup<IPAddressResourceRecord>(
+                ResourceRecordQuery.addressIPv4(srv.target),
+              )
+              .timeout(const Duration(seconds: 2), onTimeout: (sink) => sink.close())) {
+            // We found an mDNS-advertised device — verify it's ours via HTTP.
+            final host = await _probeService(ip.address.address);
+            if (host != null) results.add(host);
+          }
+        }
+      }
+    } catch (_) {
+      // mDNS unavailable or timed out — that's fine, subnet scan follows.
+    } finally {
+      try { client.stop(); } catch (_) {}
+    }
+
+    return results;
+  }
+
+  // ── Subnet sweep ────────────────────────────────────────────────────────
+
   String _subnetPrefix(String ip) {
     final parts = ip.split('.');
     return '${parts[0]}.${parts[1]}.${parts[2]}.';
   }
 
-  /// Scan the local /24 subnet for hosts with port [AppConstants.apiPort]
-  /// open, then probe for CubieCloud health endpoint.
+  /// Full scan: mDNS first (fast), then subnet sweep for anything not yet found.
   ///
-  /// [onFound] is called each time a host is discovered (for live UI updates).
-  /// [onProgress] is called with (scanned, total) for progress tracking.
+  /// Only AiHomeCloud backends are yielded. Random hosts are silently skipped.
   Stream<DiscoveredHost> scanNetwork({
     void Function(int scanned, int total)? onProgress,
   }) async* {
     final localIp = await getLocalIp();
     if (localIp == null) return;
 
+    final found = <String>{}; // IPs already yielded — dedup across phases.
+
+    // ── Phase 1: mDNS (instant) ──────────────────────────────────────────
+    final mdnsHosts = await _mdnsDiscover();
+    for (final h in mdnsHosts) {
+      found.add(h.ip);
+      yield h;
+    }
+
+    // ── Phase 2: parallel subnet sweep ───────────────────────────────────
     final prefix = _subnetPrefix(localIp);
     const total = 254;
     int scanned = 0;
 
-    // Scan in batches to avoid overwhelming the network
-    const batchSize = 30;
+    // Higher concurrency + short timeouts for Fing-like speed.
+    const batchSize = 50;
 
     for (int batchStart = 1; batchStart <= total; batchStart += batchSize) {
-      final batchEnd =
-          (batchStart + batchSize - 1).clamp(1, total);
+      final batchEnd = (batchStart + batchSize - 1).clamp(1, total);
       final futures = <Future<DiscoveredHost?>>[];
 
       for (int i = batchStart; i <= batchEnd; i++) {
         final ip = '$prefix$i';
-        futures.add(_probeHost(ip));
+        if (found.contains(ip)) {
+          // Already found via mDNS — skip.
+          continue;
+        }
+        futures.add(_probeService(ip));
       }
 
       final results = await Future.wait(futures);
-      scanned += results.length;
+      scanned = batchEnd.clamp(0, total);
       onProgress?.call(scanned, total);
 
       for (final host in results) {
-        if (host != null) yield host;
+        if (host != null && !found.contains(host.ip)) {
+          found.add(host.ip);
+          yield host;
+        }
       }
     }
   }
 
-  /// Try to connect to the CubieCloud API port and check the health endpoint.
-  Future<DiscoveredHost?> _probeHost(String ip) async {
-    try {
-      // Quick TCP connect check
-      final socket = await Socket.connect(
-        ip,
-        AppConstants.apiPort,
-        timeout: const Duration(milliseconds: 800),
-      );
-      socket.destroy();
+  // ── Single-host probe ───────────────────────────────────────────────────
 
-      // Port is open — probe for CubieCloud health endpoint
-      return await _probeCubieApi(ip);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Hit the CubieCloud health endpoint to verify it's our backend.
-  Future<DiscoveredHost> _probeCubieApi(String ip) async {
+  /// Probe a single IP for the AiHomeCloud root endpoint.
+  /// Returns null if the host is unreachable, port closed, or not our service.
+  Future<DiscoveredHost?> _probeService(String ip) async {
     final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 2)
+      ..connectionTimeout = const Duration(milliseconds: 1500)
       ..badCertificateCallback = (_, __, ___) => true; // self-signed OK
 
     try {
-      // Try health endpoint first
-      final healthReq = await client
+      final req = await client
           .getUrl(Uri.parse(
-              '${AppConstants.apiScheme}://$ip:${AppConstants.apiPort}/api/health'))
-          .timeout(const Duration(seconds: 3));
-      final healthResp =
-          await healthReq.close().timeout(const Duration(seconds: 3));
+              '${AppConstants.apiScheme}://$ip:${AppConstants.apiPort}/'))
+          .timeout(const Duration(seconds: 2));
+      final resp = await req.close().timeout(const Duration(seconds: 2));
 
-      if (healthResp.statusCode == 200) {
-        await healthResp.drain<void>();
-        // Try to get device info
-        String? deviceName;
-        String? serial;
-        try {
-          final rootReq = await client
-              .getUrl(Uri.parse(
-                  '${AppConstants.apiScheme}://$ip:${AppConstants.apiPort}/'))
-              .timeout(const Duration(seconds: 2));
-          final rootResp =
-              await rootReq.close().timeout(const Duration(seconds: 2));
-          if (rootResp.statusCode == 200) {
-            final rootBody =
-                await rootResp.transform(utf8.decoder).join();
-            final json = jsonDecode(rootBody) as Map<String, dynamic>;
-            if (_recognizedServiceNames.contains(json['service'])) {
-              deviceName = json['deviceName'] as String?;
-              serial = json['serial'] as String?;
-            }
-          }
-        } catch (_) {
-          // Root endpoint info is optional
-        }
-        client.close();
-        return DiscoveredHost(
-          ip: ip,
-          isCubie: true,
-          deviceName: deviceName ?? 'CubieCloud',
-          serial: serial,
-        );
+      if (resp.statusCode != 200) {
+        await resp.drain<void>();
+        return null;
       }
 
-      client.close();
-      // Port open but not CubieCloud
-      return DiscoveredHost(ip: ip, isCubie: false);
+      final body = await resp.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+
+      if (!_recognizedServiceNames.contains(json['service'])) {
+        return null; // Not our service — ignore entirely.
+      }
+
+      return DiscoveredHost(
+        ip: ip,
+        isCubie: true,
+        deviceName: json['deviceName'] as String? ?? 'AiHomeCloud',
+        serial: json['serial'] as String?,
+      );
     } catch (_) {
+      return null; // Unreachable, port closed, TLS error, etc.
+    } finally {
       client.close();
-      // Port open but health check failed — still show as a host
-      return DiscoveredHost(ip: ip, isCubie: false);
     }
   }
 }

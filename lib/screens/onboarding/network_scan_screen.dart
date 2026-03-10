@@ -64,12 +64,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
     await for (final host in stream) {
       if (!mounted) return;
       setState(() {
-        // Insert Cubie devices at the top
-        if (host.isCubie) {
-          _hosts.insert(0, host);
-        } else {
-          _hosts.add(host);
-        }
+        _hosts.add(host);
       });
     }
 
@@ -142,8 +137,6 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cubieHosts = _hosts.where((h) => h.isCubie).toList();
-    final otherHosts = _hosts.where((h) => !h.isCubie).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -187,7 +180,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                         ),
                         if (_localIp != null)
                           Text(
-                            'Scanning from $_localIp',
+                            'Your network: $_localIp',
                             style: GoogleFonts.dmSans(
                               color: AppColors.textSecondary,
                               fontSize: 13,
@@ -279,28 +272,16 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    // CubieCloud devices section
-                    if (cubieHosts.isNotEmpty) ...[
-                      _sectionHeader('AiHomeCloud Devices'),
+                    if (_hosts.isNotEmpty) ...[
+                      _sectionHeader('Devices Found'),
                       const SizedBox(height: 8),
-                      ...cubieHosts.map((h) => _DeviceTile(
+                      ..._hosts.map((h) => _DeviceTile(
                             host: h,
                             isConnecting: _connectingIp == h.ip,
                             onTap: () => _selectDevice(h),
                           ).animate().fadeIn(duration: 300.ms).slideX(
                               begin: 0.05, end: 0)),
                       const SizedBox(height: 24),
-                    ],
-
-                    // Other devices section
-                    if (otherHosts.isNotEmpty) ...[
-                      _sectionHeader('Other Devices'),
-                      const SizedBox(height: 8),
-                      ...otherHosts.map((h) => _DeviceTile(
-                            host: h,
-                            isConnecting: false,
-                            onTap: null,
-                          )),
                     ],
                   ],
                 ),
@@ -368,8 +349,6 @@ class _DeviceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCubie = host.isCubie;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -383,9 +362,7 @@ class _DeviceTile extends StatelessWidget {
               color: AppColors.card,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isCubie
-                    ? AppColors.primary.withValues(alpha: 0.4)
-                    : AppColors.cardBorder,
+                color: AppColors.primary.withValues(alpha: 0.4),
               ),
             ),
             child: Row(
@@ -395,18 +372,12 @@ class _DeviceTile extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: isCubie
-                        ? AppColors.primary.withValues(alpha: 0.15)
-                        : AppColors.surface,
+                    color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    isCubie
-                        ? Icons.cloud_rounded
-                        : Icons.devices_other_rounded,
-                    color: isCubie
-                        ? AppColors.primary
-                        : AppColors.textMuted,
+                  child: const Icon(
+                    Icons.cloud_rounded,
+                    color: AppColors.primary,
                     size: 22,
                   ),
                 ),
@@ -418,21 +389,16 @@ class _DeviceTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isCubie
-                            ? (host.deviceName ?? 'AiHomeCloud')
-                            : host.ip,
+                        host.deviceName ?? 'AiHomeCloud',
                         style: GoogleFonts.dmSans(
                           color: AppColors.textPrimary,
                           fontSize: 15,
-                          fontWeight:
-                              isCubie ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isCubie
-                            ? host.ip
-                            : 'Port ${AppConstants.apiPort} open',
+                        host.ip,
                         style: GoogleFonts.dmSans(
                           color: AppColors.textSecondary,
                           fontSize: 12,
@@ -443,7 +409,7 @@ class _DeviceTile extends StatelessWidget {
                 ),
 
                 // Action
-                if (isCubie && !isConnecting)
+                if (!isConnecting)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -468,12 +434,6 @@ class _DeviceTile extends StatelessWidget {
                       strokeWidth: 2,
                       color: AppColors.primary,
                     ),
-                  ),
-                if (!isCubie)
-                  Icon(
-                    Icons.block_rounded,
-                    color: AppColors.textMuted.withValues(alpha: 0.5),
-                    size: 18,
                   ),
               ],
             ),

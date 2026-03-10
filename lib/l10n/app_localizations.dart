@@ -613,7 +613,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerTitle.
   ///
   /// In en, this message translates to:
-  /// **'Storage Devices'**
+  /// **'Storage'**
   String get storageExplorerTitle;
 
   /// No description provided for @storageExplorerScanTooltip.
@@ -649,7 +649,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerConnectPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Connect a USB drive or NVMe SSD'**
+  /// **'Connect a USB drive or storage device'**
   String get storageExplorerConnectPrompt;
 
   /// No description provided for @storageExplorerScanning.
@@ -667,49 +667,49 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerMounted.
   ///
   /// In en, this message translates to:
-  /// **'{name} activated as NAS storage'**
+  /// **'{name} is ready to use'**
   String storageExplorerMounted(String name);
 
   /// No description provided for @storageExplorerMountFailed.
   ///
   /// In en, this message translates to:
-  /// **'Activate failed: {error}'**
+  /// **'Could not connect storage: {error}'**
   String storageExplorerMountFailed(String error);
 
   /// No description provided for @storageExplorerUnmounted.
   ///
   /// In en, this message translates to:
-  /// **'Storage safely removed'**
+  /// **'Storage stopped and ready to remove'**
   String get storageExplorerUnmounted;
 
   /// No description provided for @storageExplorerUnmountFailed.
   ///
   /// In en, this message translates to:
-  /// **'Remove failed: {error}'**
+  /// **'Could not stop using storage: {error}'**
   String storageExplorerUnmountFailed(String error);
 
   /// No description provided for @storageExplorerEjected.
   ///
   /// In en, this message translates to:
-  /// **'{name} safely ejected — you can remove it'**
+  /// **'{name} is safe to unplug'**
   String storageExplorerEjected(String name);
 
   /// No description provided for @storageExplorerEjectFailed.
   ///
   /// In en, this message translates to:
-  /// **'Eject failed: {error}'**
+  /// **'Could not remove storage safely: {error}'**
   String storageExplorerEjectFailed(String error);
 
   /// No description provided for @storageExplorerFormatTitle.
   ///
   /// In en, this message translates to:
-  /// **'Format Device'**
+  /// **'Prepare Device'**
   String get storageExplorerFormatTitle;
 
   /// No description provided for @storageExplorerFormatWarning.
   ///
   /// In en, this message translates to:
-  /// **'This will ERASE ALL DATA on {name} ({size}).\nThis cannot be undone.'**
+  /// **'All files on {name} ({size}) will be permanently deleted.\nThis cannot be undone.'**
   String storageExplorerFormatWarning(String name, String size);
 
   /// No description provided for @storageExplorerVolumeLabel.
@@ -721,7 +721,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerVolumeLabelHint.
   ///
   /// In en, this message translates to:
-  /// **'CubieNAS'**
+  /// **'AiHomeNAS'**
   String get storageExplorerVolumeLabelHint;
 
   /// No description provided for @storageExplorerTypeToConfirm.
@@ -739,7 +739,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerFormatFailed.
   ///
   /// In en, this message translates to:
-  /// **'Format failed: {error}'**
+  /// **'Could not prepare device: {error}'**
   String storageExplorerFormatFailed(String error);
 
   /// No description provided for @storageExplorerFilesInUse.
@@ -751,79 +751,79 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerBlockersMessage.
   ///
   /// In en, this message translates to:
-  /// **'{count} process(es) have open files on the NAS:'**
+  /// **'{count} app(s) are still using this storage:'**
   String storageExplorerBlockersMessage(int count);
 
   /// No description provided for @storageExplorerForceUnmount.
   ///
   /// In en, this message translates to:
-  /// **'Force Remove'**
+  /// **'Remove Anyway'**
   String get storageExplorerForceUnmount;
 
   /// No description provided for @storageActionUnmount.
   ///
   /// In en, this message translates to:
-  /// **'Safely Remove'**
+  /// **'Stop using'**
   String get storageActionUnmount;
 
   /// No description provided for @storageActionSafeRemove.
   ///
   /// In en, this message translates to:
-  /// **'Safe Remove'**
+  /// **'Remove safely'**
   String get storageActionSafeRemove;
 
   /// No description provided for @storageActionMount.
   ///
   /// In en, this message translates to:
-  /// **'Activate'**
+  /// **'Connect'**
   String get storageActionMount;
 
   /// No description provided for @storageActionFormat.
   ///
   /// In en, this message translates to:
-  /// **'Format'**
+  /// **'Prepare device'**
   String get storageActionFormat;
 
   /// No description provided for @storageActionEject.
   ///
   /// In en, this message translates to:
-  /// **'Eject'**
+  /// **'Remove safely'**
   String get storageActionEject;
 
   /// No description provided for @safeRemoveTitle.
   ///
   /// In en, this message translates to:
-  /// **'Safe Remove'**
+  /// **'Remove safely'**
   String get safeRemoveTitle;
 
   /// No description provided for @safeRemoveDescription.
   ///
   /// In en, this message translates to:
-  /// **'This will stop NAS services, unmount {name}, and power off the USB port.\n\nMake sure all transfers are complete.'**
+  /// **'We will stop sharing, disconnect {name}, and make it safe to unplug.\n\nMake sure all transfers are complete first.'**
   String safeRemoveDescription(String name);
 
   /// No description provided for @safeRemoveStepStopServices.
   ///
   /// In en, this message translates to:
-  /// **'Stop file sharing services'**
+  /// **'Stop sharing'**
   String get safeRemoveStepStopServices;
 
   /// No description provided for @safeRemoveStepFlushWrites.
   ///
   /// In en, this message translates to:
-  /// **'Flush writes & unmount'**
+  /// **'Finish pending transfers'**
   String get safeRemoveStepFlushWrites;
 
   /// No description provided for @safeRemoveStepPowerOff.
   ///
   /// In en, this message translates to:
-  /// **'Power off USB port'**
+  /// **'Make it safe to unplug'**
   String get safeRemoveStepPowerOff;
 
   /// No description provided for @safeRemoveEjectNow.
   ///
   /// In en, this message translates to:
-  /// **'Eject Now'**
+  /// **'Remove safely'**
   String get safeRemoveEjectNow;
 
   /// No description provided for @filePreviewDownloadTooltip.

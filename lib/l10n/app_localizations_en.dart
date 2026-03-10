@@ -293,7 +293,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get storageExplorerTitle => 'Storage Devices';
+  String get storageExplorerTitle => 'Storage';
 
   @override
   String get storageExplorerScanTooltip => 'Scan for devices';
@@ -311,7 +311,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageExplorerNoDevices => 'No external storage detected';
 
   @override
-  String get storageExplorerConnectPrompt => 'Connect a USB drive or NVMe SSD';
+  String get storageExplorerConnectPrompt =>
+      'Connect a USB drive or storage device';
 
   @override
   String get storageExplorerScanning => 'Scanning…';
@@ -321,45 +322,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String storageExplorerMounted(String name) {
-    return '$name activated as NAS storage';
+    return '$name is ready to use';
   }
 
   @override
   String storageExplorerMountFailed(String error) {
-    return 'Activate failed: $error';
+    return 'Could not connect storage: $error';
   }
 
   @override
-  String get storageExplorerUnmounted => 'Storage safely removed';
+  String get storageExplorerUnmounted => 'Storage stopped and ready to remove';
 
   @override
   String storageExplorerUnmountFailed(String error) {
-    return 'Remove failed: $error';
+    return 'Could not stop using storage: $error';
   }
 
   @override
   String storageExplorerEjected(String name) {
-    return '$name safely ejected — you can remove it';
+    return '$name is safe to unplug';
   }
 
   @override
   String storageExplorerEjectFailed(String error) {
-    return 'Eject failed: $error';
+    return 'Could not remove storage safely: $error';
   }
 
   @override
-  String get storageExplorerFormatTitle => 'Format Device';
+  String get storageExplorerFormatTitle => 'Prepare Device';
 
   @override
   String storageExplorerFormatWarning(String name, String size) {
-    return 'This will ERASE ALL DATA on $name ($size).\nThis cannot be undone.';
+    return 'All files on $name ($size) will be permanently deleted.\nThis cannot be undone.';
   }
 
   @override
   String get storageExplorerVolumeLabel => 'Volume label';
 
   @override
-  String get storageExplorerVolumeLabelHint => 'CubieNAS';
+  String get storageExplorerVolumeLabelHint => 'AiHomeNAS';
 
   @override
   String storageExplorerTypeToConfirm(String path) {
@@ -373,7 +374,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String storageExplorerFormatFailed(String error) {
-    return 'Format failed: $error';
+    return 'Could not prepare device: $error';
   }
 
   @override
@@ -381,46 +382,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String storageExplorerBlockersMessage(int count) {
-    return '$count process(es) have open files on the NAS:';
+    return '$count app(s) are still using this storage:';
   }
 
   @override
-  String get storageExplorerForceUnmount => 'Force Remove';
+  String get storageExplorerForceUnmount => 'Remove Anyway';
 
   @override
-  String get storageActionUnmount => 'Safely Remove';
+  String get storageActionUnmount => 'Stop using';
 
   @override
-  String get storageActionSafeRemove => 'Safe Remove';
+  String get storageActionSafeRemove => 'Remove safely';
 
   @override
-  String get storageActionMount => 'Activate';
+  String get storageActionMount => 'Connect';
 
   @override
-  String get storageActionFormat => 'Format';
+  String get storageActionFormat => 'Prepare device';
 
   @override
-  String get storageActionEject => 'Eject';
+  String get storageActionEject => 'Remove safely';
 
   @override
-  String get safeRemoveTitle => 'Safe Remove';
+  String get safeRemoveTitle => 'Remove safely';
 
   @override
   String safeRemoveDescription(String name) {
-    return 'This will stop NAS services, unmount $name, and power off the USB port.\n\nMake sure all transfers are complete.';
+    return 'We will stop sharing, disconnect $name, and make it safe to unplug.\n\nMake sure all transfers are complete first.';
   }
 
   @override
-  String get safeRemoveStepStopServices => 'Stop file sharing services';
+  String get safeRemoveStepStopServices => 'Stop sharing';
 
   @override
-  String get safeRemoveStepFlushWrites => 'Flush writes & unmount';
+  String get safeRemoveStepFlushWrites => 'Finish pending transfers';
 
   @override
-  String get safeRemoveStepPowerOff => 'Power off USB port';
+  String get safeRemoveStepPowerOff => 'Make it safe to unplug';
 
   @override
-  String get safeRemoveEjectNow => 'Eject Now';
+  String get safeRemoveEjectNow => 'Remove safely';
 
   @override
   String get filePreviewDownloadTooltip => 'Download';
