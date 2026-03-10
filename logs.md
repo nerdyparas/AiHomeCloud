@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-03-10 — Onboarding UI merge + network scanner bug fix
+
+### What was done
+
+#### Onboarding: merged splash + welcome into single screen
+- Removed the two-step flow (splash loader → separate welcome screen) in favour of a single page at `/`
+- `splash_screen.dart` now contains the full onboarding UI: illustration, title ("AiHomeCloud"), subtitle, and CTA button
+- Animation timeline: illustration scales in (0 ms), title slides up (300 ms delay), subtitle fades in (600 ms delay), button fades/slides up at **1 500 ms** (after all animations complete)
+- Button text changed **"Find My Cubie" → "Find My AiHomeCloud"**
+- Absorbed `_Illustration` widget from `welcome_screen.dart` directly into `splash_screen.dart`
+- If already authenticated the screen auto-navigates to `/dashboard` after 800 ms (unchanged behaviour)
+- `/welcome` route and `WelcomeScreen` import removed from `app_router.dart`; unauthenticated redirect now points to `/` instead of `/welcome`
+
+#### Network scanner: local IP detection bug fix
+- **Root cause:** `Socket.address` in Dart returns the **remote** address, not the local one. Strategy 1 in `getLocalIp()` was connecting to `8.8.8.8` and reading `.address`, which returned `8.8.8.8`. The scanner then derived subnet prefix `8.8.8.` and scanned `8.8.8.1–254` instead of the local Wi-Fi subnet.
+- **Fix:** Replaced `Socket.connect` with `RawSocket.connect`. On a `RawSocket`, `.address` correctly returns the **local** address (e.g. `192.168.0.x`).
+- Renamed local function `_ifaceScore` → `ifaceScore` in Strategy 2 fallback (lint: `no_leading_underscores_for_local_identifiers`)
+- Removed unused `api_service.dart` import from `network_scan_screen.dart`
+- Header text in scan screen changed **"Find Your Cubie" → "Find Your AiHomeCloud"**
+
+### Code changes
+- `lib/screens/onboarding/splash_screen.dart` — full rewrite: merged UI from welcome_screen, delayed button reveal, `RawSocket`-based strategy 1 lives in service layer
+- `lib/screens/onboarding/welcome_screen.dart` — no longer navigated to (kept in repo but unused; route removed)
+- `lib/navigation/app_router.dart` — removed `/welcome` route and `WelcomeScreen` import; redirect guard updated
+- `lib/services/network_scanner.dart` — `getLocalIp()` Strategy 1: `Socket` → `RawSocket`; `_ifaceScore` → `ifaceScore`
+- `lib/screens/onboarding/network_scan_screen.dart` — header title updated; unused import removed
+
+### Commits
+- `f3128cd` — ui: merge splash+welcome into single onboarding screen
+- `47446ad` — fix: correct local IP detection in network scanner
+
+---
+
 ## 2026-03-10 — Phase 10 Hardware Validation (TASK-P10-07 through P10-09)
 
 ### What was done
