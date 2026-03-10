@@ -4,7 +4,7 @@ System routes — device info, firmware, device name, power management.
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..auth import get_current_user, require_admin
 from ..config import settings, get_local_ip
@@ -18,14 +18,17 @@ router = APIRouter(prefix="/api/v1/system", tags=["system"])
 
 
 @router.get("/info", response_model=CubieDevice)
-async def device_info(user: dict = Depends(get_current_user)):
+async def device_info(request: Request, user: dict = Depends(get_current_user)):
     """Return device identity & network info."""
     state = await store.get_device_state()
+    board = getattr(request.app.state, "board", None)
+    board_model = board.model_name if board else "unknown"
     return CubieDevice(
         serial=settings.device_serial,
         name=state.get("name", settings.device_name),
         ip=get_local_ip(),
         firmwareVersion=settings.firmware_version,
+        boardModel=board_model,
     )
 
 

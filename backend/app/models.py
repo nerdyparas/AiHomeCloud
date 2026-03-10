@@ -19,6 +19,7 @@ class CubieDevice(BaseModel):
     name: str
     ip: str
     firmware_version: str = Field(alias="firmwareVersion")
+    board_model: str = Field(default="unknown", alias="boardModel")
 
     model_config = {"populate_by_name": True}
 

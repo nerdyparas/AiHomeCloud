@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-03-10 — Phase 10 Hardware Validation (TASK-P10-02 through P10-06)
+
+### What was done
+- **TASK-P10-02 — Full test suite on ARM64**: `268 passed, 4 skipped, 0 failed` in 100.16s. All backend tests pass on Radxa CUBIE A7A hardware.
+- **TASK-P10-03 — Board detection & system info**: Added `boardModel` field to `CubieDevice` model and wired it into `GET /api/v1/system/info` via `request.app.state.board`. Now returns `"boardModel":"Radxa CUBIE A7A"`. Verified: CPU temp 38.2°C ✅, eth0 UP ✅, uptime 49790s ✅, 7.7GB RAM ✅.
+- **TASK-P10-04 — Storage validation (safe ops)**: Devices list shows sda1 correctly as `isNasActive:true`, `isOsDisk:false`. Storage stats return `{"totalGB":14.6,"usedGB":0.0}`. OS partition format returns HTTP 403. Destructive ops (format/unmount/eject) skipped — sda1 is the active NAS serving `/srv/nas`.
+- **TASK-P10-05 — File pipeline**: Full lifecycle verified. JPG >800KB → Photos/, small JPG with doc keyword → Documents/, PDF → Documents/, MP4 → Videos/. FTS5 search returns indexed file. Download HTTP 200. Soft delete → trash → restore (HTTP 204 each) → permanent delete → file gone.
+- **TASK-P10-06 — Service toggles**: Samba OFF/ON verified (smbd=inactive/active). SSH OFF/ON verified. DLNA stored state toggled (minidlna not installed — API handles gracefully). Service states persist across `systemctl restart cubie-backend`.
+
+### Code changes
+- `backend/app/models.py`: Added `board_model: str = Field(default="unknown", alias="boardModel")` to `CubieDevice`
+- `backend/app/routes/system_routes.py`: Added `Request` import, wired `request.app.state.board.model_name` into `/info` endpoint
+
+### Notes
+- FTS5 search requires `is_admin:true` in JWT token claims for admin-scope search (all paths). Member tokens filter by user_id path prefix.
+- `_CACHE_TTL = 1.0` in `store.py` means trash metadata must be read/restored within 1 second of write; all operations chain correctly in single HTTP request sequences.
+- Stale pytest bind mounts (`sda1` → pytest temp paths) should be cleaned periodically: `mount | grep "sda1.*pytest" | awk '{print $3}' | xargs -r sudo umount`
+
+---
+
 ## 2026-03-10 — Hardware Integration Test (TASK-P6-04)
 
 ### What was done
