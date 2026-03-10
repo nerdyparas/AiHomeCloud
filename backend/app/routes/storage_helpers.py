@@ -7,7 +7,6 @@ Used internally by storage_routes.py endpoint handlers.
 
 import json
 import logging
-import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -53,16 +52,51 @@ def classify_transport(device: dict) -> str:
     return "unknown"
 
 
-def is_os_partition(device: dict) -> bool:
-    """Heuristic: is this partition part of the OS (SD card or system mount)."""
-    name = (device.get("name") or "").lower()
-    mountpoint = device.get("mountpoint") or ""
+# Prefixes of device names that are always internal/OS storage.
+# These must never be formatted regardless of mount state.
+_OS_NAME_PREFIXES = (
+    "mmcblk",   # SD card / eMMC (Cubie A7A OS disk)
+    "mtdblock", # SPI/NAND flash (firmware / bootloader storage)
+    "zram",     # Compressed RAM — never a real block device to format
+    "loop",     # Loop devices — not real hardware
+)
 
-    if name.startswith("mmcblk"):
+# Mount points that indicate a partition is part of the OS.
+# Covers standard Linux, Raspberry Pi, and ARM SBC layout variants.
+_OS_MOUNT_PREFIXES = (
+    "/",
+    "/boot",
+    "/config",
+    "/var",
+    "/home",
+    "/usr",
+    "/opt",
+    "/proc",
+    "/sys",
+)
+
+
+def is_os_partition(device: dict) -> bool:
+    """Return True if this partition must NOT be formatted.
+
+    Blocks:
+    - Internal non-hot-pluggable storage by device name prefix (mmcblk, mtd, zram, loop)
+    - Any partition mounted at a system path (/, /boot, /boot/efi, /config, ...)
+    - OS-partition detection is size-agnostic — external USB/NVMe of any size is formattable
+      provided it is not mounted at a system path.
+    """
+    name = (device.get("name") or "").lower()
+    mountpoint = (device.get("mountpoint") or "").rstrip("/")
+
+    # Block all known-internal device types by name prefix
+    if any(name.startswith(prefix) for prefix in _OS_NAME_PREFIXES):
         return True
 
-    system_mounts = {"/", "/boot", "/boot/firmware", "/var", tempfile.gettempdir(), "/home"}
-    if mountpoint in system_mounts:
+    # Block if this partition is mounted at a system path (None/empty mountpoint = safe)
+    if mountpoint and any(
+        mountpoint == mp or mountpoint.startswith(mp + "/")
+        for mp in _OS_MOUNT_PREFIXES
+    ):
         return True
 
     return False

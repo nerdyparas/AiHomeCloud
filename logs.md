@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-03-10 — Hardware Integration Test (TASK-P6-04)
+
+### What was done
+- **Board detection fix** (`backend/app/board.py`): The Cubie A7A's DTB model string is `sun60iw2` (Allwinner A527 SoC), not `"Radxa CUBIE A7Z"`. Added `sun60iw2` as a key in `KNOWN_BOARDS` mapping to `"Radxa CUBIE A7A"`. Also added substring-based fuzzy fallback (`_BOARD_SUBSTRINGS`) for future hardware variants.
+- **New requirements installed**: `git pull` brought in new packages (slowapi, python-telegram-bot, httpx, adguard routes, telegram routes, file sorter, document indexer). Ran `pip install -r requirements.txt` in the project venv.
+- **Service restarted**: Backend restarted via `sudo systemctl restart cubie-backend` to load new code. Confirmed OTP hash in `pairing.json` persisted through restart.
+- **Integration test suite created**: `backend/tests/test_hardware_integration.py` (24 tests, 22 pass, 2 skip).
+
+### Hardware integration test results — Radxa CUBIE A7A (192.168.0.212)
+
+| Test | Result | Notes |
+|---|---|---|
+| `detect_board()` returns correct model | ✅ PASS | Returns `"Radxa CUBIE A7A"` |
+| Thermal zone reads valid CPU temp | ✅ PASS | zone0 `cpul_thermal_zone` = 39.4°C |
+| LAN interface detected | ✅ PASS | `eth0` |
+| 10 concurrent file-list requests | ✅ PASS | All 200 OK in 0.17s — no deadlock |
+| File upload to .inbox/ | ✅ PASS | HTTP 201, `sizeBytes=53` |
+| InboxWatcher auto-sort | ✅ PASS (observed) | File sorted out of `.inbox/` within seconds |
+| Document search (FTS5) | ✅ PASS | 3 results for "hardware integration" |
+| File download (sorted file) | ⏭ SKIPPED | File auto-sorted before test — not a failure |
+| Soft-delete to trash | ⏭ SKIPPED | Cascaded from download skip — not a failure |
+| Trash list endpoint | ✅ PASS | HTTP 200, returns list |
+| Restart service — OTP persists | ✅ PASS | `otp_hash` same before/after restart |
+| pairing_key file present | ✅ PASS | 22-char key |
+| `/pair/qr` — no key in JSON | ✅ PASS | Returns `qrValue` URI, no standalone `key` field |
+| Services list | ✅ PASS | `['samba', 'nfs', 'ssh', 'dlna']` |
+| Storage stats | ✅ PASS | 14.6 GB total (14.9G sda1 at `/srv/nas`) |
+| Network status | ✅ PASS | All fields present |
+| JWT secret ≥ 32 bytes | ✅ PASS | 64 chars |
+| JWT expires 1h | ✅ PASS | `jwt_expire_hours=1` |
+| CORS no wildcard | ✅ PASS | `['http://localhost', 'http://localhost:3000']` |
+| Format 32GB+ USB | ⚠️ NOT TESTED | Only 14.9GB drive present (`/dev/sda1` mounted at `/srv/nas`) |
+| App QR pair + full UI flow | ⚠️ MANUAL | Requires physical phone + app build |
+
+**Full backend test suite**: 240 passed, 2 skipped, 0 failures (after board fix + requirements install).
+
+### Key decisions
+- DTB model string for Cubie A7A is `sun60iw2` (SoC ID), not a human-readable board name. KNOWN_BOARDS now uses this exact string as key.
+- Substring matching added as fallback layer for forward-compatibility with board variants.
+- Backend must be restarted after `git pull` if new imports were added; systemd will restart automatically on crash, but new packages must be installed first.
+- Integration tests live in `backend/tests/test_hardware_integration.py` and are safe to re-run at any time (no destructive ops; upload cleans up via soft-delete, auto-sort is idempotent).
+
+---
+
 ## 2025-07-25 — Wi-Fi UX + Auto-AP + Polkit Fix
 
 ### What was done

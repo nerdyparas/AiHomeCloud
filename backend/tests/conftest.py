@@ -26,9 +26,9 @@ async def client(tmp_path, monkeypatch):
     from app.main import app
     from app import store
 
-    settings.data_dir = tmp_path
-    settings.nas_root = nas_tmp
-    settings.skip_mount_check = True
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    monkeypatch.setattr(settings, "nas_root", nas_tmp)
+    monkeypatch.setattr(settings, "skip_mount_check", True)
 
     # Clear module-level cache so stale data from previous tests is discarded
     store._cache.clear()

@@ -1,5 +1,5 @@
 """
-Board abstraction layer for multi-SBC support (Cubie A7Z, Raspberry Pi 4, etc).
+Board abstraction layer for multi-SBC support (Cubie A7A, Cubie A7Z, Raspberry Pi 4, etc).
 
 Handles:
 - Board model detection from /proc/device-tree/model
@@ -26,7 +26,16 @@ class BoardConfig:
 
 
 # Known board configurations (thermal_zone_path and lan_interface are auto-detected at runtime)
+# Keys are exact DTB model strings from /proc/device-tree/model
 KNOWN_BOARDS: dict[str, BoardConfig] = {
+    # Radxa CUBIE A7A — Allwinner A527 (sun60iw2) SoC
+    "sun60iw2": BoardConfig(
+        model_name="Radxa CUBIE A7A",
+        thermal_zone_path="",  # Will be overridden by auto-detection
+        lan_interface="",  # Will be overridden by auto-detection
+        cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+    ),
+    # Radxa CUBIE A7Z (Rockchip-based variant)
     "Radxa CUBIE A7Z": BoardConfig(
         model_name="Radxa CUBIE A7Z",
         thermal_zone_path="",  # Will be overridden by auto-detection
@@ -40,6 +49,14 @@ KNOWN_BOARDS: dict[str, BoardConfig] = {
         cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
     ),
 }
+
+# Substring patterns for fuzzy board matching (used when exact DTB string isn't in KNOWN_BOARDS)
+# Maps lowercase substrings → canonical model names in KNOWN_BOARDS
+_BOARD_SUBSTRINGS: list[tuple[str, str]] = [
+    ("sun60iw2", "sun60iw2"),       # Allwinner A527 / Cubie A7A
+    ("cubie a7z", "Radxa CUBIE A7Z"),
+    ("raspberry pi 4", "Raspberry Pi 4 Model B"),
+]
 
 # Fallback default board (thermal_zone_path and lan_interface are auto-detected at runtime)
 DEFAULT_BOARD = BoardConfig(
@@ -187,7 +204,7 @@ def detect_board() -> BoardConfig:
         logger.info("board_detected model_name=%s reason=fallback", board.model_name)
         return board
     
-    # Look up in known boards
+    # Look up in known boards (exact match first)
     if model_name in KNOWN_BOARDS:
         base_board = KNOWN_BOARDS[model_name]
         thermal_zone_path = find_thermal_zone()
@@ -205,6 +222,28 @@ def detect_board() -> BoardConfig:
             board.lan_interface,
         )
         return board
+
+    # Substring / fuzzy match for DTB strings that embed the SoC identifier
+    model_lower = model_name.lower()
+    for substring, known_key in _BOARD_SUBSTRINGS:
+        if substring in model_lower:
+            base_board = KNOWN_BOARDS[known_key]
+            thermal_zone_path = find_thermal_zone()
+            lan_interface = find_lan_interface()
+            board = BoardConfig(
+                model_name=base_board.model_name,
+                thermal_zone_path=thermal_zone_path,
+                lan_interface=lan_interface,
+                cpu_governor_path=base_board.cpu_governor_path,
+            )
+            logger.info(
+                "board_detected model_name=%s dtb_string=%s match=substring thermal_zone=%s lan_interface=%s",
+                board.model_name,
+                model_name,
+                board.thermal_zone_path,
+                board.lan_interface,
+            )
+            return board
     
     # Unknown board, use defaults with auto-detected thermal zone and LAN interface
     thermal_zone_path = find_thermal_zone()
