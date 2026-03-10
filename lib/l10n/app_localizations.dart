@@ -259,7 +259,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageStatusMounted.
   ///
   /// In en, this message translates to:
-  /// **'Mounted'**
+  /// **'Activated'**
   String get storageStatusMounted;
 
   /// No description provided for @storageStatusUnformatted.
@@ -355,7 +355,7 @@ abstract class AppLocalizations {
   /// No description provided for @sharedNetworkInfo.
   ///
   /// In en, this message translates to:
-  /// **'SMB: \\\\cubie-nas\\shared  •  DLNA: CubieCloud Media'**
+  /// **'TV & Computer Sharing  •  Smart TV Streaming'**
   String get sharedNetworkInfo;
 
   /// No description provided for @settingsTitle.
@@ -667,25 +667,25 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerMounted.
   ///
   /// In en, this message translates to:
-  /// **'{name} mounted as NAS storage'**
+  /// **'{name} activated as NAS storage'**
   String storageExplorerMounted(String name);
 
   /// No description provided for @storageExplorerMountFailed.
   ///
   /// In en, this message translates to:
-  /// **'Mount failed: {error}'**
+  /// **'Activate failed: {error}'**
   String storageExplorerMountFailed(String error);
 
   /// No description provided for @storageExplorerUnmounted.
   ///
   /// In en, this message translates to:
-  /// **'Storage unmounted'**
+  /// **'Storage safely removed'**
   String get storageExplorerUnmounted;
 
   /// No description provided for @storageExplorerUnmountFailed.
   ///
   /// In en, this message translates to:
-  /// **'Unmount failed: {error}'**
+  /// **'Remove failed: {error}'**
   String storageExplorerUnmountFailed(String error);
 
   /// No description provided for @storageExplorerEjected.
@@ -733,7 +733,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerFormatted.
   ///
   /// In en, this message translates to:
-  /// **'{name} formatted as ext4'**
+  /// **'{name} prepared for use'**
   String storageExplorerFormatted(String name);
 
   /// No description provided for @storageExplorerFormatFailed.
@@ -757,13 +757,13 @@ abstract class AppLocalizations {
   /// No description provided for @storageExplorerForceUnmount.
   ///
   /// In en, this message translates to:
-  /// **'Force Unmount'**
+  /// **'Force Remove'**
   String get storageExplorerForceUnmount;
 
   /// No description provided for @storageActionUnmount.
   ///
   /// In en, this message translates to:
-  /// **'Unmount'**
+  /// **'Safely Remove'**
   String get storageActionUnmount;
 
   /// No description provided for @storageActionSafeRemove.
@@ -775,7 +775,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageActionMount.
   ///
   /// In en, this message translates to:
-  /// **'Mount'**
+  /// **'Activate'**
   String get storageActionMount;
 
   /// No description provided for @storageActionFormat.
