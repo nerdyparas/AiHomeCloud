@@ -167,6 +167,46 @@ class StorageRoot {
       };
 }
 
+/// A trash item returned by GET /api/v1/files/trash.
+class TrashItem {
+  final String id;
+  final String originalPath;
+  final String trashPath;
+  final String filename;
+  final DateTime deletedAt;
+  final int sizeBytes;
+  final String deletedBy;
+
+  const TrashItem({
+    required this.id,
+    required this.originalPath,
+    required this.trashPath,
+    required this.filename,
+    required this.deletedAt,
+    required this.sizeBytes,
+    required this.deletedBy,
+  });
+
+  factory TrashItem.fromJson(Map<String, dynamic> json) {
+    return TrashItem(
+      id: json['id'] as String,
+      originalPath: json['originalPath'] as String,
+      trashPath: json['trashPath'] as String,
+      filename: json['filename'] as String,
+      deletedAt: DateTime.parse(json['deletedAt'] as String),
+      sizeBytes: (json['sizeBytes'] as num).toInt(),
+      deletedBy: json['deletedBy'] as String,
+    );
+  }
+
+  String get formattedSize {
+    if (sizeBytes < 1024) return '$sizeBytes B';
+    if (sizeBytes < 1024 * 1024) return '${(sizeBytes / 1024).toStringAsFixed(1)} KB';
+    if (sizeBytes < 1024 * 1024 * 1024) return '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(sizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+}
+
 /// A document search result returned by GET /api/v1/files/search?q=...
 class SearchResult {
   final String path;

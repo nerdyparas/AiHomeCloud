@@ -219,6 +219,51 @@ extension FilesApi on ApiService {
         .toList();
   }
 
+  /// GET /api/v1/files/trash — list the caller's trash items.
+  Future<List<TrashItem>> getTrashItems() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${CubieConstants.apiVersion}/files/trash'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    final List<dynamic> list = jsonDecode(res.body) as List<dynamic>;
+    return list
+        .map((e) => TrashItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// POST /api/v1/files/trash/{id}/restore — restore an item to its original path.
+  Future<void> restoreTrashItem(String id) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse(
+                '$_baseUrl${CubieConstants.apiVersion}/files/trash/${Uri.encodeComponent(id)}/restore'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
+  /// DELETE /api/v1/files/trash/{id} — permanently delete a trash item.
+  Future<void> permanentDeleteTrashItem(String id) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .delete(
+            Uri.parse(
+                '$_baseUrl${CubieConstants.apiVersion}/files/trash/${Uri.encodeComponent(id)}'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
   /// GET /api/v1/files/roots — returns mounted USB/NVMe drives as browseable roots.
   Future<List<StorageRoot>> getStorageRoots() async {
     final res = await _withAutoRefresh(

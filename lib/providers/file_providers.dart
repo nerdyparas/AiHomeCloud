@@ -79,3 +79,8 @@ final docSearchResultsProvider =
   if (query.trim().isEmpty) return [];
   return ref.read(apiServiceProvider).searchDocuments(query.trim());
 });
+
+/// Trash items for the current user.
+final trashItemsProvider = FutureProvider<List<TrashItem>>((ref) async {
+  return ref.read(apiServiceProvider).getTrashItems();
+});

@@ -586,7 +586,7 @@ Store trash metadata in `trash.json` via `store.get_trash_items()`/`save_trash_i
 
 ### TASK-P5-02 — Flutter Trash UI
 **Priority:** 🟡 Medium
-**Status:** ⬜ todo
+**Status:** ✅ done
 **Phase:** Phase 5 — Soft Delete / Trash
 **Files:** `lib/screens/main/my_folder_screen.dart`, `lib/screens/main/more_screen.dart`, `lib/services/api_service.dart`
 **Depends on:** TASK-P5-01, TASK-P4-01

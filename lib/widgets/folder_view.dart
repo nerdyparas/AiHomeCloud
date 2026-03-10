@@ -243,47 +243,52 @@ class _FolderViewState extends ConsumerState<FolderView> {
   }
 
   void _deleteFile(FileItem file) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete ${file.name}?', style: GoogleFonts.sora()),
-        content: Text(
-          file.isDirectory
-              ? 'This folder and all its contents will be permanently deleted.'
-              : 'This file will be permanently deleted.',
-          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style:
-                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+    final index = _items.indexOf(file);
+    _softDeleteFile(file, index >= 0 ? index : _items.length);
+  }
+
+  /// Optimistically removes [file] from the list and shows an Undo SnackBar.
+  /// If the user doesn't undo within 30 s the deletion is committed via the API.
+  void _softDeleteFile(FileItem file, int originalIndex) {
+    setState(() {
+      _items.remove(file);
+      if (_totalCount > 0) _totalCount -= 1;
+    });
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+          SnackBar(
+            content: Text('${file.name} moved to Trash'),
+            duration: const Duration(seconds: 30),
+            action: SnackBarAction(label: 'Undo', onPressed: () {}),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: CubieColors.error),
-            onPressed: () async {
-              try {
-                await ref
-                    .read(apiServiceProvider)
-                    .deleteFile(file.path);
-                await _loadFiles(reset: true);
-                if (ctx.mounted) Navigator.pop(ctx);
-              } catch (e) {
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(friendlyError(e))),
-                  );
-                }
-              }
-            },
-            child: Text('Delete',
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
+        )
+        .closed
+        .then((reason) {
+      if (!mounted) return;
+      if (reason == SnackBarClosedReason.action) {
+        // Restore the item to its original position.
+        setState(() {
+          final insertAt = originalIndex.clamp(0, _items.length);
+          _items.insert(insertAt, file);
+          _totalCount += 1;
+        });
+      } else {
+        // Commit the delete via the API.
+        ref.read(apiServiceProvider).deleteFile(file.path).catchError((Object e) {
+          if (mounted) {
+            setState(() {
+              final insertAt = originalIndex.clamp(0, _items.length);
+              _items.insert(insertAt, file);
+              _totalCount += 1;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Delete failed: ${friendlyError(e)}')),
+            );
+          }
+        });
+      }
+    });
   }
 
   // ── Add menu (upload / new folder) ────────────────────────────────────────
@@ -710,7 +715,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             );
           }
           final file = sorted[i];
-          return FileListTile(
+          final tile = FileListTile(
             file: file,
             readOnly: widget.readOnly,
             onTap: file.isDirectory
@@ -719,6 +724,24 @@ class _FolderViewState extends ConsumerState<FolderView> {
             onLongPress:
                 widget.readOnly ? null : () => _showFileActions(file),
           ).animate().fadeIn(delay: (40 * i).ms);
+          if (widget.readOnly) return tile;
+          return Dismissible(
+            key: ValueKey(file.path),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: CubieColors.error.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delete_outline_rounded,
+                  color: CubieColors.error),
+            ),
+            onDismissed: (_) => _softDeleteFile(file, i),
+            child: tile,
+          );
         },
       ),
     );

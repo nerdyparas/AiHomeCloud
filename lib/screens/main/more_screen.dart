@@ -176,7 +176,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 ),
               ).animate().fadeIn(delay: 100.ms),
             ],
-
+            // ── Trash ────────────────────────────────────────────────────────
+            const SizedBox(height: 24),
+            _sectionLabel('Trash'),
+            const SizedBox(height: 12),
+            const _TrashCard().animate().fadeIn(delay: 110.ms),
             // ── Security ─────────────────────────────────────────────────
             const SizedBox(height: 24),
             _sectionLabel('Security'),
@@ -848,5 +852,167 @@ class _PauseButton extends ConsumerWidget {
       ),
       child: Text('Pause $label'),
     );
+  }
+}
+
+// ─── Trash card ──────────────────────────────────────────────────────────────
+
+class _TrashCard extends ConsumerWidget {
+  const _TrashCard();
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trashAsync = ref.watch(trashItemsProvider);
+    return trashAsync.when(
+      data: (items) {
+        final totalBytes =
+            items.fold<int>(0, (sum, item) => sum + item.sizeBytes);
+        final sizeLabel = totalBytes > 0 ? _formatSize(totalBytes) : '0 B';
+        return CubieCard(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: CubieColors.error.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.delete_outline_rounded,
+                  color: CubieColors.error, size: 18),
+            ),
+            title: Text('Trash',
+                style: GoogleFonts.dmSans(
+                    color: CubieColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500)),
+            subtitle: Text('Trash: $sizeLabel',
+                style: GoogleFonts.dmSans(
+                    color: CubieColors.textSecondary, fontSize: 12)),
+            trailing: items.isEmpty
+                ? null
+                : TextButton(
+                    onPressed: () =>
+                        _confirmEmptyTrash(context, ref, items),
+                    style: TextButton.styleFrom(
+                        foregroundColor: CubieColors.error),
+                    child: Text('Empty',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ),
+          ),
+        );
+      },
+      loading: () => CubieCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: CubieColors.textMuted.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.delete_outline_rounded,
+                color: CubieColors.textMuted, size: 18),
+          ),
+          title: Text('Trash',
+              style: GoogleFonts.dmSans(
+                  color: CubieColors.textPrimary, fontSize: 14)),
+          trailing: const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: CubieColors.primary),
+          ),
+        ),
+      ),
+      error: (e, _) => CubieCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: CubieColors.textMuted.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.delete_outline_rounded,
+                color: CubieColors.textMuted, size: 18),
+          ),
+          title: Text('Trash',
+              style: GoogleFonts.dmSans(
+                  color: CubieColors.textPrimary, fontSize: 14)),
+          subtitle: Text(friendlyError(e),
+              style: GoogleFonts.dmSans(
+                  color: CubieColors.textMuted, fontSize: 12)),
+          trailing: IconButton(
+            icon: const Icon(Icons.refresh_rounded,
+                color: CubieColors.primary, size: 20),
+            onPressed: () => ref.invalidate(trashItemsProvider),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmEmptyTrash(
+    BuildContext context,
+    WidgetRef ref,
+    List<TrashItem> items,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Empty Trash?', style: GoogleFonts.sora()),
+        content: Text(
+          'This will permanently delete ${items.length} '
+          'item${items.length == 1 ? '' : 's'}. This cannot be undone.',
+          style: GoogleFonts.dmSans(color: CubieColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style:
+                    GoogleFonts.dmSans(color: CubieColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: CubieColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Empty Trash',
+                style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final api = ref.read(apiServiceProvider);
+      for (final item in items) {
+        await api.permanentDeleteTrashItem(item.id);
+      }
+      ref.invalidate(trashItemsProvider);
+      messenger
+          .showSnackBar(const SnackBar(content: Text('Trash emptied.')));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Failed: ${friendlyError(e)}')));
+    }
   }
 }
