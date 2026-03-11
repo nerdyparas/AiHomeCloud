@@ -6,10 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/constants.dart';
-import '../../core/error_utils.dart';
 import '../../core/theme.dart';
-import '../../providers.dart';
 import '../../services/network_scanner.dart';
 
 class NetworkScanScreen extends ConsumerStatefulWidget {
@@ -23,8 +20,6 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
   final _scanner = NetworkScanner.instance;
   final _hosts = <DiscoveredHost>[];
   bool _scanning = false;
-  bool _connecting = false;
-  String? _connectingIp;
   double _progress = 0;
   String? _localIp;
   String? _error;
@@ -73,117 +68,8 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
     }
   }
 
-  Future<void> _selectDevice(DiscoveredHost host) async {
-    if (_connecting) return;
-
-    setState(() {
-      _connecting = true;
-      _connectingIp = host.ip;
-      _error = null;
-    });
-
-    try {
-      final api = ref.read(apiServiceProvider);
-      final previousFingerprint = ref.read(certFingerprintProvider);
-      final stopwatch = Stopwatch()..start();
-      debugPrint('[onboarding/connect] start ip=${host.ip}');
-
-      // Bootstrap pairing against a discovered LAN host without strict pinning.
-      // We pin again immediately after fetching the server fingerprint.
-      api.setTrustedFingerprint(null);
-      debugPrint('[onboarding/connect] tls pinning temporarily disabled');
-
-      // Fetch pairing info from the discovered device
-      debugPrint('[onboarding/connect] fetchPairingInfo:start');
-      final pairingInfo = await api.fetchPairingInfo(host.ip);
-      debugPrint('[onboarding/connect] fetchPairingInfo:ok +${stopwatch.elapsedMilliseconds}ms');
-      final serial = pairingInfo['serial'] as String? ?? '';
-      String key = pairingInfo['key'] as String? ?? '';
-
-      // Backward-compat: some backend builds do not expose top-level `key`
-      // in /pair/qr JSON. In that case, read it from qrValue query params.
-      if (key.isEmpty) {
-        final qrValue = pairingInfo['qrValue'] as String?;
-        if (qrValue != null && qrValue.isNotEmpty) {
-          try {
-            final uri = Uri.parse(qrValue);
-            key = uri.queryParameters['key'] ?? '';
-          } catch (_) {
-            // Keep default empty key and fail with user-friendly error below.
-          }
-        }
-      }
-
-      if (serial.isEmpty || key.isEmpty) {
-        debugPrint('[onboarding/connect] pairing payload incomplete serial=${serial.isNotEmpty} key=${key.isNotEmpty}');
-        throw Exception(
-          'Pairing data is incomplete from this device. Please rescan QR or update backend.',
-        );
-      }
-
-      // Pair with the device
-      debugPrint('[onboarding/connect] pairDevice:start');
-      final token = await api.pairDevice(
-        serial,
-        key,
-        hostOverride: host.ip,
-      );
-      debugPrint('[onboarding/connect] pairDevice:ok +${stopwatch.elapsedMilliseconds}ms');
-
-      // Log in via auth session
-      debugPrint('[onboarding/connect] login:start');
-      await ref.read(authSessionProvider.notifier).login(
-            host: host.ip,
-            port: AppConstants.apiPort,
-            token: token,
-            refreshToken: null,
-            username: '',
-            isAdmin: true,
-          );
-      debugPrint('[onboarding/connect] login:ok +${stopwatch.elapsedMilliseconds}ms');
-
-      // Fetch and persist TLS fingerprint
-      try {
-        debugPrint('[onboarding/connect] fetchServerFingerprint:start');
-        final fingerprint = await api.fetchServerFingerprint(
-          host: host.ip,
-          port: AppConstants.apiPort,
-        );
-        debugPrint('[onboarding/connect] fetchServerFingerprint:ok +${stopwatch.elapsedMilliseconds}ms hasFingerprint=${fingerprint != null && fingerprint.isNotEmpty}');
-        if (fingerprint != null) {
-          await persistServerFingerprint(ref, fingerprint);
-          debugPrint('[onboarding/connect] fingerprint persisted');
-        } else if (previousFingerprint != null && previousFingerprint.isNotEmpty) {
-          api.setTrustedFingerprint(previousFingerprint);
-          debugPrint('[onboarding/connect] fingerprint missing, restored previous pin');
-        }
-      } catch (_) {
-        // Non-fatal — restore previous pin if we had one.
-        if (previousFingerprint != null && previousFingerprint.isNotEmpty) {
-          api.setTrustedFingerprint(previousFingerprint);
-          debugPrint('[onboarding/connect] fingerprint fetch failed, restored previous pin');
-        }
-      }
-
-      if (!mounted) return;
-
-      // If already set up, go straight to dashboard; otherwise create profile
-      final isSetupDone = ref.read(isSetupDoneProvider);
-      debugPrint('[onboarding/connect] success -> ${isSetupDone ? '/dashboard' : '/setup'} +${stopwatch.elapsedMilliseconds}ms');
-      context.go(isSetupDone ? '/dashboard' : '/setup');
-    } catch (e) {
-      final previousFingerprint = ref.read(certFingerprintProvider);
-      if (previousFingerprint != null && previousFingerprint.isNotEmpty) {
-        ref.read(apiServiceProvider).setTrustedFingerprint(previousFingerprint);
-      }
-      debugPrint('[onboarding/connect] failed error=$e');
-      if (!mounted) return;
-      setState(() {
-        _connecting = false;
-        _connectingIp = null;
-        _error = 'Connection failed: ${friendlyError(e)}';
-      });
-    }
+  void _selectDevice(DiscoveredHost host) {
+    context.go('/pin-entry', extra: host.ip);
   }
 
   @override
@@ -279,62 +165,12 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
               if (!_scanning && _hosts.isEmpty && _error == null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'No devices found on the network.',
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      InkWell(
-                        onTap: () => context.go('/hotspot-connect'),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.cardBorder),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.wifi_tethering_rounded,
-                                  color: AppColors.primary, size: 22),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Device not on this network?',
-                                      style: GoogleFonts.dmSans(
-                                        color: AppColors.textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Set up via AiHomeCloud hotspot',
-                                      style: GoogleFonts.dmSans(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textSecondary),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'No devices found on the network.\nMake sure your AiHomeCloud is plugged in and on the same network.',
+                    style: GoogleFonts.dmSans(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
 
@@ -378,42 +214,11 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                       const SizedBox(height: 8),
                       ..._hosts.map((h) => _DeviceTile(
                             host: h,
-                            isConnecting: _connectingIp == h.ip,
                             onTap: () => _selectDevice(h),
                           ).animate().fadeIn(duration: 300.ms).slideX(
                               begin: 0.05, end: 0)),
                       const SizedBox(height: 24),
                     ],
-                  ],
-                ),
-              ),
-
-              // Bottom actions
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.go('/qr-scan'),
-                        icon: const Icon(Icons.qr_code_scanner_rounded,
-                            size: 18),
-                        label: Text(
-                          'Scan QR Instead',
-                          style: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w600, fontSize: 14),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          side: const BorderSide(
-                              color: AppColors.cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -439,12 +244,10 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
 
 class _DeviceTile extends StatelessWidget {
   final DiscoveredHost host;
-  final bool isConnecting;
   final VoidCallback? onTap;
 
   const _DeviceTile({
     required this.host,
-    required this.isConnecting,
     this.onTap,
   });
 
@@ -455,7 +258,7 @@ class _DeviceTile extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isConnecting ? null : onTap,
+          onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.all(14),
@@ -510,32 +313,22 @@ class _DeviceTile extends StatelessWidget {
                 ),
 
                 // Action
-                if (!isConnecting)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Connect',
-                      style: GoogleFonts.dmSans(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                if (isConnecting)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                  child: Text(
+                    'Connect',
+                    style: GoogleFonts.dmSans(
                       color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                ),
               ],
             ),
           ),

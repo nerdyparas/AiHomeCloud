@@ -91,9 +91,6 @@ class Settings(BaseSettings):
     device_name: str = "My AiHomeCloud"
     firmware_version: str = "2.1.4"
     pairing_key: str = ""  # auto-generated and persisted if empty
-    hotspot_password: str = "aihomecloud123"
-    hotspot_ssid: str = "AiHomeCloud"
-    auto_ap_enabled: bool = True  # auto-start hotspot when no network
 
     # ── Storage ───────────────────────────────────────────────────────────────
     nas_root: Path = Path("/srv/nas")
@@ -207,7 +204,3 @@ if not settings.pairing_key:
 # Auto-generate device serial from MAC address if not provided.
 if not settings.device_serial:
     settings.device_serial = generate_device_serial()
-
-# Auto-generate hotspot password if not provided.
-if not settings.hotspot_password:
-    settings.hotspot_password = generate_hotspot_password()

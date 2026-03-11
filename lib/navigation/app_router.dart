@@ -9,18 +9,12 @@ import '../screens/main/files_screen.dart';
 import '../screens/main/folder_view_screen.dart';
 import '../screens/main/more_screen.dart';
 import '../screens/main/settings/device_settings_screen.dart';
-import '../screens/main/settings/network_settings_screen.dart';
 import '../screens/main/settings/services_settings_screen.dart';
 import '../screens/main/telegram_setup_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
-import '../screens/main/wifi_settings_screen.dart';
-import '../screens/onboarding/discovery_screen.dart';
-import '../screens/onboarding/hotspot_connect_screen.dart';
 import '../screens/onboarding/network_scan_screen.dart';
-import '../screens/onboarding/qr_scan_screen.dart';
-import '../screens/onboarding/setup_complete_screen.dart';
+import '../screens/onboarding/pin_entry_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
-import '../screens/onboarding/wifi_setup_screen.dart';
 import '../providers.dart';
 import 'main_shell.dart';
 
@@ -32,7 +26,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (_, state) {
       final loc = state.matchedLocation;
       final onOnboarding =
-          loc == '/' || loc == '/scan-network' || loc == '/qr-scan' || loc == '/discovery' || loc == '/setup' || loc == '/hotspot-connect' || loc == '/wifi-setup';
+          loc == '/' || loc == '/scan-network' || loc == '/pin-entry';
 
       if (authSession == null && !onOnboarding) {
         return '/';
@@ -49,12 +43,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ── Onboarding ────────────────────────────────────────────────────────
       GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/scan-network', builder: (_, __) => const NetworkScanScreen()),
-      GoRoute(path: '/qr-scan', builder: (_, __) => const QrScanScreen()),
-      GoRoute(path: '/discovery', builder: (_, __) => const DiscoveryScreen()),
-      GoRoute(path: '/hotspot-connect', builder: (_, __) => const HotspotConnectScreen()),
-      GoRoute(path: '/wifi-setup', builder: (_, __) => const WifiSetupScreen()),
       GoRoute(
-          path: '/setup', builder: (_, __) => const SetupCompleteScreen()),
+        path: '/pin-entry',
+        builder: (_, state) {
+          final ip = state.extra as String;
+          return PinEntryScreen(deviceIp: ip);
+        },
+      ),
 
       // ── Main app (with bottom navigation shell) ───────────────────────────
       ShellRoute(
@@ -102,17 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const StorageExplorerScreen(),
       ),
 
-      // ── Wi-Fi settings (pushed on top, no bottom nav) ─────────────────────
-      GoRoute(
-        path: '/wifi-settings',
-        builder: (_, __) => const WifiSettingsScreen(),
-      ),
-
       // ── Settings sub-screens (pushed on top, no bottom nav) ───────────────
-      GoRoute(
-        path: '/settings/network',
-        builder: (_, __) => const NetworkSettingsScreen(),
-      ),
       GoRoute(
         path: '/settings/device',
         builder: (_, __) => const DeviceSettingsScreen(),

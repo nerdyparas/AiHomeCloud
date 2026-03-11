@@ -78,4 +78,19 @@ extension AuthApi on ApiService {
     );
     _check(res);
   }
+
+  /// POST /api/v1/auth/login  body: {name, pin}
+  /// Returns the full login response map (accessToken, refreshToken, user).
+  Future<Map<String, dynamic>> loginWithPin(String host, String name, String pin) async {
+    final base = 'https://$host:${AppConstants.apiPort}';
+    final res = await _client
+        .post(
+          Uri.parse('$base${AppConstants.apiVersion}/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'name': name, 'pin': pin}),
+        )
+        .timeout(ApiService._timeout);
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
 }

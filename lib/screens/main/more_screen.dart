@@ -252,15 +252,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     onTap: () => context.push('/storage-explorer'),
                   ),
                   _divider(),
-                  _navTile(
-                    icon: Icons.wifi_rounded,
-                    color: AppColors.primary,
-                    title: 'Network',
-                    subtitle: 'Wi-Fi, Hotspot, Ethernet',
-                    onTap: () => context.push('/settings/network'),
-                  ),
                   if (isAdmin) ...[
-                    _divider(),
                     _navTile(
                       icon: Icons.developer_board_rounded,
                       color: AppColors.textSecondary,

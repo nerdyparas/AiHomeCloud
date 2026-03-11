@@ -221,36 +221,6 @@ async def test_job_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# ─── Network ────────────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_network_status(authenticated_client: AsyncClient):
-    """GET /api/v1/network/status returns network status object."""
-    response = await authenticated_client.get("/api/v1/network/status")
-    assert response.status_code == 200
-    data = response.json()
-    # Should have all required fields
-    assert "wifiEnabled" in data
-    assert "lanConnected" in data
-    assert "bluetoothEnabled" in data
-
-
-@pytest.mark.asyncio
-async def test_network_lan_status(authenticated_client: AsyncClient):
-    """GET /api/v1/network/lan returns LAN status."""
-    response = await authenticated_client.get("/api/v1/network/lan")
-    assert response.status_code == 200
-    data = response.json()
-    assert "lanConnected" in data
-
-
-@pytest.mark.asyncio
-async def test_network_requires_auth(client: AsyncClient):
-    """GET /api/v1/network/status without auth returns 401/403."""
-    response = await client.get("/api/v1/network/status")
-    assert response.status_code in (401, 403)
-
-
 # ─── Backward compatibility redirect ────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -320,58 +290,6 @@ async def test_pair_with_correct_credentials(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert "token" in data
-
-
-# ─── Wi-Fi endpoints ────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_wifi_scan_requires_auth(client: AsyncClient):
-    """GET /api/v1/network/wifi/scan requires authentication."""
-    response = await client.get("/api/v1/network/wifi/scan")
-    assert response.status_code in (401, 403)
-
-
-@pytest.mark.asyncio
-async def test_wifi_connect_requires_admin(client: AsyncClient, admin_token: str):
-    """POST /api/v1/network/wifi/connect requires admin role."""
-    # Create a non-admin user
-    client.headers.update({"Authorization": f"Bearer {admin_token}"})
-    await client.post("/api/v1/users", json={"name": "member", "pin": "5555"})
-    resp = await client.post(
-        "/api/v1/auth/login", json={"name": "member", "pin": "5555"}
-    )
-    if resp.status_code == 200:
-        member_token = resp.json().get("accessToken", "")
-        client.headers.update({"Authorization": f"Bearer {member_token}"})
-        response = await client.post(
-            "/api/v1/network/wifi/connect",
-            json={"ssid": "TestNet", "password": "pass123"},
-        )
-        assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_wifi_connect_empty_ssid_returns_400(authenticated_client: AsyncClient):
-    """POST /api/v1/network/wifi/connect with empty SSID returns 400."""
-    response = await authenticated_client.post(
-        "/api/v1/network/wifi/connect",
-        json={"ssid": "", "password": "pass123"},
-    )
-    assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_wifi_disconnect_requires_auth(client: AsyncClient):
-    """POST /api/v1/network/wifi/disconnect requires auth."""
-    response = await client.post("/api/v1/network/wifi/disconnect")
-    assert response.status_code in (401, 403)
-
-
-@pytest.mark.asyncio
-async def test_wifi_forget_requires_auth(client: AsyncClient):
-    """DELETE /api/v1/network/wifi/saved/{ssid} requires auth."""
-    response = await client.delete("/api/v1/network/wifi/saved/SomeNetwork")
-    assert response.status_code in (401, 403)
 
 
 # ─── AdGuard Home ─────────────────────────────────────────────────────────────

@@ -21,7 +21,6 @@ from .limiter import limiter
 import os  # noqa: E402 — used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
-from .auto_ap import maybe_start_auto_ap, shutdown_auto_ap
 from .board import detect_board
 from .routes import (
     adguard_routes,
@@ -33,7 +32,6 @@ from .routes import (
     family_routes,
     service_routes,
     storage_routes,
-    network_routes,
     event_routes,
     telegram_routes,
     tailscale_routes,
@@ -133,11 +131,21 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("PIN migration failed: %s", e)
 
-    # Auto-AP: start hotspot if no network is available
+    # Create default admin user on first boot (PIN 0000)
     try:
-        await maybe_start_auto_ap()
+        from . import store as _store_module
+        import asyncio
+        from passlib.hash import bcrypt as _bcrypt_hash
+
+        _existing_users = await _store_module.get_users()
+        if not _existing_users:
+            _hashed = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _bcrypt_hash.hash("0000")
+            )
+            await _store_module.add_user("admin", pin=_hashed, is_admin=True)
+            logger.info("First boot: created default admin user with PIN 0000")
     except (OSError, RuntimeError, ValueError) as e:
-        logger.error("Auto-AP startup failed: %s", e)
+        logger.error("Default admin creation failed: %s", e)
 
     # Initialise document search index (FTS5)
     try:
@@ -182,12 +190,6 @@ async def lifespan(app: FastAPI):
         await _get_watcher().stop()
     except (OSError, RuntimeError, ValueError):
         logger.debug("InboxWatcher shutdown skipped")
-
-    # Shutdown: cancel Auto-AP background monitor
-    try:
-        await shutdown_auto_ap()
-    except (OSError, RuntimeError, ValueError):
-        logger.debug("Auto-AP shutdown cleanup skipped")
 
 
 app = FastAPI(
@@ -244,7 +246,6 @@ app.include_router(jobs_routes.router)
 app.include_router(family_routes.router)
 app.include_router(service_routes.router)
 app.include_router(storage_routes.router)
-app.include_router(network_routes.router)
 app.include_router(event_routes.router)
 app.include_router(adguard_routes.router)
 app.include_router(telegram_routes.router)
