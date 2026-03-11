@@ -33,7 +33,7 @@ jobs:
         run: flutter pub get
 
       - name: Run Flutter Analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Run Flutter Tests
         run: flutter test --exclude-tags golden

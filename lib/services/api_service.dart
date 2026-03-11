@@ -46,7 +46,7 @@ class ApiService {
   late final http.Client _client;
 
   /// The currently active connection mode (LAN or Remote).
-  ConnectionMode _connectionMode = ConnectionMode.lan;
+  final ConnectionMode _connectionMode = ConnectionMode.lan;
   ConnectionMode get connectionMode => _connectionMode;
 
   /// Tailscale IP stored here after a successful `tailscale-up` call.

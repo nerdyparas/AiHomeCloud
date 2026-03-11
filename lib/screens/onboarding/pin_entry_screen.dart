@@ -143,7 +143,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: DropdownButtonFormField<String>(
-                  value: _selectedUser,
+                  initialValue: _selectedUser,
                   dropdownColor: AppColors.card,
                   style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
                   decoration: InputDecoration(
