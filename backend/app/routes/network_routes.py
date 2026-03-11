@@ -5,6 +5,7 @@ Network routes — WiFi status and user toggle.
 import logging
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from ..auth import get_current_user
 from ..wifi_manager import get_wifi_status, set_user_wifi_override
@@ -20,12 +21,12 @@ async def wifi_status(_user: dict = Depends(get_current_user)):
     return await get_wifi_status()
 
 
+class WifiToggleRequest(BaseModel):
+    enabled: bool
+
+
 @router.put("/network/wifi")
-async def toggle_wifi(body: dict, _user: dict = Depends(get_current_user)):
-    """Toggle WiFi radio. Body: {"enabled": true/false}."""
-    enabled = body.get("enabled")
-    if not isinstance(enabled, bool):
-        from fastapi import HTTPException, status
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "'enabled' must be a boolean")
-    await set_user_wifi_override(enabled)
+async def toggle_wifi(body: WifiToggleRequest, _user: dict = Depends(get_current_user)):
+    """Toggle WiFi radio."""
+    await set_user_wifi_override(body.enabled)
     return await get_wifi_status()

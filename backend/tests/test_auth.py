@@ -316,13 +316,13 @@ async def test_second_user_is_not_admin(client: AsyncClient, admin_token: str):
 @pytest.mark.asyncio
 async def test_login_with_empty_pin_returns_401(client: AsyncClient):
     """
-    Verify that login with empty PIN is rejected.
+    Verify that login with empty PIN is rejected (422 from Pydantic min_length or 401).
     """
     response = await client.post(
         "/api/v1/auth/login",
         json={"name": "admin", "pin": ""}
     )
-    assert response.status_code == 401, "Empty PIN should return 401"
+    assert response.status_code in (401, 422), "Empty PIN should be rejected"
 
 
 @pytest.mark.asyncio

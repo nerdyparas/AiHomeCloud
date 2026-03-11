@@ -171,8 +171,8 @@ class OtpRecord(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    name: str
-    pin: str
+    name: str = Field(min_length=1, max_length=64)
+    pin: str = Field(min_length=4, max_length=16)
 
 
 class RefreshRequest(BaseModel):
@@ -208,7 +208,7 @@ class ChangePinRequest(BaseModel):
 
 
 class UpdateNameRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=64)
 
 
 class CreateFolderRequest(BaseModel):

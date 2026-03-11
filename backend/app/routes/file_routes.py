@@ -77,8 +77,14 @@ def _safe_resolve(raw_path: str) -> Path:
         if len(raw_path) == boundary or raw_path[boundary] in ("/", "\\"):
             raw_path = raw_path[boundary:]
 
+    candidate = settings.nas_root / raw_path.lstrip("/")
+
+    # Reject symlinks — they could point outside the NAS root
+    if candidate.is_symlink():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Symbolic links are not allowed")
+
     try:
-        resolved = (settings.nas_root / raw_path.lstrip("/")).resolve()
+        resolved = candidate.resolve()
     except (OSError, ValueError):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
@@ -425,6 +431,16 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
     safe_new_name = Path(body.new_name).name
     if safe_new_name != body.new_name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid file name")
+    if not safe_new_name or safe_new_name in (".", ".."):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid file name")
+    # Block renaming to dangerous extensions
+    rename_suffixes = [s.lower() for s in Path(safe_new_name).suffixes]
+    for ext in rename_suffixes:
+        if ext in BLOCKED_EXTENSIONS:
+            raise HTTPException(
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                f"Renaming to '{ext}' is not allowed for security reasons.",
+            )
 
     resolved = _safe_resolve(body.old_path)
     if not resolved.exists():
@@ -482,13 +498,14 @@ async def upload_file(
     if not safe_name or safe_name in (".", ".."):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
 
-    # Block executable and dangerous file types — check before any disk I/O
-    ext = Path(safe_name).suffix.lower()
-    if ext in BLOCKED_EXTENSIONS:
-        raise HTTPException(
-            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            f"File type '{ext}' is not allowed for security reasons.",
-        )
+    # Block executable and dangerous file types — check ALL suffixes, not just last
+    all_suffixes = [s.lower() for s in Path(safe_name).suffixes]
+    for ext in all_suffixes:
+        if ext in BLOCKED_EXTENSIONS:
+            raise HTTPException(
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                f"File type '{ext}' is not allowed for security reasons.",
+            )
 
     dest_file = dest_dir / safe_name
     # Final safety check: ensure resolved path is still within NAS root

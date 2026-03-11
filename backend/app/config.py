@@ -187,12 +187,12 @@ if not os.getenv("CUBIE_JWT_SECRET") and settings.jwt_secret == "change-me-in-pr
     try:
         settings.jwt_secret = generate_jwt_secret()
     except Exception:
-        # Filesystem issues (read-only, permissions, etc.) — keep default
-        # but log a warning. In production, this MUST be overridden.
         import logging as _logging
-        _logging.getLogger("cubie.config").warning(
-            "Failed to auto-generate JWT secret; using insecure default"
+        _logging.getLogger("cubie.config").critical(
+            "FATAL: Cannot generate JWT secret and no CUBIE_JWT_SECRET env var set. "
+            "Refusing to start with insecure default."
         )
+        raise SystemExit(1)
 
 # Auto-generate pairing key if not provided.
 if not settings.pairing_key:

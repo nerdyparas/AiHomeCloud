@@ -93,7 +93,8 @@ async def get_pairing_qr():
 
 
 @router.post("/pair", response_model=TokenResponse)
-async def pair_device(body: PairRequest):
+@limiter.limit("10/minute")
+async def pair_device(request: Request, body: PairRequest):
     """
     Pair with the Cubie by providing its serial + pairing key.
     Returns a JWT on success.
@@ -176,7 +177,9 @@ async def list_user_names():
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def create_user(
+    request: Request,
     body: CreateUserRequest,
     caller: dict | None = Depends(get_current_user_optional),
 ):
@@ -234,7 +237,8 @@ async def login(request: Request, body: LoginRequest):
 
     stored_pin = found.get("pin")
     if not stored_pin:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "PIN is not configured for this user")
+        _record_failure(client_ip)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     if str(stored_pin).startswith("$2"):
         ok = await verify_password(body.pin, stored_pin)
@@ -285,7 +289,8 @@ async def logout(body: RefreshRequest | None = None, user: dict = Depends(get_cu
 
 
 @router.post("/auth/refresh")
-async def refresh(body: RefreshRequest):
+@limiter.limit("30/minute")
+async def refresh(request: Request, body: RefreshRequest):
     """Exchange a refresh token for a new access token."""
     payload = decode_refresh_token(body.refresh_token)
     jti = payload.get("jti")
@@ -305,7 +310,8 @@ async def refresh(body: RefreshRequest):
 
 
 @router.put("/users/pin", status_code=status.HTTP_204_NO_CONTENT)
-async def change_pin(body: ChangePinRequest, user: dict = Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def change_pin(request: Request, body: ChangePinRequest, user: dict = Depends(get_current_user)):
     """Change the current user's PIN."""
     if len(body.new_pin) < 4:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "PIN must be at least 4 digits")

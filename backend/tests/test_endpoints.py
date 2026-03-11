@@ -77,12 +77,12 @@ async def test_system_name_update(authenticated_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_system_name_empty_returns_400(authenticated_client: AsyncClient):
-    """PUT /api/v1/system/name with empty name returns 400."""
+    """PUT /api/v1/system/name with empty name returns 400 or 422 (Pydantic min_length)."""
     response = await authenticated_client.put(
         "/api/v1/system/name",
         json={"name": ""},
     )
-    assert response.status_code == 400
+    assert response.status_code in (400, 422)
 
 
 @pytest.mark.asyncio
