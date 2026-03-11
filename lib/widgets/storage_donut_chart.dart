@@ -33,7 +33,7 @@ class StorageDonutChart extends StatelessWidget {
           CustomPaint(
             size: Size(size, size),
             painter: _DonutPainter(
-              usedPercent: (usedGB / totalGB).clamp(0.0, 1.0),
+              usedPercent: totalGB > 0 ? (usedGB / totalGB).clamp(0.0, 1.0) : 0.0,
               strokeWidth: strokeWidth,
               usedColor: AppColors.primary,
               freeColor: const Color(0xFF2A3347),

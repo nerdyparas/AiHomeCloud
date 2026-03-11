@@ -37,7 +37,7 @@ class StorageStats {
   const StorageStats({required this.totalGB, required this.usedGB});
 
   double get freeGB => totalGB - usedGB;
-  double get usedPercent => (usedGB / totalGB).clamp(0.0, 1.0);
+  double get usedPercent => totalGB > 0 ? (usedGB / totalGB).clamp(0.0, 1.0) : 0.0;
 }
 
 class SystemStats {

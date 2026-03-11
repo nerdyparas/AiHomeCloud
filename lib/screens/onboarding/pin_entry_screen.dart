@@ -130,6 +130,15 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
                 padding: EdgeInsets.only(bottom: 24),
                 child: CircularProgressIndicator(),
               )
+            else if (_userNames.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Text(
+                  _error ?? 'No users found on this device. Please set up the device first.',
+                  style: TextStyle(color: AppColors.error, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              )
             else if (_userNames.length > 1)
               Padding(
                 padding: const EdgeInsets.only(bottom: 24),

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -117,7 +118,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/file-preview',
         builder: (_, state) {
-          final file = state.extra as FileItem;
+          final file = state.extra;
+          if (file is! FileItem) {
+            return const Scaffold(
+              body: Center(child: Text('File not found')),
+            );
+          }
           return FilePreviewScreen(file: file);
         },
       ),

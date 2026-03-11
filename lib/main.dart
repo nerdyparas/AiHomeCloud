@@ -72,7 +72,11 @@ class _AiHomeCloudAppState extends ConsumerState<AiHomeCloudApp> {
       progress: ref.read(shareUploadProvider.notifier),
       getSession: () => ref.read(authSessionProvider),
     );
-    _shareHandler.initialize();
+    try {
+      _shareHandler.initialize();
+    } catch (_) {
+      // Share handler init can fail on some devices; non-critical.
+    }
   }
 
   @override
