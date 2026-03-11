@@ -104,7 +104,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                           }
                         }
                       },
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                     ),
                   ),
                 ).animate().fadeIn(delay: 50.ms);
@@ -978,7 +978,7 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                 Switch(
                   value: _stats!['protection_enabled'] as bool? ?? true,
                   onChanged: (v) => _toggle(v),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ],
             ],
