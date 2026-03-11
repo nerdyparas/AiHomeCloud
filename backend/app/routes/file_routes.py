@@ -445,25 +445,35 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_file(
-    path: str = Query("", description="Ignored — files always land in user's .inbox/ for auto-sorting"),
+    path: str = Query("", description="Destination directory (NAS-absolute). If empty, falls back to user's .inbox/ for auto-sorting."),
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ):
     """
     Upload a file via multipart form data.
-    All uploads are placed in the authenticated user's personal .inbox/ directory
-    where the InboxWatcher will auto-sort them into Photos/Videos/Documents/Others.
+    When *path* points to a valid NAS directory the file is written there directly.
+    When *path* is empty the file lands in the user's personal .inbox/ directory
+    where the InboxWatcher will auto-sort it into Photos/Videos/Documents/Others.
     """
     _require_external_storage()
     # Device-type tokens (pairing) cannot upload files
     if user.get("type") == "device":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Device tokens cannot upload files")
-    # Resolve the user's personal .inbox/ directory
+
     user_record = await store.find_user(user.get("sub", ""))
     if user_record is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User not found")
     safe_username = Path(user_record["name"]).name
-    dest_dir = settings.personal_path / safe_username / ".inbox"
+
+    # Determine destination: honour explicit path when it resolves to a NAS directory.
+    use_inbox = True
+    if path and path.strip():
+        resolved_dir = _safe_resolve(path)
+        if resolved_dir.is_dir():
+            dest_dir = resolved_dir
+            use_inbox = False
+    if use_inbox:
+        dest_dir = settings.personal_path / safe_username / ".inbox"
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     # Sanitize filename: strip path separators to prevent directory traversal
@@ -510,8 +520,8 @@ async def upload_file(
     user_name = user.get("sub", "unknown")
     asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
 
-    # Determine the folder the InboxWatcher will sort this file into.
-    sorted_to = _destination_folder(resolved_dest)
+    # When written directly to a folder (not .inbox), no auto-sort will happen.
+    sorted_to = None if not use_inbox else _destination_folder(resolved_dest)
 
     return {
         "name": safe_name,
