@@ -221,26 +221,41 @@ app.add_middleware(
 )
 
 
+# Paths called very frequently — skip per-request logging to reduce overhead.
+_QUIET_PATHS = frozenset({
+    "/api/v1/files/list",
+    "/api/v1/files/download",
+    "/api/v1/files/upload",
+    "/api/v1/monitor/ws",
+    "/api/health",
+})
+
+
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
     request_id = uuid4().hex
     request.state.request_id = request_id
     token = set_request_id(request_id)
 
-    logger.info(
-        "request_start",
-        extra={"method": request.method, "path": request.url.path},
-    )
+    path = request.url.path
+    verbose = path not in _QUIET_PATHS
+
+    if verbose:
+        logger.info(
+            "request_start",
+            extra={"method": request.method, "path": path},
+        )
     try:
         response = await call_next(request)
-        logger.info(
-            "request_end",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-            },
-        )
+        if verbose or response.status_code >= 400:
+            logger.info(
+                "request_end",
+                extra={
+                    "method": request.method,
+                    "path": path,
+                    "status_code": response.status_code,
+                },
+            )
         return response
     finally:
         reset_request_id(token)

@@ -4,15 +4,18 @@ All paths are sandboxed under settings.nas_root.
 External storage must be mounted at nas_root; SD card fallback is blocked.
 """
 
+import asyncio
 import mimetypes
 import os
 import shutil
 import uuid
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from fastapi.responses import FileResponse
+from starlette.responses import StreamingResponse
 
 from ..auth import get_current_user
 from ..config import settings
@@ -21,6 +24,9 @@ from .. import store
 from ..file_sorter import _destination_folder
 from ..events import file_event_bus, FileEvent
 from .event_routes import emit_upload_complete
+
+# Larger write buffer for uploads — 256 KB (balances syscall overhead vs memory)
+_UPLOAD_WRITE_BUF = 256 * 1024
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
@@ -106,6 +112,53 @@ def _file_item(p: Path, rel_prefix: str) -> dict:
     }
 
 
+def _scandir_list(resolved: Path, nas_root_str: str, sort_key: str, reverse: bool, page: int, page_size: int) -> tuple:
+    """Run in thread pool: scandir + sort + paginate without blocking the event loop.
+
+    Uses os.scandir() which is significantly faster than Path.iterdir() + stat()
+    because it reads directory entries and their stat info in a single syscall
+    per entry (on Linux, via getdents + fstatat cached in the dirent).
+    """
+    entries = []
+    try:
+        with os.scandir(resolved) as it:
+            for entry in it:
+                try:
+                    st = entry.stat(follow_symlinks=False)
+                    is_dir = entry.is_dir(follow_symlinks=False)
+                    name = entry.name
+                    rel = os.path.relpath(entry.path, nas_root_str)
+                    nas_path = "/" + rel.replace("\\", "/")
+                    if is_dir and not nas_path.endswith("/"):
+                        nas_path += "/"
+                    mime, _ = mimetypes.guess_type(name)
+                    entries.append({
+                        "name": name,
+                        "path": nas_path,
+                        "isDirectory": is_dir,
+                        "sizeBytes": 0 if is_dir else st.st_size,
+                        "modified": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
+                        "mimeType": mime,
+                    })
+                except OSError:
+                    continue
+    except OSError:
+        pass
+
+    # Sort
+    if sort_key == "modified":
+        entries.sort(key=lambda i: i.get("modified") or "", reverse=reverse)
+    elif sort_key == "size":
+        entries.sort(key=lambda i: i.get("sizeBytes") or 0, reverse=reverse)
+    else:
+        entries.sort(key=lambda i: ((i["name"] or "").casefold(), i["name"] or ""), reverse=reverse)
+
+    total_count = len(entries)
+    start = page * page_size
+    paged = entries[start:start + page_size]
+    return paged, total_count
+
+
 @router.get("/list", response_model=FileListResponse)
 async def list_files(
     path: str = Query("/srv/nas/shared/"),
@@ -120,45 +173,19 @@ async def list_files(
     resolved = _safe_resolve(path)
 
     if not resolved.exists():
-        # Auto-create the directory if it doesn't exist yet
         resolved.mkdir(parents=True, exist_ok=True)
 
     if not resolved.is_dir():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path is not a directory")
 
-    items = []
-    for child in resolved.iterdir():
-        try:
-            items.append(_file_item(child, path))
-        except OSError:
-            # Skip broken symlinks, inaccessible files, etc.
-            continue
-
-    # Sort with stability guarantees for pagination.
-    reverse = sort_dir.lower() == "desc"
-    sort_key = sort_by.lower()
-
-    def _key_name(item: dict):
-        return ((item["name"] or "").casefold(), item["name"] or "")
-
-    def _key_modified(item: dict):
-        return item.get("modified") or ""
-
-    def _key_size(item: dict):
-        return item.get("sizeBytes") or 0
-
-    if sort_key == "modified":
-        items.sort(key=_key_modified, reverse=reverse)
-    elif sort_key == "size":
-        items.sort(key=_key_size, reverse=reverse)
-    else:
-        # 5E.3 requirement: stable tuple sort for names
-        items.sort(key=_key_name, reverse=reverse)
-
-    total_count = len(items)
-    start = page * page_size
-    end = start + page_size
-    paged = items[start:end]
+    loop = asyncio.get_running_loop()
+    nas_root_str = str(settings.nas_root.resolve())
+    paged, total_count = await loop.run_in_executor(
+        None,
+        partial(_scandir_list, resolved, nas_root_str,
+                sort_by.lower(), sort_dir.lower() == "desc",
+                page, page_size),
+    )
 
     return FileListResponse(
         items=[FileItem(**i) for i in paged],
@@ -235,7 +262,8 @@ async def delete_file(
         user=user_id,
     ))
 
-    await _purge_trash_if_needed()
+    # Run trash purge in background — don't block the delete response
+    asyncio.create_task(_safe_purge_trash())
 
 
 # ─── Trash helpers ────────────────────────────────────────────────────────────
@@ -252,6 +280,14 @@ def _validate_trash_path(trash_path_str: str) -> Path:
     except ValueError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid trash path")
     return p
+
+
+async def _safe_purge_trash() -> None:
+    """Best-effort background trash purge \u2014 never raises."""
+    try:
+        await _purge_trash_if_needed()
+    except Exception:
+        pass
 
 
 async def _purge_trash_if_needed() -> None:
@@ -452,29 +488,27 @@ async def upload_file(
 
     total = 0
     max_bytes = settings.max_upload_bytes
+    loop = asyncio.get_running_loop()
 
-    with open(resolved_dest, "wb") as f:
+    # Use buffered I/O and write in the thread pool to avoid blocking the event loop.
+    fd = open(resolved_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
+    try:
         while chunk := await file.read(settings.upload_chunk_size):
             total += len(chunk)
             if max_bytes and total > max_bytes:
-                f.close()
+                fd.close()
                 resolved_dest.unlink(missing_ok=True)
                 raise HTTPException(
                     status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     f"File exceeds maximum upload size of {max_bytes // (1024*1024)} MB",
                 )
-            f.write(chunk)
+            await loop.run_in_executor(None, fd.write, chunk)
+    finally:
+        fd.close()
 
-    # Notify connected clients
+    # Fire-and-forget notifications so the upload response returns immediately.
     user_name = user.get("sub", "unknown")
-    await emit_upload_complete(safe_name, user_name)
-
-    # Publish file-event for downstream consumers (AI features, audit log)
-    await file_event_bus.publish(FileEvent(
-        path=str(resolved_dest),
-        action="upload",
-        user=user_name,
-    ))
+    asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
 
     # Determine the folder the InboxWatcher will sort this file into.
     sorted_to = _destination_folder(resolved_dest)
@@ -485,6 +519,19 @@ async def upload_file(
         "sizeBytes": total,
         "sortedTo": sorted_to,
     }
+
+
+async def _post_upload_notify(safe_name: str, user_name: str, resolved_path: str) -> None:
+    """Fire-and-forget: emit upload event + file event after response is sent."""
+    try:
+        await emit_upload_complete(safe_name, user_name)
+        await file_event_bus.publish(FileEvent(
+            path=resolved_path,
+            action="upload",
+            user=user_name,
+        ))
+    except Exception:
+        pass  # best-effort notification
 
 
 @router.get("/download")
@@ -505,6 +552,27 @@ async def download_file(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot download a directory")
 
     mime, _ = mimetypes.guess_type(resolved.name)
+    file_size = resolved.stat().st_size
+
+    # For files > 1 MB, use streaming response to avoid loading the full file
+    # into memory before sending. For small files, FileResponse is fine.
+    if file_size > 1_048_576:
+        async def _stream_file():
+            with open(resolved, "rb") as fh:
+                while True:
+                    chunk = fh.read(262_144)  # 256 KB chunks
+                    if not chunk:
+                        break
+                    yield chunk
+
+        return StreamingResponse(
+            _stream_file(),
+            media_type=mime or "application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{resolved.name}"',
+                "Content-Length": str(file_size),
+            },
+        )
 
     return FileResponse(
         path=str(resolved),

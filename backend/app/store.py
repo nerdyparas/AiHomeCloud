@@ -22,7 +22,7 @@ logger = logging.getLogger("cubie.store")
 # Async lock to protect concurrent access to JSON files from async handlers
 _store_lock = asyncio.Lock()
 
-_CACHE_TTL = 1.0
+_CACHE_TTL = 5.0  # seconds — longer TTL reduces JSON re-reads during browsing
 _cache: dict[str, tuple[Any, float]] = {}
 
 # Sentinel for distinguishing "no default passed" from "default=None"
