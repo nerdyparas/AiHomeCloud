@@ -63,7 +63,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = friendlyError(e);
+        _error = '${friendlyError(e)}\n(${widget.deviceIp})';
       });
     } finally {
       if (mounted) setState(() => _loading = false);

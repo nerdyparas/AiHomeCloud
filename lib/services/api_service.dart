@@ -62,7 +62,8 @@ class ApiService {
 
   HttpClient _createPinnedHttpClient() {
     final context = SecurityContext(withTrustedRoots: true);
-    final httpClient = HttpClient(context: context);
+    final httpClient = HttpClient(context: context)
+      ..connectionTimeout = const Duration(seconds: 8);
     httpClient.badCertificateCallback = (cert, host, port) =>
         _trustedFingerprint == null ? true : _validateCertFingerprint(cert);
     return httpClient;
