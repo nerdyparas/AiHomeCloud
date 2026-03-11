@@ -457,15 +457,35 @@ class _FolderViewState extends ConsumerState<FolderView> {
       onDone: () async {
         _uploadSubscriptions.remove(task.id);
         if (!mounted) return;
+
+        // 1. Mark done and refresh file list immediately
         ref.read(uploadTasksProvider.notifier).updateTask(task.id, status: UploadStatus.completed);
         _loadFiles(reset: true);
-        final sortedTo = await sortedToCompleter.future;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_uploadSnackMessage(task.fileName, sortedTo))),
-        );
-        Future.delayed(const Duration(seconds: 3), () {
+
+        // 2. Show immediate snackbar — don't wait for sortedTo
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('✅ ${task.fileName} uploaded')),
+          );
+        }
+
+        // 3. Remove card after 2s
+        Future.delayed(const Duration(seconds: 2), () {
           if (mounted) ref.read(uploadTasksProvider.notifier).removeTask(task.id);
         });
+
+        // 4. If sortedTo arrives quickly, show a second snackbar (bonus info)
+        try {
+          final sortedTo = await sortedToCompleter.future
+              .timeout(const Duration(seconds: 3));
+          if (sortedTo != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_uploadSnackMessage(task.fileName, sortedTo))),
+            );
+          }
+        } catch (_) {
+          // sortedTo timeout — fine, already showed success snackbar
+        }
       },
       onError: (e) {
         _uploadSubscriptions.remove(task.id);
