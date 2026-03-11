@@ -4,6 +4,7 @@ Family / user management routes.
 
 import asyncio
 import os
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user, require_admin
@@ -39,12 +40,27 @@ async def _folder_size_gb(path: str) -> float:
 _COLORS = ["FFE8A84C", "FF4C9BE8", "FF4CE88A", "FFE84CA8", "FF9B59B6", "FF1ABC9C"]
 
 
+def _ensure_personal_folder(path: str) -> None:
+    """Create personal folder and standard sub-folders if missing."""
+    p = Path(path)
+    if not p.exists():
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            for sub in ("Photos", "Videos", "Documents", "Others", ".inbox"):
+                (p / sub).mkdir(exist_ok=True)
+        except OSError:
+            pass
+
+
 @router.get("/family", response_model=list[FamilyUser])
 async def list_family(user: dict = Depends(get_current_user)):
     """List all family users on this Cubie."""
     users = await store.get_users()
     # Compute folder sizes in parallel to avoid sequential blocking
     personal_dirs = [str(settings.personal_path / u["name"]) for u in users]
+    # Ensure each user's personal folder exists on the currently mounted NAS
+    for d in personal_dirs:
+        _ensure_personal_folder(d)
     sizes = await asyncio.gather(*[_folder_size_gb(d) for d in personal_dirs])
     result = [
         FamilyUser(
