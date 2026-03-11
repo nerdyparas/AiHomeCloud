@@ -21,6 +21,7 @@ class FolderView extends ConsumerStatefulWidget {
   final String folderPath;
   final bool readOnly;
   final bool showHeader;
+  final VoidCallback? onBack;
 
   const FolderView({
     super.key,
@@ -28,6 +29,7 @@ class FolderView extends ConsumerStatefulWidget {
     required this.folderPath,
     this.readOnly = false,
     this.showHeader = true,
+    this.onBack,
   });
 
   @override
@@ -125,6 +127,8 @@ class _FolderViewState extends ConsumerState<FolderView> {
     if (_pathStack.isNotEmpty) {
       setState(() => _currentPath = _pathStack.removeLast());
       _loadFiles(reset: true);
+    } else if (widget.onBack != null) {
+      widget.onBack!();
     }
   }
 
@@ -583,7 +587,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               ),
 
             // Back / breadcrumb
-            if (_pathStack.isNotEmpty)
+            if (_pathStack.isNotEmpty || widget.onBack != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
                 child: Row(

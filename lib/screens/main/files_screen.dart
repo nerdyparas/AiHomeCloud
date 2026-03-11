@@ -1,184 +1,142 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../providers/core_providers.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/folder_view.dart';
-import 'my_folder_screen.dart';
-import 'shared_folder_screen.dart';
 
-/// Tab 2 — Files hub with three segments: My Files | Shared | Videos.
-///
-/// Uses IndexedStack so each segment preserves its scroll position and
-/// keeps its internal state when switching between segments.
-class FilesScreen extends StatefulWidget {
+/// Tab 2 — Files explorer with two root entries: personal folder and Shared.
+class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key});
-
   @override
-  State<FilesScreen> createState() => _FilesScreenState();
+  ConsumerState<FilesScreen> createState() => _FilesScreenState();
 }
 
-class _FilesScreenState extends State<FilesScreen> {
-  int _segment = 0;
+class _FilesScreenState extends ConsumerState<FilesScreen> {
+  // null = root view, non-null = inside a folder
+  String? _currentPath;
+  String? _currentTitle;
 
-  static const _labels = ['My Files', 'Shared', 'Videos'];
+  void _openFolder(String path, String title) {
+    setState(() {
+      _currentPath = path;
+      _currentTitle = title;
+    });
+  }
+
+  void _goBack() {
+    setState(() {
+      _currentPath = null;
+      _currentTitle = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── Header + segment control ─────────────────────────────────────
-        Container(
-          color: AppColors.background,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Files',
-                  style: GoogleFonts.sora(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ).animate().fadeIn(duration: 400.ms),
-                const SizedBox(height: 14),
-                _SegmentBar(
-                  labels: _labels,
-                  selected: _segment,
-                  onTap: (i) => setState(() => _segment = i),
-                ),
-              ],
-            ),
-          ),
+    if (_currentPath != null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _goBack();
+        },
+        child: FolderView(
+          title: _currentTitle ?? 'Files',
+          folderPath: _currentPath!,
+          readOnly: false,
+          showHeader: true,
+          onBack: _goBack,
         ),
+      );
+    }
 
-        // ── Content ──────────────────────────────────────────────────────
-        Expanded(
-          child: IndexedStack(
-            index: _segment,
-            children: [
-              // My Files
-              const _KeepAliveChild(child: _MyFilesBody()),
-              // Shared
-              const _KeepAliveChild(child: _SharedBody()),
-              // Videos
-              _KeepAliveChild(
-                child: FolderView(
-                  title: 'Videos',
-                  folderPath: '${AppConstants.sharedPath}Videos/',
-                  readOnly: false,
-                  showHeader: false,
-                ),
+    // Root view: show 2 folder entries
+    final session = ref.watch(authSessionProvider);
+    final username = session?.username ?? 'My Files';
+    final personalPath = '${AppConstants.personalBasePath}$username/';
+    const sharedPath = AppConstants.sharedPath;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Text('Files',
+                style: GoogleFonts.sora(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                )),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _FolderCard(
+                    name: username,
+                    icon: Icons.person_rounded,
+                    color: AppColors.primary,
+                    onTap: () => _openFolder(personalPath, username),
+                  ),
+                  const SizedBox(height: 12),
+                  _FolderCard(
+                    name: 'Shared',
+                    icon: Icons.people_rounded,
+                    color: AppColors.secondary,
+                    onTap: () => _openFolder(sharedPath, 'Shared'),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-// ─── Segment bar ────────────────────────────────────────────────────────────
+class _FolderCard extends StatelessWidget {
+  final String name;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 
-class _SegmentBar extends StatelessWidget {
-  final List<String> labels;
-  final int selected;
-  final ValueChanged<int> onTap;
-
-  const _SegmentBar({
-    required this.labels,
-    required this.selected,
+  const _FolderCard({
+    required this.name,
+    required this.icon,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        children: [
-          for (int i = 0; i < labels.length; i++)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onTap(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    color: selected == i
-                        ? AppColors.primary.withValues(alpha: 0.15)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Center(
-                    child: Text(
-                      labels[i],
-                      style: GoogleFonts.dmSans(
-                        color: selected == i
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: selected == i
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
+    return AppCard(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        title: Text(name,
+          style: GoogleFonts.dmSans(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          )),
+        trailing: const Icon(Icons.chevron_right_rounded,
+          color: AppColors.textMuted),
+        onTap: onTap,
       ),
     );
   }
-}
-
-// ─── Keep-alive wrapper ──────────────────────────────────────────────────────
-
-class _KeepAliveChild extends StatefulWidget {
-  final Widget child;
-  const _KeepAliveChild({required this.child});
-
-  @override
-  State<_KeepAliveChild> createState() => _KeepAliveChildState();
-}
-
-class _KeepAliveChildState extends State<_KeepAliveChild>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return widget.child;
-  }
-}
-
-// ─── Body widgets (Scaffold-free wrappers around existing screens) ───────────
-
-/// Renders the body of MyFolderScreen without a Scaffold wrapper.
-/// We re-use MyFolderScreen directly via the IndexedStack — it creates its
-/// own internal Scaffold for SafeArea, background colour, and scroll.
-class _MyFilesBody extends StatelessWidget {
-  const _MyFilesBody();
-
-  @override
-  Widget build(BuildContext context) => const MyFolderScreen();
-}
-
-class _SharedBody extends StatelessWidget {
-  const _SharedBody();
-
-  @override
-  Widget build(BuildContext context) => const SharedFolderScreen();
 }
