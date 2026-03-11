@@ -22,17 +22,68 @@ class FileListQuery {
   });
 }
 
-final fileListProvider =
-    FutureProvider.family<FileListResponse, FileListQuery>((ref, q) async {
-  final api = ref.read(apiServiceProvider);
-  return api.listFiles(
-    q.path,
-    page: q.page,
-    pageSize: q.pageSize,
-    sortBy: q.sortBy,
-    sortDir: q.sortDir,
-  );
-});
+// ── In-memory folder listing cache (30s TTL) ────────────────────────────────
+
+class _CacheEntry {
+  final FileListResponse data;
+  final DateTime fetchedAt;
+  _CacheEntry(this.data) : fetchedAt = DateTime.now();
+  bool get isStale => DateTime.now().difference(fetchedAt).inSeconds > 30;
+}
+
+class FileListNotifier
+    extends AutoDisposeFamilyAsyncNotifier<FileListResponse, FileListQuery> {
+  static final _cache = <String, _CacheEntry>{};
+
+  static String _key(FileListQuery q) =>
+      '${q.path}|${q.page}|${q.sortBy}|${q.sortDir}';
+
+  /// Clear cached entries whose key starts with [pathPrefix].
+  /// Call after uploads, deletes, or moves to ensure fresh data.
+  static void invalidate(String pathPrefix) {
+    _cache.removeWhere((k, _) => k.startsWith(pathPrefix));
+  }
+
+  /// Lookup a cached [FileListResponse] for a raw key built from path/page/sort.
+  /// Returns null if not cached or stale.
+  static FileListResponse? getCached(
+      String path, int page, String sortBy, String sortDir) {
+    final key = '$path|$page|$sortBy|$sortDir';
+    final entry = _cache[key];
+    if (entry != null && !entry.isStale) return entry.data;
+    return null;
+  }
+
+  /// Store a [FileListResponse] in the cache.
+  static void putCache(
+      String path, int page, String sortBy, String sortDir, FileListResponse data) {
+    final key = '$path|$page|$sortBy|$sortDir';
+    _cache[key] = _CacheEntry(data);
+  }
+
+  @override
+  Future<FileListResponse> build(FileListQuery arg) async {
+    final key = _key(arg);
+    final cached = _cache[key];
+    if (cached != null && !cached.isStale) return cached.data;
+
+    final api = ref.read(apiServiceProvider);
+    final result = await api.listFiles(
+      arg.path,
+      page: arg.page,
+      pageSize: arg.pageSize,
+      sortBy: arg.sortBy,
+      sortDir: arg.sortDir,
+    );
+    _cache[key] = _CacheEntry(result);
+    return result;
+  }
+}
+
+final fileListProvider = AsyncNotifierProvider.autoDispose
+    .family<FileListNotifier, FileListResponse, FileListQuery>(
+  FileListNotifier.new,
+);
 
 class UploadTasksNotifier extends StateNotifier<List<UploadTask>> {
   UploadTasksNotifier() : super([]);

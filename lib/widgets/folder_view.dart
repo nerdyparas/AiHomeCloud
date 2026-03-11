@@ -77,13 +77,23 @@ class _FolderViewState extends ConsumerState<FolderView> {
         });
       }
 
-      final response = await ref.read(apiServiceProvider).listFiles(
-            _currentPath,
-            page: _currentPage,
-            pageSize: _pageSize,
-            sortBy: 'name',
-            sortDir: 'asc',
-          );
+      // Check in-memory cache first (30s TTL)
+      final cached = FileListNotifier.getCached(
+          _currentPath, _currentPage, 'name', 'asc');
+      late final FileListResponse response;
+      if (cached != null) {
+        response = cached;
+      } else {
+        response = await ref.read(apiServiceProvider).listFiles(
+              _currentPath,
+              page: _currentPage,
+              pageSize: _pageSize,
+              sortBy: 'name',
+              sortDir: 'asc',
+            );
+        FileListNotifier.putCache(
+            _currentPath, _currentPage, 'name', 'asc', response);
+      }
 
       if (!mounted) return;
       setState(() {
@@ -133,6 +143,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
   }
 
   Future<void> _refresh() async {
+    FileListNotifier.invalidate(_currentPath);
     await _loadFiles(reset: true);
   }
 
@@ -227,6 +238,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                 await ref
                     .read(apiServiceProvider)
                     .renameFile(file.path, ctrl.text);
+                FileListNotifier.invalidate(_currentPath);
                 await _loadFiles(reset: true);
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
@@ -279,6 +291,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
         });
       } else {
         // Commit the delete via the API.
+        FileListNotifier.invalidate(_currentPath);
         ref.read(apiServiceProvider).deleteFile(file.path).catchError((Object e) {
           if (mounted) {
             setState(() {
@@ -389,6 +402,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                 await ref
                     .read(apiServiceProvider)
                     .createFolder(_currentPath, ctrl.text);
+                FileListNotifier.invalidate(_currentPath);
                 await _loadFiles(reset: true);
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
@@ -460,6 +474,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
         // 1. Mark done and refresh file list immediately
         ref.read(uploadTasksProvider.notifier).updateTask(task.id, status: UploadStatus.completed);
+        FileListNotifier.invalidate(_currentPath);
         _loadFiles(reset: true);
 
         // 2. Show immediate snackbar — don't wait for sortedTo
