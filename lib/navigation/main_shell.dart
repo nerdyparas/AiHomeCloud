@@ -45,10 +45,10 @@ class _MainShellState extends ConsumerState<MainShell> {
     final api = ref.read(apiServiceProvider);
     final isRemote = api.connectionMode == ConnectionMode.remote;
 
-    // Debounce disconnect banner — only show after 10 continuous seconds
+    // Debounce disconnect banner — only show after 12 continuous seconds
     if (connection == ConnectionStatus.disconnected) {
       if (_disconnectTimer == null) {
-        _disconnectTimer = Timer(const Duration(seconds: 10), () {
+        _disconnectTimer = Timer(const Duration(seconds: 12), () {
           if (mounted) setState(() => _showDisconnected = true);
         });
       }
@@ -138,47 +138,50 @@ class _MainShellState extends ConsumerState<MainShell> {
                 ),
               ),
             if (_showDisconnected)
-              Container(
-                width: double.infinity,
-                color: AppColors.error.withValues(alpha: 0.2),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 2),
-                                    child: Icon(Icons.cloud_off_rounded, size: 14, color: AppColors.error),
-                                  ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'AiHomeCloud is not reachable.',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Text(
-                                          'Check your Wi-Fi and make sure the device is powered on.',
-                                          style: TextStyle(fontSize: 11),
-                                        ),
-                                      ],
+              SafeArea(
+                bottom: false,
+                child: Container(
+                  width: double.infinity,
+                  color: AppColors.error.withValues(alpha: 0.2),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.cloud_off_rounded, size: 14, color: AppColors.error),
                       ),
-                    ),
-                                  const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => context.go('/scan-network'),
-                      icon: const Icon(Icons.wifi_find_rounded, size: 14),
-                      label: const Text('Reconnect', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AiHomeCloud is not reachable.',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Check your Wi-Fi and make sure the device is powered on.',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () => context.go('/scan-network'),
+                        icon: const Icon(Icons.wifi_find_rounded, size: 14),
+                        label: const Text('Reconnect', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             Expanded(child: widget.child),
