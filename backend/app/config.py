@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     skip_mount_check: bool = False  # set True in tests to bypass is_mount()
 
     # ── Upload ────────────────────────────────────────────────────────────────
-    upload_chunk_size: int = 1024 * 1024  # 1 MB
+    upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB — fewer async cycles on ARM
     max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
 
     # ── AdGuard Home (optional — proxy disabled when False) ───────────────────

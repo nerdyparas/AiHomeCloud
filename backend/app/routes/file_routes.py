@@ -25,8 +25,8 @@ from ..file_sorter import _destination_folder
 from ..events import file_event_bus, FileEvent
 from .event_routes import emit_upload_complete
 
-# Larger write buffer for uploads — 256 KB (balances syscall overhead vs memory)
-_UPLOAD_WRITE_BUF = 256 * 1024
+# Larger write buffer for uploads — 2 MB (fewer syscalls on ARM)
+_UPLOAD_WRITE_BUF = 2 * 1024 * 1024
 
 # Lock to prevent concurrent trash purge operations
 _trash_purge_lock = asyncio.Lock()
