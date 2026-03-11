@@ -49,18 +49,18 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             _sectionLabel('Sharing & Streaming'),
             const SizedBox(height: 12),
 
-            // Smart TV Streaming toggle (DLNA service)
+            // Smart TV & Computer Sharing toggle (DLNA + SMB)
             servicesAsync.when(
               data: (services) {
-                final dlna = services.cast<ServiceInfo?>().firstWhere(
-                    (s) => s?.id == 'dlna',
+                final media = services.cast<ServiceInfo?>().firstWhere(
+                    (s) => s?.id == 'media',
                     orElse: () => null);
-                if (dlna == null) {
+                if (media == null) {
                   return AppCard(
                     padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
-                      title: Text('Smart TV Streaming',
+                      title: Text('TV & Computer Sharing',
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary,
                               fontSize: 14,
@@ -77,24 +77,24 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
-                    title: Text('Smart TV Streaming',
+                    title: Text('TV & Computer Sharing',
                         style: GoogleFonts.dmSans(
                             color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w500)),
                     subtitle: Text(
-                        dlna.isEnabled
-                            ? 'Streaming to nearby TVs'
-                            : 'Stream media to your Smart TV',
+                        media.isEnabled
+                            ? 'DLNA + SMB active'
+                            : 'Stream to TVs & share with computers',
                         style: GoogleFonts.dmSans(
                             color: AppColors.textSecondary, fontSize: 12)),
                     trailing: Switch(
-                      value: dlna.isEnabled,
+                      value: media.isEnabled,
                       onChanged: (v) async {
                         try {
                           await ref
                               .read(apiServiceProvider)
-                              .toggleService(dlna.id, v);
+                              .toggleService(media.id, v);
                           ref.invalidate(servicesProvider);
                         } catch (e) {
                           if (mounted) {
@@ -113,7 +113,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
-                  title: Text('Smart TV Streaming',
+                  title: Text('TV & Computer Sharing',
                       style: GoogleFonts.dmSans(
                           color: AppColors.textPrimary,
                           fontSize: 14,
@@ -131,7 +131,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 child: ListTile(
                   leading:
                       _iconBox(Icons.tv_rounded, AppColors.textSecondary),
-                  title: Text('Smart TV Streaming',
+                  title: Text('TV & Computer Sharing',
                       style: GoogleFonts.dmSans(
                           color: AppColors.textPrimary, fontSize: 14)),
                   subtitle: Text(friendlyError(e),

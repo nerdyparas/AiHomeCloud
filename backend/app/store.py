@@ -166,9 +166,9 @@ async def update_user_pin(user_id: str, new_pin: str) -> bool:
 
 _DEFAULT_SERVICES = [
     {
-        "id": "samba",
-        "name": "Samba (SMB)",
-        "description": "Windows file sharing",
+        "id": "media",
+        "name": "TV & Computer Sharing",
+        "description": "DLNA streaming + SMB file sharing",
         "isEnabled": True,
     },
     {
@@ -181,12 +181,6 @@ _DEFAULT_SERVICES = [
         "id": "ssh",
         "name": "SSH",
         "description": "Secure remote terminal",
-        "isEnabled": True,
-    },
-    {
-        "id": "dlna",
-        "name": "DLNA",
-        "description": "Media streaming to smart TVs",
         "isEnabled": True,
     },
 ]
@@ -204,6 +198,26 @@ async def get_services() -> List[dict]:
             _write_json(settings.services_file, _DEFAULT_SERVICES)
             _set_cached("services", _DEFAULT_SERVICES)
             return _DEFAULT_SERVICES
+
+        # Migrate: merge old samba + dlna into unified media service
+        ids = {s["id"] for s in services}
+        if "media" not in ids and ("samba" in ids or "dlna" in ids):
+            enabled = any(
+                s.get("isEnabled", False)
+                for s in services
+                if s["id"] in ("samba", "dlna")
+            )
+            services = [
+                s for s in services if s["id"] not in ("samba", "dlna")
+            ]
+            services.insert(0, {
+                "id": "media",
+                "name": "TV & Computer Sharing",
+                "description": "DLNA streaming + SMB file sharing",
+                "isEnabled": enabled,
+            })
+            _write_json(settings.services_file, services)
+
         _set_cached("services", services)
         return services
 

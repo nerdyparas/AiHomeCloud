@@ -232,11 +232,11 @@ class MockApiService {
     await _delay();
     return const [
       ServiceInfo(
-          id: 'samba',
+          id: 'media',
           name: 'TV & Computer Sharing',
-          description: 'Share files with your TV and computer',
+          description: 'DLNA streaming + SMB file sharing',
           isEnabled: true,
-          icon: Icons.desktop_windows_rounded),
+          icon: Icons.tv_rounded),
       ServiceInfo(
           id: 'nfs',
           name: 'NFS',
@@ -249,12 +249,6 @@ class MockApiService {
           description: 'Secure remote terminal',
           isEnabled: true,
           icon: Icons.terminal_rounded),
-      ServiceInfo(
-          id: 'dlna',
-          name: 'Smart TV Streaming',
-          description: 'Stream photos and videos to your TV',
-          isEnabled: true,
-          icon: Icons.tv_rounded),
     ];
   }
 

@@ -61,9 +61,9 @@ async def test_store_services_defaults(tmp_path, monkeypatch):
 
     services = await store.get_services()
     assert isinstance(services, list)
-    assert len(services) >= 3  # samba, ssh, dlna are defaults
+    assert len(services) >= 3  # media, ssh, nfs are defaults
     ids = [s["id"] for s in services]
-    assert "samba" in ids
+    assert "media" in ids
 
     store._cache.clear()
 
@@ -80,14 +80,14 @@ async def test_store_toggle_service(tmp_path, monkeypatch):
     # Initialize
     await store.get_services()
 
-    # Toggle samba off
-    ok = await store.toggle_service("samba", False)
+    # Toggle media off
+    ok = await store.toggle_service("media", False)
     assert ok is True
 
     # Verify
     services = await store.get_services()
-    samba = next(s for s in services if s["id"] == "samba")
-    assert samba["isEnabled"] is False
+    media = next(s for s in services if s["id"] == "media")
+    assert media["isEnabled"] is False
 
     # Toggle nonexistent
     ok = await store.toggle_service("nonexistent", True)

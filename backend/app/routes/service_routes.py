@@ -23,6 +23,7 @@ _SERVICE_UNITS: dict[str, list[str]] = {
     "nfs": ["nfs-kernel-server"],
     "ssh": ["ssh"],
     "dlna": ["minidlna"],
+    "media": ["minidlna", "smbd", "nmbd"],
     "adguard": ["AdGuardHome"],
 }
 

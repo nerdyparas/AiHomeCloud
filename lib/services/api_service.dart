@@ -260,6 +260,7 @@ class ApiService {
   /// Map service IDs to Material icons (backend doesn't send icons).
   static IconData _serviceIcon(String id) {
     return switch (id) {
+      'media' => Icons.tv_rounded,
       'samba' => Icons.desktop_windows_rounded,
       'nfs' => Icons.dns_rounded,
       'ssh' => Icons.terminal_rounded,

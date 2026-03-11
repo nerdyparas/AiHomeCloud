@@ -286,7 +286,7 @@ async def stop_nas_services():
 
 async def start_nas_services():
     """Best-effort start of NAS services after mount."""
-    for svc in ("smbd", "nmbd"):
+    for svc in ("smbd", "nmbd", "minidlna"):
         try:
             await run_command(["sudo", "systemctl", "start", svc])
         except Exception:
