@@ -234,14 +234,14 @@ extension ServicesNetworkApi on ApiService {
     return (jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  /// POST /api/v1/telegram/config  body: {bot_token, allowed_ids}
-  Future<void> saveTelegramConfig(String botToken, String allowedIds) async {
+  /// POST /api/v1/telegram/config  body: {bot_token}
+  Future<void> saveTelegramConfig(String botToken) async {
     final res = await _withAutoRefresh(
       () => _client
           .post(
             Uri.parse('$_baseUrl${AppConstants.apiVersion}/telegram/config'),
             headers: _headers,
-            body: jsonEncode({'bot_token': botToken, 'allowed_ids': allowedIds}),
+            body: jsonEncode({'bot_token': botToken}),
           )
           .timeout(ApiService._timeout),
     );

@@ -19,12 +19,12 @@ class TelegramSetupScreen extends ConsumerStatefulWidget {
 
 class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   final _tokenCtrl = TextEditingController();
-  final _idsCtrl = TextEditingController();
   bool _obscureToken = true;
   bool _loading = true;
   bool _saving = false;
   bool _botRunning = false;
   bool _configured = false;
+  int _linkedCount = 0;
   String? _errorMsg;
 
   @override
@@ -36,7 +36,6 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   @override
   void dispose() {
     _tokenCtrl.dispose();
-    _idsCtrl.dispose();
     super.dispose();
   }
 
@@ -52,9 +51,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
         setState(() {
           _configured = cfg['configured'] as bool? ?? false;
           _botRunning = cfg['bot_running'] as bool? ?? false;
-          // Don't fill token field with masked value — leave blank for security.
-          // Fill allowed_ids so user can see and edit existing list.
-          _idsCtrl.text = cfg['allowed_ids'] as String? ?? '';
+          _linkedCount = cfg['linked_count'] as int? ?? 0;
           _loading = false;
         });
       }
@@ -70,7 +67,6 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
 
   Future<void> _save() async {
     final token = _tokenCtrl.text.trim();
-    final ids = _idsCtrl.text.trim();
 
     if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +81,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
     });
 
     try {
-      await ref.read(apiServiceProvider).saveTelegramConfig(token, ids);
+      await ref.read(apiServiceProvider).saveTelegramConfig(token);
       if (mounted) {
         _tokenCtrl.clear();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,19 +130,18 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('How to set up',
+                      Text('Setup in 3 steps',
                           style: GoogleFonts.sora(
                               color: AppColors.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      _stepText('1', 'Open Telegram and search for @BotFather'),
-                      _stepText('2', 'Send /newbot and follow the instructions'),
-                      _stepText(
-                          '3', 'Copy the bot token and paste it below'),
-                      _stepText(
-                          '4',
-                          'Optionally add your Telegram chat ID to restrict access'),
+                      const SizedBox(height: 12),
+                      _stepText('1',
+                          'Open Telegram and search @BotFather'),
+                      _stepText('2',
+                          'Send /newbot — follow the steps and copy the token'),
+                      _stepText('3',
+                          'Paste the token below and tap Save. Then open your bot and send /auth to link your account.'),
                     ],
                   ),
                 ),
@@ -201,47 +196,6 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Allowed IDs input
-                Text('Allowed Chat IDs (optional)',
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5)),
-                const SizedBox(height: 4),
-                Text('Comma-separated — leave empty to allow anyone',
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.textMuted, fontSize: 11)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _idsCtrl,
-                  keyboardType: TextInputType.number,
-                  style: GoogleFonts.dmSans(
-                      color: AppColors.textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: '123456789, 987654321',
-                    hintStyle: GoogleFonts.dmSans(
-                        color: AppColors.textMuted, fontSize: 13),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
                 // Error message
                 if (_errorMsg != null) ...[
                   const SizedBox(height: 8),
@@ -274,6 +228,27 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Linked accounts status
+                AppCard(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.people_outline,
+                          color: AppColors.textSecondary, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _linkedCount > 0
+                              ? '$_linkedCount linked account${_linkedCount == 1 ? '' : 's'}'
+                              : 'No accounts linked yet — send /auth to your bot',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 32),
