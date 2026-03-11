@@ -333,6 +333,18 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   if (isAdmin) ...[
                     _divider(),
                     ListTile(
+                      leading: const Icon(Icons.restart_alt_rounded,
+                          color: AppColors.primary, size: 20),
+                      title: Text('Restart AiHomeCloud',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.primary, fontSize: 14)),
+                      subtitle: Text('Reboot the device',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textMuted, fontSize: 12)),
+                      onTap: _confirmReboot,
+                    ),
+                    _divider(),
+                    ListTile(
                       leading: const Icon(Icons.power_settings_new_rounded,
                           color: AppColors.error, size: 20),
                       title: Text('Shut Down AiHomeCloud',
@@ -536,6 +548,56 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         ],
       ),
     );
+  }
+
+  void _confirmReboot() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Restart AiHomeCloud?', style: GoogleFonts.sora()),
+        content: Text(
+          'The device will restart and come back online in about a minute.',
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _performReboot();
+            },
+            child: Text('Restart',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performReboot() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Restarting AiHomeCloud…')),
+    );
+    try {
+      await ref.read(apiServiceProvider).rebootDevice();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AiHomeCloud is restarting.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restart failed: ${friendlyError(e)}')),
+        );
+      }
+    }
   }
 
   void _confirmShutdown() {

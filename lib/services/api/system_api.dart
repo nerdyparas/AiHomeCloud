@@ -160,6 +160,19 @@ extension SystemApi on ApiService {
     _check(res);
   }
 
+  /// POST /api/v1/system/reboot — restart the device
+  Future<void> rebootDevice() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/reboot'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30)),
+    );
+    _check(res);
+  }
+
   /// GET /api/v1/system/tailscale-status
   Future<Map<String, dynamic>> getTailscaleStatus() async {
     final res = await _withAutoRefresh(

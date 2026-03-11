@@ -2,6 +2,7 @@
 System routes — device info, firmware, device name, power management.
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -73,7 +74,15 @@ _SERVICE_UNITS: dict[str, list[str]] = {
 
 @router.post("/shutdown", status_code=status.HTTP_202_ACCEPTED)
 async def shutdown_device(user: dict = Depends(require_admin)):
-    """Stop all active NAS services and power off the device."""
+    """Stop all active NAS services and power off the device.
+
+    The poweroff command is deferred by 2 seconds so the HTTP 202 response
+    reaches the client before the OS tears down networking.
+
+    Note: On the Radxa Cubie A7A (Allwinner sun60iw2) the PMIC cannot fully
+    cut power via software, so the board will reboot after poweroff.  Use the
+    /reboot endpoint for a clean restart instead.
+    """
     # 1. Stop all enabled services
     services = await store.get_services()
     for svc in services:
@@ -84,17 +93,26 @@ async def shutdown_device(user: dict = Depends(require_admin)):
                 if not ok:
                     logger.warning("Failed to stop %s: %s", unit, err)
 
-    # 2. Power off the device
+    # 2. Schedule poweroff after a short delay so the response is delivered.
     logger.info("Shutdown requested by user %s", user.get("sub", "unknown"))
-    rc, _, stderr = await run_command(
-        ["sudo", "systemctl", "poweroff"], timeout=15
-    )
-    if rc != 0:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            f"Shutdown command failed: {stderr}",
-        )
+    asyncio.create_task(_deferred_power_command(["sudo", "systemctl", "poweroff"]))
     return {"status": "shutting_down"}
+
+
+@router.post("/reboot", status_code=status.HTTP_202_ACCEPTED)
+async def reboot_device(user: dict = Depends(require_admin)):
+    """Reboot the device.  Response is sent before the OS restarts."""
+    logger.info("Reboot requested by user %s", user.get("sub", "unknown"))
+    asyncio.create_task(_deferred_power_command(["sudo", "systemctl", "reboot"]))
+    return {"status": "rebooting"}
+
+
+async def _deferred_power_command(cmd: list[str]) -> None:
+    """Wait 2 seconds then execute a power command (poweroff / reboot)."""
+    await asyncio.sleep(2)
+    rc, _, stderr = await run_command(cmd, timeout=15)
+    if rc != 0:
+        logger.error("Power command %s failed: %s", cmd, stderr)
 
 
 async def _systemctl_stop(unit: str) -> tuple[bool, str]:
