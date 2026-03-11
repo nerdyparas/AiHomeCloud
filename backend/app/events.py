@@ -35,7 +35,7 @@ logger = logging.getLogger("cubie.events.file_bus")
 _BUFFER_SIZE = 1000  # max events kept in the circular buffer
 
 
-@dataclass(slots=True)
+@dataclass
 class FileEvent:
     """A single file-system action published to the event bus."""
 

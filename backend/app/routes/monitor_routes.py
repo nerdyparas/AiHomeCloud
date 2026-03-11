@@ -4,6 +4,8 @@ Uses psutil for real CPU / RAM / temp / network / disk readings.
 Respects board-specific thermal zone paths for accurate temperature readings.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging

@@ -35,6 +35,7 @@ from .routes import (
     event_routes,
     network_routes,
     telegram_routes,
+    telegram_upload_routes,
     tailscale_routes,
 )
 
@@ -305,6 +306,7 @@ app.include_router(event_routes.router)
 app.include_router(network_routes.router)
 app.include_router(adguard_routes.router)
 app.include_router(telegram_routes.router)
+app.include_router(telegram_upload_routes.router)
 app.include_router(tailscale_routes.router)
 
 

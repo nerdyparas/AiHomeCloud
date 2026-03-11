@@ -26,7 +26,13 @@ def _make_update(text: str = "", chat_id: int = 12345, first_name: str = "Test")
     update = MagicMock()
     update.effective_chat.id = chat_id
     update.effective_user.first_name = first_name
+    update.effective_user.username = first_name.lower()
     update.message.text = text
+    update.message.caption = None
+    update.message.document = None
+    update.message.video = None
+    update.message.audio = None
+    update.message.photo = None
     update.message.reply_text = AsyncMock()
     update.message.reply_document = AsyncMock()
     return update
@@ -148,6 +154,27 @@ async def test_stop_bot_calls_shutdown():
     await tb.stop_bot()
 
     mock_app.updater.stop.assert_called_once()
+    mock_app.stop.assert_called_once()
+    mock_app.shutdown.assert_called_once()
+    assert tb._application is None
+
+
+@pytest.mark.asyncio
+async def test_stop_bot_timeout_does_not_hang():
+    """stop_bot() returns even if updater.stop() hangs for too long."""
+    import app.telegram_bot as tb
+
+    async def _slow_stop():
+        await asyncio.sleep(10)
+
+    mock_app = MagicMock()
+    mock_app.updater.stop = _slow_stop
+    mock_app.stop = AsyncMock()
+    mock_app.shutdown = AsyncMock()
+    tb._application = mock_app
+
+    await asyncio.wait_for(tb.stop_bot(), timeout=6.5)
+
     mock_app.stop.assert_called_once()
     mock_app.shutdown.assert_called_once()
     assert tb._application is None
@@ -347,6 +374,157 @@ async def test_send_file_missing_path_sends_error(tmp_path):
     assert "not found" in msg.lower() or "ghost" in msg.lower()
 
 
+@pytest.mark.asyncio
+async def test_handle_media_message_prompts_for_destination():
+    import app.telegram_bot as tb
+    tb._pending_uploads.clear()
+
+    update = _make_update(chat_id=88)
+    update.message.document = MagicMock()
+    update.message.document.file_id = "doc-1"
+    update.message.document.file_name = "passport.pdf"
+
+    with patch("app.telegram_bot._is_allowed", new=AsyncMock(return_value=True)):
+        await tb._handle_media_message(update, _make_context())
+
+    assert 88 in tb._pending_uploads
+    prompt = update.message.reply_text.call_args[0][0]
+    assert "1. Private personal" in prompt
+    assert "2. Shared personal" in prompt
+    assert "3. Entertainment" in prompt
+
+
+@pytest.mark.asyncio
+async def test_handle_media_message_oversized_file_prompts_with_warning():
+    """Oversized file is NOT rejected; it prompts with a size warning."""
+    import app.telegram_bot as tb
+    tb._pending_uploads.clear()
+
+    update = _make_update(chat_id=188)
+    update.message.video = MagicMock()
+    update.message.video.file_id = "vid-big"
+    update.message.video.file_name = "movie.mp4"
+    update.message.video.file_size = tb._TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES + 1
+
+    with patch("app.telegram_bot._is_allowed", new=AsyncMock(return_value=True)):
+        await tb._handle_media_message(update, _make_context())
+
+    # Should still be stored as pending (user picks destination next)
+    assert 188 in tb._pending_uploads
+    msg = update.message.reply_text.call_args[0][0]
+    assert "too large" in msg.lower()
+    assert "upload link" in msg.lower()
+    assert "1. Private personal" in msg
+
+
+@pytest.mark.asyncio
+async def test_handle_pending_upload_choice_private_completes(tmp_path):
+    import app.telegram_bot as tb
+    tb._pending_uploads.clear()
+    tb._pending_uploads[99] = tb.PendingUpload(
+        file_id="doc-2",
+        filename="license.pdf",
+        kind="document",
+    )
+
+    update = _make_update(text="1", chat_id=99, first_name="Alice")
+    context = _make_context()
+    saved = tmp_path / "nas" / "personal" / "alice" / "Documents" / "license.pdf"
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text("ok")
+
+    with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
+         patch("app.telegram_bot._store_private_or_shared_file", new=AsyncMock(return_value=saved)):
+        handled = await tb._handle_pending_upload_choice(update, context, "1")
+
+    assert handled is True
+    assert 99 not in tb._pending_uploads
+    msg = update.message.reply_text.call_args[0][0]
+    assert "Operation completed" in msg
+    assert "private personal" in msg
+
+
+@pytest.mark.asyncio
+async def test_handle_pending_upload_choice_entertainment_completes(tmp_path):
+    import app.telegram_bot as tb
+    tb._pending_uploads.clear()
+    tb._pending_uploads[100] = tb.PendingUpload(
+        file_id="vid-1",
+        filename="fun.mp4",
+        kind="video",
+    )
+
+    update = _make_update(text="3", chat_id=100, first_name="Alice")
+    context = _make_context()
+    saved = tmp_path / "nas" / "shared" / "Entertainment" / "fun.mp4"
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text("ok")
+
+    with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
+         patch("app.telegram_bot._store_entertainment_file", new=AsyncMock(return_value=saved)):
+        handled = await tb._handle_pending_upload_choice(update, context, "3")
+
+    assert handled is True
+    assert 100 not in tb._pending_uploads
+    msg = update.message.reply_text.call_args[0][0]
+    assert "Operation completed" in msg
+    assert "entertainment" in msg
+
+
+@pytest.mark.asyncio
+async def test_handle_pending_upload_choice_too_big_shows_specific_error():
+    """When the bot API raises 'file is too big' at download time, a clear message is shown."""
+    import app.telegram_bot as tb
+    tb._pending_uploads.clear()
+    tb._pending_uploads[101] = tb.PendingUpload(
+        file_id="vid-big",
+        filename="huge.mp4",
+        kind="video",
+        file_size=1000,  # small enough to skip upload-link path
+    )
+
+    update = _make_update(text="3", chat_id=101, first_name="Alice")
+    context = _make_context()
+
+    with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
+         patch("app.telegram_bot._store_entertainment_file", new=AsyncMock(side_effect=RuntimeError("File is too big"))):
+        handled = await tb._handle_pending_upload_choice(update, context, "3")
+
+    assert handled is True
+    # Keep pending upload so user can retry with another option/file.
+    assert 101 in tb._pending_uploads
+    msg = update.message.reply_text.call_args[0][0]
+    assert "too large" in msg.lower()
+    assert "telegram" in msg.lower()
+
+
+@pytest.mark.asyncio
+async def test_handle_pending_upload_choice_oversized_generates_link():
+    """Oversized file -> generates upload link instead of downloading."""
+    import app.telegram_bot as tb
+    tb._pending_uploads.clear()
+    tb._pending_uploads[200] = tb.PendingUpload(
+        file_id="vid-huge",
+        filename="big_movie.mp4",
+        kind="video",
+        file_size=tb._TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES + 100,
+    )
+
+    update = _make_update(text="3", chat_id=200, first_name="Alice")
+    context = _make_context()
+
+    with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
+         patch("app.routes.telegram_upload_routes.create_upload_token", return_value="test-token-abc"):
+        handled = await tb._handle_pending_upload_choice(update, context, "3")
+
+    assert handled is True
+    assert 200 not in tb._pending_uploads
+    msg = update.message.reply_text.call_args[0][0]
+    assert "test-token-abc" in msg
+    assert "upload" in msg.lower()
+    assert "entertainment" in msg.lower()
+
+
 # ---------------------------------------------------------------------------
 # list_recent_documents (document_index integration)
 # ---------------------------------------------------------------------------
@@ -386,3 +564,149 @@ async def test_list_recent_documents_returns_newest_first(tmp_path):
     assert len(docs) == 2
     assert docs[0]["filename"] == "new.txt"
     assert docs[1]["filename"] == "old.txt"
+
+
+# ---------------------------------------------------------------------------
+# Upload route — token management
+# ---------------------------------------------------------------------------
+
+def test_upload_token_create_and_pop():
+    """create_upload_token returns a token; pop_upload_token consumes it."""
+    from app.routes.telegram_upload_routes import (
+        create_upload_token, pop_upload_token, _upload_tokens,
+    )
+    _upload_tokens.clear()
+
+    token = create_upload_token(
+        chat_id=42, destination="entertainment", owner="alice", filename="movie.mp4",
+    )
+    assert isinstance(token, str) and len(token) > 10
+    assert token in _upload_tokens
+
+    ut = pop_upload_token(token)
+    assert ut is not None
+    assert ut.chat_id == 42
+    assert ut.destination == "entertainment"
+    assert ut.filename == "movie.mp4"
+
+    # Second pop → None (single-use)
+    assert pop_upload_token(token) is None
+
+
+def test_upload_token_expired():
+    """Expired tokens are rejected by pop_upload_token."""
+    import time
+    from app.routes.telegram_upload_routes import (
+        create_upload_token, pop_upload_token, _upload_tokens, _TOKEN_TTL_SECONDS,
+    )
+    _upload_tokens.clear()
+
+    token = create_upload_token(
+        chat_id=42, destination="private", owner="alice", filename="old.pdf",
+    )
+    # Force expiry
+    _upload_tokens[token].created_at = time.monotonic() - _TOKEN_TTL_SECONDS - 10
+
+    assert pop_upload_token(token) is None
+
+
+# ---------------------------------------------------------------------------
+# Upload route — HTTP endpoints
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_upload_form_valid_token(client):
+    """GET /api/telegram-upload/{token} returns HTML form for valid tokens."""
+    from app.routes.telegram_upload_routes import create_upload_token, _upload_tokens
+    _upload_tokens.clear()
+
+    token = create_upload_token(
+        chat_id=42, destination="entertainment", owner="alice", filename="video.mp4",
+    )
+    resp = await client.get(f"/api/telegram-upload/{token}")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "video.mp4" in resp.text
+    assert "Entertainment" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_upload_form_expired_token(client):
+    """GET /api/telegram-upload/{token} returns 410 for expired tokens."""
+    resp = await client.get("/api/telegram-upload/nonexistent-token")
+    assert resp.status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_upload_post_stores_entertainment_file(client, tmp_path):
+    """POST /api/telegram-upload/{token} stores file in Entertainment folder."""
+    from app.routes.telegram_upload_routes import create_upload_token, _upload_tokens
+    _upload_tokens.clear()
+
+    token = create_upload_token(
+        chat_id=42, destination="entertainment", owner="alice", filename="video.mp4",
+    )
+
+    with patch("app.routes.telegram_upload_routes._notify_telegram", new=AsyncMock()):
+        resp = await client.post(
+            f"/api/telegram-upload/{token}",
+            files={"file": ("my_video.mp4", b"fake video data", "video/mp4")},
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "entertainment" in body["message"].lower()
+    assert "my_video.mp4" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_upload_post_token_consumed(client, tmp_path):
+    """POST upload consumes token; second POST returns 410."""
+    from app.routes.telegram_upload_routes import create_upload_token, _upload_tokens
+    _upload_tokens.clear()
+
+    token = create_upload_token(
+        chat_id=42, destination="entertainment", owner="alice", filename="clip.mp4",
+    )
+
+    with patch("app.routes.telegram_upload_routes._notify_telegram", new=AsyncMock()):
+        resp = await client.post(
+            f"/api/telegram-upload/{token}",
+            files={"file": ("clip.mp4", b"data", "video/mp4")},
+        )
+    assert resp.status_code == 200
+
+    # Second attempt → 410
+    resp2 = await client.post(
+        f"/api/telegram-upload/{token}",
+        files={"file": ("clip.mp4", b"data", "video/mp4")},
+    )
+    assert resp2.status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_upload_post_private_sorts_file(client, tmp_path):
+    """POST upload to private destination sorts through inbox/file_sorter."""
+    from app.routes.telegram_upload_routes import create_upload_token, _upload_tokens
+    from app.config import settings
+    _upload_tokens.clear()
+
+    token = create_upload_token(
+        chat_id=42, destination="private", owner="alice", filename="doc.pdf",
+    )
+
+    saved_path = settings.personal_path / "alice" / "Documents" / "doc.pdf"
+    saved_path.parent.mkdir(parents=True, exist_ok=True)
+    saved_path.write_bytes(b"test")
+
+    with patch("app.routes.telegram_upload_routes._notify_telegram", new=AsyncMock()), \
+         patch("app.routes.telegram_upload_routes._sort_uploaded_file", new=AsyncMock(return_value=saved_path)):
+        resp = await client.post(
+            f"/api/telegram-upload/{token}",
+            files={"file": ("doc.pdf", b"fake doc data", "application/pdf")},
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "private" in body["message"].lower()
+    assert "doc.pdf" in body["message"]

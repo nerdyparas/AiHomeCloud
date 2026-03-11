@@ -4,6 +4,8 @@ GET  /api/v1/system/tailscale-status  — current Tailscale IP and status
 POST /api/v1/system/tailscale-up      — (admin) bring Tailscale up
 """
 
+from __future__ import annotations
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status

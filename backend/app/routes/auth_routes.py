@@ -2,6 +2,8 @@
 Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
 
+from __future__ import annotations
+
 import hmac
 import logging
 import time
