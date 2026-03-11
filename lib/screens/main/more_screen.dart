@@ -236,6 +236,21 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               ),
             ).animate().fadeIn(delay: 120.ms),
 
+            // ── Family ─────────────────────────────────────────────────
+            const SizedBox(height: 24),
+            _sectionLabel('Family'),
+            const SizedBox(height: 12),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: _navTile(
+                icon: Icons.people_rounded,
+                color: const Color(0xFFE8A84C),
+                title: 'Family Members',
+                subtitle: 'Manage users and storage',
+                onTap: () => context.go('/family'),
+              ),
+            ).animate().fadeIn(delay: 130.ms),
+
             // ── Storage & Network ─────────────────────────────────────────
             const SizedBox(height: 24),
             _sectionLabel('Storage & Network'),

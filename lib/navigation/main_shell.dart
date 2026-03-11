@@ -26,8 +26,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final loc = GoRouterState.of(context).matchedLocation;
     if (loc.startsWith('/dashboard')) return 0;
     if (loc.startsWith('/files')) return 1;
-    if (loc.startsWith('/family')) return 2;
-    if (loc.startsWith('/more')) return 3;
+    if (loc.startsWith('/more') || loc.startsWith('/family')) return 2;
     return 0;
   }
 
@@ -208,8 +207,6 @@ class _MainShellState extends ConsumerState<MainShell> {
               case 1:
                 context.go('/files');
               case 2:
-                context.go('/family');
-              case 3:
                 context.go('/more');
             }
           },
@@ -217,10 +214,8 @@ class _MainShellState extends ConsumerState<MainShell> {
             _dest(Icons.home_outlined, Icons.home_rounded, 'Home', idx == 0),
             _dest(Icons.folder_outlined, Icons.folder_rounded, 'Files',
                 idx == 1),
-            _dest(Icons.people_outline_rounded, Icons.people_rounded, 'Family',
-                idx == 2),
             _dest(Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More',
-                idx == 3),
+                idx == 2),
           ],
         ),
       ),
