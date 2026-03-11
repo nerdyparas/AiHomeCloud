@@ -632,6 +632,31 @@ async def search_files(
     return {"results": results, "query": q, "count": len(results)}
 
 
+@router.post("/sort-now")
+async def sort_now(
+    path: str = Query(..., description="NAS directory path to sort immediately"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Manually sort an existing folder into Photos/Videos/Documents/Others.
+    Useful for bulk imports copied directly onto NAS (outside .inbox).
+    """
+    _require_external_storage()
+    resolved = _safe_resolve(path)
+    if not resolved.exists() or not resolved.is_dir():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Directory not found")
+
+    from ..file_sorter import sort_folder_now
+
+    added_by = user.get("sub", "unknown")
+    stats = await sort_folder_now(resolved, added_by=added_by)
+    nas_path = "/" + str(resolved.relative_to(settings.nas_root.resolve())).replace("\\", "/")
+    return {
+        "path": nas_path,
+        **stats,
+    }
+
+
 @router.get("/roots")
 async def storage_roots(user: dict = Depends(get_current_user)):
     """Return browseable storage roots — mounted USB/NVMe drives."""

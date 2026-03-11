@@ -78,7 +78,7 @@ def _unique_dest(dest_dir: Path, name: str) -> Path:
         counter += 1
 
 
-def _sort_file(file_path: Path, base_dir: Path) -> Optional[Path]:
+def _sort_file(file_path: Path, base_dir: Path, *, check_age: bool = True) -> Optional[Path]:
     """
     Move *file_path* from .inbox/ to the appropriate sub-folder under *base_dir*.
     Returns the destination Path on success; None if skipped or an error occurred.
@@ -86,9 +86,10 @@ def _sort_file(file_path: Path, base_dir: Path) -> Optional[Path]:
     retried on the next pass.
     """
     try:
-        age = time.time() - file_path.stat().st_mtime
-        if age < _MIN_AGE_SECONDS:
-            return None  # file still being written; skip this pass
+        if check_age:
+            age = time.time() - file_path.stat().st_mtime
+            if age < _MIN_AGE_SECONDS:
+                return None  # file still being written; skip this pass
 
         folder_name = _destination_folder(file_path)
         dest_dir = base_dir / folder_name
@@ -156,13 +157,78 @@ async def _run_sort_pass() -> None:
         for file_path in entries:
             if not file_path.is_file():
                 continue
-            dest = await loop.run_in_executor(None, _sort_file, file_path, base_dir)
+            dest = await loop.run_in_executor(
+                None,
+                lambda p=file_path, b=base_dir: _sort_file(p, b, check_age=True),
+            )
             if dest is not None and dest.parent.name == "Documents":
                 # Best-effort indexing — never blocks the watcher
                 asyncio.create_task(
                     _try_index_document(dest, base_dir.name),
                     name=f"index_doc_{dest.name}",
                 )
+
+
+def _sort_folder_sync(folder: Path) -> tuple[int, int, int, list[Path]]:
+    """Recursively sort files in *folder* without age checks."""
+    moved = 0
+    skipped = 0
+    failed = 0
+    docs: list[Path] = []
+    category_dirs = {"Photos", "Videos", "Documents", "Others", ".inbox"}
+
+    try:
+        entries = list(folder.rglob("*"))
+    except OSError:
+        return moved, skipped, failed, docs
+
+    for entry in entries:
+        if not entry.is_file():
+            skipped += 1
+            continue
+
+        # Skip files already inside known category folders to avoid churn.
+        try:
+            rel_parent_parts = entry.relative_to(folder).parent.parts
+        except ValueError:
+            rel_parent_parts = ()
+        if any(part in category_dirs for part in rel_parent_parts):
+            skipped += 1
+            continue
+
+        dest = _sort_file(entry, folder, check_age=False)
+        if dest is None:
+            failed += 1
+            continue
+
+        moved += 1
+        if dest.parent.name == "Documents":
+            docs.append(dest)
+
+    return moved, skipped, failed, docs
+
+
+async def sort_folder_now(folder: Path, added_by: str) -> dict[str, int]:
+    """
+    Manually sort all top-level files inside *folder* into category subfolders.
+    Intended for one-shot ingestion of existing dumps (e.g. RawData).
+    """
+    loop = asyncio.get_event_loop()
+    moved, skipped, failed, docs = await loop.run_in_executor(
+        None, lambda: _sort_folder_sync(folder)
+    )
+
+    indexed = 0
+    for doc in docs:
+        await _try_index_document(doc, added_by)
+        indexed += 1
+
+    return {
+        "moved": moved,
+        "skipped": skipped,
+        "failed": failed,
+        "indexed": indexed,
+    }
 
 
 class InboxWatcher:

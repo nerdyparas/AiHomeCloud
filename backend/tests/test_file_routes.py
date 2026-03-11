@@ -230,6 +230,48 @@ async def test_list_with_sort(authenticated_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_sort_now_sorts_existing_folder(authenticated_client: AsyncClient):
+    """Manual sort endpoint should categorize files in an existing folder."""
+    from app.routes.file_routes import _safe_resolve
+
+    response = await authenticated_client.post(
+        "/api/v1/files/mkdir",
+        json={"path": "/srv/nas/shared/RawData"},
+    )
+    assert response.status_code == 201
+
+    shared_raw = _safe_resolve("/srv/nas/shared/RawData")
+    shared_raw.mkdir(parents=True, exist_ok=True)
+    (shared_raw / "nested").mkdir(parents=True, exist_ok=True)
+    (shared_raw / "holiday.jpg").write_bytes(b"img")
+    (shared_raw / "movie.mp4").write_bytes(b"vid")
+    (shared_raw / "notes.txt").write_bytes(b"doc")
+    (shared_raw / "nested" / "paper.pdf").write_bytes(b"%PDF-1.4")
+
+    response = await authenticated_client.post(
+        "/api/v1/files/sort-now?path=/srv/nas/shared/RawData"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["moved"] >= 4
+
+    # Small images are treated as scanned documents by heuristic.
+    assert (shared_raw / "Documents" / "holiday.jpg").exists()
+    assert (shared_raw / "Videos" / "movie.mp4").exists()
+    assert (shared_raw / "Documents" / "notes.txt").exists()
+    assert (shared_raw / "Documents" / "paper.pdf").exists()
+
+
+@pytest.mark.asyncio
+async def test_sort_now_missing_dir_returns_404(authenticated_client: AsyncClient):
+    """Sorting a missing directory should return 404."""
+    response = await authenticated_client.post(
+        "/api/v1/files/sort-now?path=/srv/nas/shared/no_such_folder"
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_file_ops_require_auth(client: AsyncClient):
     """All file endpoints require authentication."""
     endpoints = [
@@ -237,6 +279,7 @@ async def test_file_ops_require_auth(client: AsyncClient):
         ("POST", "/api/v1/files/mkdir"),
         ("DELETE", "/api/v1/files/delete?path=/srv/nas/shared/x"),
         ("GET", "/api/v1/files/download?path=/srv/nas/shared/x"),
+        ("POST", "/api/v1/files/sort-now?path=/srv/nas/shared/RawData"),
     ]
     for method, url in endpoints:
         response = await client.request(method, url)
