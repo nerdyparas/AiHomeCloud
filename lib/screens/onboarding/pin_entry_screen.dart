@@ -21,6 +21,34 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   final _pinController = TextEditingController();
   bool _loading = false;
   String? _error;
+  List<String> _userNames = [];
+  String? _selectedUser;
+  bool _loadingUsers = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+  }
+
+  Future<void> _fetchUsers() async {
+    try {
+      final api = ApiService.instance;
+      final names = await api.fetchUserNames(widget.deviceIp);
+      if (!mounted) return;
+      setState(() {
+        _userNames = names;
+        _selectedUser = names.isNotEmpty ? names.first : null;
+        _loadingUsers = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingUsers = false;
+        _error = friendlyError(e);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -30,7 +58,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   Future<void> _submit() async {
     final pin = _pinController.text.trim();
-    if (pin.isEmpty) return;
+    if (pin.isEmpty || _selectedUser == null) return;
 
     setState(() {
       _loading = true;
@@ -41,7 +69,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
       final api = ApiService.instance;
       final result = await api.loginWithPin(
         widget.deviceIp,
-        'admin',
+        _selectedUser!,
         pin,
       );
 
@@ -96,7 +124,50 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
                     color: AppColors.textSecondary,
                   ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            if (_loadingUsers)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 24),
+                child: CircularProgressIndicator(),
+              )
+            else if (_userNames.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: DropdownButtonFormField<String>(
+                  value: _selectedUser,
+                  dropdownColor: AppColors.card,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                  decoration: InputDecoration(
+                    labelText: 'User',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.card,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(CubieRadii.card),
+                      borderSide: BorderSide(color: AppColors.cardBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(CubieRadii.card),
+                      borderSide: BorderSide(color: AppColors.cardBorder),
+                    ),
+                  ),
+                  items: _userNames
+                      .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedUser = v),
+                ),
+              )
+            else if (_userNames.length == 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  _selectedUser!,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                ),
+              ),
+            const SizedBox(height: 8),
             TextField(
               controller: _pinController,
               keyboardType: TextInputType.number,

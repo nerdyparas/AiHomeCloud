@@ -93,4 +93,15 @@ extension AuthApi on ApiService {
     _check(res);
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
+
+  /// GET /api/v1/auth/users/names — fetch available user names (no auth).
+  Future<List<String>> fetchUserNames(String host) async {
+    final base = 'https://$host:${AppConstants.apiPort}';
+    final res = await _client
+        .get(Uri.parse('$base${AppConstants.apiVersion}/auth/users/names'))
+        .timeout(ApiService._timeout);
+    _check(res);
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return (data['names'] as List).cast<String>();
+  }
 }

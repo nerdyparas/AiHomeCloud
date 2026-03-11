@@ -168,6 +168,13 @@ async def cert_fingerprint():
         return {"fingerprint": None, "algorithm": "sha256"}
 
 
+@router.get("/auth/users/names")
+async def list_user_names():
+    """Return just the user names (no auth required) so the login screen can show a picker."""
+    users = await store.get_users()
+    return {"names": [u["name"] for u in users]}
+
+
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: CreateUserRequest,

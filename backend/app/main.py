@@ -33,6 +33,7 @@ from .routes import (
     service_routes,
     storage_routes,
     event_routes,
+    network_routes,
     telegram_routes,
     tailscale_routes,
 )
@@ -175,6 +176,13 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("Telegram bot startup failed: %s", e)
 
+    # Auto-disable WiFi if Ethernet is active
+    try:
+        from .wifi_manager import auto_disable_wifi_if_ethernet
+        await auto_disable_wifi_if_ethernet()
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.warning("WiFi auto-disable check failed: %s", e)
+
     yield
 
     # Stop Telegram bot
@@ -247,6 +255,7 @@ app.include_router(family_routes.router)
 app.include_router(service_routes.router)
 app.include_router(storage_routes.router)
 app.include_router(event_routes.router)
+app.include_router(network_routes.router)
 app.include_router(adguard_routes.router)
 app.include_router(telegram_routes.router)
 app.include_router(tailscale_routes.router)
