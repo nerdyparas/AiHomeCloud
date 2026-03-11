@@ -362,7 +362,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 1.45,
+                  childAspectRatio: 1.25,
                   children: [
                     StatTile(
                       label: 'CPU',

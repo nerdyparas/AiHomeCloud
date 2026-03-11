@@ -41,25 +41,23 @@ class StatTile extends StatelessWidget {
         children: [
           // Icon badge
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: colour.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: colour, size: 20),
+            child: Icon(icon, color: colour, size: 18),
           ),
-          const SizedBox(height: 12),
-          // Label
+          const SizedBox(height: 8),
           Text(
             label,
             style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 4),
-          // Value + unit
+          const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -68,7 +66,7 @@ class StatTile extends StatelessWidget {
                 value,
                 style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -78,7 +76,7 @@ class StatTile extends StatelessWidget {
                   unit!,
                   style: GoogleFonts.dmSans(
                     color: AppColors.textSecondary,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -86,14 +84,15 @@ class StatTile extends StatelessWidget {
             ],
           ),
           if (helperText != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               helperText!,
               style: GoogleFonts.dmSans(
                 color: helperColor ?? AppColors.textSecondary,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],
