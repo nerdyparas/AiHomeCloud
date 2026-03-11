@@ -2,13 +2,15 @@
 Telegram bot for document retrieval from AiHomeCloud.
 
 Bot commands:
-  /start — welcome message
+  /start — welcome + prompt to /auth if not linked
+  /auth  — link Telegram account to AiHomeCloud
   /list  — last 10 indexed documents
+  /help  — show all commands
   <text> — full-text search; 0 results → message; 1 → send file; 2-5 → numbered list
   <num>  — send the nth file from the last search
 
-Security: if CUBIE_TELEGRAM_ALLOWED_IDS is set, only those chat IDs are served.
-Unauthorised users get a polite rejection — no data is revealed.
+Security: users must send /auth to link their Telegram account before accessing
+any data. Linked chat IDs are persisted in the KV store.
 
 The bot is entirely optional — it is only started when CUBIE_TELEGRAM_BOT_TOKEN is
 configured.  If python-telegram-bot is not installed the startup silently skips.
@@ -29,20 +31,29 @@ _application = None
 
 
 # ---------------------------------------------------------------------------
-# Access control
+# Access control — linked chat IDs persisted in KV store
 # ---------------------------------------------------------------------------
 
-def _is_allowed(chat_id: int) -> bool:
-    """Return True if chat_id may use the bot.
+async def _get_linked_ids() -> set[int]:
+    """Return set of linked Telegram chat IDs from KV store."""
+    from .store import get_value
+    ids = await get_value("telegram_linked_ids", default=[])
+    return {int(i) for i in ids if str(i).lstrip("-").isdigit()}
 
-    When CUBIE_TELEGRAM_ALLOWED_IDS is empty, all users are allowed (open mode).
-    """
-    from .config import settings
-    raw = settings.telegram_allowed_ids.strip()
-    if not raw:
-        return True
-    allowed = {s.strip() for s in raw.split(",") if s.strip()}
-    return str(chat_id) in allowed
+
+async def _add_linked_id(chat_id: int) -> None:
+    """Persistently link a new chat_id."""
+    from .store import get_value, set_value
+    ids = await get_value("telegram_linked_ids", default=[])
+    if chat_id not in ids:
+        ids.append(chat_id)
+        await set_value("telegram_linked_ids", ids)
+
+
+async def _is_allowed(chat_id: int) -> bool:
+    """Return True if chat_id has linked their account via /auth."""
+    linked = await _get_linked_ids()
+    return chat_id in linked
 
 
 # ---------------------------------------------------------------------------
@@ -51,22 +62,67 @@ def _is_allowed(chat_id: int) -> bool:
 
 async def _handle_start(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
-    if not _is_allowed(chat_id):
-        await update.message.reply_text("Sorry, this is a private AiHomeCloud.")
+    first_name = update.effective_user.first_name or "there"
+
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text(
+            f"👋 Hi {first_name}! This is a private AiHomeCloud.\n\n"
+            "Send /auth to link your Telegram account and get access."
+        )
+        return
+
+    await update.message.reply_text(
+        f"👋 Welcome back, {first_name}!\n\n"
+        "Type anything to search your documents, or /help for all commands."
+    )
+
+
+async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
+    chat_id = update.effective_chat.id
+    first_name = update.effective_user.first_name or "there"
+
+    if await _is_allowed(chat_id):
+        await update.message.reply_text(
+            f"✅ You're already linked, {first_name}!\n"
+            "Type anything to search your files, or /list for recent documents."
+        )
+        return
+
+    await _add_linked_id(chat_id)
+    await update.message.reply_text(
+        f"✅ Linked! Welcome, {first_name}.\n\n"
+        "You can now:\n"
+        "• Type anything to search documents\n"
+        "• /list — see recent files\n"
+        "• /help — show all commands"
+    )
+
+
+async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text(
+            "Send /auth first to link your account to AiHomeCloud."
+        )
         return
     await update.message.reply_text(
-        "👋 Welcome to AiHomeCloud!\n\n"
+        "🏠 AiHomeCloud Bot\n\n"
         "Commands:\n"
-        "• /list — show last 10 documents\n"
-        "• Type anything to search your documents\n"
-        "• Reply with a number to receive a file from your last search"
+        "• /list — last 10 documents\n"
+        "• /help — this message\n\n"
+        "Search:\n"
+        "• Type any word to search your files\n"
+        "• Reply with a number to receive that file\n\n"
+        "Examples: aadhaar, pan card, invoice, passport"
     )
 
 
 async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
-    if not _is_allowed(chat_id):
-        await update.message.reply_text("Sorry, this is a private AiHomeCloud.")
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text(
+            "Send /auth first to link your account to AiHomeCloud."
+        )
         return
 
     from .document_index import list_recent_documents
@@ -85,8 +141,10 @@ async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
 
 async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
-    if not _is_allowed(chat_id):
-        await update.message.reply_text("Sorry, this is a private AiHomeCloud.")
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text(
+            "Send /auth first to link your account to AiHomeCloud."
+        )
         return
 
     text = (update.message.text or "").strip()
@@ -164,6 +222,8 @@ async def start_bot() -> None:
         )
 
         _application.add_handler(CommandHandler("start", _handle_start))
+        _application.add_handler(CommandHandler("auth", _handle_auth))
+        _application.add_handler(CommandHandler("help", _handle_help))
         _application.add_handler(CommandHandler("list", _handle_list))
         _application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, _handle_message)
