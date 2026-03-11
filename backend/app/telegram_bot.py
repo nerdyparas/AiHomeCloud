@@ -185,10 +185,14 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
 
 async def _send_file(update, doc: dict) -> None:
     from .config import settings
+    from .document_index import remove_document
     nas_path = doc.get("path", "")
     abs_path = settings.nas_root / nas_path.lstrip("/")
     p = Path(str(abs_path))
     if not p.exists() or not p.is_file():
+        # Self-heal stale search index entries when files were deleted out-of-band.
+        if nas_path:
+            await remove_document(nas_path)
         await update.message.reply_text(f"⚠️ File not found: {doc.get('filename', '?')}")
         return
     with open(p, "rb") as fh:

@@ -339,7 +339,9 @@ async def test_send_file_missing_path_sends_error(tmp_path):
     import app.telegram_bot as tb
     update = _make_update(chat_id=1)
     doc = {"path": "/personal/alice/Documents/ghost.pdf", "filename": "ghost.pdf"}
-    await tb._send_file(update, doc)
+    with patch("app.document_index.remove_document", new=AsyncMock()) as mock_remove:
+        await tb._send_file(update, doc)
+    mock_remove.assert_called_once_with("/personal/alice/Documents/ghost.pdf")
     update.message.reply_document.assert_not_called()
     msg = update.message.reply_text.call_args[0][0]
     assert "not found" in msg.lower() or "ghost" in msg.lower()

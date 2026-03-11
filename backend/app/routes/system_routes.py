@@ -68,7 +68,7 @@ _SERVICE_UNITS: dict[str, list[str]] = {
     "samba": ["smbd", "nmbd"],
     "nfs": ["nfs-kernel-server"],
     "ssh": ["ssh"],
-    "dlna": ["minidlnad"],
+    "dlna": ["minidlna", "minidlnad"],
 }
 
 

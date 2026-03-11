@@ -98,6 +98,14 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("Auto-remount failed: %s", e)
 
+    # Ensure DLNA is on by default at backend startup (if service is installed).
+    try:
+        from .routes.storage_helpers import ensure_dlna_started_and_enabled
+
+        await ensure_dlna_started_and_enabled()
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.warning("DLNA startup ensure failed: %s", e)
+
     # Purge old refresh tokens (cleanup tokens.json) older than 30 days past expiry
     try:
         from . import store as _store_module
@@ -155,6 +163,16 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("document_index init failed: %s", e)
 
+    # Startup hygiene: remove known backend test artifacts from user storage/index.
+    try:
+        from .hygiene import cleanup_startup_artifacts as _cleanup_startup_artifacts
+
+        stats = await _cleanup_startup_artifacts()
+        if any(stats.values()):
+            logger.info("Startup hygiene cleanup completed: %s", stats)
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.warning("Startup hygiene cleanup failed: %s", e)
+
     # Initialise SQLite file index (feature-flagged, off by default)
     try:
         from .db_stub import init_db as _init_sqlite_db
@@ -168,6 +186,13 @@ async def lifespan(app: FastAPI):
         _get_watcher().start()
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("InboxWatcher startup failed: %s", e)
+
+    # Start document index watcher for out-of-band file changes.
+    try:
+        from .index_watcher import get_index_watcher as _get_index_watcher
+        _get_index_watcher().start()
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.error("DocumentIndexWatcher startup failed: %s", e)
 
     # Start Telegram bot (optional — skipped if token not set)
     try:
@@ -198,6 +223,13 @@ async def lifespan(app: FastAPI):
         await _get_watcher().stop()
     except (OSError, RuntimeError, ValueError):
         logger.debug("InboxWatcher shutdown skipped")
+
+    # Stop document index watcher
+    try:
+        from .index_watcher import get_index_watcher as _get_index_watcher
+        await _get_index_watcher().stop()
+    except (OSError, RuntimeError, ValueError):
+        logger.debug("DocumentIndexWatcher shutdown skipped")
 
 
 app = FastAPI(

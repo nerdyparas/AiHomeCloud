@@ -27,7 +27,27 @@ _MAX_WS_CONNECTIONS = 10
 _ws_connection_count = 0
 
 
-def _read_system_stats(thermal_zone_path: str = None, prev_net=None, prev_time=None) -> dict:
+def _pick_network_counters(preferred_iface: str | None = None):
+    """Pick network counters for the preferred iface, else busiest non-loopback iface."""
+    per_nic = psutil.net_io_counters(pernic=True)
+    if not per_nic:
+        return psutil.net_io_counters(), "all"
+
+    if preferred_iface and preferred_iface in per_nic:
+        return per_nic[preferred_iface], preferred_iface
+
+    # Fallback: choose busiest non-loopback interface by total bytes.
+    candidates = {k: v for k, v in per_nic.items() if not k.startswith("lo")}
+    if not candidates:
+        return psutil.net_io_counters(), "all"
+    iface, counters = max(
+        candidates.items(),
+        key=lambda item: item[1].bytes_sent + item[1].bytes_recv,
+    )
+    return counters, iface
+
+
+def _read_system_stats(thermal_zone_path: str = None, lan_interface: str = None, prev_net=None, prev_time=None) -> dict:
     """
     Gather real system metrics.
     
@@ -76,10 +96,10 @@ def _read_system_stats(thermal_zone_path: str = None, prev_net=None, prev_time=N
     uptime_sec = int(time.time() - _boot_time)
 
     # Network throughput (delta) — per-connection counters
-    now_time = time.time()
-    now_net = psutil.net_io_counters()
+    now_time = time.monotonic()
+    now_net, active_iface = _pick_network_counters(lan_interface)
     if prev_net and prev_time:
-        dt = now_time - prev_time if now_time != prev_time else 1.0
+        dt = max(now_time - prev_time, 0.25)
         up_mbps = ((now_net.bytes_sent - prev_net.bytes_sent) * 8) / (dt * 1_000_000)
         down_mbps = ((now_net.bytes_recv - prev_net.bytes_recv) * 8) / (dt * 1_000_000)
     else:
@@ -102,6 +122,7 @@ def _read_system_stats(thermal_zone_path: str = None, prev_net=None, prev_time=N
         "uptimeSeconds": uptime_sec,
         "networkUpMbps": round(up_mbps, 2),
         "networkDownMbps": round(down_mbps, 2),
+        "networkInterface": active_iface,
         "storage": {
             "totalGB": round(total_gb, 1),
             "usedGB": round(used_gb, 1),
@@ -113,7 +134,7 @@ def _read_system_stats(thermal_zone_path: str = None, prev_net=None, prev_time=N
 @router.websocket("/ws/monitor")
 async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
     """
-    Stream system stats to the Flutter app every 2 seconds.
+    Stream system stats to the Flutter app every 1 second.
     Uses board-specific thermal zone path for accurate temperature readings.
     Requires JWT token as query parameter: /ws/monitor?token=<jwt>
     """
@@ -142,9 +163,10 @@ async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
     # Prime the CPU meter (first call always returns 0)
     psutil.cpu_percent(interval=None)
 
-    # Per-connection network counters
-    prev_net = psutil.net_io_counters()
-    prev_time = time.time()
+    # Per-connection network counters (stick to detected LAN interface when possible)
+    lan_interface = board.lan_interface if board else None
+    prev_net, _ = _pick_network_counters(lan_interface)
+    prev_time = time.monotonic()
 
     # Throttle storage warnings (at most once per 5 minutes)
     _last_storage_warn = 0
@@ -152,7 +174,7 @@ async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
     try:
         while True:
             stats, prev_net, prev_time = _read_system_stats(
-                thermal_zone_path, prev_net, prev_time
+                thermal_zone_path, lan_interface, prev_net, prev_time
             )
             await ws.send_text(json.dumps(stats))
 
@@ -168,7 +190,7 @@ async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
                     _last_storage_warn = now
                     await emit_storage_warning(pct, free)
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:

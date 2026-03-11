@@ -43,6 +43,17 @@ BLOCKED_EXTENSIONS: frozenset[str] = frozenset({
 })
 
 
+def _is_documents_scoped(path: Path) -> bool:
+    """True when path is in a Documents folder (or is that folder)."""
+    return path.name == "Documents" or "Documents" in path.parts
+
+
+def _is_document_file(path: Path) -> bool:
+    from ..document_index import is_indexable_document_path
+
+    return _is_documents_scoped(path) and is_indexable_document_path(path)
+
+
 def _require_external_storage() -> None:
     """
     Verify that external storage (USB / NVMe) is mounted at nas_root.
@@ -250,6 +261,13 @@ async def delete_file(
 
     shutil.move(str(resolved), str(trash_path))
 
+    # Keep document index in sync with soft-delete operations.
+    from ..document_index import remove_document, remove_documents_by_prefix
+    if resolved.is_file() and _is_documents_scoped(resolved):
+        await remove_document(path)
+    elif resolved.is_dir() and _is_documents_scoped(resolved):
+        await remove_documents_by_prefix(path)
+
     item = {
         "id": str(uuid.uuid4()),
         "originalPath": path,
@@ -402,6 +420,13 @@ async def restore_trash_item(item_id: str, user: dict = Depends(get_current_user
 
     shutil.move(str(trash_path), str(dest))
 
+    # Re-index restored documents so search remains accurate.
+    from ..document_index import index_document, index_documents_under_path
+    if dest.is_file() and _is_document_file(dest):
+        await index_document(str(dest), dest.name, user_id)
+    elif dest.is_dir() and _is_documents_scoped(dest):
+        await index_documents_under_path(str(dest), user_id)
+
     remaining = [i for i in all_items if i.get("id") != item_id]
     await store.save_trash_items(remaining)
 
@@ -462,7 +487,26 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
     if new_path.exists():
         raise HTTPException(status.HTTP_409_CONFLICT, "A file with that name already exists")
 
+    was_file = resolved.is_file()
+    was_dir = resolved.is_dir()
     resolved.rename(new_path)
+
+    # Keep index paths aligned after rename/move.
+    from ..document_index import (
+        index_document,
+        index_documents_under_path,
+        remove_document,
+        remove_documents_by_prefix,
+    )
+    added_by = user.get("sub", "unknown")
+    if was_file and (_is_documents_scoped(resolved) or _is_documents_scoped(new_path)):
+        await remove_document(str(resolved))
+        if _is_document_file(new_path):
+            await index_document(str(new_path), new_path.name, added_by)
+    elif was_dir and (_is_documents_scoped(resolved) or _is_documents_scoped(new_path)):
+        await remove_documents_by_prefix(str(resolved))
+        if _is_documents_scoped(new_path):
+            await index_documents_under_path(str(new_path), added_by)
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
@@ -543,6 +587,15 @@ async def upload_file(
     user_name = user.get("sub", "unknown")
     asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
 
+    # Direct uploads to Documents bypass .inbox; index them immediately.
+    if not use_inbox and _is_document_file(resolved_dest):
+        from ..document_index import index_document
+
+        asyncio.create_task(
+            index_document(str(resolved_dest), safe_name, user_name),
+            name=f"index_upload_{safe_name}",
+        )
+
     # When written directly to a folder (not .inbox), no auto-sort will happen.
     sorted_to = None if not use_inbox else _destination_folder(resolved_dest)
 
@@ -580,6 +633,9 @@ async def download_file(
     resolved = _safe_resolve(path)
 
     if not resolved.exists():
+        from ..document_index import remove_document
+
+        await remove_document(path)
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
     if resolved.is_dir():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot download a directory")

@@ -17,11 +17,18 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from fnmatch import fnmatch
 
 from .config import settings
 from .subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.document_index")
+
+
+_INDEXABLE_EXTENSIONS: frozenset[str] = frozenset({
+    ".txt", ".md", ".csv", ".rtf", ".pdf",
+    ".jpg", ".jpeg", ".png", ".heic", ".heif", ".tiff", ".tif", ".bmp",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +139,40 @@ def _to_nas_path(abs_path: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Query normalization — expand common aliases and misspellings
+# ---------------------------------------------------------------------------
+
+# Maps common user search terms to FTS5 OR queries.
+# Covers Hindi/English variants and frequent misspellings.
+_SEARCH_ALIASES: dict[str, str] = {
+    "aadhar":    'aadhaar OR aadhar OR आधार OR uidai',
+    "aadhaar":   'aadhaar OR aadhar OR आधार OR uidai',
+    "aadharcard":'aadhaar OR aadhar OR आधार OR uidai',
+    "pan":       'pan OR pancard OR आयकर OR "income tax"',
+    "pancard":   'pan OR pancard OR आयकर OR "income tax"',
+    "license":   'license OR licence OR driving OR DL',
+    "licence":   'license OR licence OR driving OR DL',
+    "dl":        'license OR licence OR driving OR DL',
+    "passport":  'passport OR पासपोर्ट',
+    "invoice":   'invoice OR bill OR receipt',
+    "receipt":   'invoice OR bill OR receipt',
+    "marksheet": 'marksheet OR marks OR result OR "mark sheet"',
+}
+
+
+def _normalize_query(raw: str) -> str:
+    """Expand known aliases and add prefix matching for short single-word queries."""
+    stripped = raw.strip().lower()
+    if stripped in _SEARCH_ALIASES:
+        return _SEARCH_ALIASES[stripped]
+    # Single word under 12 chars → also try prefix match for typo tolerance
+    words = stripped.split()
+    if len(words) == 1 and len(stripped) <= 12 and stripped.isalpha():
+        return f'{stripped} OR {stripped}*'
+    return raw.strip()
+
+
+# ---------------------------------------------------------------------------
 # Sync DB operations — called via run_in_executor
 # ---------------------------------------------------------------------------
 
@@ -152,6 +193,7 @@ def _upsert_sync(nas_path: str, filename: str, ocr_text: str, added_by: str) -> 
 
 
 def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[dict]:
+    fts_query = _normalize_query(query)
     conn = _connect()
     try:
         if user_role == "admin":
@@ -164,7 +206,7 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
                 ORDER BY rank
                 LIMIT ?
                 """,
-                (query, limit),
+                (fts_query, limit),
             ).fetchall()
         else:
             # Member scope: own personal Documents + shared Documents
@@ -180,7 +222,7 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
                 ORDER BY rank
                 LIMIT ?
                 """,
-                (query, own_prefix, shared_prefix, limit),
+                (fts_query, own_prefix, shared_prefix, limit),
             ).fetchall()
         return [dict(row) for row in rows]
     finally:
@@ -192,6 +234,53 @@ def _remove_sync(nas_path: str) -> None:
     try:
         conn.execute("DELETE FROM doc_index WHERE path = ?", (nas_path,))
         conn.commit()
+    finally:
+        conn.close()
+
+
+def _remove_prefix_sync(nas_prefix: str) -> int:
+    """Delete all indexed docs whose path starts with *nas_prefix*."""
+    conn = _connect()
+    try:
+        cur = conn.execute("DELETE FROM doc_index WHERE path LIKE ?", (f"{nas_prefix}%",))
+        conn.commit()
+        return cur.rowcount or 0
+    finally:
+        conn.close()
+
+
+def _remove_by_filename_patterns_sync(patterns: list[str]) -> int:
+    """Delete indexed docs matching any shell-style filename pattern."""
+    if not patterns:
+        return 0
+    conn = _connect()
+    try:
+        rows = conn.execute("SELECT path, filename FROM doc_index").fetchall()
+        to_remove = [r["path"] for r in rows if any(fnmatch(r["filename"], p) for p in patterns)]
+        if not to_remove:
+            return 0
+        conn.executemany("DELETE FROM doc_index WHERE path = ?", [(p,) for p in to_remove])
+        conn.commit()
+        return len(to_remove)
+    finally:
+        conn.close()
+
+
+def _remove_missing_sync() -> int:
+    """Delete indexed entries whose filesystem paths no longer exist."""
+    conn = _connect()
+    removed = 0
+    try:
+        rows = conn.execute("SELECT path FROM doc_index").fetchall()
+        for row in rows:
+            nas_path = row["path"]
+            abs_path = settings.nas_root / nas_path.lstrip("/")
+            if not abs_path.exists():
+                conn.execute("DELETE FROM doc_index WHERE path = ?", (nas_path,))
+                removed += 1
+        if removed:
+            conn.commit()
+        return removed
     finally:
         conn.close()
 
@@ -256,6 +345,52 @@ async def remove_document(path: str) -> None:
         path = _to_nas_path(Path(path))
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _remove_sync, path)
+
+
+async def remove_documents_by_prefix(path_prefix: str) -> int:
+    """Async: remove all indexed docs under a NAS path prefix."""
+    if Path(path_prefix).is_absolute():
+        path_prefix = _to_nas_path(Path(path_prefix))
+    nas_prefix = path_prefix.rstrip("/") + "/"
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _remove_prefix_sync, nas_prefix)
+
+
+async def remove_documents_by_filename_patterns(patterns: list[str]) -> int:
+    """Async: remove index rows matching shell-style filename patterns."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _remove_by_filename_patterns_sync, patterns)
+
+
+async def remove_missing_documents() -> int:
+    """Async: prune stale index entries whose files are gone."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _remove_missing_sync)
+
+
+def is_indexable_document_path(path: Path) -> bool:
+    """Return True when *path* should be indexed by document_index."""
+    return path.is_file() and path.suffix.lower() in _INDEXABLE_EXTENSIONS
+
+
+async def index_documents_under_path(root_path: str, added_by: str) -> int:
+    """Recursively index all supported document files under *root_path*."""
+    root = Path(root_path) if Path(root_path).is_absolute() else settings.nas_root / root_path.lstrip("/")
+    if not root.exists():
+        return 0
+
+    indexed = 0
+    if root.is_file():
+        if is_indexable_document_path(root):
+            await index_document(str(root), root.name, added_by)
+            indexed += 1
+        return indexed
+
+    for p in root.rglob("*"):
+        if is_indexable_document_path(p):
+            await index_document(str(p), p.name, added_by)
+            indexed += 1
+    return indexed
 
 
 def _list_recent_sync(limit: int) -> list[dict]:

@@ -362,3 +362,73 @@ async def test_search_endpoint_returns_indexed_doc(client, admin_token, tmp_path
     body = resp.json()
     assert body["count"] == 1
     assert body["results"][0]["filename"] == "test_search.txt"
+
+
+# ---------------------------------------------------------------------------
+# Query normalization & alias expansion
+# ---------------------------------------------------------------------------
+
+def test_normalize_query_aliases():
+    """Known aliases expand to FTS5 OR queries."""
+    from app.document_index import _normalize_query
+    result = _normalize_query("aadhar")
+    assert "aadhaar" in result
+    assert "aadhar" in result
+    assert "OR" in result
+
+    result2 = _normalize_query("pan")
+    assert "pancard" in result2
+
+
+def test_normalize_query_prefix_matching():
+    """Single short word gets prefix expansion."""
+    from app.document_index import _normalize_query
+    result = _normalize_query("hello")
+    assert "hello*" in result
+
+
+def test_normalize_query_passthrough():
+    """Multi-word queries pass through unchanged."""
+    from app.document_index import _normalize_query
+    assert _normalize_query("foo bar baz") == "foo bar baz"
+
+
+@pytest.mark.asyncio
+async def test_search_aadhar_misspelling_finds_aadhaar(tmp_path):
+    """Searching 'aadhar' (common misspelling) finds docs containing 'aadhaar'."""
+    await _make_index(tmp_path)
+    nas = tmp_path / "nas"
+    doc_dir = nas / "personal" / "admin" / "Documents"
+    doc_dir.mkdir(parents=True)
+    settings.nas_root = nas
+
+    doc = doc_dir / "id_card.txt"
+    doc.write_text("Unique Identification Authority AADHAAR card number 1234 5678 9012")
+
+    from app.document_index import index_document, search_documents
+    await index_document(str(doc), doc.name, "admin")
+
+    # 'aadhar' (single a) should still find the doc containing 'AADHAAR'
+    results = await search_documents("aadhar", user_role="admin", username="")
+    assert len(results) >= 1
+    assert any(r["filename"] == "id_card.txt" for r in results)
+
+
+@pytest.mark.asyncio
+async def test_search_dl_alias_finds_license(tmp_path):
+    """Searching 'dl' finds docs about driving license."""
+    await _make_index(tmp_path)
+    nas = tmp_path / "nas"
+    doc_dir = nas / "personal" / "admin" / "Documents"
+    doc_dir.mkdir(parents=True)
+    settings.nas_root = nas
+
+    doc = doc_dir / "driving.txt"
+    doc.write_text("Driving licence number KA53 valid till 2036")
+
+    from app.document_index import index_document, search_documents
+    await index_document(str(doc), doc.name, "admin")
+
+    results = await search_documents("dl", user_role="admin", username="")
+    assert len(results) >= 1
+    assert any(r["filename"] == "driving.txt" for r in results)

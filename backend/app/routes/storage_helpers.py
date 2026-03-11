@@ -19,6 +19,8 @@ from ..subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.storage")
 
+_DLNA_SERVICE_CANDIDATES: tuple[str, ...] = ("minidlna", "minidlnad")
+
 # ── Size helpers ─────────────────────────────────────────────────────────────
 
 _SIZE_SUFFIXES = ["B", "KB", "MB", "GB", "TB"]
@@ -277,7 +279,11 @@ def build_device_list(raw_devices: list) -> list[StorageDevice]:
 
 async def stop_nas_services():
     """Best-effort stop of NAS-related services before unmount."""
-    for svc in ("smbd", "nmbd", "nfs-kernel-server", "minidlnad"):
+    dlna_svc = await resolve_dlna_service_name()
+    services = ["smbd", "nmbd", "nfs-kernel-server"]
+    if dlna_svc:
+        services.append(dlna_svc)
+    for svc in services:
         try:
             await run_command(["sudo", "systemctl", "stop", svc])
         except Exception:
@@ -286,11 +292,50 @@ async def stop_nas_services():
 
 async def start_nas_services():
     """Best-effort start of NAS services after mount."""
-    for svc in ("smbd", "nmbd", "minidlna"):
+    dlna_svc = await resolve_dlna_service_name()
+    services = ["smbd", "nmbd"]
+    if dlna_svc:
+        services.append(dlna_svc)
+    for svc in services:
         try:
             await run_command(["sudo", "systemctl", "start", svc])
         except Exception:
             pass
+
+
+async def _service_exists(service_name: str) -> bool:
+    """Return True when a systemd unit exists for *service_name*."""
+    rc, out, _ = await run_command(
+        ["systemctl", "show", "-p", "LoadState", "--value", service_name],
+        timeout=10,
+    )
+    if rc != 0:
+        return False
+    return out.strip() != "not-found"
+
+
+async def resolve_dlna_service_name() -> Optional[str]:
+    """Return the first available DLNA service unit name on this system."""
+    for svc in _DLNA_SERVICE_CANDIDATES:
+        if await _service_exists(svc):
+            return svc
+    return None
+
+
+async def ensure_dlna_started_and_enabled() -> bool:
+    """Enable + start the available DLNA service. Returns True when started."""
+    dlna_svc = await resolve_dlna_service_name()
+    if not dlna_svc:
+        logger.info("DLNA service unit not found (tried: %s)", ", ".join(_DLNA_SERVICE_CANDIDATES))
+        return False
+
+    await run_command(["sudo", "systemctl", "enable", dlna_svc], timeout=15)
+    rc, _, err = await run_command(["sudo", "systemctl", "start", dlna_svc], timeout=15)
+    if rc != 0:
+        logger.warning("Failed to start DLNA service %s: %s", dlna_svc, err)
+        return False
+    logger.info("DLNA service started and enabled: %s", dlna_svc)
+    return True
 
 
 # ── Open file handle check ───────────────────────────────────────────────────
