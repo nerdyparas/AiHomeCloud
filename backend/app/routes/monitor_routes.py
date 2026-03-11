@@ -22,6 +22,10 @@ router = APIRouter(tags=["monitor"])
 # Track boot time once
 _boot_time = psutil.boot_time()
 
+# WebSocket connection limit to prevent resource exhaustion
+_MAX_WS_CONNECTIONS = 10
+_ws_connection_count = 0
+
 
 def _read_system_stats(thermal_zone_path: str = None, prev_net=None, prev_time=None) -> dict:
     """
@@ -123,7 +127,13 @@ async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
         await ws.close(code=4003, reason="Invalid token")
         return
 
+    global _ws_connection_count
+    if _ws_connection_count >= _MAX_WS_CONNECTIONS:
+        await ws.close(code=4029, reason="Too many connections")
+        return
+
     await ws.accept()
+    _ws_connection_count += 1
 
     # Get board-specific thermal zone path from app state
     board = getattr(ws.app.state, 'board', None)
@@ -165,3 +175,5 @@ async def monitor_ws(ws: WebSocket, token: str = Query(default=None)):
         pass
     except Exception:
         await ws.close()
+    finally:
+        _ws_connection_count -= 1

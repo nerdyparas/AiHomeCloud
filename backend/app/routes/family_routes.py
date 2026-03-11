@@ -43,18 +43,19 @@ _COLORS = ["FFE8A84C", "FF4C9BE8", "FF4CE88A", "FFE84CA8", "FF9B59B6", "FF1ABC9C
 async def list_family(user: dict = Depends(get_current_user)):
     """List all family users on this Cubie."""
     users = await store.get_users()
-    result = []
-    for i, u in enumerate(users):
-        personal_dir = settings.personal_path / u["name"]
-        result.append(
-            FamilyUser(
-                id=u["id"],
-                name=u["name"],
-                isAdmin=u.get("is_admin", False),
-                folderSizeGB=await _folder_size_gb(str(personal_dir)),
-                avatarColor=_COLORS[i % len(_COLORS)],
-            )
+    # Compute folder sizes in parallel to avoid sequential blocking
+    personal_dirs = [str(settings.personal_path / u["name"]) for u in users]
+    sizes = await asyncio.gather(*[_folder_size_gb(d) for d in personal_dirs])
+    result = [
+        FamilyUser(
+            id=u["id"],
+            name=u["name"],
+            isAdmin=u.get("is_admin", False),
+            folderSizeGB=sizes[i],
+            avatarColor=_COLORS[i % len(_COLORS)],
         )
+        for i, u in enumerate(users)
+    ]
     return result
 
 

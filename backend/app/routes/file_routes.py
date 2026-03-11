@@ -28,6 +28,9 @@ from .event_routes import emit_upload_complete
 # Larger write buffer for uploads — 256 KB (balances syscall overhead vs memory)
 _UPLOAD_WRITE_BUF = 256 * 1024
 
+# Lock to prevent concurrent trash purge operations
+_trash_purge_lock = asyncio.Lock()
+
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
 # Executables and dangerous file types that must never be uploaded to the NAS.
@@ -289,11 +292,14 @@ def _validate_trash_path(trash_path_str: str) -> Path:
 
 
 async def _safe_purge_trash() -> None:
-    """Best-effort background trash purge \u2014 never raises."""
-    try:
-        await _purge_trash_if_needed()
-    except Exception:
-        pass
+    """Best-effort background trash purge — never raises. Lock prevents concurrent runs."""
+    if _trash_purge_lock.locked():
+        return  # Another purge is already running
+    async with _trash_purge_lock:
+        try:
+            await _purge_trash_if_needed()
+        except Exception:
+            pass
 
 
 async def _purge_trash_if_needed() -> None:

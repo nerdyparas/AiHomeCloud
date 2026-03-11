@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 
 from .subprocess_runner import run_command
+from . import store
 
 logger = logging.getLogger("cubie.wifi")
 
@@ -73,8 +74,10 @@ async def get_wifi_status() -> dict:
 async def auto_disable_wifi_if_ethernet() -> None:
     """On startup: if Ethernet is up, disable WiFi (unless user overrode)."""
     global _user_wifi_override
+    # Restore persisted override from previous run
+    _user_wifi_override = await store.get_value("wifi_user_override", False)
     if _user_wifi_override:
-        logger.info("WiFi auto-disable skipped — user override active")
+        logger.info("WiFi auto-disable skipped — user override active (persisted)")
         return
     if _ethernet_is_up():
         logger.info("Ethernet is active — disabling WiFi radio")
@@ -84,9 +87,10 @@ async def auto_disable_wifi_if_ethernet() -> None:
 
 
 async def set_user_wifi_override(enabled: bool) -> None:
-    """User explicitly toggles WiFi — set override flag."""
+    """User explicitly toggles WiFi — set override flag and persist."""
     global _user_wifi_override
     _user_wifi_override = enabled
+    await store.set_value("wifi_user_override", enabled)
     if enabled:
         await enable_wifi()
     else:

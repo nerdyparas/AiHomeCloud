@@ -109,7 +109,7 @@ def find_thermal_zone() -> str:
     
     # Fallback to thermal_zone0
     fallback_path = "/sys/class/thermal/thermal_zone0/temp"
-    logger.info(
+    logger.warning(
         "thermal_zone_fallback path=%s reason=no_cpu_or_soc_zone_found",
         fallback_path,
     )
