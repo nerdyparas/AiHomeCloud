@@ -39,9 +39,11 @@ extension SystemApi on ApiService {
     );
 
     _connectionStatusCallback?.call(ConnectionStatus.connected);
+    int missedBeats = 0;
     final ctrl = StreamController<SystemStats>();
     channel.stream.listen(
       (raw) {
+        missedBeats = 0;
         _connectionStatusCallback?.call(ConnectionStatus.connected);
         final data = jsonDecode(raw as String);
         ctrl.add(SystemStats(
@@ -58,11 +60,17 @@ extension SystemApi on ApiService {
         ));
       },
       onError: (e, st) {
-        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        missedBeats++;
+        if (missedBeats >= 2) {
+          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        }
         ctrl.addError(e, st);
       },
       onDone: () {
-        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        missedBeats++;
+        if (missedBeats >= 2) {
+          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        }
         ctrl.close();
       },
       cancelOnError: false,
@@ -86,19 +94,27 @@ extension SystemApi on ApiService {
       customClient: _createPinnedHttpClient(),
     );
 
+    int missedBeats = 0;
     final ctrl = StreamController<AppNotification>();
     channel.stream.listen(
       (raw) {
+        missedBeats = 0;
         _connectionStatusCallback?.call(ConnectionStatus.connected);
         final data = jsonDecode(raw as String);
         ctrl.add(AppNotification.fromJson(data));
       },
       onError: (e, st) {
-        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        missedBeats++;
+        if (missedBeats >= 2) {
+          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        }
         ctrl.addError(e, st);
       },
       onDone: () {
-        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        missedBeats++;
+        if (missedBeats >= 2) {
+          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        }
         ctrl.close();
       },
       cancelOnError: false,
