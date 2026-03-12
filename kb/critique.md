@@ -7,6 +7,18 @@
 > **Date:** March 2026
 > **Authored by:** Post-generation review pass
 
+## 2025-07-25 — Audit update
+
+**Fixed since original critique:**
+- **Bug B1** (threading.Lock useless in asyncio): **FIXED.** `store.py` now uses `asyncio.Lock()` globally.
+- **Bug B3** (bcrypt blocks event loop): **FIXED.** `auth.py` now uses `loop.run_in_executor()` for both hash and verify.
+
+**Still open:**
+- **Bug B2** (deploy.sh curl fails against self-signed cert): Not yet fixed.
+- All assumption items (A1–A5) remain relevant.
+- All scalability risks (S1–S4) remain relevant.
+- WebSocket debounce (S1) partially addressed — `main_shell.dart` has 12s debounce and 2-miss threshold, but reconnect logic could still be improved.
+
 ---
 
 ## 🔴 Concrete Bugs in My Own Prescriptions

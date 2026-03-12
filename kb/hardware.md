@@ -1,4 +1,6 @@
-# Hardware Reference — Radxa Cubie A7A
+# Hardware Reference — Radxa Cubie A7Z
+
+> Verified against `board.py` and `config.py` as of 2025-07-25.
 
 ## Board Specs
 

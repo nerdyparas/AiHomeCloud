@@ -3,8 +3,30 @@
 > **Companion to:** `kb/engineering-blueprint.md`
 > **Scope:** Testing strategy, CI/CD pipeline, observability plan, schema migration,
 > upgrade path, and AI integration readiness.
-> **Baseline:** Zero automated tests exist in the prototype. Everything in this
-> document is to be built.
+
+## Quick Reference
+
+**Run backend tests:**
+```bash
+cd backend && python -m pytest tests/ -q
+```
+
+**Run Flutter tests:**
+```bash
+flutter analyze && flutter test
+```
+
+**CI triggers:**
+- `backend-tests.yml` — runs on push/PR touching `backend/**`. Runs `pytest`, `bandit -ll`, `pip-audit`.
+- `flutter-analyze.yml` — runs on push/PR touching `lib/**`, `test/**`, `pubspec.yaml`. Runs `flutter analyze` + `flutter test`.
+
+**Excluded from CI:** `test_hardware_integration.py` — requires real SBC hardware (USB/NVMe, systemctl, lsblk). Run manually on Cubie.
+
+**Test fixtures:** `backend/tests/conftest.py` provides `tmp_data_dir` (sandboxed temp dir), `admin_token` (pre-authenticated JWT), `app` (TestClient).
+
+**Coverage areas:** Auth (login, refresh, roles), path safety (traversal, encoding), storage (OS disk protection, format jobs), file ops (CRUD, trash, search), config, board detection, subprocess runner, Telegram bot.
+
+**Test count:** ~260 backend tests. Flutter tests cover API deserialization, auth state, connection notifier, widget rendering.
 
 ---
 

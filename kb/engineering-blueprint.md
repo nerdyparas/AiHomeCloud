@@ -1,5 +1,8 @@
 # AiHomeCloud — Engineering Blueprint v1.0
 
+> Verified against codebase as of 2025-07-25.
+> Note: Bugs B1 (threading.Lock → asyncio.Lock) and B3 (bcrypt run_in_executor) from critique.md are now fixed in code.
+
 > **Document purpose:** Authoritative engineering reference for transitioning from
 > AI-generated prototype (~65% complete) to production-grade system. All future
 > task orchestration, code review, and architectural decisions must be validated

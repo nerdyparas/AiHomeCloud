@@ -1,35 +1,18 @@
 # Copilot Instructions — AiHomeCloud
 
-> **This is the single source of truth for AI-assisted development.**
-> GitHub Copilot loads this file automatically. Keep it accurate.
+> Single source of truth for AI-assisted development.
 > Last updated: 2025-07-25
+> **If you change source code, update the relevant kb/ file before committing.**
 
 ---
 
-## Project Overview
+## How to Orient Yourself
 
-AiHomeCloud is a **personal home NAS appliance** built on the **Radxa Cubie A7Z** (ARM, 8 GB RAM). It consists of:
-
-- **Flutter app** (`lib/`) — Android mobile client (Dart, Riverpod, GoRouter)
-- **FastAPI backend** (`backend/`) — Python server running on the Cubie hardware
-
-The app pairs with the Cubie over the local network, authenticates via JWT, and provides file management, system monitoring, family user management, and NAS service control.
-
-**Current status:** Milestones 1–8 complete. See `TASKSv2.md` for open work.
-
----
-
-## Quick Start — How to Work on This Project
-
-1. **Read `TASKSv2.md`** — current priorities and in-progress work
-2. **Read `logs.md`** — recent decisions, context, timestamps
-3. **Browse `kb/`** — deep-dive architecture docs (see index below)
-4. **Always edit both backend AND frontend** when adding a new API endpoint
-5. **Match model field names** — backend uses camelCase aliases, Flutter expects camelCase
-6. **Run validation** before considering any change done:
-   - Backend: `cd backend && python -m pytest tests/ -q`
-   - Flutter: `flutter analyze && flutter test`
-7. **Keep changes focused** — one feature per set of edits, update `TASKSv2.md` after
+1. **Read `tasks.md`** — current priorities, in-progress work, backlog
+2. **Read `kb/changelog.md`** — recent decisions and session summaries
+3. **Browse `kb/`** — deep architecture docs (see KB Index below)
+4. **Validate before finishing:** `cd backend && python -m pytest tests/ -q` and `flutter analyze && flutter test`
+5. **One task per session** — finish it, update docs, then stop
 
 ---
 
@@ -39,19 +22,42 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 
 | Layer | Path | Purpose |
 |---|---|---|
-| Entry point | `backend/app/main.py` | FastAPI app, CORS, router registration, lifespan hook |
-| Config | `backend/app/config.py` | `Settings` via pydantic-settings, env vars prefixed `CUBIE_` |
-| Auth | `backend/app/auth.py` | JWT create/decode, bcrypt hash/verify (run_in_executor), `get_current_user` dependency |
-| Persistence | `backend/app/store.py` | JSON-file-based storage with asyncio.Lock (no database) |
+| Entry point | `backend/app/main.py` | FastAPI app, CORS, 13 router registrations, lifespan hook |
+| Config | `backend/app/config.py` | `Settings` via pydantic-settings, env prefix `CUBIE_` |
+| Auth | `backend/app/auth.py` | JWT create/decode, bcrypt hash/verify via `run_in_executor`, `get_current_user` / `require_admin` dependencies |
+| Persistence | `backend/app/store.py` | JSON-file storage with `asyncio.Lock`, TTL cache, atomic writes |
 | Models | `backend/app/models.py` | Pydantic v2 models with `Field(alias="camelCase")` |
-| Routes | `backend/app/routes/` | One file per domain: auth, system, monitor, files, family, services, storage, network, jobs, events |
-| Board detect | `backend/app/board.py` | Auto-detect SBC model, thermal zone, LAN interface |
-| Subprocess | `backend/app/subprocess_runner.py` | Centralized `run_command()` — no `shell=True`, input validation |
+| Board detect | `backend/app/board.py` | Auto-detect SBC model (sun60iw2 / Rockchip / RPi4), thermal zone, LAN interface |
+| Subprocess | `backend/app/subprocess_runner.py` | `run_command(cmd, timeout=30)` → `Tuple[int, str, str]` (rc, stdout, stderr) |
 | TLS | `backend/app/tls.py` | Self-signed cert generation, fingerprint extraction |
 | Job tracking | `backend/app/job_store.py` | Long-running op status (format jobs) |
 | Logging | `backend/app/logging_config.py` | JSON structured logging, request_id middleware |
+| Rate limiter | `backend/app/limiter.py` | SlowAPI rate limiting |
+| Telegram bot | `backend/app/telegram_bot.py` | Telegram bot with auth linking, file receive, trash warnings |
+| Document index | `backend/app/document_index.py` | FTS5 document search indexing |
+| File sorter | `backend/app/file_sorter.py` | Auto file organization by type |
+| Auto AP | `backend/app/auto_ap.py` | Auto access-point fallback when no network |
 
-**Key config values:** NAS root = `/srv/nas`, data dir = `/var/lib/cubie`, port = `8443`.
+**Route files (14):**
+
+| File | Prefix | Endpoints | Purpose |
+|---|---|---|---|
+| `auth_routes.py` | `/api/v1` | 14 | Pairing, user CRUD, login/logout, refresh, PIN, profile |
+| `system_routes.py` | `/api/v1/system` | 6 | Info, firmware, OTA update, rename, shutdown, reboot |
+| `monitor_routes.py` | `/ws` | 1 WS | Real-time system stats stream (`/ws/monitor`) |
+| `file_routes.py` | `/api/v1/files` | 14 | List, mkdir, delete, trash CRUD, rename, upload, download, search, sort, roots |
+| `family_routes.py` | `/api/v1/users/family` | 3 | List, add, remove family members |
+| `service_routes.py` | `/api/v1/services` | 2 | List services, toggle on/off |
+| `storage_routes.py` | `/api/v1/storage` | 9 | Devices, scan, SMART, usage, format, mount, unmount, eject, stats |
+| `network_routes.py` | `/api/v1/network` | 3 | Status, Wi-Fi get/set |
+| `adguard_routes.py` | `/api/v1/adguard` | 3 | Stats, pause, toggle |
+| `tailscale_routes.py` | `/api/v1/tailscale` | 2 | Status, bring up |
+| `telegram_routes.py` | `/api/v1/telegram` | 3 | Config get/set, unlink |
+| `telegram_upload_routes.py` | `/telegram-upload` | 2 | HTML upload form (GET), file upload (POST) — token auth |
+| `jobs_routes.py` | `/api/v1/jobs` | 1 | Job status polling |
+| `event_routes.py` | `/ws` | 1 WS | Real-time event stream (`/ws/events`) |
+
+**Key config:** env prefix = `CUBIE_`, data dir = `/var/lib/cubie`, NAS root = `/srv/nas`, port = `8443`.
 
 ### Frontend (Flutter / Dart)
 
@@ -59,61 +65,67 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 |---|---|---|
 | Entry point | `lib/main.dart` | App bootstrap, SharedPreferences init |
 | Constants | `lib/core/constants.dart` | Ports, BLE UUIDs, pref keys, NAS paths, API version |
-| Theme | `lib/core/theme.dart` | Dark theme — `AppColors` / `AppTheme` |
-| Error utils | `lib/core/error_utils.dart` | `friendlyError()` — converts raw exceptions to user-readable text |
-| Models | `lib/models/` | Split by domain: `models.dart`, `device_models.dart`, `file_models.dart`, `storage_models.dart`, `service_models.dart`, `user_models.dart`, `notification_models.dart` |
-| API Service | `lib/services/api_service.dart` | HTTP + WebSocket client, singleton, 10s timeout |
-| Auth Session | `lib/services/auth_session.dart` | `AuthSessionNotifier` — immutable state, persistent refresh token |
-| Discovery | `lib/services/discovery_service.dart` | mDNS + BLE device discovery |
-| Network scan | `lib/services/network_scanner.dart` | Local subnet IP scanner for first-time setup |
-| Providers | `lib/providers.dart` | Riverpod providers (state, future, stream, notifiers) |
-| Router | `lib/navigation/app_router.dart` | GoRouter with onboarding + main shell routes |
-| Shell | `lib/navigation/main_shell.dart` | Bottom nav (3 tabs: Home, Files, More) + disconnected banner |
-| Screens | `lib/screens/main/` | Dashboard, Files, More, Family, StorageExplorer, FilePreview, FolderView, TelegramSetup |
-| Screens | `lib/screens/onboarding/` | Splash, Welcome, QrScan, Discovery, NetworkScan, SetupComplete |
-| Widgets | `lib/widgets/` | Reusable: `AppCard`, `StatTile`, `StorageDonutChart`, `FileListTile`, `FolderView`, `NotificationListener`, `EmojiPickerGrid`, `UserAvatar` |
-| Localization | `lib/l10n/` | ARB-based, 145+ strings, English |
+| Theme | `lib/core/theme.dart` | Dark theme — `AppColors`, `CubieRadii`, `AppTheme` |
+| Error utils | `lib/core/error_utils.dart` | `friendlyError()` — converts exceptions to user-readable text |
+| Models | `lib/models/` | Domain split: `models.dart` (barrel), `user_models.dart`, `device_models.dart`, `file_models.dart`, `storage_models.dart`, `service_models.dart`, `notification_models.dart` |
+| API Service | `lib/services/api_service.dart` | HTTP + WS singleton, 10s timeout, TLS pinning, 6 part files |
+| API extensions | `lib/services/api/` | `auth_api.dart`, `family_api.dart`, `files_api.dart`, `system_api.dart`, `storage_api.dart`, `services_network_api.dart` |
+| Auth Session | `lib/services/auth_session.dart` | `AuthSession` + `AuthSessionNotifier` — immutable state, persistent refresh, emoji avatar |
+| Discovery | `lib/services/discovery_service.dart` | mDNS → BLE fallback device discovery |
+| Network scan | `lib/services/network_scanner.dart` | mDNS + subnet sweep for first-time setup |
+| Providers | `lib/providers/` | Barrel `lib/providers.dart` re-exports: `core_providers.dart`, `device_providers.dart`, `file_providers.dart`, `data_providers.dart`, `discovery_providers.dart` |
+| Router | `lib/navigation/app_router.dart` | GoRouter — 13+ routes, onboarding + main shell |
+| Shell | `lib/navigation/main_shell.dart` | Bottom nav — **3 tabs: Home, Files, More** + disconnected banner |
+| Localization | `lib/l10n/` | ARB-based, English |
+
+**Screens (15):**
+
+| Screen | File | Route | Tab |
+|---|---|---|---|
+| Splash | `screens/onboarding/splash_screen.dart` | `/` | — |
+| Network Scan | `screens/onboarding/network_scan_screen.dart` | `/scan-network` | — |
+| User Picker / PIN | `screens/onboarding/pin_entry_screen.dart` | `/user-picker` | — |
+| Profile Creation | `screens/onboarding/profile_creation_screen.dart` | `/profile-creation` | — |
+| Dashboard | `screens/main/dashboard_screen.dart` | `/dashboard` | Home |
+| Files | `screens/main/files_screen.dart` | `/files` | Files |
+| More | `screens/main/more_screen.dart` | `/more` | More |
+| Family | `screens/main/family_screen.dart` | `/family` | — |
+| Storage Explorer | `screens/main/storage_explorer_screen.dart` | `/storage-explorer` | — |
+| Telegram Setup | `screens/main/telegram_setup_screen.dart` | `/telegram-setup` | — |
+| File Preview | `screens/main/file_preview_screen.dart` | `/file-preview` | — |
+| Folder View | `screens/main/folder_view_screen.dart` | `/folder-view` | — |
+| Profile Edit | `screens/main/profile_edit_screen.dart` | `/profile-edit` | — |
+| Device Settings | `screens/main/settings/device_settings_screen.dart` | `/settings/device` | — |
+| Services Settings | `screens/main/settings/services_settings_screen.dart` | `/settings/services` | — |
+
+**Widgets (8 files in `lib/widgets/`):**
+
+| Widget class | File | Purpose |
+|---|---|---|
+| `AppCard` | `app_card.dart` | Standard card container |
+| `StatTile` | `stat_tile.dart` | Dashboard metric tile |
+| `FileListTile` | `file_list_tile.dart` | File/folder row in listings |
+| `FolderView` | `folder_view.dart` | File browser with breadcrumbs, upload, sort |
+| `StorageDonutChart` | `storage_donut_chart.dart` | Circular storage usage chart |
+| `CubieNotificationOverlay` | `notification_listener.dart` | Toast-style notification overlay |
+| `EmojiPickerGrid` | `emoji_picker_grid.dart` | 32-emoji avatar picker with custom input |
+| `UserAvatar` | `user_avatar.dart` | Circular emoji/initial avatar with color cycling |
 
 ---
 
-## Knowledge Base Index (`kb/`)
+## Critical Invariants
 
-| File | Topic |
-|---|---|
-| `kb/api-contracts.md` | **Authoritative API reference** — every endpoint, method, auth, request/response schema |
-| `kb/engineering-blueprint.md` | Architecture prescriptions — concurrency, security, error handling, observability |
-| `kb/critique.md` | Self-audit of blueprint — known bugs, hidden assumptions, scalability risks |
-| `kb/devops-testing-strategy.md` | Test pyramid, CI/CD pipeline design, test scaffold |
-| `kb/hardware.md` | Radxa Cubie A7Z specs, device paths, Linux commands |
-| `kb/storage-architecture.md` | Storage design — mount points, auto-remount, persistence |
-| `kb/setup-instructions.md` | Step-by-step Cubie setup: SSH, deps, venv, systemd, QR pairing |
+These rules are non-negotiable. Every session must follow them.
 
----
-
-## Coding Conventions
-
-### Dart / Flutter
-
-- **State management:** Riverpod (`StateProvider`, `FutureProvider`, `StreamProvider`, `StateNotifier`)
-- **Routing:** GoRouter with `ShellRoute` for bottom nav
-- **Fonts:** Google Fonts — Sora (headings), DM Sans (body)
-- **Theme:** Custom dark theme in `AppColors` / `AppTheme`
-- **API calls:** All go through `ApiService` singleton with `.timeout(_timeout)`
-- **File naming:** `snake_case` for files, `PascalCase` for classes
-- **Widget pattern:** Prefer `ConsumerWidget` / `ConsumerStatefulWidget`
-- **Error display:** Always pass errors through `friendlyError(e)` from `lib/core/error_utils.dart` — never show raw `$e` or `e.toString()` to the user
-- **Models:** Split by domain in `lib/models/` — one file per domain, re-exported from `models.dart`
-
-### Python / FastAPI
-
-- **Config:** pydantic-settings with `CUBIE_` env prefix
-- **Auth:** JWT via python-jose, `get_current_user` as `Depends()`
-- **Models:** Pydantic v2 with `Field(alias="camelCase")` to match Flutter
-- **Storage:** JSON files in `/var/lib/cubie/` — no database
-- **Path safety:** All file ops go through `_safe_resolve()` to sandbox under NAS root
-- **Subprocess:** Always use `subprocess_runner.run_command()` — never `shell=True`, never raw `subprocess.run()`
-- **Concurrency:** Use `asyncio.Lock` (not `threading.Lock`) for shared state
-- **Password hashing:** `loop.run_in_executor()` for bcrypt — never block the event loop
+- `run_command()` returns `(rc, stdout, stderr)` — always unpack all three
+- `friendlyError(e)` is the only error surface shown to users — never `$e` or `e.toString()`
+- `settings.nas_root` and `settings.data_dir` are the only path references — never hardcode
+- `store.py` is the only JSON persistence layer — no direct file reads elsewhere
+- All HTTP calls need `.timeout(ApiService._timeout)` — no raw client calls
+- Never `shell=True` in subprocess — always use `run_command()`
+- Never show `/dev/` paths, partition names, or filesystem types to users
+- All file ops go through `_safe_resolve()` to sandbox under NAS root
+- JWT `sub` claim = `user_id` — use `user.get("sub")` in all backend handlers
 
 ---
 
@@ -123,16 +135,24 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 1. Add Pydantic model to `backend/app/models.py` (with `alias="camelCase"`)
 2. Add route in `backend/app/routes/<domain>_routes.py`
 3. Register router in `backend/app/main.py` if new file
-4. Add method to `lib/services/api_service.dart` (with `.timeout(_timeout)`)
+4. Add method to the appropriate `lib/services/api/<domain>_api.dart` extension (with `.timeout(_timeout)`)
 5. Add Dart model to `lib/models/<domain>_models.dart` if needed
-6. Add Riverpod provider to `lib/providers.dart`
+6. Add Riverpod provider to `lib/providers/<domain>_providers.dart`
 7. Wire into screen UI
 8. Add backend test in `backend/tests/test_<domain>.py`
+9. Update `kb/api-contracts.md` with the new endpoint
 
 ### Adding a new screen
 1. Create `lib/screens/main/<name>_screen.dart`
 2. Add GoRoute in `lib/navigation/app_router.dart`
 3. If it's a tab, add to `ShellRoute` + bottom nav in `main_shell.dart`
+4. Update `kb/architecture.md` screen inventory table
+
+### Adding a new widget
+1. Create `lib/widgets/<name>.dart`
+2. Use `AppCard` as container if it's a card-style component
+3. Use `AppColors` for all colours — no hex literals
+4. Update `kb/architecture.md` widget inventory table
 
 ### Error handling in UI
 1. In `.when(error: (e, _) => ...)` or `catch (e)` blocks, always use:
@@ -141,112 +161,115 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
    ```
 2. For snackbars: `_showSnack('Action failed: ${friendlyError(e)}')`
 3. **Never** show raw `$e` or `e.toString()` to the user
-4. If you encounter a new exception type, add it to `lib/core/error_utils.dart`
+
+---
+
+## Coding Conventions
+
+### Dart / Flutter
+- **State management:** Riverpod (`StateProvider`, `FutureProvider`, `StreamProvider`, `StateNotifierProvider`)
+- **Routing:** GoRouter with `ShellRoute` for bottom nav
+- **Fonts:** Google Fonts — Sora (headings), DM Sans (body)
+- **Theme:** `AppColors` (colours), `CubieRadii` (border radii), `AppTheme` (ThemeData)
+- **API calls:** All through `ApiService` singleton + part files in `lib/services/api/`, with `.timeout(_timeout)`
+- **File naming:** `snake_case.dart` files, `PascalCase` classes
+- **Widget pattern:** `ConsumerWidget` / `ConsumerStatefulWidget`
+- **Error display:** Always `friendlyError(e)` from `lib/core/error_utils.dart`
+- **Models:** Domain files in `lib/models/`, barrel re-exported from `models.dart`
+
+### Python / FastAPI
+- **Config:** pydantic-settings with `CUBIE_` env prefix
+- **Auth:** JWT via python-jose, `get_current_user` / `require_admin` as `Depends()`
+- **Models:** Pydantic v2 with `Field(alias="camelCase")` to match Flutter
+- **Storage:** JSON files in `/var/lib/cubie/` — no database
+- **Path safety:** All file ops through `_safe_resolve()` sandboxing under NAS root
+- **Subprocess:** Always `subprocess_runner.run_command()` — never `shell=True`
+- **Concurrency:** `asyncio.Lock` (not `threading.Lock`) for shared state
+- **Password hashing:** `loop.run_in_executor()` for bcrypt — never block the event loop
 
 ---
 
 ## File Structure Rules
 
-### Splitting thresholds
-- **Dart files:** Split when a file exceeds ~400 lines or contains 3+ unrelated concerns
-- **Python files:** Split route files when they exceed ~300 lines
-- **Models:** Keep domain models in separate files (`device_models.dart`, `file_models.dart`, etc.)
-
 ### Naming conventions
 - Dart: `snake_case.dart` files, `PascalCase` classes
 - Python: `snake_case.py` files, `snake_case` functions, `PascalCase` classes
-- Routes: `<domain>_routes.py` (e.g., `auth_routes.py`, `storage_routes.py`)
-- Tests: `test_<domain>.py` (e.g., `test_auth.py`, `test_storage.py`)
+- Routes: `<domain>_routes.py` (e.g., `auth_routes.py`)
+- Tests: `test_<domain>.py` (e.g., `test_auth.py`)
 - Screens: `<name>_screen.dart` (e.g., `dashboard_screen.dart`)
-- Widgets: descriptive name matching the widget class (e.g., `stat_tile.dart` → `StatTile`)
 
 ### What goes where
 - **Constants, enums, config** → `lib/core/`
 - **Data classes / models** → `lib/models/` (split by domain)
-- **API + networking** → `lib/services/`
-- **State management** → `lib/providers.dart`
+- **API + networking** → `lib/services/` and `lib/services/api/`
+- **State management** → `lib/providers/` (split by domain, barrel in `lib/providers.dart`)
 - **Navigation** → `lib/navigation/`
-- **Screen pages** → `lib/screens/main/` or `lib/screens/onboarding/`
-- **Reusable UI components** → `lib/widgets/`
+- **Screens** → `lib/screens/main/` or `lib/screens/onboarding/`
+- **Reusable widgets** → `lib/widgets/`
 - **Backend routes** → `backend/app/routes/`
 - **Backend tests** → `backend/tests/`
 - **Architecture docs** → `kb/`
 
 ---
 
-## Testing Requirements
+## Testing
 
 ### Backend
 - **Framework:** pytest + httpx + pytest-asyncio
 - **Config:** `backend/pytest.ini` — `asyncio_mode = "auto"`
 - **Fixtures:** `backend/tests/conftest.py` — sandboxed `tmp_data_dir`, `admin_token`
 - **Run:** `cd backend && python -m pytest tests/ -q`
-- **CI:** GitHub Actions runs `pytest`, `bandit -ll`, `pip-audit`
-- **Coverage areas:** Auth (login, refresh, roles), path safety (traversal, encoding), storage (OS disk protection, mount conflicts), config
+- **CI:** GitHub Actions (`backend-tests.yml`) runs `pytest`, `bandit -ll`, `pip-audit`
 
 ### Flutter
 - **Framework:** `flutter_test`
-- **Run:** `flutter test`
-- **CI:** GitHub Actions runs `flutter analyze` + `flutter test`
-- **Coverage areas:** API deserialization, AuthSessionNotifier state, ConnectionNotifier debounce, widget rendering (StatTile, StorageDonutChart, FileListTile)
+- **Run:** `flutter analyze && flutter test`
+- **CI:** GitHub Actions (`flutter-analyze.yml`) runs `flutter analyze` + `flutter test`
 
 ### Before pushing any change
-1. `flutter analyze` — must show 0 errors, 0 warnings
-2. `flutter test` — all tests must pass
-3. `cd backend && python -m pytest tests/ -q` — all tests must pass
+1. `cd backend && python -m pytest tests/ -q` — all pass
+2. `flutter analyze` — 0 errors
+3. `flutter test` — all pass
 
 ---
 
-## Hardware Context
+## KB Index
 
-- **Board:** Radxa Cubie A7Z — ARM SoC (Rockchip), 8 GB RAM
-- **OS storage:** microSD card (`/dev/mmcblk0`) — boot + OS
-- **NAS storage:** External USB/NVMe (`/dev/sda` typical) — user-provided, mounted at `/srv/nas`
-- **Connectivity:** Ethernet + Wi-Fi, Bluetooth LE for initial pairing
-- **Thermal:** Auto-detected from `/sys/class/thermal/`
-- **LAN interface:** Auto-detected from `/sys/class/net/`
-- **Default IP in dev:** `192.168.0.212`
-- **Board detection:** Reads `/proc/device-tree/model`, falls back to safe defaults
-
----
-
-## Security Invariants
-
-- **Never** hardcode IPs, secrets, or credentials in committed code — use env vars / config
-- **Always** sandbox file paths through `_safe_resolve()` on backend
-- **Always** add `.timeout(_timeout)` to new HTTP calls in `api_service.dart`
-- **Never** use `shell=True` in subprocess calls — use `subprocess_runner.run_command()`
-- **Never** show raw exception text to users — use `friendlyError()`
-- **Always** use `get_current_user` dependency for protected endpoints
-- **JWT secret** auto-generated and persisted to `/var/lib/cubie/jwt_secret`
-- **TLS:** Self-signed cert with trust-on-first-use (TOFU) pinning
-- **CORS:** Configurable via `CUBIE_CORS_ORIGINS` env var
-- **systemd hardening:** `PrivateTmp`, `NoNewPrivileges`, `ProtectSystem`, `ProtectHome`, `RestrictAddressFamilies`, `SystemCallFilter`
+| File | Topic |
+|---|---|
+| `kb/architecture.md` | System map — screens, widgets, providers, routes, API structure |
+| `kb/api-contracts.md` | **Authoritative API reference** — every endpoint, method, auth, request/response |
+| `kb/engineering-blueprint.md` | Architecture prescriptions — concurrency, security, error handling |
+| `kb/critique.md` | Self-audit — known bugs, hidden assumptions, scalability risks |
+| `kb/devops-testing-strategy.md` | Test pyramid, CI/CD, observability |
+| `kb/hardware.md` | Radxa Cubie A7Z specs, device paths, Linux commands |
+| `kb/storage-architecture.md` | Mount points, safe unmount, auto-remount design |
+| `kb/setup-instructions.md` | Cubie setup: SSH, deps, venv, systemd, QR pairing |
+| `kb/features.md` | Feature inventory — implemented, planned, deferred |
+| `kb/flutter-patterns.md` | Flutter widget, animation, error, navigation patterns |
+| `kb/backend-patterns.md` | FastAPI route, store, subprocess, auth patterns |
+| `kb/changelog.md` | Dated session summaries and key decisions |
 
 ---
 
-## Deployment
+## Keeping Documentation Current
 
-- Backend runs as systemd service `cubie-backend` on the Cubie
-- Service file: `backend/cubie-backend.service` (env vars configured there)
-- Deploy script: `deploy.sh` — pushes to device, restarts service
-- Health check: HTTPS with cert pinning via `--cacert`
-- Auto-remount external storage on boot from `storage.json`
+These rules apply to every AI session working on this repo.
+Treat documentation updates as part of the task — not optional.
 
----
+| When you do this... | Also update this... |
+|---|---|
+| Add or change an API endpoint | `kb/api-contracts.md` — add/update the endpoint row |
+| Add a new screen | `kb/architecture.md` — screen inventory table |
+| Add a new widget | `kb/architecture.md` — widget inventory table |
+| Add a new provider | `kb/architecture.md` — provider table |
+| Add a new route to the router | `kb/architecture.md` — route table |
+| Add a new backend route file | This file — backend route table |
+| Change a class/file name | This file — update the table row immediately |
+| Change coding conventions | This file — update the relevant section |
+| Add a new kb/ file | This file — add it to the KB index |
+| Complete a significant feature | `kb/changelog.md` — one-line dated entry |
+| Change hardware or deployment | `kb/hardware.md` or `kb/setup-instructions.md` |
 
-## Documentation Maintenance
-
-When making significant changes to the codebase:
-
-1. **Update `TASKSv2.md`** — mark completed tasks, add new ones
-2. **Append to `logs.md`** — date-stamped entry with what changed and why
-3. **Update `kb/api-contracts.md`** — if API endpoints/models change
-4. **Update this file** — if architecture, file structure, or conventions change
-5. **Keep `kb/` docs accurate** — if subsystem design changes
-
-### This file (`copilot-instructions.md`)
-- Must reflect the actual file tree and conventions
-- Update the Architecture Quick Reference table when files are added/renamed
-- Update Common Patterns when new patterns are established
-- Update KB Index when new `kb/` docs are created
+**Never leave a session with stale documentation.**
+If you're short on tokens, update documentation before adding new features.
