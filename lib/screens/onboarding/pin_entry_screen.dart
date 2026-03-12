@@ -12,6 +12,10 @@ import '../../providers/core_providers.dart';
 import '../../services/api_service.dart';
 
 
+// In-memory cache: host IP → user list. Populated on first fetch so that
+// switching profiles or returning to the picker shows users instantly.
+final Map<String, List<UserPickerEntry>> _userPickerCache = {};
+
 class PinEntryScreen extends ConsumerStatefulWidget {
   final String deviceIp;
   const PinEntryScreen({super.key, required this.deviceIp});
@@ -43,25 +47,45 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
   }
 
   Future<void> _fetchUsers() async {
-    setState(() {
-      _loadingUsers = true;
-      _error = null;
-    });
+    // Show cached users instantly — no spinner on warm cache
+    final cached = _userPickerCache[widget.deviceIp];
+    if (cached != null && cached.isNotEmpty) {
+      setState(() {
+        _users = cached;
+        _loadingUsers = false;
+        _error = null;
+      });
+    } else {
+      setState(() {
+        _loadingUsers = true;
+        _error = null;
+      });
+    }
+
+    // Always refresh from server in background
     try {
       final api = ApiService.instance;
       final entries = await api.fetchUserEntries(widget.deviceIp);
+      _userPickerCache[widget.deviceIp] = entries;
       if (!mounted) return;
       setState(() {
         _users = entries;
-        _selectedUser = null;
-        _showPin = false;
         _loadingUsers = false;
+        // Preserve current selection if user still exists in the refreshed list
+        if (_selectedUser != null) {
+          final stillExists = entries.any((u) => u.name == _selectedUser!.name);
+          if (!stillExists) {
+            _selectedUser = null;
+            _showPin = false;
+          }
+        }
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loadingUsers = false;
-        _error = friendlyError(e);
+        // Only surface error when there is nothing cached to show
+        if (_users.isEmpty) _error = friendlyError(e);
       });
     }
   }

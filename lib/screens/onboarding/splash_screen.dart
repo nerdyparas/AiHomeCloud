@@ -33,18 +33,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _init() async {
     final session = ref.read(authSessionProvider);
     if (session != null) {
-      // Already authenticated — verify backend reachability, then open the app.
-      await Future.delayed(const Duration(milliseconds: 800));
+      // Already authenticated — go directly to the dashboard.
+      // No network ping needed here; the dashboard handles offline state itself.
       if (!mounted) return;
-      final api = ref.read(apiServiceProvider);
-      try {
-        await api.getDeviceInfo();
-        if (!mounted) return;
-        context.go('/dashboard');
-      } catch (_) {
-        if (!mounted) return;
-        context.go('/scan-network');
-      }
+      context.go('/dashboard');
       return;
     }
 

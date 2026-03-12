@@ -30,7 +30,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController();
-    _loadProfile();
+    // Pre-populate from session synchronously — screen appears instantly.
+    final session = ref.read(authSessionProvider);
+    _nameCtrl.text = session?.username ?? '';
+    _selectedEmoji = session?.iconEmoji ?? '';
+    _loadingProfile = false;
+    // Only fetch has_pin (and confirm server values) silently in background.
+    _loadProfileSilently();
   }
 
   @override
@@ -39,22 +45,18 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadProfileSilently() async {
     try {
       final profile = await ref.read(apiServiceProvider).getMyProfile();
       if (!mounted) return;
       setState(() {
-        _nameCtrl.text = profile['name'] as String? ?? '';
-        _selectedEmoji = profile['icon_emoji'] as String? ?? '';
+        // Accept server values in case session data is stale
+        _nameCtrl.text = profile['name'] as String? ?? _nameCtrl.text;
+        _selectedEmoji = profile['icon_emoji'] as String? ?? _selectedEmoji;
         _hasPin = profile['has_pin'] as bool? ?? false;
-        _loadingProfile = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = friendlyError(e);
-        _loadingProfile = false;
-      });
+    } catch (_) {
+      // Non-critical: has_pin stays false; name/emoji from session are shown.
     }
   }
 
