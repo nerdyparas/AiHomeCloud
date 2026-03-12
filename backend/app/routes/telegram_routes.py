@@ -27,7 +27,7 @@ _STORE_KEY = "telegram_config"
 # ---------------------------------------------------------------------------
 
 class TelegramConfigIn(BaseModel):
-    bot_token: str
+    bot_token: str = ""
     api_id: int = 0
     api_hash: str = ""
     local_api_enabled: bool = False
@@ -72,7 +72,8 @@ async def get_config(user: dict = Depends(require_admin)):
     saved: dict = await _store.get_value(_STORE_KEY, default={})
     token = saved.get("bot_token", "") or settings.telegram_bot_token
     linked_ids = await _store.get_value("telegram_linked_ids", default=[])
-    local_enabled = saved.get("local_api_enabled", False)
+    local_enabled = bool(saved.get("local_api_enabled", settings.telegram_local_api_enabled))
+    api_id = int(saved.get("api_id", settings.telegram_api_id) or 0)
 
     return TelegramConfigOut(
         configured=bool(token),
@@ -80,7 +81,7 @@ async def get_config(user: dict = Depends(require_admin)):
         linked_count=len(linked_ids),
         bot_running=_bot_is_running(),
         local_api_enabled=local_enabled,
-        api_id=saved.get("api_id", 0),
+        api_id=api_id,
         max_file_mb=2000 if local_enabled else 20,
     )
 
@@ -89,6 +90,9 @@ async def get_config(user: dict = Depends(require_admin)):
 async def save_config(body: TelegramConfigIn, user: dict = Depends(require_admin)):
     """Save token, then restart the bot."""
     token = body.bot_token.strip()
+    if not token:
+        saved: dict = await _store.get_value(_STORE_KEY, default={})
+        token = (saved.get("bot_token", "") or settings.telegram_bot_token).strip()
 
     if not token:
         raise HTTPException(

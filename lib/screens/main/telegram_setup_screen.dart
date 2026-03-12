@@ -126,6 +126,11 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
       if (mounted) {
         setState(() {
           _errorMsg = friendlyError(e);
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
           _saving = false;
         });
       }

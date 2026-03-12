@@ -17,6 +17,7 @@ configured.  If python-telegram-bot is not installed the startup silently skips.
 """
 
 import asyncio
+from contextlib import suppress
 import logging
 import tempfile
 from dataclasses import dataclass
@@ -26,8 +27,9 @@ from typing import Optional
 logger = logging.getLogger("cubie.telegram_bot")
 
 _POLL_TIMEOUT_SECONDS = 2
-_HTTP_TIMEOUT_SECONDS = 5
+_HTTP_TIMEOUT_SECONDS = 600
 _STOP_TIMEOUT_SECONDS = 5
+_UPLOAD_PROGRESS_INTERVAL_SECONDS = 15
 
 # Per-chat last-search results {chat_id: [{"path": ..., "filename": ..., ...}]}
 _last_results: dict[int, list[dict]] = {}
@@ -133,6 +135,58 @@ def _human_size(num_bytes: int) -> str:
 
 def _is_too_large_telegram_file_error(exc: Exception) -> bool:
     return "file is too big" in str(exc).casefold()
+
+
+def _is_timeout_error(exc: Exception) -> bool:
+    return "timed out" in str(exc).casefold() or "timeout" in str(exc).casefold()
+
+
+def _format_elapsed(total_seconds: float) -> str:
+    """Return elapsed duration as h m s."""
+    seconds = max(0, int(total_seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+
+def _format_avg_speed(num_bytes: int, elapsed_seconds: float) -> str:
+    """Return average speed text (e.g. 3.2 MB/s)."""
+    if num_bytes <= 0 or elapsed_seconds <= 0:
+        return "n/a"
+    return f"{_human_size(int(num_bytes / elapsed_seconds))}/s"
+
+
+async def _safe_edit_text(message, text: str) -> None:
+    """Best-effort edit for status messages (ignore edit failures)."""
+    if message is None:
+        return
+    try:
+        await message.edit_text(text)
+    except Exception:
+        return
+
+
+async def _upload_progress_heartbeat(message, filename: str, size_text: str, target_label: str, started_at: float) -> None:
+    """Periodically update the same Telegram message while download is in progress."""
+    loop = asyncio.get_running_loop()
+    while True:
+        await asyncio.sleep(_UPLOAD_PROGRESS_INTERVAL_SECONDS)
+        elapsed = _format_elapsed(loop.time() - started_at)
+        await _safe_edit_text(
+            message,
+            (
+                "📥 Download in progress...\n"
+                f"File: {filename}\n"
+                f"Target: {target_label}\n"
+                f"Size: {size_text}\n"
+                f"Elapsed: {elapsed}\n\n"
+                "If network is slow, this can take a while."
+            ),
+        )
 
 
 async def _download_to_path(bot, file_id: str, dest_path: Path) -> Path:
@@ -277,16 +331,36 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
         await update.message.reply_text("Reply with 1, 2, or 3.")
         return True
 
-    dest_key, target_label = dest_map[choice]
+    _, target_label = dest_map[choice]
 
     # ── Download file directly on SBC ──
     # If the bot is connected to the local API server (telegram_local_api_enabled=True),
     # files up to 2GB are downloaded directly. If the local API server is not enabled,
     # files over 20MB will fail here — the user is told to enable it in settings.
     size_mb = round(pending.file_size / (1024 * 1024), 1) if pending.file_size else 0
-    if size_mb > 0.5:
-        await update.message.reply_text(
-            f"📥 Saving {pending.filename} ({size_mb} MB) to {target_label}…"
+    size_text = _human_size(pending.file_size)
+    loop = asyncio.get_running_loop()
+    started_at = loop.time()
+    status_message = await update.message.reply_text(
+        (
+            "📥 Download started\n"
+            f"File: {pending.filename}\n"
+            f"Target: {target_label}\n"
+            f"Size: {size_text}\n"
+            "Elapsed: 0s"
+        )
+    )
+
+    progress_task = None
+    if size_mb >= 5:
+        progress_task = asyncio.create_task(
+            _upload_progress_heartbeat(
+                status_message,
+                pending.filename,
+                size_text,
+                target_label,
+                started_at,
+            )
         )
 
     try:
@@ -300,9 +374,25 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
             dest = await _store_entertainment_file(context.bot, pending)
 
         _pending_uploads.pop(chat_id, None)
-        actual_mb = round(dest.stat().st_size / (1024 * 1024), 1)
+        actual_bytes = dest.stat().st_size
+        elapsed_seconds = loop.time() - started_at
+        await _safe_edit_text(
+            status_message,
+            (
+                "✅ Download complete\n"
+                f"File: {dest.name}\n"
+                f"Target: {target_label}\n"
+                f"Size: {_human_size(actual_bytes)}\n"
+                f"Elapsed: {_format_elapsed(elapsed_seconds)}\n"
+                f"Average speed: {_format_avg_speed(actual_bytes, elapsed_seconds)}"
+            ),
+        )
         await update.message.reply_text(
-            f"✅ Saved to {target_label}: {dest.name} ({actual_mb} MB)"
+            (
+                f"✅ Saved to {target_label}: {dest.name}\n"
+                f"Summary: {_human_size(actual_bytes)} in {_format_elapsed(elapsed_seconds)} "
+                f"({_format_avg_speed(actual_bytes, elapsed_seconds)})"
+            )
         )
 
     except Exception as exc:
@@ -310,16 +400,53 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
             "telegram_upload_store_failed chat_id=%s file=%s error=%s",
             chat_id, pending.filename, exc,
         )
+        elapsed_seconds = loop.time() - started_at
         if _is_too_large_telegram_file_error(exc):
+            await _safe_edit_text(
+                status_message,
+                (
+                    "⚠️ Download failed\n"
+                    f"File: {pending.filename}\n"
+                    f"Elapsed: {_format_elapsed(elapsed_seconds)}\n"
+                    "Reason: file is too large for standard bot download."
+                ),
+            )
             await update.message.reply_text(
                 f"⚠️ {pending.filename} is too large for standard bot download.\n\n"
                 "Ask your admin to enable Large File mode in the AiHomeCloud app:\n"
                 "More → Telegram Bot → Large file mode (up to 2 GB)"
             )
+        elif _is_timeout_error(exc):
+            await _safe_edit_text(
+                status_message,
+                (
+                    "⚠️ Download timed out\n"
+                    f"File: {pending.filename}\n"
+                    f"Elapsed: {_format_elapsed(elapsed_seconds)}\n"
+                    "Reason: network/API timeout while fetching file."
+                ),
+            )
+            await update.message.reply_text(
+                "⚠️ Download timed out. Network may be slow or unstable.\n"
+                "Please retry. If this repeats, keep Large file mode enabled and check network speed/stability."
+            )
         else:
+            await _safe_edit_text(
+                status_message,
+                (
+                    "⚠️ Download failed\n"
+                    f"File: {pending.filename}\n"
+                    f"Elapsed: {_format_elapsed(elapsed_seconds)}"
+                ),
+            )
             await update.message.reply_text(
                 f"⚠️ Failed to save {pending.filename}. Please try again."
             )
+    finally:
+        if progress_task is not None:
+            progress_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await progress_task
     return True
 
 

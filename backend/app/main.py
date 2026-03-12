@@ -197,6 +197,21 @@ async def lifespan(app: FastAPI):
 
     # Start Telegram bot (optional — skipped if token not set)
     try:
+        # Restore Telegram runtime settings from persisted config.
+        saved_tg = await _store_module.get_value("telegram_config", default={})
+        if isinstance(saved_tg, dict) and saved_tg:
+            token = str(saved_tg.get("bot_token", "") or "").strip()
+            if token:
+                settings.telegram_bot_token = token  # type: ignore[misc]
+
+            api_id = int(saved_tg.get("api_id", 0) or 0)
+            api_hash = str(saved_tg.get("api_hash", "") or "")
+            local_enabled = bool(saved_tg.get("local_api_enabled", False))
+
+            settings.telegram_api_id = api_id  # type: ignore[misc]
+            settings.telegram_api_hash = api_hash  # type: ignore[misc]
+            settings.telegram_local_api_enabled = local_enabled  # type: ignore[misc]
+
         from .telegram_bot import start_bot as _start_bot
         await _start_bot()
     except (OSError, RuntimeError, ValueError) as e:
