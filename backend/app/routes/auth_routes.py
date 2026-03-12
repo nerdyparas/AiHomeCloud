@@ -239,17 +239,15 @@ async def login(request: Request, body: LoginRequest):
 
     stored_pin = found.get("pin")
     if not stored_pin:
-        _record_failure(client_ip)
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-
-    if str(stored_pin).startswith("$2"):
+        # User has no PIN set — allow login with any input (including empty string)
+        pass
+    elif str(stored_pin).startswith("$2"):
         ok = await verify_password(body.pin, stored_pin)
+        if not ok:
+            _record_failure(client_ip)
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
     else:
         logger.warning("Non-bcrypt PIN found for user %s — rejecting", body.name)
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-
-    if not ok:
-        _record_failure(client_ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     # Success — clear lockout counter

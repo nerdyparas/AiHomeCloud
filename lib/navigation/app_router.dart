@@ -15,6 +15,7 @@ import '../screens/main/telegram_setup_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
 import '../screens/onboarding/network_scan_screen.dart';
 import '../screens/onboarding/pin_entry_screen.dart';
+import '../screens/onboarding/profile_creation_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
 import '../providers.dart';
 import 'main_shell.dart';
@@ -26,18 +27,19 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     redirect: (_, state) {
       final loc = state.matchedLocation;
-      final onOnboarding =
-          loc == '/' || loc == '/scan-network' || loc == '/pin-entry';
+      final onOnboarding = loc == '/' ||
+          loc == '/scan-network' ||
+          loc == '/pin-entry' ||
+          loc == '/user-picker' ||
+          loc == '/profile-creation';
 
+      // Not logged in and trying to access main app → go to splash
       if (authSession == null && !onOnboarding) {
         return '/';
       }
 
-      // Allow /scan-network when authenticated (for reconnection)
-      if (authSession != null && onOnboarding && loc != '/scan-network') {
-        return '/dashboard';
-      }
-
+      // Allow /scan-network when authenticated (for reconnection).
+      // Splash handles session-exists → user-picker redirect itself.
       return null;
     },
     routes: [
@@ -49,6 +51,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final ip = state.extra as String;
           return PinEntryScreen(deviceIp: ip);
+        },
+      ),
+      GoRoute(
+        path: '/user-picker',
+        builder: (_, state) {
+          final ip = state.extra as String;
+          return PinEntryScreen(deviceIp: ip);
+        },
+      ),
+      GoRoute(
+        path: '/profile-creation',
+        builder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return ProfileCreationScreen(
+            deviceIp: extra['ip'] as String,
+            isAddingUser: extra['isAddingUser'] as bool? ?? false,
+          );
         },
       ),
 
