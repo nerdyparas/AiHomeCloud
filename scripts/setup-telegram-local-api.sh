@@ -101,7 +101,14 @@ else
 fi
 
 echo ""
-echo "==> Done. Now set these in your AiHomeCloud app:"
-echo "    API ID:   ${API_ID}"
+echo "==> Done!"
+echo ""
+echo "    The local Bot API server is now running on port ${PORT}."
+echo "    All files sent to your bot will be downloaded directly on this device."
+echo "    No phone or browser needed — the SBC handles everything."
+echo ""
+echo "    Final step in the AiHomeCloud app:"
+echo "    More → Telegram Bot → Large file mode → enter API ID and Hash → Save"
+echo ""
+echo "    API ID  : ${API_ID}"
 echo "    API Hash: ${API_HASH}"
-echo "    Enable 'Large file uploads' toggle in Telegram Bot settings."

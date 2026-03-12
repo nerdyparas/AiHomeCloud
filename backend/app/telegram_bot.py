@@ -28,7 +28,6 @@ logger = logging.getLogger("cubie.telegram_bot")
 _POLL_TIMEOUT_SECONDS = 2
 _HTTP_TIMEOUT_SECONDS = 5
 _STOP_TIMEOUT_SECONDS = 5
-_TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024
 
 # Per-chat last-search results {chat_id: [{"path": ..., "filename": ..., ...}]}
 _last_results: dict[int, list[dict]] = {}
@@ -254,17 +253,7 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
 
     _pending_uploads[chat_id] = pending
 
-    # For oversized files when NOT using local API, note the size in the prompt
-    # so the user knows it will be handled via a direct upload link.
-    size_note = ""
-    if (pending.file_size > _TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES
-            and not settings.telegram_local_api_enabled):
-        size_note = (
-            f"\n⚠️ This file ({_human_size(pending.file_size)}) is too large "
-            "for Telegram bot download. After you choose a destination, "
-            "I'll send you a direct upload link.\n"
-        )
-    await update.message.reply_text(size_note + _pending_upload_prompt(pending.filename))
+    await update.message.reply_text(_pending_upload_prompt(pending.filename))
 
 
 async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  # type: ignore[type-arg]
@@ -290,32 +279,16 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
 
     dest_key, target_label = dest_map[choice]
 
-    # ── Large file without local API → generate one-time upload link ──
-    if (pending.file_size > _TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES
-            and not settings.telegram_local_api_enabled):
-        from .routes.telegram_upload_routes import create_upload_token
-
-        token = create_upload_token(
-            chat_id=chat_id,
-            destination=dest_key,
-            owner=owner,
-            filename=pending.filename,
-        )
-
-        host = settings.host if settings.host != "0.0.0.0" else "192.168.0.212"
-        scheme = "https" if settings.tls_enabled else "http"
-        link = f"{scheme}://{host}:{settings.port}/api/telegram-upload/{token}"
-
-        _pending_uploads.pop(chat_id, None)
+    # ── Download file directly on SBC ──
+    # If the bot is connected to the local API server (telegram_local_api_enabled=True),
+    # files up to 2GB are downloaded directly. If the local API server is not enabled,
+    # files over 20MB will fail here — the user is told to enable it in settings.
+    size_mb = round(pending.file_size / (1024 * 1024), 1) if pending.file_size else 0
+    if size_mb > 0.5:
         await update.message.reply_text(
-            f"📤 This file is too large for Telegram download.\n\n"
-            f"Open this link on your phone to upload directly to {target_label}:\n"
-            f"{link}\n\n"
-            f"⏳ Link expires in 15 minutes (one-time use)."
+            f"📥 Saving {pending.filename} ({size_mb} MB) to {target_label}…"
         )
-        return True
 
-    # ── Normal-size file → download via Telegram Bot API ──
     try:
         if choice == "1":
             base_dir = settings.personal_path / owner
@@ -327,15 +300,21 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
             dest = await _store_entertainment_file(context.bot, pending)
 
         _pending_uploads.pop(chat_id, None)
+        actual_mb = round(dest.stat().st_size / (1024 * 1024), 1)
         await update.message.reply_text(
-            f"✅ Operation completed. Saved to {target_label}: {dest.name}"
+            f"✅ Saved to {target_label}: {dest.name} ({actual_mb} MB)"
         )
+
     except Exception as exc:
-        logger.warning("telegram_upload_store_failed chat_id=%s file=%s error=%s", chat_id, pending.filename, exc)
+        logger.warning(
+            "telegram_upload_store_failed chat_id=%s file=%s error=%s",
+            chat_id, pending.filename, exc,
+        )
         if _is_too_large_telegram_file_error(exc):
             await update.message.reply_text(
-                "⚠️ Telegram reports this file is too large to download via bot API. "
-                "Please upload a smaller/compressed file, split it, or copy via app/SMB."
+                f"⚠️ {pending.filename} is too large for standard bot download.\n\n"
+                "Ask your admin to enable Large File mode in the AiHomeCloud app:\n"
+                "More → Telegram Bot → Large file mode (up to 2 GB)"
             )
         else:
             await update.message.reply_text(
@@ -419,8 +398,9 @@ async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
         "• Type any word to search your files\n"
         "• Reply with a number to receive that file\n\n"
         "Upload:\n"
-        "• Send a document, photo, video, or audio\n"
-        "• Reply 1 for private personal, 2 for shared, 3 for entertainment\n\n"
+        "• Send any file (up to 2 GB with Large File mode)\n"
+        "• Reply 1 = private, 2 = shared, 3 = entertainment\n"
+        "• The device saves it directly — no other steps needed\n\n"
         "Examples: aadhaar, pan card, invoice, passport"
     )
 

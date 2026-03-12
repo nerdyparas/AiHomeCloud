@@ -395,8 +395,8 @@ async def test_handle_media_message_prompts_for_destination():
 
 
 @pytest.mark.asyncio
-async def test_handle_media_message_oversized_file_prompts_with_warning():
-    """Oversized file is NOT rejected; it prompts with a size warning."""
+async def test_handle_media_message_oversized_file_prompts_destination():
+    """Oversized file is stored as pending and shows the normal destination prompt (no size warning)."""
     import app.telegram_bot as tb
     tb._pending_uploads.clear()
 
@@ -404,7 +404,7 @@ async def test_handle_media_message_oversized_file_prompts_with_warning():
     update.message.video = MagicMock()
     update.message.video.file_id = "vid-big"
     update.message.video.file_name = "movie.mp4"
-    update.message.video.file_size = tb._TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES + 1
+    update.message.video.file_size = 30 * 1024 * 1024  # 30 MB
 
     with patch("app.telegram_bot._is_allowed", new=AsyncMock(return_value=True)):
         await tb._handle_media_message(update, _make_context())
@@ -412,8 +412,9 @@ async def test_handle_media_message_oversized_file_prompts_with_warning():
     # Should still be stored as pending (user picks destination next)
     assert 188 in tb._pending_uploads
     msg = update.message.reply_text.call_args[0][0]
-    assert "too large" in msg.lower()
-    assert "upload link" in msg.lower()
+    # No size-warning text, just the destination prompt
+    assert "too large" not in msg.lower()
+    assert "upload link" not in msg.lower()
     assert "1. Private personal" in msg
 
 
@@ -440,7 +441,7 @@ async def test_handle_pending_upload_choice_private_completes(tmp_path):
     assert handled is True
     assert 99 not in tb._pending_uploads
     msg = update.message.reply_text.call_args[0][0]
-    assert "Operation completed" in msg
+    assert "Saved to" in msg
     assert "private personal" in msg
 
 
@@ -467,7 +468,7 @@ async def test_handle_pending_upload_choice_entertainment_completes(tmp_path):
     assert handled is True
     assert 100 not in tb._pending_uploads
     msg = update.message.reply_text.call_args[0][0]
-    assert "Operation completed" in msg
+    assert "Saved to" in msg
     assert "entertainment" in msg
 
 
@@ -499,30 +500,31 @@ async def test_handle_pending_upload_choice_too_big_shows_specific_error():
 
 
 @pytest.mark.asyncio
-async def test_handle_pending_upload_choice_oversized_generates_link():
-    """Oversized file -> generates upload link instead of downloading."""
+async def test_handle_pending_upload_choice_oversized_tells_user_to_enable_large_file_mode():
+    """When Telegram API rejects a large file, user is told to enable Large File mode."""
     import app.telegram_bot as tb
     tb._pending_uploads.clear()
     tb._pending_uploads[200] = tb.PendingUpload(
         file_id="vid-huge",
         filename="big_movie.mp4",
         kind="video",
-        file_size=tb._TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES + 100,
+        file_size=500 * 1024 * 1024,
     )
 
     update = _make_update(text="3", chat_id=200, first_name="Alice")
     context = _make_context()
 
     with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
-         patch("app.routes.telegram_upload_routes.create_upload_token", return_value="test-token-abc"):
+         patch("app.telegram_bot._store_entertainment_file",
+               new=AsyncMock(side_effect=RuntimeError("File is too big"))):
         handled = await tb._handle_pending_upload_choice(update, context, "3")
 
     assert handled is True
-    assert 200 not in tb._pending_uploads
+    assert 200 in tb._pending_uploads  # kept so user can retry
     msg = update.message.reply_text.call_args[0][0]
-    assert "test-token-abc" in msg
-    assert "upload" in msg.lower()
-    assert "entertainment" in msg.lower()
+    assert "Large file mode" in msg
+    assert "upload link" not in msg.lower()
+    assert "phone" not in msg.lower()
 
 
 # ---------------------------------------------------------------------------
