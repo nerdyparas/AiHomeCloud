@@ -12,6 +12,7 @@ AdGuard base URL: http://localhost:3000/control/
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -20,6 +21,7 @@ from pydantic import BaseModel
 
 from ..auth import get_current_user, require_admin
 from ..config import settings
+from ..subprocess_runner import run_command
 
 logger = logging.getLogger("cubie.adguard")
 
@@ -106,6 +108,12 @@ class AdGuardStats(BaseModel):
     protection_enabled: bool = True
 
 
+class AdGuardStatusResponse(BaseModel):
+    installed: bool
+    service_running: bool
+    app_enabled: bool
+
+
 class PauseRequest(BaseModel):
     minutes: int  # expected: 5, 30, or 60
 
@@ -117,6 +125,30 @@ class ToggleRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+@router.get("/status", response_model=AdGuardStatusResponse)
+async def get_adguard_status(user: dict = Depends(get_current_user)):
+    """
+    Returns AdGuard installation state without requiring adguard_enabled=True.
+    Used by the app to determine which UI state to show.
+    Never raises 503 due to disabled integration.
+    """
+    agh_bin = Path("/opt/AdGuardHome/AdGuardHome")
+    installed = agh_bin.exists()
+
+    service_running = False
+    if installed:
+        rc, _, _ = await run_command(
+            ["systemctl", "is-active", "--quiet", "AdGuardHome"],
+            timeout=5,
+        )
+        service_running = rc == 0
+
+    return AdGuardStatusResponse(
+        installed=installed,
+        service_running=service_running,
+        app_enabled=settings.adguard_enabled,
+    )
 
 @router.get("/stats", response_model=AdGuardStats)
 async def get_stats(user: dict = Depends(get_current_user)):

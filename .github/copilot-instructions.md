@@ -1,14 +1,14 @@
 # Copilot Instructions — AiHomeCloud
 
 > Single source of truth for AI-assisted development.
-> Last updated: 2025-07-25
+> Last updated: 2026-03-13
 > **If you change source code, update the relevant kb/ file before committing.**
 
 ---
 
 ## How to Orient Yourself
 
-1. **Read `tasks.md`** — current priorities, in-progress work, backlog
+1. **Read `TASKS.md`** — current priorities, in-progress work, backlog
 2. **Read `kb/changelog.md`** — recent decisions and session summaries
 3. **Browse `kb/`** — deep architecture docs (see KB Index below)
 4. **Validate before finishing:** `cd backend && python -m pytest tests/ -q` and `flutter analyze && flutter test`
@@ -50,7 +50,7 @@
 | `service_routes.py` | `/api/v1/services` | 2 | List services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | 9 | Devices, scan, SMART, usage, format, mount, unmount, eject, stats |
 | `network_routes.py` | `/api/v1/network` | 3 | Status, Wi-Fi get/set |
-| `adguard_routes.py` | `/api/v1/adguard` | 3 | Stats, pause, toggle |
+| `adguard_routes.py` | `/api/v1/adguard` | 4 | Status, stats, pause, toggle |
 | `tailscale_routes.py` | `/api/v1/tailscale` | 2 | Status, bring up |
 | `telegram_routes.py` | `/api/v1/telegram` | 3 | Config get/set, unlink |
 | `telegram_upload_routes.py` | `/telegram-upload` | 2 | HTML upload form (GET), file upload (POST) — token auth |

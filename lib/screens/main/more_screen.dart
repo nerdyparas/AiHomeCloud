@@ -901,9 +901,12 @@ class _AdBlockingCard extends ConsumerStatefulWidget {
 }
 
 class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
+  bool? _installed;
+  bool? _serviceRunning;
+  bool? _appEnabled;
   Map<String, dynamic>? _stats;
   bool _loading = true;
-  bool _unavailable = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -912,15 +915,50 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
-      _unavailable = false;
+      _errorMessage = null;
     });
     try {
-      final stats = await ref.read(apiServiceProvider).getAdGuardStats();
-      if (mounted) setState(() { _stats = stats; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() { _unavailable = true; _loading = false; });
+      final status = await ref.read(apiServiceProvider).getAdGuardStatus();
+      if (!mounted) return;
+
+      final installed = status['installed'] as bool? ?? false;
+      final serviceRunning = status['service_running'] as bool? ?? false;
+      final appEnabled = status['app_enabled'] as bool? ?? false;
+
+      setState(() {
+        _installed = installed;
+        _serviceRunning = serviceRunning;
+        _appEnabled = appEnabled;
+      });
+
+      if (installed && serviceRunning && appEnabled) {
+        final stats = await ref.read(apiServiceProvider).getAdGuardStats();
+        if (!mounted) return;
+        setState(() {
+          _stats = stats;
+          _loading = false;
+        });
+      } else {
+        if (mounted) {
+          setState(() {
+            _stats = null;
+            _loading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final message = friendlyError(e);
+      setState(() {
+        _loading = false;
+        _errorMessage = message;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 
@@ -953,26 +991,92 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
       );
     }
 
-    if (_unavailable || _stats == null) {
+    if (_installed == false) {
       return AppCard(
         padding: EdgeInsets.zero,
         child: ListTile(
-          leading: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.textMuted.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.shield_outlined,
-                color: AppColors.textMuted, size: 18),
-          ),
+          leading: _iconBox(Icons.shield_outlined, AppColors.textMuted),
           title: Text('Ad Blocking',
               style: GoogleFonts.dmSans(
                   color: AppColors.textPrimary, fontSize: 14)),
-          subtitle: Text('Not configured — run install-adguard.sh on your Cubie',
-              style:
-                  GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12)),
+          subtitle: Text(
+            'Not set up on this device',
+            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.info_outline_rounded,
+                color: AppColors.primary, size: 20),
+            tooltip: 'Setup instructions',
+            onPressed: _showSetupInstructions,
+          ),
+          onTap: _showSetupInstructions,
+        ),
+      );
+    }
+
+    if (_appEnabled == false) {
+      return AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: _iconBox(Icons.shield_rounded, AppColors.primary),
+          title: Text('Ad Blocking',
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500)),
+          subtitle: Text(
+            'Installed - finish setup to activate',
+            style: GoogleFonts.dmSans(color: AppColors.primary, fontSize: 12),
+          ),
+          trailing: Container(
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primary,
+            ),
+          ),
+          onTap: _showSetupInstructions,
+        ),
+      );
+    }
+
+    if (_serviceRunning == false) {
+      return AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: _iconBox(Icons.shield_rounded, AppColors.error),
+          title: Text('Ad Blocking',
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500)),
+          subtitle: Text(
+            'Service stopped',
+            style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 12),
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.refresh_rounded,
+                color: AppColors.primary, size: 20),
+            tooltip: 'Retry',
+            onPressed: _load,
+          ),
+        ),
+      );
+    }
+
+    if (_stats == null) {
+      return AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: _iconBox(Icons.shield_outlined, AppColors.textMuted),
+          title: Text('Ad Blocking',
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textPrimary, fontSize: 14)),
+          subtitle: Text(
+            _errorMessage ?? 'Unable to load status',
+            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
+          ),
           trailing: IconButton(
             icon: const Icon(Icons.refresh_rounded,
                 color: AppColors.primary, size: 20),
@@ -987,6 +1091,7 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
     final percent = _stats!['blocked_percent'] as double? ?? 0.0;
     final topBlocked =
         (_stats!['top_blocked'] as List<dynamic>? ?? []).cast<String>();
+    final protectionEnabled = _stats!['protection_enabled'] as bool? ?? true;
 
     return AppCard(
       child: Column(
@@ -1016,11 +1121,21 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                             fontSize: 14,
                             fontWeight: FontWeight.w500)),
                     Text(
-                        '$blocked of $queries queries blocked today (${percent.toStringAsFixed(0)}%)',
+                        protectionEnabled
+                            ? '$blocked of $queries blocked today (${percent.toStringAsFixed(0)}%)'
+                            : 'Protection paused',
                         style: GoogleFonts.dmSans(
-                            color: AppColors.textSecondary, fontSize: 12)),
+                            color: protectionEnabled
+                                ? AppColors.textSecondary
+                                : AppColors.error,
+                            fontSize: 12)),
                   ],
                 ),
+              ),
+              GestureDetector(
+                onTap: _load,
+                child: const Icon(Icons.refresh_rounded,
+                    color: AppColors.textMuted, size: 18),
               ),
             ],
           ),
@@ -1068,7 +1183,7 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
                         color: AppColors.textSecondary, fontSize: 12)),
                 const SizedBox(width: 4),
                 Switch(
-                  value: _stats!['protection_enabled'] as bool? ?? true,
+                  value: protectionEnabled,
                   onChanged: (v) => _toggle(v),
                   activeThumbColor: AppColors.primary,
                 ),
@@ -1091,6 +1206,112 @@ class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
       }
     }
   }
+
+  void _showSetupInstructions() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Set Up Ad Blocking',
+            style: GoogleFonts.sora(color: AppColors.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ad Blocking blocks ads and trackers for every device on your home network - phones, TVs, and computers.',
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textSecondary, fontSize: 14, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Text('To enable it:',
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            _setupStep(
+              '1',
+              'Open a terminal and connect to your AiHomeCloud device over SSH',
+            ),
+            const SizedBox(height: 8),
+            _setupStep(
+              '2',
+              'Run: sudo bash scripts/install-adguard.sh',
+              isCode: true,
+            ),
+            const SizedBox(height: 8),
+            _setupStep(
+              '3',
+              'Point your router DNS to this device IP - the script prints exact steps when it finishes',
+            ),
+            const SizedBox(height: 8),
+            _setupStep(
+              '4',
+              'Come back here and tap refresh',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Got it',
+                style: GoogleFonts.dmSans(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _setupStep(String number, String text, {bool isCode = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(number,
+                style: GoogleFonts.dmSans(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: isCode
+                ? GoogleFonts.robotoMono(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    backgroundColor: AppColors.cardBorder.withValues(alpha: 0.5),
+                  )
+                : GoogleFonts.dmSans(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.4),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _iconBox(IconData icon, Color color) => Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 18),
+      );
 }
 
 class _PauseButton extends ConsumerWidget {

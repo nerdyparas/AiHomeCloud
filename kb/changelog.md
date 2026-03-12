@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-13 — Ad Blocking state-machine fix
+
+**Changes:** Implemented AdGuard setup/runtime state probing and rewired the More-screen Ad Blocking card to handle installation, app-enabled, service-running, and active-stats states explicitly.
+
+**Backend changes:** Added `GET /api/v1/adguard/status` in `adguard_routes.py` returning `{installed, service_running, app_enabled}` without requiring `adguard_enabled=true`. Added test file `backend/tests/test_adguard.py` (4 tests passing).
+
+**Frontend changes:** Added `getAdGuardStatus()` to `lib/services/api/services_network_api.dart`. Reworked `_AdBlockingCardState` in `lib/screens/main/more_screen.dart` to two-step load (`/status` then `/stats`), setup-instructions dialog, visible snackbar errors, service-stopped retry state, and refresh action in active stats card.
+
+**Documentation updated:** Updated endpoint counts and AdGuard route docs in `kb/api-contracts.md`, `kb/architecture.md`, and `.github/copilot-instructions.md`.
+
+---
+
 ## 2025-07-25 — Repository audit and KB rebuild
 
 **Changes:** `copilot-instructions.md` rewritten from scratch. All `kb/` files verified against source code and updated. Created `kb/architecture.md`, `kb/features.md`, `kb/flutter-patterns.md`, `kb/backend-patterns.md`, `kb/changelog.md`. Rebuilt `kb/api-contracts.md` from 78 lines to full 62-endpoint reference. Created `tasks.md`. Removed stale root-level prompt artifacts.

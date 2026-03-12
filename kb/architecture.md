@@ -1,6 +1,6 @@
 # Architecture Map — AiHomeCloud
 
-> Verified against source code as of 2025-07-25.
+> Verified against source code as of 2026-03-13.
 > See also `kb/api-contracts.md` for the full endpoint reference.
 
 ---
@@ -28,14 +28,14 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `service_routes.py` | `/api/v1/services` | User/Admin | 2 endpoints: list services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | User/Admin | 9 endpoints: devices, scan, smart-activate, check-usage, format, mount, unmount, eject, stats |
 | `network_routes.py` | `/api/v1` | User | 3 endpoints: network status, Wi-Fi get/set |
-| `adguard_routes.py` | `/api/v1/adguard` | User/Admin | 3 endpoints: stats, pause, toggle protection |
+| `adguard_routes.py` | `/api/v1/adguard` | User/Admin | 4 endpoints: status, stats, pause, toggle protection |
 | `tailscale_routes.py` | `/api/v1/system` | User/Admin | 2 endpoints: VPN status, bring up |
 | `telegram_routes.py` | `/api/v1/telegram` | Admin | 3 endpoints: config get/set, unlink chat |
 | `telegram_upload_routes.py` | `/telegram-upload` | Token URL | 2 endpoints: browser upload form + POST |
 | `jobs_routes.py` | `/api/v1/jobs` | User | 1 endpoint: poll long-running job status |
 | `event_routes.py` | `/ws` | Token | 1 WS: real-time notification stream |
 
-**Total: 62 endpoints across 14 files.**
+**Total: 63 endpoints across 14 files.**
 
 ---
 

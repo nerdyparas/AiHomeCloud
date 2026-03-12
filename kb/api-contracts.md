@@ -1,8 +1,8 @@
 # API Contracts — AiHomeCloud
 
 > Authoritative reference for every backend endpoint.
-> Verified against source code as of 2025-07-25.
-> **62 endpoints** across 14 route files.
+> Verified against source code as of 2026-03-13.
+> **63 endpoints** across 14 route files.
 
 ---
 
@@ -165,11 +165,13 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
+| GET | `/status` | User | Installation and runtime status probe (`installed`, `service_running`, `app_enabled`) |
 | GET | `/stats` | User | Ad blocking statistics |
 | POST | `/pause` | User | Pause protection (body: `{ minutes: 5|30|60 }`) |
 | POST | `/toggle` | Admin | Enable/disable protection (body: `{ enabled: bool }`) |
 
 **Response `GET /stats`:** `{ dns_queries, blocked_today, blocked_percent, top_blocked, protection_enabled }`
+**Response `GET /status`:** `{ installed, service_running, app_enabled }`
 
 ---
 
