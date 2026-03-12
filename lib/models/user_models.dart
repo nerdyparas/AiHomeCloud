@@ -10,6 +10,7 @@ class FamilyUser {
   final bool isAdmin;
   final double folderSizeGB;
   final Color avatarColor;
+  final String iconEmoji;
 
   const FamilyUser({
     required this.id,
@@ -17,6 +18,7 @@ class FamilyUser {
     required this.isAdmin,
     required this.folderSizeGB,
     required this.avatarColor,
+    this.iconEmoji = '',
   });
 }
 

@@ -1,5 +1,17 @@
 part of '../api_service.dart';
 
+/// Model returned by the login picker endpoint.
+class UserPickerEntry {
+  final String name;
+  final bool hasPin;
+  final String iconEmoji;
+  const UserPickerEntry({
+    required this.name,
+    required this.hasPin,
+    this.iconEmoji = '',
+  });
+}
+
 /// Authentication API — pairing, user creation, login/logout, PIN management.
 extension AuthApi on ApiService {
   /// GET /api/v1/pair/qr — fetch pairing info from a discovered Cubie.
@@ -35,7 +47,12 @@ extension AuthApi on ApiService {
   }
 
   /// POST /api/v1/users  body: {name, pin}
-  Future<void> createUser(String name, String? pin, {String? hostOverride}) async {
+  Future<void> createUser(
+    String name,
+    String? pin, {
+    String? hostOverride,
+    String iconEmoji = '',
+  }) async {
     final host = hostOverride ?? _session?.host;
     final port = _session?.port ?? AppConstants.apiPort;
     if (host == null || host.isEmpty) {
@@ -47,7 +64,11 @@ extension AuthApi on ApiService {
           .post(
             Uri.parse('$base${AppConstants.apiVersion}/users'),
             headers: _headers,
-            body: jsonEncode({'name': name, if (pin != null) 'pin': pin}),
+            body: jsonEncode({
+              'name': name,
+              if (pin != null && pin.isNotEmpty) 'pin': pin,
+              if (iconEmoji.isNotEmpty) 'icon_emoji': iconEmoji,
+            }),
           )
           .timeout(ApiService._timeout),
     );
@@ -101,13 +122,19 @@ extension AuthApi on ApiService {
   }
 
   /// GET /api/v1/auth/users/names — fetch available user names (no auth).
-  Future<List<String>> fetchUserNames(String host) async {
+  /// GET /api/v1/auth/users/names — fetch user names + PIN status for the login picker (no auth).
+  Future<List<UserPickerEntry>> fetchUserEntries(String host) async {
     final base = 'https://$host:${AppConstants.apiPort}';
     final res = await _client
         .get(Uri.parse('$base${AppConstants.apiVersion}/auth/users/names'))
         .timeout(ApiService._timeout);
     _check(res);
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    return (data['names'] as List).cast<String>();
+    final list = data['users'] as List<dynamic>;
+    return list.map((e) => UserPickerEntry(
+      name: e['name'] as String,
+      hasPin: e['has_pin'] as bool? ?? false,
+      iconEmoji: e['icon_emoji'] as String? ?? '',
+    )).toList();
   }
 }

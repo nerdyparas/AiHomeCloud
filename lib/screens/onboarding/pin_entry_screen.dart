@@ -9,6 +9,7 @@ import '../../core/error_utils.dart';
 import '../../core/theme.dart';
 import '../../providers/core_providers.dart';
 import '../../services/api_service.dart';
+import '../../widgets/user_avatar.dart';
 
 class PinEntryScreen extends ConsumerStatefulWidget {
   final String deviceIp;
@@ -22,37 +23,38 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   final _pinController = TextEditingController();
   bool _loading = false;
   String? _error;
-  List<String> _userNames = [];
-  String? _selectedUser;
+  List<UserPickerEntry> _users = [];
+  UserPickerEntry? _selectedUser;
+  bool _showPin = false;
+  bool _loggingIn = false;
   bool _loadingUsers = true;
-  bool _offlineError = false;
 
   @override
   void initState() {
     super.initState();
-    _pinController.addListener(() => setState(() {}));
     _fetchUsers();
   }
 
   Future<void> _fetchUsers() async {
     setState(() {
       _loadingUsers = true;
-      _offlineError = false;
+      _error = null;
     });
     try {
       final api = ApiService.instance;
-      final names = await api.fetchUserNames(widget.deviceIp);
+      final entries = await api.fetchUserEntries(widget.deviceIp);
       if (!mounted) return;
       setState(() {
-        _userNames = names;
-        _selectedUser = names.isNotEmpty ? names.first : null;
+        _users = entries;
+        _selectedUser = null;
+        _showPin = false;
         _loadingUsers = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loadingUsers = false;
-        _offlineError = true;
+        _error = friendlyError(e);
       });
     }
   }
@@ -65,43 +67,75 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   Future<void> _submit() async {
     final pin = _pinController.text.trim();
-    if (_selectedUser == null) return;
-
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
+    if (pin.isEmpty || _selectedUser == null) return;
+    setState(() { _loading = true; _error = null; });
     try {
-      final api = ApiService.instance;
-      final result = await api.loginWithPin(
+      final result = await ApiService.instance.loginWithPin(
         widget.deviceIp,
-        _selectedUser!,
+        _selectedUser!.name,
         pin,
       );
-
       final accessToken = result['accessToken'] as String;
       final refreshToken = result['refreshToken'] as String?;
       final user = result['user'] as Map<String, dynamic>;
-
       await ref.read(authSessionProvider.notifier).login(
-            host: widget.deviceIp,
-            port: AppConstants.apiPort,
-            token: accessToken,
-            refreshToken: refreshToken,
-            username: user['name'] as String? ?? 'admin',
-            isAdmin: user['isAdmin'] as bool? ?? false,
-          );
-
+        host: widget.deviceIp,
+        port: AppConstants.apiPort,
+        token: accessToken,
+        refreshToken: refreshToken,
+        username: user['name'] as String? ?? _selectedUser!.name,
+        isAdmin: user['isAdmin'] as bool? ?? false,
+      );
       if (!mounted) return;
       context.go('/dashboard');
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '${friendlyError(e)}\n(${widget.deviceIp})';
+        _error = friendlyError(e);
+        _loading = false;
       });
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _onUserTapped(UserPickerEntry user) async {
+    if (_selectedUser?.name == user.name && _showPin) return;
+    setState(() {
+      _selectedUser = user;
+      _pinController.clear();
+      _error = null;
+      _showPin = false;
+    });
+    if (user.hasPin) {
+      setState(() => _showPin = true);
+    } else {
+      setState(() => _loggingIn = true);
+      try {
+        final result = await ApiService.instance.loginWithPin(
+          widget.deviceIp,
+          user.name,
+          '',
+        );
+        final accessToken = result['accessToken'] as String;
+        final refreshToken = result['refreshToken'] as String?;
+        final userData = result['user'] as Map<String, dynamic>;
+        await ref.read(authSessionProvider.notifier).login(
+          host: widget.deviceIp,
+          port: AppConstants.apiPort,
+          token: accessToken,
+          refreshToken: refreshToken,
+          username: userData['name'] as String? ?? user.name,
+          isAdmin: userData['isAdmin'] as bool? ?? false,
+        );
+        if (!mounted) return;
+        context.go('/dashboard');
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = friendlyError(e);
+          _loggingIn = false;
+          _selectedUser = null;
+        });
+      }
     }
   }
 
@@ -117,13 +151,8 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
     );
   }
 
-  static const _avatarColors = [
-    Color(0xFFE8A84C), Color(0xFF4C9BE8), Color(0xFF4CE88A),
-    Color(0xFFE84CA8), Color(0xFF9B59B6), Color(0xFF1ABC9C),
-  ];
-
   Widget _buildBody() {
-    if (_offlineError) {
+    if (_error != null && _users.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -169,7 +198,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
       );
     }
 
-    if (_userNames.isEmpty) {
+    if (_users.isEmpty) {
       return Center(child: Text('No users found.',
         style: GoogleFonts.dmSans(color: AppColors.textMuted)));
     }
@@ -192,54 +221,13 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
           runSpacing: 24,
           alignment: WrapAlignment.center,
           children: [
-            for (int i = 0; i < _userNames.length; i++)
-              GestureDetector(
-                onTap: () => setState(() {
-                  _selectedUser = _userNames[i];
-                  _pinController.clear();
-                  _error = null;
-                }),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: _avatarColors[i % _avatarColors.length],
-                        shape: BoxShape.circle,
-                        border: _selectedUser == _userNames[i]
-                          ? Border.all(color: AppColors.primary, width: 3)
-                          : null,
-                        boxShadow: _selectedUser == _userNames[i]
-                          ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 12)]
-                          : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _userNames[i][0].toUpperCase(),
-                          style: GoogleFonts.sora(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_userNames[i],
-                      style: GoogleFonts.dmSans(
-                        color: _selectedUser == _userNames[i]
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: _selectedUser == _userNames[i]
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      )),
-                  ],
-                ),
+            for (int i = 0; i < _users.length; i++)
+              _AvatarTile(
+                user: _users[i],
+                colorIndex: i,
+                isSelected: _selectedUser?.name == _users[i].name,
+                isLoggingIn: _loggingIn && _selectedUser?.name == _users[i].name,
+                onTap: _loggingIn ? null : () => _onUserTapped(_users[i]),
               ),
             // Add User tile
             GestureDetector(
@@ -368,8 +356,152 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
             ),
           ),
         ],
+        // PIN section — slides in only for users with a PIN
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          child: _showPin && _selectedUser != null
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(40, 32, 40, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PIN for ${_selectedUser!.name}',
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _pinController,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        maxLength: 8,
+                        autofocus: true,
+                        textAlign: TextAlign.center,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        style: GoogleFonts.sora(
+                          color: AppColors.textPrimary,
+                          fontSize: 24,
+                          letterSpacing: 8,
+                        ),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          hintText: '••••',
+                          hintStyle: GoogleFonts.sora(
+                            color: AppColors.textMuted,
+                            fontSize: 24,
+                            letterSpacing: 8,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.card,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.cardBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.cardBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                        ),
+                        onSubmitted: (_) => _submit(),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 13),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _loading ? null : _submit,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2),
+                                )
+                              : Text(
+                                  'Enter',
+                                  style: GoogleFonts.dmSans(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+
         const Spacer(),
       ],
+    );
+  }
+}
+
+class _AvatarTile extends StatelessWidget {
+  final UserPickerEntry user;
+  final int colorIndex;
+  final bool isSelected;
+  final bool isLoggingIn;
+  final VoidCallback? onTap;
+
+  const _AvatarTile({
+    required this.user,
+    required this.colorIndex,
+    required this.isSelected,
+    required this.isLoggingIn,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          UserAvatar(
+            name: user.name,
+            iconEmoji: user.iconEmoji,
+            colorIndex: colorIndex,
+            size: 72,
+            isSelected: isSelected,
+            isLoading: isLoggingIn,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            user.name,
+            style: GoogleFonts.dmSans(
+              color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

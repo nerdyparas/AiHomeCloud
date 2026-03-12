@@ -97,9 +97,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _selectDevice(DiscoveredHost host) async {
     try {
       final api = ref.read(apiServiceProvider);
-      final names = await api.fetchUserNames(host.ip);
+      final entries = await api.fetchUserEntries(host.ip);
       if (!mounted) return;
-      if (names.isEmpty) {
+      if (entries.isEmpty) {
         context.go('/profile-creation', extra: {'ip': host.ip, 'isAddingUser': false});
       } else {
         context.go('/user-picker', extra: host.ip);

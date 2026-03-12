@@ -85,6 +85,7 @@ class FamilyUser(BaseModel):
     is_admin: bool = Field(alias="isAdmin")
     folder_size_gb: float = Field(alias="folderSizeGB")
     avatar_color: str = Field(alias="avatarColor")  # hex string e.g. "FFE8A84C"
+    icon_emoji: str = Field(default="", alias="iconEmoji")
 
     model_config = {"populate_by_name": True}
 
@@ -188,6 +189,7 @@ class TokenResponse(BaseModel):
 class CreateUserRequest(BaseModel):
     name: str
     pin: Optional[str] = None
+    icon_emoji: str = ""
 
 
 class RefreshTokenRecord(BaseModel):

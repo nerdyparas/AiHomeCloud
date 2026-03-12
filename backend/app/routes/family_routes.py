@@ -69,6 +69,7 @@ async def list_family(user: dict = Depends(get_current_user)):
             isAdmin=u.get("is_admin", False),
             folderSizeGB=sizes[i],
             avatarColor=_COLORS[i % len(_COLORS)],
+            iconEmoji=u.get("icon_emoji", ""),
         )
         for i, u in enumerate(users)
     ]
@@ -91,6 +92,7 @@ async def add_family(body: AddFamilyUserRequest, user: dict = Depends(require_ad
         isAdmin=False,
         folderSizeGB=0.0,
         avatarColor=_COLORS[idx % len(_COLORS)],
+        iconEmoji=new_user.get("icon_emoji", ""),
     )
 
 

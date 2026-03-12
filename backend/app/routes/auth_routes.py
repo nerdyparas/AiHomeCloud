@@ -173,9 +173,23 @@ async def cert_fingerprint():
 
 @router.get("/auth/users/names")
 async def list_user_names():
-    """Return just the user names (no auth required) so the login screen can show a picker."""
+    """
+    Return user names and PIN status for the login picker.
+    has_pin is True when the account has a PIN set, False when no PIN required.
+    No auth required — this is public so the picker can show before login.
+    The actual PIN hash is never returned.
+    """
     users = await store.get_users()
-    return {"names": [u["name"] for u in users]}
+    return {
+        "users": [
+            {
+                "name": u["name"],
+                "has_pin": bool(u.get("pin")),
+                "icon_emoji": u.get("icon_emoji", ""),
+            }
+            for u in users
+        ]
+    }
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
@@ -201,7 +215,12 @@ async def create_user(
     is_admin = is_first_user
 
     hashed_pin = await hash_password(body.pin) if body.pin else None
-    user = await store.add_user(body.name, hashed_pin, is_admin=is_admin)
+    user = await store.add_user(
+        body.name,
+        hashed_pin,
+        is_admin=is_admin,
+        icon_emoji=body.icon_emoji.strip(),
+    )
     return {
         "id": user["id"],
         "name": user["name"],

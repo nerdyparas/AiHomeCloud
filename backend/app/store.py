@@ -121,13 +121,19 @@ async def find_user(user_id: str) -> Optional[dict]:
     return next((u for u in users if u["id"] == user_id), None)
 
 
-async def add_user(name: str, pin: Optional[str] = None, is_admin: bool = False) -> dict:
+async def add_user(
+    name: str,
+    pin: Optional[str] = None,
+    is_admin: bool = False,
+    icon_emoji: str = "",
+) -> dict:
     users = await get_users()
     user = {
         "id": f"user_{uuid.uuid4().hex[:8]}",
         "name": name,
         "pin": pin,
         "is_admin": is_admin,
+        "icon_emoji": icon_emoji,
     }
     users.append(user)
     await save_users(users)

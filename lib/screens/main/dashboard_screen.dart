@@ -11,7 +11,6 @@ import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
-import '../../widgets/stat_tile.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -45,25 +44,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
   }
 
-  String _uptime(Duration d) {
-    final days = d.inDays;
-    final hrs = d.inHours.remainder(24);
-    final mins = d.inMinutes.remainder(60);
-    if (days > 0) return '${days}d ${hrs}h';
-    if (hrs > 0) return '${hrs}h ${mins}m';
-    return '${mins}m';
-  }
-
-  String _healthLabel(double value, {required double highThreshold, bool isTemp = false}) {
-    if (value >= highThreshold) return isTemp ? 'Hot' : 'High';
-    if (isTemp && value >= highThreshold - 10) return 'Warm';
-    return 'Normal';
-  }
-
-  Color _healthColor(double value, {required double highThreshold}) {
-    return value >= highThreshold ? AppColors.error : AppColors.success;
-  }
-
   @override
   Widget build(BuildContext context) {
     final deviceAsync = ref.watch(deviceInfoProvider);
@@ -79,63 +59,48 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── Header ──────────────────────────────────────────────────────
+            // ── Top bar: avatar only ─────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Hey, $userName 👋',
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => context.go('/user-picker',
+                          extra: session?.host ?? ''),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
                             style: GoogleFonts.sora(
-                              color: AppColors.textPrimary,
-                              fontSize: 22,
+                              color: AppColors.primary,
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          deviceAsync.when(
-                            data: (d) => Text(d.name,
-                                style: GoogleFonts.dmSans(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 14)),
-                            loading: () => Text('Loading…',
-                                style: GoogleFonts.dmSans(
-                                    color: AppColors.textMuted,
-                                    fontSize: 14)),
-                            error: (_, __) => Text('Device error',
-                                style: GoogleFonts.dmSans(
-                                    color: AppColors.error, fontSize: 14)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: Text(
-                          userName.isNotEmpty
-                              ? userName[0].toUpperCase()
-                              : 'U',
-                          style: GoogleFonts.sora(
-                            color: AppColors.primary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
                   ],
                 ).animate().fadeIn(duration: 400.ms),
+              ),
+            ),
+
+            // ── Hero status card ─────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _HeroStatusCard(
+                  deviceAsync: deviceAsync,
+                  statsAsync: statsAsync,
+                ),
               ),
             ),
 
@@ -153,82 +118,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: _DocSearchResults(query: _activeQuery),
               ),
             ] else ...[
-
-            // ── Active storage badge / no-drive indicator (POL-01) ────────
-            SliverToBoxAdapter(
-              child: storageAsync.when(
-                data: (devices) {
-                  final activeDevices =
-                      devices.where((d) => d.isNasActive && !d.isOsDisk);
-                  if (activeDevices.isNotEmpty) {
-                    final active = activeDevices.first;
-                    final freeGB = statsAsync.value?.storage.freeGB;
-                    final freeText = freeGB != null
-                        ? ' · ${freeGB.toStringAsFixed(0)} GB free'
-                        : '';
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: AppColors.success.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Text('⚡',
-                                style: TextStyle(fontSize: 14)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                '${active.displayName}$freeText',
-                                style: GoogleFonts.dmSans(
-                                    color: AppColors.success,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ).animate().fadeIn(duration: 300.ms),
-                    );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning_amber_rounded,
-                              color: AppColors.primary, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Connect a USB drive to get started',
-                              style: GoogleFonts.dmSans(
-                                  color: AppColors.primary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ).animate().fadeIn(delay: 200.ms),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-            ),
 
             // ── Ad Blocking badge (hidden if AdGuard not enabled) ──────────
             const _AdBlockingBadge(),
@@ -293,7 +182,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         for (int i = 0; i < show.length; i++)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: _StorageDeviceTile(device: show[i])
+                            child: _StorageDeviceTile(
+                              device: show[i],
+                              usedGB: show[i].isNasActive
+                                  ? statsAsync.value?.storage.usedGB
+                                  : null,
+                              totalGB: show[i].isNasActive
+                                  ? statsAsync.value?.storage.totalGB
+                                  : null,
+                            )
                                 .animate()
                                 .fadeIn(delay: (100 * i).ms)
                                 .slideY(begin: 0.05, end: 0),
@@ -354,82 +251,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ── Compact stat tiles (2x2 grid) ──────────────────────────────
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              sliver: statsAsync.when(
-                data: (s) => SliverGrid.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.25,
-                  children: [
-                    StatTile(
-                      label: 'CPU',
-                      value: s.cpuPercent.toStringAsFixed(0),
-                      unit: '%',
-                      icon: Icons.memory_rounded,
-                      accentColor: AppColors.primary,
-                      helperText: _healthLabel(s.cpuPercent, highThreshold: 80),
-                      helperColor: _healthColor(s.cpuPercent, highThreshold: 80),
-                    ).animate().fadeIn(delay: 200.ms),
-                    StatTile(
-                      label: 'Memory',
-                      value: s.ramPercent.toStringAsFixed(0),
-                      unit: '%',
-                      icon: Icons.developer_board_rounded,
-                      accentColor: AppColors.secondary,
-                      helperText: _healthLabel(s.ramPercent, highThreshold: 85),
-                      helperColor: _healthColor(s.ramPercent, highThreshold: 85),
-                    ).animate().fadeIn(delay: 300.ms),
-                    StatTile(
-                      label: 'Temperature',
-                      value: s.tempCelsius.toStringAsFixed(0),
-                      unit: '°C',
-                      icon: Icons.thermostat_rounded,
-                      accentColor: s.tempCelsius > 60
-                          ? AppColors.error
-                          : AppColors.success,
-                      helperText: _healthLabel(s.tempCelsius, highThreshold: 65, isTemp: true),
-                      helperColor: _healthColor(s.tempCelsius, highThreshold: 65),
-                    ).animate().fadeIn(delay: 400.ms),
-                    StatTile(
-                      label: 'Uptime',
-                      value: _uptime(s.uptime),
-                      icon: Icons.schedule_rounded,
-                      accentColor: AppColors.textSecondary,
-                    ).animate().fadeIn(delay: 500.ms),
-                  ],
-                ),
-                loading: () => const SliverToBoxAdapter(
-                  child: SizedBox(
-                      height: 200,
-                      child: Center(
-                          child: CircularProgressIndicator(
-                              color: AppColors.primary))),
-                ),
-                error: (e, __) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: AppCard(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: AppColors.error, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Unable to load system stats: ${friendlyError(e)}',
+            // ── System compact row ──────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: statsAsync.when(
+                  data: (s) => _SystemCompactCard(stats: s).animate().fadeIn(delay: 200.ms),
+                  loading: () => const SizedBox(height: 52),
+                  error: (e, __) => AppCard(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: AppColors.error, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(friendlyError(e),
                               style: GoogleFonts.dmSans(
-                                  color: AppColors.error, fontSize: 13),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => ref.invalidate(systemStatsStreamProvider),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                                  color: AppColors.error, fontSize: 13)),
+                        ),
+                        TextButton(
+                          onPressed: () => ref.invalidate(systemStatsStreamProvider),
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -456,59 +300,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ── Network speed card ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-                child: statsAsync.when(
-                  data: (s) => AppCard(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _netCol(
-                              Icons.arrow_upward_rounded,
-                              'Upload',
-                              '${s.networkUpMbps.toStringAsFixed(1)} Mbps',
-                              AppColors.success),
-                        ),
-                        Container(
-                            width: 1,
-                            height: 40,
-                            color: AppColors.cardBorder),
-                        Expanded(
-                          child: _netCol(
-                              Icons.arrow_downward_rounded,
-                              'Download',
-                              '${s.networkDownMbps.toStringAsFixed(1)} Mbps',
-                              AppColors.secondary),
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(delay: 600.ms),
-                  loading: () => const SizedBox(height: 80),
-                  error: (e, __) => AppCard(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded,
-                            color: AppColors.error, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Unable to load network speed: ${friendlyError(e)}',
-                            style: GoogleFonts.dmSans(
-                                color: AppColors.error, fontSize: 13),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => ref.invalidate(systemStatsStreamProvider),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
             ], // else: normal dashboard content
           ],
         ),
@@ -599,25 +390,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _netCol(IconData icon, String label, String value, Color c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        children: [
-          Icon(icon, color: c, size: 20),
-          const SizedBox(height: 6),
-          Text(value,
-              style: GoogleFonts.sora(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600)),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 12)),
-        ],
-      ),
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -626,67 +398,135 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 class _StorageDeviceTile extends StatelessWidget {
   final StorageDevice device;
-  const _StorageDeviceTile({required this.device});
+  final double? usedGB;
+  final double? totalGB;
+
+  const _StorageDeviceTile({
+    required this.device,
+    this.usedGB,
+    this.totalGB,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final usedFraction = (usedGB != null && totalGB != null && totalGB! > 0)
+        ? (usedGB! / totalGB!).clamp(0.0, 1.0)
+        : null;
+
+    final freeGB = (usedGB != null && totalGB != null)
+        ? (totalGB! - usedGB!).clamp(0.0, totalGB!)
+        : null;
+
+    // Bar colour shifts to amber above 80%, red above 95%
+    final barColor = usedFraction == null
+        ? AppColors.primary
+        : usedFraction >= 0.95
+            ? AppColors.error
+            : usedFraction >= 0.80
+                ? const Color(0xFFE8A84C)
+                : AppColors.primary;
+
     return AppCard(
       glowing: device.isNasActive,
       onTap: () => context.push('/storage-explorer'),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Device icon
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(device.icon, color: _color, size: 22),
+          // ── Top row: icon + name + status badge + chevron ────────────────
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(device.icon, color: _color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      device.label ?? device.model ?? device.name,
+                      style: GoogleFonts.dmSans(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      device.typeLabel,
+                      style: GoogleFonts.dmSans(
+                          color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_statusText,
+                    style: GoogleFonts.dmSans(
+                        color: _statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textMuted, size: 18),
+            ],
           ),
-          const SizedBox(width: 12),
 
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Storage bar (only when stats available) ───────────────────────
+          if (usedFraction != null) ...[
+            const SizedBox(height: 14),
+
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: usedFraction,
+                minHeight: 6,
+                backgroundColor: AppColors.surface,
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            // Used / Free text
+            Row(
               children: [
                 Text(
-                  device.label ?? device.model ?? device.name,
+                  '${usedGB!.toStringAsFixed(1)} GB used',
                   style: GoogleFonts.dmSans(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                      color: AppColors.textSecondary, fontSize: 11),
                 ),
-                const SizedBox(height: 2),
+                const Spacer(),
                 Text(
-                  '${device.typeLabel}  •  ${device.sizeDisplay}',
+                  '${freeGB!.toStringAsFixed(1)} GB free',
                   style: GoogleFonts.dmSans(
-                      color: AppColors.textSecondary, fontSize: 12),
+                      color: AppColors.textSecondary, fontSize: 11),
                 ),
               ],
             ),
-          ),
-
-          // Status badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+          ] else ...[
+            // No stats yet — show total size as before
+            const SizedBox(height: 4),
+            Text(
+              device.sizeDisplay,
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textSecondary, fontSize: 12),
             ),
-            child: Text(_statusText,
-                style: GoogleFonts.dmSans(
-                    color: _statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-          ),
-
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textMuted, size: 18),
+          ],
         ],
       ),
     );
@@ -753,6 +593,41 @@ class _NetworkStatusCard extends ConsumerWidget {
               connected: n.bluetoothEnabled,
               enabled: n.bluetoothEnabled,
             ),
+            const Divider(color: AppColors.cardBorder, height: 1),
+            Consumer(
+              builder: (context, ref, _) {
+                final statsAsync = ref.watch(systemStatsStreamProvider);
+                return statsAsync.when(
+                  data: (s) => Padding(
+                    padding: const EdgeInsets.only(top: 10, bottom: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _speedCol(
+                            Icons.arrow_upward_rounded,
+                            'Upload',
+                            '${s.networkUpMbps.toStringAsFixed(1)} Mbps',
+                            AppColors.success,
+                          ),
+                        ),
+                        Container(
+                            width: 1, height: 36, color: AppColors.cardBorder),
+                        Expanded(
+                          child: _speedCol(
+                            Icons.arrow_downward_rounded,
+                            'Download',
+                            '${s.networkDownMbps.toStringAsFixed(1)} Mbps',
+                            AppColors.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  loading: () => const SizedBox(height: 44),
+                  error: (_, __) => const SizedBox.shrink(),
+                );
+              },
+            ),
           ],
         ),
       ).animate().fadeIn(delay: 550.ms),
@@ -777,6 +652,23 @@ class _NetworkStatusCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _speedCol(IconData icon, String label, String value, Color c) {
+    return Column(
+      children: [
+        Icon(icon, color: c, size: 18),
+        const SizedBox(height: 4),
+        Text(value,
+            style: GoogleFonts.sora(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600)),
+        Text(label,
+            style: GoogleFonts.dmSans(
+                color: AppColors.textSecondary, fontSize: 11)),
+      ],
     );
   }
 
@@ -1015,5 +907,211 @@ class _AdBlockingBadge extends ConsumerWidget {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return n.toString();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HERO STATUS CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _HeroStatusCard extends StatelessWidget {
+  final AsyncValue<CubieDevice> deviceAsync;
+  final AsyncValue<SystemStats> statsAsync;
+
+  const _HeroStatusCard({
+    required this.deviceAsync,
+    required this.statsAsync,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = statsAsync.valueOrNull;
+    final device = deviceAsync.valueOrNull;
+
+    final cpuHigh = (stats?.cpuPercent ?? 0) >= 80;
+    final ramHigh = (stats?.ramPercent ?? 0) >= 85;
+    final tempHigh = (stats?.tempCelsius ?? 0) >= 65;
+    final allGood = !cpuHigh && !ramHigh && !tempHigh;
+
+    final statusColor = allGood ? AppColors.success : AppColors.error;
+    final statusText = allGood
+        ? 'Everything is running fine'
+        : [
+            if (cpuHigh) 'CPU high',
+            if (ramHigh) 'RAM high',
+            if (tempHigh) 'Temperature high',
+          ].join('  ·  ');
+
+    final uptimePart = stats != null ? _uptime(stats.uptime) : '—';
+    final tempPart = stats != null
+        ? '${stats.tempCelsius.toStringAsFixed(0)}°C'
+        : '—';
+    const connPart = 'LAN';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: allGood
+              ? AppColors.success.withValues(alpha: 0.35)
+              : AppColors.error.withValues(alpha: 0.35),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: 0.06),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: statusColor,
+              boxShadow: [
+                BoxShadow(
+                  color: statusColor.withValues(alpha: 0.5),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device?.name ?? 'AiHomeCloud',
+                  style: GoogleFonts.sora(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  statusText,
+                  style: GoogleFonts.dmSans(
+                    color: statusColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Uptime $uptimePart  ·  $tempPart  ·  $connPart',
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 500.ms);
+  }
+
+  String _uptime(Duration d) {
+    final days = d.inDays;
+    final hrs = d.inHours.remainder(24);
+    final mins = d.inMinutes.remainder(60);
+    if (days > 0) return '${days}d ${hrs}h';
+    if (hrs > 0) return '${hrs}h ${mins}m';
+    return '${mins}m';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SYSTEM COMPACT CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _SystemCompactCard extends StatelessWidget {
+  final SystemStats stats;
+  const _SystemCompactCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final cpuOk = stats.cpuPercent < 80;
+    final ramOk = stats.ramPercent < 85;
+    final tempOk = stats.tempCelsius < 65;
+
+    return AppCard(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.memory_rounded,
+                color: AppColors.primary, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textSecondary, fontSize: 13),
+                children: [
+                  _statSpan(
+                      'CPU ${stats.cpuPercent.toStringAsFixed(0)}%', cpuOk),
+                  _sep(),
+                  _statSpan(
+                      'RAM ${stats.ramPercent.toStringAsFixed(0)}%', ramOk),
+                  _sep(),
+                  _statSpan(
+                      '${stats.tempCelsius.toStringAsFixed(0)}°C', tempOk),
+                  _sep(),
+                  TextSpan(
+                    text: _uptime(stats.uptime),
+                    style: GoogleFonts.dmSans(
+                        color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded,
+              color: AppColors.textMuted, size: 18),
+        ],
+      ),
+    );
+  }
+
+  InlineSpan _statSpan(String text, bool ok) => TextSpan(
+        text: text,
+        style: GoogleFonts.dmSans(
+          color: ok ? AppColors.textPrimary : AppColors.error,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+
+  InlineSpan _sep() => TextSpan(
+        text: '  ·  ',
+        style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13),
+      );
+
+  String _uptime(Duration d) {
+    final days = d.inDays;
+    final hrs = d.inHours.remainder(24);
+    final mins = d.inMinutes.remainder(60);
+    if (days > 0) return '${days}d ${hrs}h';
+    if (hrs > 0) return '${hrs}h ${mins}m';
+    return '${mins}m';
   }
 }

@@ -25,6 +25,7 @@ extension FamilyApi on ApiService {
         isAdmin: item['isAdmin'] as bool,
         folderSizeGB: (item['folderSizeGB'] as num).toDouble(),
         avatarColor: Color(colorValue),
+        iconEmoji: item['iconEmoji'] as String? ?? item['icon_emoji'] as String? ?? '',
       );
     }).toList();
   }
@@ -51,6 +52,7 @@ extension FamilyApi on ApiService {
       isAdmin: item['isAdmin'] as bool,
       folderSizeGB: (item['folderSizeGB'] as num).toDouble(),
       avatarColor: Color(colorValue),
+      iconEmoji: item['iconEmoji'] as String? ?? item['icon_emoji'] as String? ?? '',
     );
   }
 

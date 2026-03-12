@@ -10,6 +10,7 @@ import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/user_avatar.dart';
 
 class FamilyScreen extends ConsumerWidget {
   const FamilyScreen({super.key});
@@ -74,6 +75,7 @@ class FamilyScreen extends ConsumerWidget {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _MemberCard(
                           user: u,
+                          index: i,
                           onTap: () => context.push('/folder-view', extra: {
                             'title': "${u.name}'s Files",
                             'folderPath':
@@ -194,10 +196,16 @@ class FamilyScreen extends ConsumerWidget {
 
 class _MemberCard extends StatelessWidget {
   final FamilyUser user;
+  final int index;
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
 
-  const _MemberCard({required this.user, this.onTap, this.onRemove});
+  const _MemberCard({
+    required this.user,
+    required this.index,
+    this.onTap,
+    this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -206,22 +214,11 @@ class _MemberCard extends StatelessWidget {
       child: Row(
         children: [
           // Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: user.avatarColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(
-                user.name[0].toUpperCase(),
-                style: GoogleFonts.sora(
-                    color: user.avatarColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700),
-              ),
-            ),
+          UserAvatar(
+            name: user.name,
+            iconEmoji: user.iconEmoji,
+            colorIndex: index,
+            size: 48,
           ),
           const SizedBox(width: 14),
           // Info
