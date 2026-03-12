@@ -126,6 +126,7 @@ These rules are non-negotiable. Every session must follow them.
 - Never show `/dev/` paths, partition names, or filesystem types to users
 - All file ops go through `_safe_resolve()` to sandbox under NAS root
 - JWT `sub` claim = `user_id` — use `user.get("sub")` in all backend handlers
+- **Dashboard System Tile is LOCKED (V1 design)** — do NOT modify `_SystemCompactCard`, `_SystemMetricIndicator`, or `_SystemMetricDivider` without explicit user confirmation. The current design uses small 44px circular progress rings with a chip icon and single labels (CPU, RAM, TEMP, UPTIME).
 
 ---
 
