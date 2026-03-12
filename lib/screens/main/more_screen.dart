@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
-import '../../core/constants.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
@@ -52,10 +51,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             _ProfileCard(
               userName: userName,
               onChangePinTap: _changePin,
-              onProfileTap: () => context.go(
-                '/user-picker',
-                extra: ref.read(apiServiceProvider).host ?? '',
-              ),
+              onProfileTap: () => context.push('/profile-edit'),
             ).animate().fadeIn(delay: 50.ms),
 
             const SizedBox(height: 8),
@@ -746,7 +742,7 @@ class _ProfileCard extends StatelessWidget {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
-                        Text('Tap to switch profile',
+                        Text('Edit name, icon and PIN',
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textMuted, fontSize: 12)),
                       ],

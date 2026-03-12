@@ -7,6 +7,7 @@ from __future__ import annotations
 import hmac
 import logging
 import time
+from pathlib import Path
 from typing import Dict, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -47,6 +48,7 @@ from ..models import (
     PairRequest,
     PairCompleteRequest,
     TokenResponse,
+    UpdateProfileRequest,
 )
 from .. import store
 
@@ -347,3 +349,108 @@ async def change_pin(request: Request, body: ChangePinRequest, user: dict = Depe
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Old PIN does not match")
 
     await store.update_user_pin(user_id, await hash_password(body.new_pin))
+
+
+@router.get("/users/me")
+async def get_my_profile(user: dict = Depends(get_current_user)):
+    """Return the current user's own profile data."""
+    user_id = user.get("sub", "")
+    found = await store.find_user(user_id)
+    if not found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return {
+        "id": found["id"],
+        "name": found["name"],
+        "icon_emoji": found.get("icon_emoji", ""),
+        "has_pin": bool(found.get("pin")),
+        "is_admin": found.get("is_admin", False),
+    }
+
+
+@router.put("/users/me", status_code=status.HTTP_204_NO_CONTENT)
+async def update_my_profile(
+    body: UpdateProfileRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Update current user's display name and/or emoji icon."""
+    user_id = user.get("sub", "")
+
+    if body.name is not None:
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Name cannot be empty"
+            )
+        # Prevent duplicate names (case-insensitive)
+        existing = await store.get_users()
+        for u in existing:
+            if u["id"] != user_id and u["name"].lower() == name.lower():
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "That name is already taken by another profile",
+                )
+
+    updated = await store.update_user_profile(
+        user_id,
+        name=body.name,
+        icon_emoji=body.icon_emoji,
+    )
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+
+@router.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_profile(user: dict = Depends(get_current_user)):
+    """
+    Delete the current user's own profile and personal folder.
+    Blocked if this user is the only remaining user, or the only admin.
+    """
+    import shutil as _shutil
+
+    user_id = user.get("sub", "")
+    found = await store.find_user(user_id)
+    if not found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    all_users = await store.get_users()
+
+    # Block if last user
+    if len(all_users) <= 1:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot delete the only profile on this device",
+        )
+
+    # Block if last admin
+    if found.get("is_admin"):
+        admins = [u for u in all_users if u.get("is_admin")]
+        if len(admins) <= 1:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Cannot delete the only admin profile",
+            )
+
+    # Remove from users list
+    removed = await store.remove_user(user_id)
+    if not removed:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    # Delete personal folder (best-effort, non-blocking)
+    safe_name = Path(found["name"]).name
+    personal_dir = settings.personal_path / safe_name
+    if personal_dir.exists() and personal_dir.is_dir():
+        try:
+            _shutil.rmtree(personal_dir)
+            logger.info("Deleted personal folder for user %s", found["name"])
+        except Exception as exc:
+            logger.warning("Could not delete folder for %s: %s", found["name"], exc)
+
+
+@router.delete("/users/pin", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_my_pin(user: dict = Depends(get_current_user)):
+    """Remove the current user's PIN so no PIN is required to log in."""
+    user_id = user.get("sub", "")
+    removed = await store.remove_pin(user_id)
+    if not removed:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+

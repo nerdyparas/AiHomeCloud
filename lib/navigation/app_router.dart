@@ -13,6 +13,7 @@ import '../screens/main/settings/device_settings_screen.dart';
 import '../screens/main/settings/services_settings_screen.dart';
 import '../screens/main/telegram_setup_screen.dart';
 import '../screens/main/storage_explorer_screen.dart';
+import '../screens/main/profile_edit_screen.dart';
 import '../screens/onboarding/network_scan_screen.dart';
 import '../screens/onboarding/pin_entry_screen.dart';
 import '../screens/onboarding/profile_creation_screen.dart';
@@ -131,6 +132,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/telegram-setup',
         builder: (_, __) => const TelegramSetupScreen(),
+      ),
+
+      // ── Profile edit (pushed on top, no bottom nav) ────────────────────────
+      GoRoute(
+        path: '/profile-edit',
+        builder: (_, __) => const ProfileEditScreen(),
       ),
 
       // ── File preview (pushed on top, no bottom nav) ────────────────────────

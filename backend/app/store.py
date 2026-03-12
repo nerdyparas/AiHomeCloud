@@ -168,6 +168,38 @@ async def update_user_pin(user_id: str, new_pin: str) -> bool:
     return False
 
 
+async def update_user_profile(
+    user_id: str,
+    *,
+    name: str | None = None,
+    icon_emoji: str | None = None,
+) -> bool:
+    """Update display name and/or icon_emoji for a user. Returns False if not found."""
+    users = await get_users()
+    for u in users:
+        if u["id"] == user_id:
+            if name is not None:
+                u["name"] = name.strip()
+            if icon_emoji is not None:
+                u["icon_emoji"] = icon_emoji.strip()
+            await save_users(users)
+            _set_cached("users", None)  # invalidate cache
+            return True
+    return False
+
+
+async def remove_pin(user_id: str) -> bool:
+    """Remove PIN from a user (sets to None = no PIN required)."""
+    users = await get_users()
+    for u in users:
+        if u["id"] == user_id:
+            u["pin"] = None
+            await save_users(users)
+            _set_cached("users", None)
+            return True
+    return False
+
+
 # ─── Services ─────────────────────────────────────────────────────────────────
 
 _DEFAULT_SERVICES = [

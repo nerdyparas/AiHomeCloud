@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,7 +10,7 @@ import '../../core/error_utils.dart';
 import '../../core/theme.dart';
 import '../../providers/core_providers.dart';
 import '../../services/api_service.dart';
-import '../../widgets/user_avatar.dart';
+
 
 class PinEntryScreen extends ConsumerStatefulWidget {
   final String deviceIp;
@@ -19,7 +20,8 @@ class PinEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<PinEntryScreen> createState() => _PinEntryScreenState();
 }
 
-class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
+class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
+    with SingleTickerProviderStateMixin {
   final _pinController = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -28,10 +30,15 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   bool _showPin = false;
   bool _loggingIn = false;
   bool _loadingUsers = true;
+  late final AnimationController _bgController;
 
   @override
   void initState() {
     super.initState();
+    _bgController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat(reverse: true);
     _fetchUsers();
   }
 
@@ -61,6 +68,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   @override
   void dispose() {
+    _bgController.dispose();
     _pinController.dispose();
     super.dispose();
   }
@@ -142,11 +150,32 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: _loadingUsers
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _buildBody(),
+      body: AnimatedBuilder(
+        animation: _bgController,
+        builder: (context, child) {
+          final t = _bgController.value;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(const Color(0xFF0B0B0F), const Color(0xFF12122A), t)!,
+                  Color.lerp(const Color(0xFF0F0F1E), const Color(0xFF1A1A3A), t)!,
+                  Color.lerp(const Color(0xFF12122A), const Color(0xFF0B0B0F), t)!,
+                ],
+                stops: const [0.0, 0.55, 1.0],
+              ),
+            ),
+            child: child!,
+          );
+        },
+        child: SafeArea(
+          child: _loadingUsers
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary))
+              : _buildBody(),
+        ),
       ),
     );
   }
@@ -203,272 +232,190 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
         style: GoogleFonts.dmSans(color: AppColors.textMuted)));
     }
 
-    return Column(
-      children: [
-        const Spacer(),
-        Text('Who\'s using\nAiHomeCloud?',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.sora(
-            color: AppColors.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
-          )),
-        const SizedBox(height: 40),
-        // Avatar grid
-        Wrap(
-          spacing: 24,
-          runSpacing: 24,
-          alignment: WrapAlignment.center,
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            for (int i = 0; i < _users.length; i++)
-              _AvatarTile(
-                user: _users[i],
-                colorIndex: i,
-                isSelected: _selectedUser?.name == _users[i].name,
-                isLoggingIn: _loggingIn && _selectedUser?.name == _users[i].name,
-                onTap: _loggingIn ? null : () => _onUserTapped(_users[i]),
-              ),
-            // Add User tile
-            GestureDetector(
-              onTap: () async {
-                final added = await context.push<bool>(
-                  '/profile-creation',
-                  extra: {'ip': widget.deviceIp, 'isAddingUser': true},
-                );
-                if (added == true) _fetchUsers();
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.cardBorder, width: 1.5),
-                    ),
-                    child: const Icon(Icons.add_rounded, color: AppColors.textMuted, size: 28),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Add User',
-                    style: GoogleFonts.dmSans(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    )),
-                ],
+            Text(
+              "Who's using\nAiHomeCloud?",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.sora(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
+                letterSpacing: 0.3,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 40),
-        // PIN entry — shown only after user is selected
-        if (_selectedUser != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
+            const SizedBox(height: 56),
+            Wrap(
+              spacing: 40,
+              runSpacing: 32,
+              alignment: WrapAlignment.center,
               children: [
-                Text('Enter PIN for $_selectedUser',
-                  style: GoogleFonts.dmSans(
-                    color: AppColors.textSecondary, fontSize: 13)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _pinController,
-                  keyboardType: TextInputType.number,
-                  obscureText: true,
-                  maxLength: 8,
-                  autofocus: true,
-                  textAlign: TextAlign.center,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  style: GoogleFonts.sora(
-                    color: AppColors.textPrimary,
-                    fontSize: 24,
-                    letterSpacing: 8,
-                  ),
-                  decoration: InputDecoration(
-                    counterText: '',
-                    hintText: '••••',
-                    hintStyle: GoogleFonts.sora(
-                      color: AppColors.textMuted,
-                      fontSize: 24,
-                      letterSpacing: 8,
+                for (int i = 0; i < _users.length; i++)
+                  _ProfileAvatarTile(
+                    user: _users[i],
+                    colorIndex: i,
+                    isSelected: _selectedUser?.name == _users[i].name,
+                    isLoggingIn: _loggingIn && _selectedUser?.name == _users[i].name,
+                    onTap: _loggingIn ? null : () => _onUserTapped(_users[i]),
+                  )
+                      .animate()
+                      .fadeIn(
+                        delay: Duration(milliseconds: i * 80),
+                        duration: const Duration(milliseconds: 300),
+                      )
+                      .slideY(
+                        begin: 0.12,
+                        end: 0,
+                        delay: Duration(milliseconds: i * 80),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      ),
+                _AddUserTile(
+                  onTap: () async {
+                    final added = await context.push<bool>(
+                      '/profile-creation',
+                      extra: {'ip': widget.deviceIp, 'isAddingUser': true},
+                    );
+                    if (added == true) _fetchUsers();
+                  },
+                )
+                    .animate()
+                    .fadeIn(
+                      delay: Duration(milliseconds: _users.length * 80),
+                      duration: const Duration(milliseconds: 300),
+                    )
+                    .slideY(
+                      begin: 0.12,
+                      end: 0,
+                      delay: Duration(milliseconds: _users.length * 80),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
                     ),
-                    filled: true,
-                    fillColor: AppColors.card,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                    ),
-                  ),
-                  onSubmitted: (_) => _submit(),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!,
-                    style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 13)),
-                ],
-                if (_pinController.text.isEmpty) ...[
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: _submit,
-                    child: Text('No PIN? Tap here to continue',
-                      style: GoogleFonts.dmSans(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                      )),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _loading ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: _loading
-                      ? const SizedBox(height: 20, width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                      : Text('Connect',
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          )),
-                  ),
-                ),
               ],
             ),
-          ),
-        ],
-        // PIN section — slides in only for users with a PIN
-        AnimatedSize(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-          child: _showPin && _selectedUser != null
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(40, 32, 40, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PIN for ${_selectedUser!.name}',
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _pinController,
-                        keyboardType: TextInputType.number,
-                        obscureText: true,
-                        maxLength: 8,
-                        autofocus: true,
-                        textAlign: TextAlign.center,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        style: GoogleFonts.sora(
-                          color: AppColors.textPrimary,
-                          fontSize: 24,
-                          letterSpacing: 8,
-                        ),
-                        decoration: InputDecoration(
-                          counterText: '',
-                          hintText: '••••',
-                          hintStyle: GoogleFonts.sora(
-                            color: AppColors.textMuted,
-                            fontSize: 24,
-                            letterSpacing: 8,
+            // PIN entry — slides in for users with a PIN
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOut,
+              child: _showPin && _selectedUser != null
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 40, 0, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'PIN for ${_selectedUser!.name}',
+                            style: GoogleFonts.dmSans(
+                              color: const Color(0xFFB0B0C0),
+                              fontSize: 13,
+                            ),
                           ),
-                          filled: true,
-                          fillColor: AppColors.card,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.cardBorder),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _pinController,
+                            keyboardType: TextInputType.number,
+                            obscureText: true,
+                            maxLength: 8,
+                            autofocus: true,
+                            textAlign: TextAlign.center,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            style: GoogleFonts.sora(
+                              color: Colors.white,
+                              fontSize: 24,
+                              letterSpacing: 8,
+                            ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              hintText: '••••',
+                              hintStyle: GoogleFonts.sora(
+                                color: const Color(0xFF505065),
+                                fontSize: 24,
+                                letterSpacing: 8,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFF1A1A2E),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFF3A3A5A)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFF3A3A5A)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary, width: 2),
+                              ),
+                            ),
+                            onSubmitted: (_) => _submit(),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.cardBorder),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
-                        onSubmitted: (_) => _submit(),
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _error!,
-                          style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 13),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _loading ? null : _submit,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: _loading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2),
-                                )
-                              : Text(
-                                  'Enter',
-                                  style: GoogleFonts.dmSans(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
+                          if (_error != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              style: GoogleFonts.dmSans(
+                                  color: AppColors.error, fontSize: 13),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _loading ? null : _submit,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
+                                  )
+                                : Text(
+                                    'Enter',
+                                    style: GoogleFonts.dmSans(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
                                   ),
-                                ),
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                )
-              : const SizedBox.shrink(),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 48),
+          ],
         ),
-
-        const Spacer(),
-      ],
+      ),
     );
   }
 }
 
-class _AvatarTile extends StatelessWidget {
+// ── Profile avatar tile ───────────────────────────────────────────────────────
+
+class _ProfileAvatarTile extends StatefulWidget {
   final UserPickerEntry user;
   final int colorIndex;
   final bool isSelected;
   final bool isLoggingIn;
   final VoidCallback? onTap;
 
-  const _AvatarTile({
+  const _ProfileAvatarTile({
     required this.user,
     required this.colorIndex,
     required this.isSelected,
@@ -477,30 +424,172 @@ class _AvatarTile extends StatelessWidget {
   });
 
   @override
+  State<_ProfileAvatarTile> createState() => _ProfileAvatarTileState();
+}
+
+class _ProfileAvatarTileState extends State<_ProfileAvatarTile> {
+  double _scale = 1.0;
+
+  static const _gradients = [
+    [Color(0xFFE8A84C), Color(0xFFE86C4C)],
+    [Color(0xFF4C9BE8), Color(0xFF6C4CE8)],
+    [Color(0xFF4CE88A), Color(0xFF4CE8D8)],
+    [Color(0xFFE84CA8), Color(0xFF9B50E8)],
+    [Color(0xFF9B59B6), Color(0xFF6C3483)],
+    [Color(0xFF1ABC9C), Color(0xFF0E8C7A)],
+    [Color(0xFFE74C3C), Color(0xFFC0392B)],
+    [Color(0xFF3498DB), Color(0xFF2176AE)],
+  ];
+
+  List<Color> get _gradient =>
+      _gradients[widget.colorIndex % _gradients.length].cast<Color>();
+
+  Color get _accentColor => _gradient[0];
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          UserAvatar(
-            name: user.name,
-            iconEmoji: user.iconEmoji,
-            colorIndex: colorIndex,
-            size: 72,
-            isSelected: isSelected,
-            isLoading: isLoggingIn,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            user.name,
-            style: GoogleFonts.dmSans(
-              color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+      onTapDown: (_) => setState(() => _scale = 1.08),
+      onTapUp: (_) {
+        setState(() => _scale = 1.0);
+        widget.onTap?.call();
+      },
+      onTapCancel: () => setState(() => _scale = 1.0),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: _gradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: widget.isSelected
+                    ? Border.all(color: Colors.white, width: 3)
+                    : Border.all(
+                        color: _accentColor.withValues(alpha: 0.0),
+                        width: 3,
+                      ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _accentColor.withValues(
+                        alpha: widget.isSelected ? 0.55 : 0.25),
+                    blurRadius: widget.isSelected ? 24 : 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: widget.isLoggingIn
+                    ? const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
+                    : widget.user.iconEmoji.isNotEmpty
+                        ? Text(
+                            widget.user.iconEmoji,
+                            style: const TextStyle(fontSize: 40),
+                          )
+                        : Text(
+                            widget.user.name.isNotEmpty
+                                ? widget.user.name[0].toUpperCase()
+                                : '?',
+                            style: GoogleFonts.sora(
+                              color: Colors.white,
+                              fontSize: 38,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              widget.user.name,
+              style: GoogleFonts.dmSans(
+                color: widget.isSelected
+                    ? Colors.white
+                    : const Color(0xFFB0B0C0),
+                fontSize: 14,
+                fontWeight:
+                    widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Add user tile ─────────────────────────────────────────────────────────────
+
+class _AddUserTile extends StatefulWidget {
+  final VoidCallback? onTap;
+  const _AddUserTile({this.onTap});
+
+  @override
+  State<_AddUserTile> createState() => _AddUserTileState();
+}
+
+class _AddUserTileState extends State<_AddUserTile> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 1.08),
+      onTapUp: (_) {
+        setState(() => _scale = 1.0);
+        widget.onTap?.call();
+      },
+      onTapCancel: () => setState(() => _scale = 1.0),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1E1E2E),
+                border: Border.all(
+                  color: const Color(0xFF3A3A5A),
+                  width: 2,
+                ),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Color(0xFF8080A0),
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Add User',
+              style: GoogleFonts.dmSans(
+                color: const Color(0xFF8080A0),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

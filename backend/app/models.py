@@ -209,6 +209,11 @@ class ChangePinRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    icon_emoji: Optional[str] = None
+
+
 class UpdateNameRequest(BaseModel):
     name: str = Field(min_length=1, max_length=64)
 

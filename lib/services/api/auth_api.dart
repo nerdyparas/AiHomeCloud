@@ -137,4 +137,61 @@ extension AuthApi on ApiService {
       iconEmoji: e['icon_emoji'] as String? ?? '',
     )).toList();
   }
+
+  /// GET /api/v1/users/me
+  Future<Map<String, dynamic>> getMyProfile() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/me'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// PUT /api/v1/users/me
+  Future<void> updateMyProfile({String? name, String? iconEmoji}) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .put(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/me'),
+            headers: _headers,
+            body: jsonEncode({
+              if (name != null) 'name': name,
+              if (iconEmoji != null) 'icon_emoji': iconEmoji,
+            }),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
+  /// DELETE /api/v1/users/me
+  Future<void> deleteMyProfile() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .delete(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/me'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
+  /// DELETE /api/v1/users/pin — remove PIN entirely
+  Future<void> removePin() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .delete(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users/pin'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
 }

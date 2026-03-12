@@ -10,6 +10,7 @@ class AuthSession {
   final String? refreshToken;
   final String username;
   final bool isAdmin;
+  final String iconEmoji;
 
   const AuthSession({
     required this.host,
@@ -18,6 +19,7 @@ class AuthSession {
     required this.refreshToken,
     required this.username,
     required this.isAdmin,
+    this.iconEmoji = '',
   });
 
   AuthSession copyWith({
@@ -27,6 +29,7 @@ class AuthSession {
     String? refreshToken,
     String? username,
     bool? isAdmin,
+    String? iconEmoji,
   }) {
     return AuthSession(
       host: host ?? this.host,
@@ -35,6 +38,7 @@ class AuthSession {
       refreshToken: refreshToken ?? this.refreshToken,
       username: username ?? this.username,
       isAdmin: isAdmin ?? this.isAdmin,
+      iconEmoji: iconEmoji ?? this.iconEmoji,
     );
   }
 }
@@ -58,6 +62,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     required String? refreshToken,
     required String username,
     required bool isAdmin,
+    String iconEmoji = '',
   }) async {
     final next = AuthSession(
       host: host,
@@ -66,6 +71,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
       refreshToken: refreshToken,
       username: username,
       isAdmin: isAdmin,
+      iconEmoji: iconEmoji,
     );
 
     state = next;
@@ -81,6 +87,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     await _prefs.setString(AppConstants.prefUserName, username);
     await _prefs.setBool(AppConstants.prefIsAdmin, isAdmin);
     await _prefs.setBool(AppConstants.prefIsSetupDone, true);
+    await _prefs.setString('icon_emoji', iconEmoji);
   }
 
   Future<void> logout() async {
@@ -114,6 +121,8 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     final username = _prefs.getString(AppConstants.prefUserName) ?? '';
     final isAdmin = _prefs.getBool(AppConstants.prefIsAdmin) ?? false;
 
+    final iconEmoji = _prefs.getString('icon_emoji') ?? '';
+
     state = AuthSession(
       host: host,
       port: port,
@@ -121,10 +130,25 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
       refreshToken: refreshToken,
       username: username,
       isAdmin: isAdmin,
+      iconEmoji: iconEmoji,
     );
 
     if (_refreshTokenFn != null && refreshToken != null && refreshToken.isNotEmpty) {
       _refreshPersistedToken(host, port, refreshToken);
+    }
+  }
+
+  Future<void> updateProfile({String? username, String? iconEmoji}) async {
+    if (state == null) return;
+    state = state!.copyWith(
+      username: username ?? state!.username,
+      iconEmoji: iconEmoji ?? state!.iconEmoji,
+    );
+    if (username != null) {
+      await _prefs.setString(AppConstants.prefUserName, username);
+    }
+    if (iconEmoji != null) {
+      await _prefs.setString('icon_emoji', iconEmoji);
     }
   }
 

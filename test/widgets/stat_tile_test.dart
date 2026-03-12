@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'package:cubie_cloud/core/theme.dart';
 import 'package:cubie_cloud/widgets/stat_tile.dart';
 
 void main() {
