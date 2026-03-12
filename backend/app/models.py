@@ -172,7 +172,7 @@ class OtpRecord(BaseModel):
 
 class LoginRequest(BaseModel):
     name: str = Field(min_length=1, max_length=64)
-    pin: str = Field(min_length=4, max_length=16)
+    pin: str = Field(default="", max_length=16)
 
 
 class RefreshRequest(BaseModel):

@@ -35,11 +35,17 @@ extension AuthApi on ApiService {
   }
 
   /// POST /api/v1/users  body: {name, pin}
-  Future<void> createUser(String name, String? pin) async {
+  Future<void> createUser(String name, String? pin, {String? hostOverride}) async {
+    final host = hostOverride ?? _session?.host;
+    final port = _session?.port ?? AppConstants.apiPort;
+    if (host == null || host.isEmpty) {
+      throw StateError('Host is required to create a user');
+    }
+    final base = 'https://$host:$port';
     final res = await _withAutoRefresh(
       () => _client
           .post(
-            Uri.parse('$_baseUrl${AppConstants.apiVersion}/users'),
+            Uri.parse('$base${AppConstants.apiVersion}/users'),
             headers: _headers,
             body: jsonEncode({'name': name, if (pin != null) 'pin': pin}),
           )

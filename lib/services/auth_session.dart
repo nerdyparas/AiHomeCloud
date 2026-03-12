@@ -48,7 +48,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     Future<String> Function(String host, int port, String refreshToken)? refreshTokenFn,
   })  : _refreshTokenFn = refreshTokenFn,
         super(null) {
-    restoreFromPrefs();
+    _restorePersistedSession();
   }
 
   Future<void> login({
@@ -100,7 +100,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     await _prefs.setString(AppConstants.prefAuthToken, token);
   }
 
-  Future<void> restoreFromPrefs() async {
+  void _restorePersistedSession() {
     final host = _prefs.getString(AppConstants.prefDeviceIp);
     final token = _prefs.getString(AppConstants.prefAuthToken);
 
@@ -124,14 +124,25 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     );
 
     if (_refreshTokenFn != null && refreshToken != null && refreshToken.isNotEmpty) {
-      try {
-        final refreshed = await _refreshTokenFn(host, port, refreshToken);
-        if (refreshed.isNotEmpty) {
-          await updateToken(refreshed);
-        }
-      } catch (_) {
-        // Silent failure; session remains as-is until next manual login.
+      _refreshPersistedToken(host, port, refreshToken);
+    }
+  }
+
+  Future<void> _refreshPersistedToken(
+    String host,
+    int port,
+    String refreshToken,
+  ) async {
+    try {
+      final refreshed = await _refreshTokenFn!(host, port, refreshToken);
+      if (refreshed.isNotEmpty &&
+          state?.host == host &&
+          state?.port == port &&
+          state?.refreshToken == refreshToken) {
+        await updateToken(refreshed);
       }
+    } catch (_) {
+      // Silent failure; session remains as-is until next manual login.
     }
   }
 }

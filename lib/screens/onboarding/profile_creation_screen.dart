@@ -67,7 +67,11 @@ class _ProfileCreationScreenState
       final pin = _pinCtrl.text.trim();
 
       // 1. Create user — first user gets admin automatically, no auth needed.
-      await api.createUser(name, pin.isNotEmpty ? pin : null);
+      await api.createUser(
+        name,
+        pin.isNotEmpty ? pin : null,
+        hostOverride: widget.deviceIp,
+      );
 
       // 2. Login immediately.
       final result = await api.loginWithPin(
@@ -76,13 +80,15 @@ class _ProfileCreationScreenState
         pin, // empty string = no-PIN login
       );
 
+      final user = result['user'] as Map<String, dynamic>?;
+
       await ref.read(authSessionProvider.notifier).login(
-            host: widget.deviceIp,
-            port: AppConstants.apiPort,
-            token: result['accessToken'] as String,
-            refreshToken: result['refreshToken'] as String?,
-            username: name,
-            isAdmin: true,
+        host: widget.deviceIp,
+        port: AppConstants.apiPort,
+        token: result['accessToken'] as String,
+        refreshToken: result['refreshToken'] as String?,
+        username: user?['name'] as String? ?? name,
+        isAdmin: user?['isAdmin'] as bool? ?? false,
           );
 
       if (!mounted) return;

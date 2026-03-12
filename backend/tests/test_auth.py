@@ -64,6 +64,25 @@ async def test_nonexistent_user_returns_401(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_login_without_pin_allowed_for_pinless_user(client: AsyncClient):
+    """Users created without a PIN can log in with an empty PIN."""
+    create_response = await client.post(
+        "/api/v1/users",
+        json={"name": "owner"},
+    )
+    assert create_response.status_code == 201, create_response.text
+
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={"name": "owner", "pin": ""},
+    )
+    assert login_response.status_code == 200, login_response.text
+    data = login_response.json()
+    assert data["user"]["name"] == "owner"
+    assert data["user"]["isAdmin"] is True
+
+
+@pytest.mark.asyncio
 async def test_login_rate_limiting_429_on_rapid_calls(client: AsyncClient, admin_token: str):
     """
     7C.4: POST /api/v1/auth/login with 6 rapid calls → 6th returns 429
