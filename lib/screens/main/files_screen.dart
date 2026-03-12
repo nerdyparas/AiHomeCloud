@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
+import '../../core/error_utils.dart';
 import '../../core/theme.dart';
-import '../../providers/core_providers.dart';
+import '../../models/models.dart';
+import '../../providers.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/folder_view.dart';
 
@@ -19,11 +21,13 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   // null = root view, non-null = inside a folder
   String? _currentPath;
   String? _currentTitle;
+  bool _trashOpen = false;
 
   void _openFolder(String path, String title) {
     setState(() {
       _currentPath = path;
       _currentTitle = title;
+      _trashOpen = false;
     });
   }
 
@@ -31,11 +35,17 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     setState(() {
       _currentPath = null;
       _currentTitle = null;
+      _trashOpen = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Trash screen
+    if (_trashOpen) {
+      return _TrashScreen(onBack: _goBack);
+    }
+
     if (_currentPath != null) {
       return PopScope(
         canPop: false,
@@ -52,7 +62,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       );
     }
 
-    // Root view: show 3 folder entries
+    // Root view: show 4 folder entries
     final session = ref.watch(authSessionProvider);
     final username = session?.username ?? 'My Files';
     final personalPath = '${AppConstants.personalBasePath}$username/';
@@ -100,6 +110,14 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                     color: const Color(0xFFE84CA8),
                     subtitle: 'Movies, series, music',
                     onTap: () => _openFolder(entertainmentPath, 'Entertainment'),
+                  ),
+                  const SizedBox(height: 12),
+                  _FolderCard(
+                    name: 'Trash',
+                    icon: Icons.delete_outline_rounded,
+                    color: AppColors.error,
+                    subtitle: 'Recently deleted files',
+                    onTap: () => setState(() => _trashOpen = true),
                   ),
                 ],
               ),
@@ -154,6 +172,383 @@ class _FolderCard extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right_rounded,
           color: AppColors.textMuted),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Trash screen
+// ---------------------------------------------------------------------------
+
+class _TrashScreen extends ConsumerWidget {
+  final VoidCallback onBack;
+  const _TrashScreen({required this.onBack});
+
+  String _fmt(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  Future<void> _restore(
+      BuildContext context, WidgetRef ref, TrashItem item) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(apiServiceProvider).restoreTrashItem(item.id);
+      ref.invalidate(trashItemsProvider);
+      messenger.showSnackBar(
+          SnackBar(content: Text('Restored: ${item.filename}')));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Restore failed: ${friendlyError(e)}')));
+    }
+  }
+
+  Future<void> _delete(
+      BuildContext context, WidgetRef ref, TrashItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete permanently?', style: GoogleFonts.sora()),
+        content: Text(
+          '${item.filename} will be permanently deleted. This cannot be undone.',
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(apiServiceProvider).permanentDeleteTrashItem(item.id);
+      ref.invalidate(trashItemsProvider);
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Delete failed: ${friendlyError(e)}')));
+    }
+  }
+
+  Future<void> _emptyTrash(
+      BuildContext context, WidgetRef ref, List<TrashItem> items) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Empty Trash?', style: GoogleFonts.sora()),
+        content: Text(
+          'This will permanently delete ${items.length} '
+          'item${items.length == 1 ? '' : 's'}. This cannot be undone.',
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Empty Trash',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final api = ref.read(apiServiceProvider);
+      for (final item in items) {
+        await api.permanentDeleteTrashItem(item.id);
+      }
+      ref.invalidate(trashItemsProvider);
+      messenger.showSnackBar(const SnackBar(content: Text('Trash emptied.')));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Failed: ${friendlyError(e)}')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trashAsync = ref.watch(trashItemsProvider);
+    final autoDeleteAsync = ref.watch(trashAutoDeleteProvider);
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onBack();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 12, 20, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_rounded,
+                          color: AppColors.textPrimary),
+                      onPressed: onBack,
+                    ),
+                    Text(
+                      'Trash',
+                      style: GoogleFonts.sora(
+                        color: AppColors.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Auto-delete toggle
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: AppCard(
+                  padding: EdgeInsets.zero,
+                  child: autoDeleteAsync.when(
+                    data: (enabled) => SwitchListTile(
+                      value: enabled,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) async {
+                        try {
+                          await ref
+                              .read(apiServiceProvider)
+                              .setTrashAutoDelete(val);
+                          ref.invalidate(trashAutoDeleteProvider);
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                'Could not save: ${friendlyError(e)}'),
+                          ));
+                        }
+                      },
+                      title: Text(
+                        'Auto-delete after 30 days',
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        enabled
+                            ? 'Items older than 30 days are permanently deleted'
+                            : 'Files stay in trash until manually deleted',
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: LinearProgressIndicator(),
+                    ),
+                    error: (_, __) => ListTile(
+                      title: Text('Auto-delete after 30 days',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary, fontSize: 14)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.refresh_rounded,
+                            color: AppColors.primary),
+                        onPressed: () => ref.invalidate(trashAutoDeleteProvider),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Items list
+              Expanded(
+                child: trashAsync.when(
+                  data: (items) {
+                    if (items.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.delete_outline_rounded,
+                                color: AppColors.textMuted, size: 56),
+                            const SizedBox(height: 12),
+                            Text('Trash is empty',
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.textMuted, fontSize: 15)),
+                          ],
+                        ),
+                      );
+                    }
+                    final total =
+                        items.fold<int>(0, (s, e) => s + e.sizeBytes);
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${items.length} item${items.length == 1 ? '' : 's'}'
+                                ' \u2022 ${_fmt(total)}',
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12),
+                              ),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.error),
+                                onPressed: () =>
+                                    _emptyTrash(context, ref, items),
+                                child: Text('Empty All',
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 4),
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (ctx, i) => _TrashItemTile(
+                              item: items[i],
+                              onRestore: () => _restore(context, ref, items[i]),
+                              onDelete: () => _delete(context, ref, items[i]),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                  error: (e, _) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(friendlyError(e),
+                            style: GoogleFonts.dmSans(
+                                color: AppColors.textMuted, fontSize: 14)),
+                        const SizedBox(height: 8),
+                        IconButton(
+                          icon: const Icon(Icons.refresh_rounded),
+                          color: AppColors.primary,
+                          onPressed: () => ref.invalidate(trashItemsProvider),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrashItemTile extends StatelessWidget {
+  final TrashItem item;
+  final VoidCallback onRestore;
+  final VoidCallback onDelete;
+
+  const _TrashItemTile({
+    required this.item,
+    required this.onRestore,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final daysAgo = DateTime.now().difference(item.deletedAt).inDays;
+    final daysLeft = 30 - daysAgo;
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.insert_drive_file_rounded,
+                color: AppColors.error, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.filename,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${item.formattedSize} \u2022 ${daysAgo}d ago'
+                  '${daysLeft > 0 ? ' \u2022 ${daysLeft}d left' : ' \u2022 expires soon'}',
+                  style: GoogleFonts.dmSans(
+                      color: AppColors.textSecondary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.restore_rounded,
+                color: AppColors.primary, size: 20),
+            tooltip: 'Restore',
+            onPressed: onRestore,
+            constraints:
+                const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_forever_rounded,
+                color: AppColors.error, size: 20),
+            tooltip: 'Delete permanently',
+            onPressed: onDelete,
+            constraints:
+                const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+        ],
       ),
     );
   }

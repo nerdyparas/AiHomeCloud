@@ -18,6 +18,7 @@ configured.  If python-telegram-bot is not installed the startup silently skips.
 
 import asyncio
 from contextlib import suppress
+from datetime import datetime
 import logging
 import tempfile
 from dataclasses import dataclass
@@ -49,6 +50,10 @@ _pending_uploads: dict[int, PendingUpload] = {}
 
 # Module-level Application instance (None when bot is disabled)
 _application = None
+
+# Weekly trash-warning scheduler task
+_TRASH_WARNING_BYTES = 10 * 1024 * 1024 * 1024  # 10 GB
+_trash_warning_task: asyncio.Task | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -621,6 +626,61 @@ async def _send_file(update, doc: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Trash warning scheduler
+# ---------------------------------------------------------------------------
+
+
+async def _trash_warning_loop() -> None:
+    """Hourly loop — sends a Telegram notification on Saturday at 10 AM when total
+    trash exceeds 10 GB.  Fires at most once per ISO week via the KV store."""
+    from . import store as _store
+
+    while True:
+        try:
+            await asyncio.sleep(3600)
+
+            now = datetime.now()
+            if now.weekday() != 5 or now.hour != 10:  # weekday 5 = Saturday
+                continue
+
+            iso_week = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]:02d}"
+            if await _store.get_value("trash_warn_week", default="") == iso_week:
+                continue  # already sent this week
+
+            items = await _store.get_trash_items()
+            total_bytes: int = sum(i.get("sizeBytes", 0) for i in items)
+            if total_bytes < _TRASH_WARNING_BYTES:
+                continue
+
+            linked_ids = await _get_linked_ids()
+            if not linked_ids or _application is None:
+                continue
+
+            total_gb = total_bytes / (1024 ** 3)
+            msg = (
+                f"\U0001f5d1 *Trash is getting full!*\n\n"
+                f"Total trash: *{total_gb:.1f} GB* (limit: 10 GB)\n\n"
+                f"Please clean up your trash to free up space.\n"
+                f"Open the CubieCloud app \u2192 Files \u2192 Trash."
+            )
+            for chat_id in linked_ids:
+                with suppress(Exception):
+                    await _application.bot.send_message(
+                        chat_id=chat_id, text=msg, parse_mode="Markdown"
+                    )
+
+            await _store.set_value("trash_warn_week", iso_week)
+            logger.info(
+                "Trash warning sent to %d user(s) (%.1f GB)", len(linked_ids), total_gb
+            )
+
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.warning("trash_warning_loop error: %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------
 
@@ -692,6 +752,12 @@ async def start_bot() -> None:
         )
 
         logger.info("Telegram bot started polling")
+
+        # Start weekly trash-warning scheduler
+        global _trash_warning_task
+        _trash_warning_task = asyncio.create_task(
+            _trash_warning_loop(), name="trash_warning_loop"
+        )
     except Exception as exc:
         logger.error("Telegram bot failed to start: %s", exc)
         _application = None
@@ -699,7 +765,15 @@ async def start_bot() -> None:
 
 async def stop_bot() -> None:
     """Gracefully shut down the Telegram bot."""
-    global _application
+    global _application, _trash_warning_task
+
+    # Cancel the trash warning scheduler first
+    if _trash_warning_task and not _trash_warning_task.done():
+        _trash_warning_task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await _trash_warning_task
+    _trash_warning_task = None
+
     if _application is None:
         return
 

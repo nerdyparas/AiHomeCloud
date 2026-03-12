@@ -136,3 +136,8 @@ final docSearchResultsProvider =
 final trashItemsProvider = FutureProvider<List<TrashItem>>((ref) async {
   return ref.read(apiServiceProvider).getTrashItems();
 });
+
+/// Whether 30-day auto-delete is enabled for trash.
+final trashAutoDeleteProvider = FutureProvider<bool>((ref) async {
+  return ref.read(apiServiceProvider).getTrashAutoDelete();
+});

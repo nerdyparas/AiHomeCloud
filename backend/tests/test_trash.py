@@ -277,3 +277,74 @@ async def test_quota_purge_removes_oldest_items(
     # After purge: 300 bytes total ≤ 70 bytes quota won't hold both;
     # oldest ("old-item") should be purged first
     assert "old-item" not in remaining_ids
+
+
+# ─── Trash prefs ─────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_trash_prefs_default_false(authenticated_client: AsyncClient):
+    """GET /trash/prefs returns autoDelete: false by default."""
+    resp = await authenticated_client.get("/api/v1/files/trash/prefs")
+    assert resp.status_code == 200
+    assert resp.json() == {"autoDelete": False}
+
+
+@pytest.mark.asyncio
+async def test_set_trash_prefs_and_read_back(authenticated_client: AsyncClient):
+    """PUT /trash/prefs persists the value and GET reads it back."""
+    resp = await authenticated_client.put(
+        "/api/v1/files/trash/prefs", json={"autoDelete": True}
+    )
+    assert resp.status_code == 204
+
+    resp = await authenticated_client.get("/api/v1/files/trash/prefs")
+    assert resp.status_code == 200
+    assert resp.json()["autoDelete"] is True
+
+    # Clean up — reset to False
+    await authenticated_client.put(
+        "/api/v1/files/trash/prefs", json={"autoDelete": False}
+    )
+
+
+@pytest.mark.asyncio
+async def test_age_purge_skipped_when_auto_delete_off(
+    authenticated_client: AsyncClient,
+):
+    """Items older than 30 days must NOT be purged when auto-delete is disabled."""
+    from app.config import settings
+    from app import store
+    from app.routes import file_routes
+    from datetime import timedelta, timezone as tz
+
+    # Ensure auto-delete is OFF
+    await authenticated_client.put(
+        "/api/v1/files/trash/prefs", json={"autoDelete": False}
+    )
+
+    trash_dir = settings.trash_dir / "user_age_test"
+    trash_dir.mkdir(parents=True, exist_ok=True)
+    old_file = trash_dir / "ancient.txt"
+    old_file.write_bytes(b"old content")
+
+    now = datetime.now(tz.utc)
+    old_item = {
+        "id": "ancient-item",
+        "originalPath": "/srv/nas/shared/ancient.txt",
+        "trashPath": str(old_file),
+        "filename": "ancient.txt",
+        "deletedAt": (now - timedelta(days=35)).isoformat(),
+        "sizeBytes": len(b"old content"),
+        "deletedBy": "user_age_test",
+    }
+    await store.save_trash_items([old_item])
+
+    await file_routes._purge_trash_if_needed()
+
+    remaining = await store.get_trash_items()
+    assert any(i["id"] == "ancient-item" for i in remaining), (
+        "Item should NOT be purged when auto-delete is disabled"
+    )
+
+    # Clean up
+    await store.save_trash_items([])

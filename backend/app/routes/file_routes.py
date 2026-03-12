@@ -15,6 +15,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from ..auth import get_current_user
@@ -298,6 +299,10 @@ async def delete_file(
 _TRASH_MAX_DAYS = 30
 
 
+class _TrashPrefsBody(BaseModel):
+    autoDelete: bool
+
+
 def _validate_trash_path(trash_path_str: str) -> Path:
     """Ensure a stored trash_path is actually inside trash_dir (prevents metadata tampering)."""
     p = Path(trash_path_str).resolve()
@@ -321,33 +326,37 @@ async def _safe_purge_trash() -> None:
 
 
 async def _purge_trash_if_needed() -> None:
-    """Auto-purge oldest trash items when trash exceeds 10% of NAS capacity or items >30 days old."""
+    """Auto-purge oldest trash items when trash exceeds 10% of NAS capacity.
+    Age-based 30-day deletion only runs when the user has enabled auto-delete."""
     try:
         usage = shutil.disk_usage(settings.nas_root)
         quota_bytes = usage.total * 0.10
     except Exception:
         quota_bytes = float("inf")
 
+    # Age-based auto-delete only runs when explicitly enabled by the user
+    auto_delete = await store.get_value("trash_auto_delete", default=False)
+
     now = datetime.now(timezone.utc)
     items = await store.get_trash_items()
     to_keep: list[dict] = []
 
-    # First pass: drop items older than TRASH_MAX_DAYS regardless of quota
+    # First pass: drop items older than TRASH_MAX_DAYS only when auto-delete is on
     for item in items:
-        try:
-            deleted_at = datetime.fromisoformat(item["deletedAt"])
-            if deleted_at.tzinfo is None:
-                deleted_at = deleted_at.replace(tzinfo=timezone.utc)
-            age_days = (now - deleted_at).days
-        except Exception:
-            age_days = 0
+        if auto_delete:
+            try:
+                deleted_at = datetime.fromisoformat(item["deletedAt"])
+                if deleted_at.tzinfo is None:
+                    deleted_at = deleted_at.replace(tzinfo=timezone.utc)
+                age_days = (now - deleted_at).days
+            except Exception:
+                age_days = 0
+            if age_days >= _TRASH_MAX_DAYS:
+                _unlink_trash_item(item)
+                continue
+        to_keep.append(item)
 
-        if age_days >= _TRASH_MAX_DAYS:
-            _unlink_trash_item(item)
-        else:
-            to_keep.append(item)
-
-    # Second pass: purge oldest until total trash size is under quota
+    # Second pass: purge oldest until total trash size is under quota (always active)
     total_size = sum(i.get("sizeBytes", 0) for i in to_keep)
     if total_size > quota_bytes:
         to_keep.sort(key=lambda i: i.get("deletedAt", ""))
@@ -449,6 +458,19 @@ async def permanent_delete_trash_item(item_id: str, user: dict = Depends(get_cur
 
     remaining = [i for i in all_items if i.get("id") != item_id]
     await store.save_trash_items(remaining)
+
+
+@router.get("/trash/prefs")
+async def get_trash_prefs(user: dict = Depends(get_current_user)):
+    """Return the trash auto-delete preference (global, not per-user)."""
+    auto_delete = await store.get_value("trash_auto_delete", default=False)
+    return {"autoDelete": bool(auto_delete)}
+
+
+@router.put("/trash/prefs", status_code=status.HTTP_204_NO_CONTENT)
+async def set_trash_prefs(body: _TrashPrefsBody, user: dict = Depends(get_current_user)):
+    """Enable or disable the 30-day auto-delete for trash items."""
+    await store.set_value("trash_auto_delete", body.autoDelete)
 
 
 @router.put("/rename", status_code=status.HTTP_204_NO_CONTENT)

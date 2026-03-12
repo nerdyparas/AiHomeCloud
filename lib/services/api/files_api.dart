@@ -275,6 +275,35 @@ extension FilesApi on ApiService {
     _check(res);
   }
 
+  /// GET /api/v1/files/trash/prefs — return whether 30-day auto-delete is enabled.
+  Future<bool> getTrashAutoDelete() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/trash/prefs'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return data['autoDelete'] as bool? ?? false;
+  }
+
+  /// PUT /api/v1/files/trash/prefs — enable or disable 30-day auto-delete.
+  Future<void> setTrashAutoDelete(bool enabled) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .put(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/trash/prefs'),
+            headers: {..._headers, 'Content-Type': 'application/json'},
+            body: jsonEncode({'autoDelete': enabled}),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
   /// GET /api/v1/files/roots — returns mounted USB/NVMe drives as browseable roots.
   Future<List<StorageRoot>> getStorageRoots() async {
     final res = await _withAutoRefresh(
