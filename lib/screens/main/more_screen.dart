@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
+import '../../core/constants.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
@@ -24,8 +25,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   Widget build(BuildContext context) {
     final session = ref.watch(authSessionProvider);
     final isAdmin = session?.isAdmin ?? false;
+    final userName = session?.username ?? 'User';
     final fingerprint = ref.watch(certFingerprintProvider);
     final servicesAsync = ref.watch(servicesProvider);
+    final tailscaleAsync = ref.watch(tailscaleStatusProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -34,6 +37,8 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
             const SizedBox(height: 16),
+
+            // ── Screen title ───────────────────────────────────────────────
             Text('More',
                     style: GoogleFonts.sora(
                         color: AppColors.textPrimary,
@@ -42,154 +47,176 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 .animate()
                 .fadeIn(duration: 400.ms),
 
-            // ── Sharing & Streaming ──────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Sharing & Streaming'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
-            // Smart TV & Computer Sharing toggle (DLNA + SMB)
-            servicesAsync.when(
-              data: (services) {
-                final media = services.cast<ServiceInfo?>().firstWhere(
-                    (s) => s?.id == 'media',
-                    orElse: () => null);
-                if (media == null) {
-                  return AppCard(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
-                      title: Text('TV & Computer Sharing',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500)),
-                      subtitle: Text('Not available',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textMuted, fontSize: 12)),
-                      trailing: const Icon(Icons.info_outline_rounded,
-                          color: AppColors.textMuted, size: 18),
-                    ),
-                  ).animate().fadeIn(delay: 50.ms);
-                }
-                return AppCard(
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
-                    title: Text('TV & Computer Sharing',
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500)),
-                    subtitle: Text(
-                        media.isEnabled
-                            ? 'DLNA + SMB active'
-                            : 'Stream to TVs & share with computers',
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.textSecondary, fontSize: 12)),
-                    trailing: Switch(
-                      value: media.isEnabled,
-                      onChanged: (v) async {
-                        try {
-                          await ref
-                              .read(apiServiceProvider)
-                              .toggleService(media.id, v);
-                          ref.invalidate(servicesProvider);
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(friendlyError(e))),
-                            );
-                          }
-                        }
-                      },
-                      activeThumbColor: AppColors.primary,
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 50.ms);
-              },
-              loading: () => AppCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  leading: _iconBox(Icons.tv_rounded, AppColors.secondary),
-                  title: Text('TV & Computer Sharing',
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500)),
-                  trailing: const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.primary),
-                  ),
-                ),
+            // ── 1. PROFILE CARD ────────────────────────────────────────────
+            _ProfileCard(
+              userName: userName,
+              onChangePinTap: _changePin,
+              onProfileTap: () => context.go(
+                '/user-picker',
+                extra: ref.read(apiServiceProvider).host ?? '',
               ),
-              error: (e, _) => AppCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  leading:
-                      _iconBox(Icons.tv_rounded, AppColors.textSecondary),
-                  title: Text('TV & Computer Sharing',
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: Text(friendlyError(e),
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textMuted, fontSize: 12)),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.refresh_rounded,
-                        color: AppColors.primary, size: 20),
-                    onPressed: () => ref.invalidate(servicesProvider),
-                  ),
-                ),
-              ),
-            ),
+            ).animate().fadeIn(delay: 50.ms),
 
-            // ── Ad Blocking ──────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Ad Blocking'),
-            const SizedBox(height: 12),
-            _AdBlockingCard(isAdmin: isAdmin)
-                .animate()
-                .fadeIn(delay: 80.ms),
+            const SizedBox(height: 8),
+            _sectionLabel('Sharing'),
+            const SizedBox(height: 8),
 
-            // ── Telegram Bot (admin only) ─────────────────────────────────
-            if (isAdmin) ...[
-              const SizedBox(height: 24),
-              _sectionLabel('Telegram Bot'),
-              const SizedBox(height: 12),
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  leading:
-                      _iconBox(Icons.smart_toy_rounded, AppColors.primary),
-                  title: Text('Telegram Bot',
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500)),
-                  subtitle: Text('Find documents via Telegram',
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary, fontSize: 12)),
-                  trailing: const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textMuted, size: 20),
-                  onTap: () => context.push('/telegram-setup'),
-                ),
-              ).animate().fadeIn(delay: 100.ms),
-            ],
-            // ── Security ─────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Security'),
-            const SizedBox(height: 12),
+            // ── 2. SHARING CARD ────────────────────────────────────────────
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
+
+                  // TV & Computer Sharing — toggle row
+                  servicesAsync.when(
+                    data: (services) {
+                      final media = services.cast<ServiceInfo?>().firstWhere(
+                          (s) => s?.id == 'media',
+                          orElse: () => null);
+
+                      if (media == null) {
+                        return ListTile(
+                          leading: _iconBox(
+                              Icons.tv_rounded, AppColors.secondary),
+                          title: Text('TV & Computer Sharing',
+                              style: GoogleFonts.dmSans(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                          subtitle: Text('Not available',
+                              style: GoogleFonts.dmSans(
+                                  color: AppColors.textMuted, fontSize: 12)),
+                          trailing: const Icon(Icons.info_outline_rounded,
+                              color: AppColors.textMuted, size: 18),
+                        );
+                      }
+
+                      return ListTile(
+                        leading:
+                            _iconBox(Icons.tv_rounded, AppColors.secondary),
+                        title: Text('TV & Computer Sharing',
+                            style: GoogleFonts.dmSans(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500)),
+                        subtitle: Text(
+                            media.isEnabled
+                                ? 'DLNA + SMB active'
+                                : 'Stream to TVs and computers',
+                            style: GoogleFonts.dmSans(
+                                color: AppColors.textSecondary, fontSize: 12)),
+                        trailing: Switch(
+                          value: media.isEnabled,
+                          onChanged: (v) async {
+                            final messenger =
+                                ScaffoldMessenger.of(context);
+                            try {
+                              await ref
+                                  .read(apiServiceProvider)
+                                  .toggleService(media.id, v);
+                              ref.invalidate(servicesProvider);
+                            } catch (e) {
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(friendlyError(e))),
+                                );
+                              }
+                            }
+                          },
+                          activeThumbColor: AppColors.primary,
+                        ),
+                      );
+                    },
+                    loading: () => ListTile(
+                      leading:
+                          _iconBox(Icons.tv_rounded, AppColors.secondary),
+                      title: Text('TV & Computer Sharing',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary, fontSize: 14)),
+                      trailing: const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.primary),
+                      ),
+                    ),
+                    error: (e, _) => ListTile(
+                      leading: _iconBox(
+                          Icons.tv_rounded, AppColors.textSecondary),
+                      title: Text('TV & Computer Sharing',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary, fontSize: 14)),
+                      subtitle: Text(friendlyError(e),
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textMuted, fontSize: 12)),
+                      trailing: GestureDetector(
+                        onTap: () => ref.invalidate(servicesProvider),
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFE8A84C),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  _divider(),
+
+                  // Remote Access (Tailscale)
+                  _TailscaleRow(
+                      isAdmin: isAdmin, statusAsync: tailscaleAsync),
+
+                  // Telegram Bot (admin only)
+                  if (isAdmin) ...[
+                    _divider(),
+                    ListTile(
+                      leading:
+                          _iconBox(Icons.send_rounded, AppColors.primary),
+                      title: Text('Telegram Bot',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500)),
+                      subtitle: Text('Send files from anywhere',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textSecondary, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textMuted, size: 20),
+                      onTap: () => context.push('/telegram-setup'),
+                    ),
+                  ],
+                ],
+              ),
+            ).animate().fadeIn(delay: 80.ms),
+
+            const SizedBox(height: 8),
+            _sectionLabel('Privacy & Security'),
+            const SizedBox(height: 8),
+
+            // ── 3. PRIVACY & SECURITY CARD ─────────────────────────────────
+            _AdBlockingCard(isAdmin: isAdmin).animate().fadeIn(delay: 110.ms),
+
+            const SizedBox(height: 4),
+
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+
+                  // Server Certificate
                   ListTile(
-                    leading: const Icon(Icons.verified_user_rounded,
-                        color: AppColors.primary, size: 20),
-                    title: Text('Verify Server Certificate',
+                    leading: _iconBox(
+                        Icons.verified_user_rounded, AppColors.success),
+                    title: Text('Server Certificate',
                         style: GoogleFonts.dmSans(
-                            color: AppColors.textPrimary, fontSize: 14)),
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500)),
                     subtitle: Text(
                       fingerprint != null
                           ? fingerprint.toUpperCase()
@@ -199,51 +226,44 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                               ? AppColors.textSecondary
                               : AppColors.textMuted,
                           fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded,
                         color: AppColors.textMuted, size: 20),
                     onTap: () => _verifyServerCertificate(fingerprint),
                   ),
+
                   _divider(),
-                  ListTile(
-                    leading: _iconBox(
-                        Icons.lock_rounded, AppColors.textSecondary),
-                    title: Text('Change my PIN',
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500)),
-                    trailing: const Icon(Icons.chevron_right_rounded,
-                        color: AppColors.textMuted, size: 20),
-                    onTap: _changePin,
-                  ),
+
+                  // Trash
+                  const _TrashCard(),
                 ],
               ),
             ).animate().fadeIn(delay: 120.ms),
 
-            // ── Family ─────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Family'),
-            const SizedBox(height: 12),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: _navTile(
-                icon: Icons.people_rounded,
-                color: const Color(0xFFE8A84C),
-                title: 'Family Members',
-                subtitle: 'Manage users and storage',
-                onTap: () => context.go('/family'),
-              ),
-            ).animate().fadeIn(delay: 130.ms),
+            const SizedBox(height: 8),
+            _sectionLabel('Family & Storage'),
+            const SizedBox(height: 8),
 
-            // ── Storage & Network ─────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Storage & Network'),
-            const SizedBox(height: 12),
+            // ── 4. FAMILY & STORAGE CARD ───────────────────────────────────
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
+
+                  // Family Members
+                  _navTile(
+                    icon: Icons.people_rounded,
+                    color: const Color(0xFFE8A84C),
+                    title: 'Family Members',
+                    subtitle: 'Manage users and storage',
+                    onTap: () => context.go('/family'),
+                  ),
+
+                  _divider(),
+
+                  // Storage Drive
                   _navTile(
                     icon: Icons.storage_rounded,
                     color: AppColors.secondary,
@@ -251,8 +271,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     subtitle: 'Manage drives and storage',
                     onTap: () => context.push('/storage-explorer'),
                   ),
-                  _divider(),
+
+                  // Device (admin only)
                   if (isAdmin) ...[
+                    _divider(),
                     _navTile(
                       icon: Icons.developer_board_rounded,
                       color: AppColors.textSecondary,
@@ -265,102 +287,79 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               ),
             ).animate().fadeIn(delay: 140.ms),
 
-            // ── About ─────────────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('About'),
-            const SizedBox(height: 12),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.home_rounded,
-                            color: AppColors.primary, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('AiHomeCloud',
-                              style: GoogleFonts.sora(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700)),
-                          Text('v1.0.0',
-                              style: GoogleFonts.dmSans(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Your personal cloud — files, family, and streaming in one place.',
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        height: 1.5),
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(delay: 160.ms),
-
-            // ── Danger zone ───────────────────────────────────────────────
-            const SizedBox(height: 24),
-            _sectionLabel('Account'),
-            const SizedBox(height: 12),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.logout_rounded,
-                        color: AppColors.error, size: 20),
-                    title: Text('Log Out',
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.error, fontSize: 14)),
-                    onTap: _confirmLogout,
-                  ),
-                  if (isAdmin) ...[
-                    _divider(),
-                    ListTile(
-                      leading: const Icon(Icons.restart_alt_rounded,
-                          color: AppColors.primary, size: 20),
-                      title: Text('Restart AiHomeCloud',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.primary, fontSize: 14)),
-                      subtitle: Text('Reboot the device',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textMuted, fontSize: 12)),
-                      onTap: _confirmReboot,
-                    ),
-                    _divider(),
-                    ListTile(
-                      leading: const Icon(Icons.power_settings_new_rounded,
-                          color: AppColors.error, size: 20),
-                      title: Text('Shut Down AiHomeCloud',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.error, fontSize: 14)),
-                      subtitle: Text('Stop all services and power off',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textMuted, fontSize: 12)),
-                      onTap: _confirmShutdown,
-                    ),
-                  ],
-                ],
-              ),
-            ).animate().fadeIn(delay: 180.ms),
-
+            // ── 5. FOOTER ──────────────────────────────────────────────────
             const SizedBox(height: 32),
+
+            Center(
+              child: Text(
+                'AiHomeCloud v1.0.0',
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textMuted, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                'Your personal home cloud',
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textMuted, fontSize: 11),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Log Out
+            Center(
+              child: GestureDetector(
+                onTap: _confirmLogout,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.logout_rounded,
+                        color: AppColors.error, size: 16),
+                    const SizedBox(width: 6),
+                    Text('Log Out',
+                        style: GoogleFonts.dmSans(
+                            color: AppColors.error,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+
+            // Restart and Shutdown (admin only)
+            if (isAdmin) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: _confirmReboot,
+                    icon: const Icon(Icons.restart_alt_rounded,
+                        color: AppColors.primary, size: 16),
+                    label: Text('Restart',
+                        style: GoogleFonts.dmSans(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                  ),
+                  const SizedBox(width: 16),
+                  TextButton.icon(
+                    onPressed: _confirmShutdown,
+                    icon: const Icon(Icons.power_settings_new_rounded,
+                        color: AppColors.error, size: 16),
+                    label: Text('Shut Down',
+                        style: GoogleFonts.dmSans(
+                            color: AppColors.error,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -682,6 +681,327 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Profile card ─────────────────────────────────────────────────────────────
+
+class _ProfileCard extends StatelessWidget {
+  final String userName;
+  final VoidCallback onChangePinTap;
+  final VoidCallback? onProfileTap;
+
+  const _ProfileCard({
+    required this.userName,
+    required this.onChangePinTap,
+    this.onProfileTap,
+  });
+
+  static const _avatarColors = [
+    Color(0xFFE8A84C),
+    Color(0xFF4C9BE8),
+    Color(0xFF4CE88A),
+    Color(0xFFE84CA8),
+    Color(0xFF9B59B6),
+    Color(0xFF1ABC9C),
+  ];
+
+  Color get _avatarColor => _avatarColors[
+      userName.isNotEmpty ? userName.codeUnitAt(0) % _avatarColors.length : 0];
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: onProfileTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: _avatarColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        userName.isNotEmpty
+                            ? userName[0].toUpperCase()
+                            : 'U',
+                        style: GoogleFonts.sora(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(userName,
+                            style: GoogleFonts.sora(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text('Tap to switch profile',
+                            style: GoogleFonts.dmSans(
+                                color: AppColors.textMuted, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: AppColors.textMuted, size: 20),
+                ],
+              ),
+            ),
+          ),
+          const Divider(
+              height: 1,
+              indent: 16,
+              endIndent: 16,
+              color: AppColors.cardBorder),
+          ListTile(
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.textSecondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.lock_rounded,
+                  color: AppColors.textSecondary, size: 18),
+            ),
+            title: Text('Change PIN',
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500)),
+            trailing: const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textMuted, size: 20),
+            onTap: onChangePinTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Tailscale row ────────────────────────────────────────────────────────────
+
+class _TailscaleRow extends ConsumerStatefulWidget {
+  final bool isAdmin;
+  final AsyncValue<Map<String, dynamic>> statusAsync;
+  const _TailscaleRow({required this.isAdmin, required this.statusAsync});
+
+  @override
+  ConsumerState<_TailscaleRow> createState() => _TailscaleRowState();
+}
+
+class _TailscaleRowState extends ConsumerState<_TailscaleRow> {
+  bool _loading = false;
+
+  Future<void> _enable() async {
+    if (!widget.isAdmin) return;
+    setState(() => _loading = true);
+    try {
+      final result = await ref.read(apiServiceProvider).tailscaleUp();
+      final ip = result['tailscaleIp'] as String?;
+      if (ip != null && ip.isNotEmpty) {
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setString(AppConstants.prefTailscaleIp, ip);
+        ref.read(apiServiceProvider).setTailscaleIp(ip);
+      }
+      ref.invalidate(tailscaleStatusProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ip != null && ip.isNotEmpty
+              ? 'Remote access active — $ip'
+              : 'Tailscale connected'),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = widget.statusAsync.valueOrNull;
+    final connected = status?['connected'] as bool? ?? false;
+    final ip = status?['tailscaleIp'] as String?;
+    final installed = status?['installed'] as bool? ?? false;
+
+    final subtitle = connected
+        ? 'Connected — $ip'
+        : installed
+            ? 'Tap to connect'
+            : 'Not installed on device';
+
+    Widget? trailing;
+    if (connected) {
+      trailing = const Icon(Icons.check_circle_rounded,
+          color: AppColors.success, size: 20);
+    } else if (widget.isAdmin && installed) {
+      trailing = _loading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.primary),
+            )
+          : TextButton(
+              onPressed: _enable,
+              child: Text('Enable',
+                  style: GoogleFonts.dmSans(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            );
+    }
+
+    return ListTile(
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: (connected ? AppColors.success : AppColors.textSecondary)
+              .withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(Icons.vpn_lock_rounded,
+            color: connected ? AppColors.success : AppColors.textSecondary,
+            size: 18),
+      ),
+      title: Text('Remote Access',
+          style: GoogleFonts.dmSans(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500)),
+      subtitle: Text(subtitle,
+          style: GoogleFonts.dmSans(
+              color: connected ? AppColors.success : AppColors.textSecondary,
+              fontSize: 12)),
+      trailing: trailing,
+    );
+  }
+}
+
+// ─── Trash card (Privacy section) ─────────────────────────────────────────────
+
+class _TrashCard extends ConsumerStatefulWidget {
+  const _TrashCard();
+
+  @override
+  ConsumerState<_TrashCard> createState() => _TrashCardState();
+}
+
+class _TrashCardState extends ConsumerState<_TrashCard> {
+  bool _clearing = false;
+
+  Future<void> _emptyTrash(List<TrashItem> items) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Empty Trash?', style: GoogleFonts.sora()),
+        content: Text(
+          'This will permanently delete ${items.length} '
+          'item${items.length == 1 ? '' : 's'}. This cannot be undone.',
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Empty Trash',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _clearing = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final api = ref.read(apiServiceProvider);
+      for (final item in items) {
+        await api.permanentDeleteTrashItem(item.id);
+      }
+      ref.invalidate(trashItemsProvider);
+      messenger.showSnackBar(const SnackBar(content: Text('Trash emptied.')));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Failed: ${friendlyError(e)}')));
+    } finally {
+      if (mounted) setState(() => _clearing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trashAsync = ref.watch(trashItemsProvider);
+    final items = trashAsync.valueOrNull ?? [];
+    final totalMB =
+        items.fold(0, (sum, i) => sum + i.sizeBytes) ~/ (1024 * 1024);
+
+    return ListTile(
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.delete_outline_rounded,
+            color: AppColors.error, size: 18),
+      ),
+      title: Text('Trash',
+          style: GoogleFonts.dmSans(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500)),
+      subtitle: Text(
+          items.isEmpty
+              ? 'Empty'
+              : '${items.length} item${items.length > 1 ? 's' : ''} · $totalMB MB',
+          style: GoogleFonts.dmSans(
+              color: AppColors.textSecondary, fontSize: 12)),
+      trailing: items.isEmpty
+          ? null
+          : _clearing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.error),
+                )
+              : TextButton(
+                  onPressed: () => _emptyTrash(items),
+                  child: Text('Empty',
+                      style: GoogleFonts.dmSans(
+                          color: AppColors.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
     );
   }
 }

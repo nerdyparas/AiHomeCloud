@@ -189,4 +189,34 @@ extension SystemApi on ApiService {
     _check(res);
   }
 
+  /// GET /api/v1/system/tailscale-status — current Tailscale connectivity state.
+  Future<Map<String, dynamic>> getTailscaleStatus() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/system/tailscale-status'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// POST /api/v1/system/tailscale-up — bring Tailscale up (admin only).
+  Future<Map<String, dynamic>> tailscaleUp() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/system/tailscale-up'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
 }

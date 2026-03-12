@@ -21,6 +21,11 @@ final servicesProvider = FutureProvider<List<ServiceInfo>>((ref) async {
   return api.getServices();
 });
 
+final tailscaleStatusProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.read(apiServiceProvider).getTailscaleStatus();
+});
+
 final notificationStreamProvider = StreamProvider<AppNotification>((ref) {
   final api = ref.read(apiServiceProvider);
   return api.notificationStream();
