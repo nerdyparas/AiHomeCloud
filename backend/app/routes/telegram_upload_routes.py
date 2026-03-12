@@ -274,16 +274,16 @@ async def upload_file(token: str, file: UploadFile = File(...)):
 
     try:
         if ut.destination == "entertainment":
-            dest_dir = settings.shared_path / "Entertainment"
+            dest_dir = settings.entertainment_path
             dest_dir.mkdir(parents=True, exist_ok=True)
             dest_path = _unique_dest(dest_dir, filename)
             await _write_upload(file, dest_path)
             final_path = dest_path
             target_label = "entertainment"
         elif ut.destination == "shared":
-            base_dir = settings.shared_path
-            final_path = await _sort_uploaded_file(file, filename, base_dir, "shared")
-            target_label = "shared"
+            base_dir = settings.family_path
+            final_path = await _sort_uploaded_file(file, filename, base_dir, "family")
+            target_label = "family"
         else:  # "private"
             base_dir = settings.personal_path / ut.owner
             final_path = await _sort_uploaded_file(file, filename, base_dir, ut.owner)

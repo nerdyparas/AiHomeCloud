@@ -63,9 +63,30 @@ async def lifespan(app: FastAPI):
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
-    settings.shared_path.mkdir(parents=True, exist_ok=True)
-    # Ensure shared .inbox/ exists for auto-sorting of shared-folder uploads
-    (settings.shared_path / ".inbox").mkdir(exist_ok=True)
+    settings.family_path.mkdir(parents=True, exist_ok=True)
+    settings.entertainment_path.mkdir(parents=True, exist_ok=True)
+    # Ensure family .inbox/ exists for auto-sorting of shared-folder uploads
+    (settings.family_path / ".inbox").mkdir(exist_ok=True)
+
+    # One-time migration: shared/ → family/ and entertainment/
+    import shutil as _shutil
+    old_shared = settings.nas_root / "shared"
+    new_family = settings.family_path
+    old_entertainment = old_shared / "Entertainment"
+    new_entertainment = settings.entertainment_path
+
+    if old_shared.exists() and not new_family.exists():
+        logger.info("Migrating shared/ → family/ and entertainment/")
+        try:
+            if old_entertainment.exists():
+                new_entertainment.mkdir(parents=True, exist_ok=True)
+                for item in old_entertainment.iterdir():
+                    _shutil.move(str(item), str(new_entertainment / item.name))
+                old_entertainment.rmdir()
+            _shutil.move(str(old_shared), str(new_family))
+            logger.info("Migration complete: shared/ → family/")
+        except (OSError, _shutil.Error) as e:
+            logger.error("Migration failed: %s", e)
 
     # Auto-generate self-signed TLS cert if needed
     if settings.tls_enabled:

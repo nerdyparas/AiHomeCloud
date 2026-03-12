@@ -43,5 +43,8 @@ class AppConstants {
 
   // ── NAS paths ──────────────────────────────────────────────────────────────
   static const String personalBasePath = '/srv/nas/personal/';
-  static const String sharedPath = '/srv/nas/shared/';
+  static const String familyPath = '/srv/nas/family/';
+  static const String entertainmentPath = '/srv/nas/entertainment/';
+  // Keep sharedPath as alias for gradual migration of existing code
+  static const String sharedPath = '/srv/nas/family/';
 }

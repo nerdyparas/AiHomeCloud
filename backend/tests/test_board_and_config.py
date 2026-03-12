@@ -69,7 +69,9 @@ def test_settings_properties():
     from app.config import settings
 
     assert settings.personal_path == settings.nas_root / settings.personal_base
-    assert settings.shared_path == settings.nas_root / settings.shared_dir
+    assert settings.family_path == settings.nas_root / settings.family_dir
+    assert settings.shared_path == settings.nas_root / settings.family_dir  # alias
+    assert settings.entertainment_path == settings.nas_root / settings.entertainment_dir
     assert settings.users_file == settings.data_dir / "users.json"
     assert settings.services_file == settings.data_dir / "services.json"
 

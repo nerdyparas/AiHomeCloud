@@ -389,8 +389,8 @@ async def test_handle_media_message_prompts_for_destination():
 
     assert 88 in tb._pending_uploads
     prompt = update.message.reply_text.call_args[0][0]
-    assert "1. Private personal" in prompt
-    assert "2. Shared personal" in prompt
+    assert "1. My personal folder" in prompt
+    assert "2. Family shared folder" in prompt
     assert "3. Entertainment" in prompt
 
 
@@ -415,7 +415,7 @@ async def test_handle_media_message_oversized_file_prompts_destination():
     # No size-warning text, just the destination prompt
     assert "too large" not in msg.lower()
     assert "upload link" not in msg.lower()
-    assert "1. Private personal" in msg
+    assert "1. My personal folder" in msg
 
 
 @pytest.mark.asyncio

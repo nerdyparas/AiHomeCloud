@@ -27,9 +27,9 @@ def _iter_document_roots() -> list[Path]:
     """Return all Documents roots under shared and personal user folders."""
     roots: list[Path] = []
 
-    shared_docs = settings.shared_path / "Documents"
-    if shared_docs.is_dir():
-        roots.append(shared_docs)
+    family_docs = settings.family_path / "Documents"
+    if family_docs.is_dir():
+        roots.append(family_docs)
 
     personal_base = settings.personal_path
     if personal_base.is_dir():
@@ -52,8 +52,8 @@ def _added_by_for_path(path: Path) -> str:
     parts = rel.parts
     if len(parts) >= 2 and parts[0] == settings.personal_base:
         return parts[1]
-    if len(parts) >= 1 and parts[0] == settings.shared_dir:
-        return "shared"
+    if len(parts) >= 1 and parts[0] == settings.family_dir:
+        return "family"
     return "system"
 
 

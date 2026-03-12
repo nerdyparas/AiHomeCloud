@@ -223,7 +223,7 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
     from .file_sorter import _unique_dest
     from .config import settings
 
-    entertainment_dir = settings.shared_path / "Entertainment"
+    entertainment_dir = settings.entertainment_path
     entertainment_dir.mkdir(parents=True, exist_ok=True)
     safe_name = _sanitize_filename(pending.filename, default_stem="telegram_media")
     dest_path = _unique_dest(entertainment_dir, safe_name)
@@ -234,9 +234,9 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
 def _pending_upload_prompt(filename: str) -> str:
     return (
         f"Received: {filename}\n\n"
-        "Choose where to save it:\n"
-        "1. Private personal\n"
-        "2. Shared personal\n"
+        "Choose where to save:\n"
+        "1. My personal folder\n"
+        "2. Family shared folder\n"
         "3. Entertainment\n\n"
         "Reply with 1, 2, or 3."
     )
@@ -324,7 +324,7 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
     # Map choice → destination label
     dest_map = {
         "1": ("private", f"private personal ({owner})"),
-        "2": ("shared", "shared"),
+        "2": ("shared", "family"),
         "3": ("entertainment", "entertainment"),
     }
     if choice not in dest_map:
@@ -368,8 +368,8 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
             base_dir = settings.personal_path / owner
             dest = await _store_private_or_shared_file(context.bot, pending, base_dir, owner)
         elif choice == "2":
-            base_dir = settings.shared_path
-            dest = await _store_private_or_shared_file(context.bot, pending, base_dir, "shared")
+            base_dir = settings.family_path
+            dest = await _store_private_or_shared_file(context.bot, pending, base_dir, "family")
         else:
             dest = await _store_entertainment_file(context.bot, pending)
 

@@ -154,11 +154,9 @@ async def test_run_sort_pass_sorts_old_files(tmp_path: Path):
     from app.file_sorter import _run_sort_pass
     from app.config import settings
 
-    # Override NAS paths to tmp_path
-    orig_personal = settings.personal_path
-    orig_shared = settings.shared_path
-    settings.__dict__["personal_path"] = tmp_path / "personal"
-    settings.__dict__["shared_path"] = tmp_path / "shared"
+    # Override nas_root to tmp_path so all computed paths are isolated
+    orig_nas_root = settings.__dict__["nas_root"]
+    settings.__dict__["nas_root"] = tmp_path
 
     try:
         user_dir = settings.personal_path / "alice"
@@ -182,8 +180,7 @@ async def test_run_sort_pass_sorts_old_files(tmp_path: Path):
         assert new_file.exists()  # still in inbox
 
     finally:
-        settings.__dict__["personal_path"] = orig_personal
-        settings.__dict__["shared_path"] = orig_shared
+        settings.__dict__["nas_root"] = orig_nas_root
 
 
 # ─── InboxWatcher lifecycle ───────────────────────────────────────────────────

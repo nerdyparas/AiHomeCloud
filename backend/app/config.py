@@ -96,6 +96,8 @@ class Settings(BaseSettings):
     nas_root: Path = Path("/srv/nas")
     personal_base: str = "personal"
     shared_dir: str = "shared"
+    family_dir: str = "family"
+    entertainment_dir: str = "entertainment"
     total_storage_gb: float = 500.0
     skip_mount_check: bool = False  # set True in tests to bypass is_mount()
 
@@ -126,8 +128,17 @@ class Settings(BaseSettings):
         return self.nas_root / self.personal_base
 
     @property
+    def family_path(self) -> Path:
+        return self.nas_root / self.family_dir
+
+    @property
+    def entertainment_path(self) -> Path:
+        return self.nas_root / self.entertainment_dir
+
+    @property
     def shared_path(self) -> Path:
-        return self.nas_root / self.shared_dir
+        # Alias for family_path — use family_path in new code
+        return self.nas_root / self.family_dir
 
     @property
     def users_file(self) -> Path:

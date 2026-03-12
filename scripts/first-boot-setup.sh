@@ -108,7 +108,13 @@ log "[4/9] Creating directories..."
 
 DIRS=(
     "$NAS_ROOT/personal"
-    "$NAS_ROOT/shared"
+    "$NAS_ROOT/family"
+    "$NAS_ROOT/entertainment"
+    "$NAS_ROOT/entertainment/Movies"
+    "$NAS_ROOT/entertainment/Series"
+    "$NAS_ROOT/entertainment/Anime"
+    "$NAS_ROOT/entertainment/Music"
+    "$NAS_ROOT/entertainment/Others"
     "$DATA_DIR/tls"
     "$APP_HOME"
     "$BACKEND_SRC"
@@ -252,6 +258,28 @@ if curl -sk --max-time 5 https://localhost:8443/api/health | grep -q '"ok"' 2>/d
     log "  Health check PASSED ✓"
 else
     warn "  Health check did not return OK yet — check: sudo journalctl -u $SERVICE_NAME -n 30"
+fi
+
+# ── Configure minidlna ────────────────────────────────────────────────────────
+MINIDLNA_CONF="/etc/minidlna.conf"
+if command -v minidlnad &>/dev/null && [[ ! -f "${MINIDLNA_CONF}.cubie_configured" ]]; then
+    log "Configuring minidlna for NAS media directories..."
+    cat > "$MINIDLNA_CONF" << EOF
+media_dir=V,${NAS_ROOT}/entertainment/Movies
+media_dir=V,${NAS_ROOT}/entertainment/Series
+media_dir=V,${NAS_ROOT}/entertainment/Anime
+media_dir=V,${NAS_ROOT}/family/Videos
+media_dir=P,${NAS_ROOT}/family/Photos
+media_dir=P,${NAS_ROOT}/personal
+media_dir=A,${NAS_ROOT}/entertainment/Music
+friendly_name=AiHomeCloud
+db_dir=/var/cache/minidlna
+log_dir=/var/log
+inotify=yes
+EOF
+    touch "${MINIDLNA_CONF}.cubie_configured"
+    systemctl restart minidlna 2>/dev/null || true
+    log "  minidlna configured and restarted."
 fi
 
 # =============================================================================

@@ -7,7 +7,7 @@ from app.config import settings
 
 def _setup_nas(tmp_path: Path) -> Path:
     nas = tmp_path / "nas"
-    (nas / "shared" / "Documents").mkdir(parents=True)
+    (nas / "family" / "Documents").mkdir(parents=True)
     (nas / "personal" / "alice" / "Documents").mkdir(parents=True)
     settings.nas_root = nas
     return nas
@@ -16,10 +16,10 @@ def _setup_nas(tmp_path: Path) -> Path:
 def test_scan_documents_sync_only_indexable(tmp_path):
     nas = _setup_nas(tmp_path)
 
-    good1 = nas / "shared" / "Documents" / "a.pdf"
+    good1 = nas / "family" / "Documents" / "a.pdf"
     good2 = nas / "personal" / "alice" / "Documents" / "b.jpg"
-    skip1 = nas / "shared" / "Documents" / "movie.mp4"
-    skip2 = nas / "shared" / "Other" / "notes.txt"
+    skip1 = nas / "family" / "Documents" / "movie.mp4"
+    skip2 = nas / "family" / "Other" / "notes.txt"
     skip2.parent.mkdir(parents=True)
 
     good1.write_text("pdf")
@@ -41,7 +41,7 @@ def test_scan_documents_sync_only_indexable(tmp_path):
 async def test_sync_once_indexes_new_and_removes_deleted(tmp_path):
     nas = _setup_nas(tmp_path)
     f1 = nas / "personal" / "alice" / "Documents" / "doc1.txt"
-    f2 = nas / "shared" / "Documents" / "doc2.pdf"
+    f2 = nas / "family" / "Documents" / "doc2.pdf"
     f1.write_text("hello")
     f2.write_text("world")
 
@@ -73,9 +73,9 @@ async def test_sync_once_indexes_new_and_removes_deleted(tmp_path):
 async def test_sync_once_sets_added_by_from_path(tmp_path):
     nas = _setup_nas(tmp_path)
     alice_doc = nas / "personal" / "alice" / "Documents" / "x.txt"
-    shared_doc = nas / "shared" / "Documents" / "y.txt"
+    family_doc = nas / "family" / "Documents" / "y.txt"
     alice_doc.write_text("a")
-    shared_doc.write_text("b")
+    family_doc.write_text("b")
 
     from app.index_watcher import sync_once
 
@@ -84,4 +84,4 @@ async def test_sync_once_sets_added_by_from_path(tmp_path):
 
     called = {(c.args[1], c.args[2]) for c in mock_index.await_args_list}
     assert ("x.txt", "alice") in called
-    assert ("y.txt", "shared") in called
+    assert ("y.txt", "family") in called

@@ -40,12 +40,34 @@ DOC_KEYWORDS: frozenset[str] = frozenset({
     "statement", "insurance", "policy", "property", "agreement", "contract",
 })
 
+# Entertainment sub-folder routing (applied when base_dir is entertainment_path)
+ENTERTAINMENT_SORT_RULES: dict[str, str] = {
+    ".mp4": "Movies", ".mkv": "Movies", ".avi": "Movies", ".mov": "Movies",
+    ".m4v": "Movies", ".wmv": "Movies",
+    ".ts": "Series", ".m2ts": "Series", ".mts": "Series",
+    ".mp3": "Music", ".flac": "Music", ".aac": "Music", ".wav": "Music",
+    ".ogg": "Music", ".m4a": "Music",
+}
+
 _MIN_AGE_SECONDS = 5           # file must be at least this old (not still uploading)
 _DOC_PHOTO_MAX_BYTES = 800 * 1024   # < 800 KB image → likely a scanned document
 
 
-def _destination_folder(file_path: Path) -> str:
-    """Return the target sub-folder name for *file_path*."""
+def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
+    """Return the target sub-folder name for *file_path*.
+
+    When *base_dir* is the entertainment folder, ENTERTAINMENT_SORT_RULES are used.
+    """
+    # Entertainment-specific routing
+    if base_dir is not None:
+        try:
+            from .config import settings as _s
+            if base_dir == _s.entertainment_path:
+                ext = file_path.suffix.lower()
+                return ENTERTAINMENT_SORT_RULES.get(ext, "Others")
+        except Exception:
+            pass
+
     ext = file_path.suffix.lower()
     folder = SORT_RULES.get(ext, "Others")
 
@@ -91,7 +113,7 @@ def _sort_file(file_path: Path, base_dir: Path, *, check_age: bool = True) -> Op
             if age < _MIN_AGE_SECONDS:
                 return None  # file still being written; skip this pass
 
-        folder_name = _destination_folder(file_path)
+        folder_name = _destination_folder(file_path, base_dir)
         dest_dir = base_dir / folder_name
         dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -129,10 +151,15 @@ def _collect_inboxes() -> list[tuple[Path, Path]]:
     """
     inboxes: list[tuple[Path, Path]] = []
 
-    # shared/.inbox/
-    shared_inbox = settings.shared_path / ".inbox"
-    if shared_inbox.is_dir():
-        inboxes.append((shared_inbox, settings.shared_path))
+    # family/.inbox/
+    family_inbox = settings.family_path / ".inbox"
+    if family_inbox.is_dir():
+        inboxes.append((family_inbox, settings.family_path))
+
+    # entertainment/.inbox/
+    entertainment_inbox = settings.entertainment_path / ".inbox"
+    if entertainment_inbox.is_dir():
+        inboxes.append((entertainment_inbox, settings.entertainment_path))
 
     # personal/{username}/.inbox/
     if settings.personal_path.is_dir():
