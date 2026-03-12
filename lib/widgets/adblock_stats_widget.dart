@@ -30,17 +30,16 @@ class AdBlockStatsWidget extends ConsumerWidget {
         if (stats == null) return const SizedBox.shrink();
 
         final blockedToday = stats['blocked_today'] as int? ?? 0;
-        final totalBlocked = stats['total_blocked'] as int? ??
-            stats['num_blocked_filtering_all_time'] as int? ??
-            0;
         final dnsQueries = stats['dns_queries'] as int? ?? 0;
+        final blockedPercent = (stats['blocked_percent'] as num?)?.toDouble() ?? 0.0;
 
         // Hide the widget entirely when AdGuard has no data yet
         if (blockedToday == 0 && dnsQueries == 0) return const SizedBox.shrink();
 
         return _AdBlockStatsContent(
           blockedToday: blockedToday,
-          totalBlocked: totalBlocked,
+          dnsQueries: dnsQueries,
+          blockedPercent: blockedPercent,
         ).animate().fadeIn(duration: 350.ms);
       },
     );
@@ -51,11 +50,13 @@ class AdBlockStatsWidget extends ConsumerWidget {
 
 class _AdBlockStatsContent extends StatelessWidget {
   final int blockedToday;
-  final int totalBlocked;
+  final int dnsQueries;
+  final double blockedPercent;
 
   const _AdBlockStatsContent({
     required this.blockedToday,
-    required this.totalBlocked,
+    required this.dnsQueries,
+    required this.blockedPercent,
   });
 
   @override
@@ -105,11 +106,11 @@ class _AdBlockStatsContent extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Secondary line: total all-time (hidden when zero)
-                if (totalBlocked > 0) ...[
+                // Secondary line: queries + percent
+                if (dnsQueries > 0) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'Total blocked: ${_formatCount(totalBlocked)}',
+                    '${_formatCount(dnsQueries)} queries · ${blockedPercent.toStringAsFixed(0)}% blocked',
                     style: GoogleFonts.dmSans(
                       color: AppColors.textMuted,
                       fontSize: 11,

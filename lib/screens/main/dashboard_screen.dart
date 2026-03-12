@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -246,8 +245,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
 
-              // ── 4. SYSTEM METRICS CARD ───────────────────────────────────
-              // Four circular indicators: CPU / RAM / TEMP / UPTIME.
+              // ── 4. SYSTEM COMPACT ROW ────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -262,14 +260,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
 
+              // ── System compact row ──────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   child: statsAsync.when(
                     data: (s) =>
-                        _SystemMetricsCard(stats: s).animate().fadeIn(delay: 200.ms),
+                        _SystemCompactCard(stats: s).animate().fadeIn(delay: 200.ms),
                     loading: () =>
-                        const SizedBox(height: 120), // reserve space
+                        const SizedBox(height: 52),
                     error: (e, __) => AppCard(
                       child: Row(
                         children: [
@@ -1044,194 +1043,77 @@ String _formatUptime(Duration d) {
   return '${mins}m';
 }
 
-/// Compact form used inside the ring indicator (e.g. "13h", "2d").
-String _formatUptimeShort(Duration d) {
-  if (d.inDays  > 0) return '${d.inDays}d';
-  if (d.inHours > 0) return '${d.inHours}h';
-  return '${d.inMinutes}m';
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
-// SYSTEM METRICS CARD
-//
-// Four evenly-spaced circular ring indicators: CPU / RAM / TEMP / UPTIME.
-// Each ring uses a CustomPainter arc so we avoid heavy chart dependencies.
-// Accent colours follow the design spec:
-//   CPU  → green (AppColors.success)
-//   RAM  → blue  (AppColors.secondary)
-//   TEMP → amber (AppColors.primary)
-//   UP   → grey  (AppColors.textSecondary)
+// SYSTEM COMPACT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _SystemMetricsCard extends StatelessWidget {
+class _SystemCompactCard extends StatelessWidget {
   final SystemStats stats;
-  const _SystemMetricsCard({required this.stats});
+  const _SystemCompactCard({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final upHours = stats.uptime.inHours;
+    final cpuOk = stats.cpuPercent < 80;
+    final ramOk = stats.ramPercent < 85;
+    final tempOk = stats.tempCelsius < 65;
 
     return AppCard(
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _MetricRing(
-            label: 'CPU',
-            subLabel: 'Load',
-            value: '${stats.cpuPercent.toStringAsFixed(0)}%',
-            fraction: (stats.cpuPercent / 100).clamp(0.0, 1.0),
-            color: AppColors.success,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.memory_rounded,
+                color: AppColors.primary, size: 18),
           ),
-          _MetricRing(
-            label: 'RAM',
-            subLabel: 'Usage',
-            value: '${stats.ramPercent.toStringAsFixed(0)}%',
-            fraction: (stats.ramPercent / 100).clamp(0.0, 1.0),
-            color: AppColors.secondary,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textSecondary, fontSize: 13),
+                children: [
+                  _statSpan(
+                      'CPU ${stats.cpuPercent.toStringAsFixed(0)}%', cpuOk),
+                  _sep(),
+                  _statSpan(
+                      'RAM ${stats.ramPercent.toStringAsFixed(0)}%', ramOk),
+                  _sep(),
+                  _statSpan(
+                      '${stats.tempCelsius.toStringAsFixed(0)}°C', tempOk),
+                  _sep(),
+                  TextSpan(
+                    text: _formatUptime(stats.uptime),
+                    style: GoogleFonts.dmSans(
+                        color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          _MetricRing(
-            label: 'TEMP',
-            subLabel: 'System',
-            // Show degrees symbol without °C for compactness
-            value: '${stats.tempCelsius.toStringAsFixed(0)}°',
-            fraction: (stats.tempCelsius / 100).clamp(0.0, 1.0),
-            color: AppColors.primary,
-          ),
-          _MetricRing(
-            label: 'UPTIME',
-            subLabel: 'Runtime',
-            value: _formatUptimeShort(stats.uptime),
-            // Ring fills proportionally up to 24 h, then stays full
-            fraction: (upHours / 24).clamp(0.0, 1.0),
-            color: AppColors.textSecondary,
-          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded,
+              color: AppColors.textMuted, size: 18),
         ],
       ),
     );
   }
-}
 
-// ── Circular ring indicator ────────────────────────────────────────────────────
-
-class _MetricRing extends StatelessWidget {
-  final String label;
-  final String subLabel;
-  final String value;
-  final double fraction; // 0.0 – 1.0
-  final Color color;
-
-  const _MetricRing({
-    required this.label,
-    required this.subLabel,
-    required this.value,
-    required this.fraction,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const double size = 72;
-    const double strokeWidth = 5;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: size,
-          height: size,
-          child: CustomPaint(
-            painter: _ArcPainter(
-              fraction: fraction,
-              color: color,
-              trackColor: AppColors.surface,
-              strokeWidth: strokeWidth,
-            ),
-            child: Center(
-              child: Text(
-                value,
-                style: GoogleFonts.sora(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
+  InlineSpan _statSpan(String text, bool ok) => TextSpan(
+        text: text,
+        style: GoogleFonts.dmSans(
+          color: ok ? AppColors.textPrimary : AppColors.error,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: GoogleFonts.sora(
-            color: AppColors.textPrimary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Text(
-          subLabel,
-          style: GoogleFonts.dmSans(
-            color: AppColors.textSecondary,
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Arc painter (lightweight — no third-party chart lib needed) ───────────────
-
-class _ArcPainter extends CustomPainter {
-  final double fraction;
-  final Color color;
-  final Color trackColor;
-  final double strokeWidth;
-
-  const _ArcPainter({
-    required this.fraction,
-    required this.color,
-    required this.trackColor,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (math.min(size.width, size.height) - strokeWidth) / 2;
-    final rect   = Rect.fromCircle(center: center, radius: radius);
-    const startAngle = -math.pi / 2; // top of circle
-
-    // Background track
-    canvas.drawArc(
-      rect,
-      0,
-      2 * math.pi,
-      false,
-      Paint()
-        ..color = trackColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // Filled arc
-    if (fraction > 0) {
-      canvas.drawArc(
-        rect,
-        startAngle,
-        2 * math.pi * fraction,
-        false,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round,
       );
-    }
-  }
 
-  @override
-  bool shouldRepaint(_ArcPainter old) =>
-      old.fraction != fraction || old.color != color;
+  InlineSpan _sep() => TextSpan(
+        text: '  ·  ',
+        style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13),
+      );
 }
