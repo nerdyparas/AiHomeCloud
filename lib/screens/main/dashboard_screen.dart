@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,6 +12,7 @@ import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/adblock_stats_widget.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -47,19 +49,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final deviceAsync = ref.watch(deviceInfoProvider);
-    final statsAsync = ref.watch(systemStatsStreamProvider);
+    final statsAsync  = ref.watch(systemStatsStreamProvider);
     final storageAsync = ref.watch(storageDevicesProvider);
     final session = ref.watch(authSessionProvider);
     final userName = (session?.username.isNotEmpty ?? false)
-      ? session!.username
-      : 'User';
+        ? session!.username
+        : 'User';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── Top bar: avatar only ─────────────────────────────────────────
+            // ── Top bar: avatar (right-aligned) ─────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -67,8 +69,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     const Spacer(),
                     GestureDetector(
-                      onTap: () => context.go('/user-picker',
-                          extra: session?.host ?? ''),
+                      onTap: () =>
+                          context.go('/user-picker', extra: session?.host ?? ''),
                       child: Container(
                         width: 40,
                         height: 40,
@@ -78,7 +80,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                            userName.isNotEmpty
+                                ? userName[0].toUpperCase()
+                                : 'U',
                             style: GoogleFonts.sora(
                               color: AppColors.primary,
                               fontSize: 16,
@@ -93,7 +97,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ── Hero status card ─────────────────────────────────────────────
+            // ── 1. SYSTEM STATUS CARD ────────────────────────────────────────
+            // Shows overall health only — no hardware metrics in this card.
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -104,7 +109,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ── Search bar ────────────────────────────────────────────────────
+            // ── 2. SEARCH BAR ────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -112,195 +117,207 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ── Content: search results OR normal dashboard ───────────────────
+            // ── Content: search results OR normal dashboard ──────────────────
             if (_activeQuery.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: _DocSearchResults(query: _activeQuery),
               ),
             ] else ...[
 
-            // ── Ad Blocking badge (hidden if AdGuard not enabled) ──────────
-            const _AdBlockingBadge(),
-
-            // ── Storage section title ───────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Row(
-                  children: [
-                    Text('Storage',
+              // ── 3. STORAGE SECTION ───────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Storage',
                         style: GoogleFonts.sora(
-                            color: AppColors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => context.push('/storage-explorer'),
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => context.push('/storage-explorer'),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Manage',
+                              style: GoogleFonts.dmSans(
+                                color: AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_ios_rounded,
+                                color: AppColors.primary, size: 12),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Storage cards (shows up to 2 external/NAS devices)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: storageAsync.when(
+                    data: (devices) {
+                      final visible = devices
+                          .where((d) => !d.isOsDisk)
+                          .toList()
+                        ..sort((a, b) {
+                          if (a.isNasActive && !b.isNasActive) return -1;
+                          if (!a.isNasActive && b.isNasActive) return 1;
+                          return 0;
+                        });
+
+                      if (visible.isEmpty) return _emptyStorageCard();
+
+                      final show = visible.take(2).toList();
+                      final moreCount = visible.length - show.length;
+
+                      return Column(
+                        children: [
+                          for (int i = 0; i < show.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _StorageDeviceTile(
+                                device: show[i],
+                                usedGB: show[i].isNasActive
+                                    ? statsAsync.value?.storage.usedGB
+                                    : null,
+                                totalGB: show[i].isNasActive
+                                    ? statsAsync.value?.storage.totalGB
+                                    : null,
+                              )
+                                  .animate()
+                                  .fadeIn(delay: (100 * i).ms)
+                                  .slideY(begin: 0.05, end: 0),
+                            ),
+                          if (moreCount > 0)
+                            GestureDetector(
+                              onTap: () => context.push('/storage-explorer'),
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  '+$moreCount more device${moreCount > 1 ? 's' : ''}',
+                                  style: GoogleFonts.dmSans(
+                                    color: AppColors.primary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox(
+                      height: 80,
+                      child: Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.primary)),
+                    ),
+                    error: (e, _) => AppCard(
                       child: Row(
                         children: [
-                          Text('Manage',
-                              style: GoogleFonts.dmSans(
-                                  color: AppColors.primary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward_ios_rounded,
-                              color: AppColors.primary, size: 12),
+                          const Icon(Icons.error_outline_rounded,
+                              color: AppColors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(friendlyError(e),
+                                style: const TextStyle(color: AppColors.error)),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                ref.invalidate(storageDevicesProvider),
+                            child: const Text('Retry'),
+                          ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
 
-            // ── Storage device cards (Google Files style, max 2) ────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: storageAsync.when(
-                  data: (devices) {
-                    // Show external devices first, then NAS active, up to 2
-                    final visible = devices
-                        .where((d) => !d.isOsDisk)
-                        .toList()
-                      ..sort((a, b) {
-                        if (a.isNasActive && !b.isNasActive) return -1;
-                        if (!a.isNasActive && b.isNasActive) return 1;
-                        return 0;
-                      });
+              // ── 4. SYSTEM METRICS CARD ───────────────────────────────────
+              // Four circular indicators: CPU / RAM / TEMP / UPTIME.
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Text(
+                    'System',
+                    style: GoogleFonts.sora(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
 
-                    if (visible.isEmpty) {
-                      return _emptyStorageCard();
-                    }
-
-                    final show = visible.take(2).toList();
-                    final moreCount = visible.length - show.length;
-
-                    return Column(
-                      children: [
-                        for (int i = 0; i < show.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _StorageDeviceTile(
-                              device: show[i],
-                              usedGB: show[i].isNasActive
-                                  ? statsAsync.value?.storage.usedGB
-                                  : null,
-                              totalGB: show[i].isNasActive
-                                  ? statsAsync.value?.storage.totalGB
-                                  : null,
-                            )
-                                .animate()
-                                .fadeIn(delay: (100 * i).ms)
-                                .slideY(begin: 0.05, end: 0),
-                          ),
-                        if (moreCount > 0)
-                          GestureDetector(
-                            onTap: () => context.push('/storage-explorer'),
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                '+$moreCount more device${moreCount > 1 ? 's' : ''}',
-                                style: GoogleFonts.dmSans(
-                                    color: AppColors.primary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
-                              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: statsAsync.when(
+                    data: (s) =>
+                        _SystemMetricsCard(stats: s).animate().fadeIn(delay: 200.ms),
+                    loading: () =>
+                        const SizedBox(height: 120), // reserve space
+                    error: (e, __) => AppCard(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: AppColors.error, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              friendlyError(e),
+                              style: GoogleFonts.dmSans(
+                                  color: AppColors.error, fontSize: 13),
                             ),
                           ),
-                      ],
-                    );
-                  },
-                  loading: () => const SizedBox(
-                    height: 80,
-                    child: Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.primary)),
-                  ),
-                  error: (e, _) => AppCard(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded,
-                            color: AppColors.error, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(friendlyError(e),
-                              style: const TextStyle(color: AppColors.error)),
-                        ),
-                        TextButton(
-                          onPressed: () => ref.invalidate(storageDevicesProvider),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                          TextButton(
+                            onPressed: () =>
+                                ref.invalidate(systemStatsStreamProvider),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // ── Section title: System ───────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Text('System',
+              // ── 5 & 6. NETWORK SECTION (incl. AdBlock stats) ────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Text(
+                    'Network',
                     style: GoogleFonts.sora(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ),
-
-            // ── System compact row ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: statsAsync.when(
-                  data: (s) => _SystemCompactCard(stats: s).animate().fadeIn(delay: 200.ms),
-                  loading: () => const SizedBox(height: 52),
-                  error: (e, __) => AppCard(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded,
-                            color: AppColors.error, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(friendlyError(e),
-                              style: GoogleFonts.dmSans(
-                                  color: AppColors.error, fontSize: 13)),
-                        ),
-                        TextButton(
-                          onPressed: () => ref.invalidate(systemStatsStreamProvider),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // ── Section title: Network ──────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Text('Network',
-                    style: GoogleFonts.sora(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  child: _NetworkStatusCard(),
+                ),
               ),
-            ),
 
-            // ── Network connectivity status ─────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: _NetworkStatusCard(),
-              ),
-            ),
-
-            ], // else: normal dashboard content
+            ], // end normal dashboard content
           ],
         ),
       ),
@@ -554,32 +571,42 @@ class _StorageDeviceTile extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// NETWORK STATUS CARD — WiFi, LAN, Bluetooth connectivity
+// NETWORK STATUS CARD
+//
+// Rows: WiFi | Ethernet | Bluetooth
+// Below rows: upload / download speed indicators (live from WebSocket)
+// Below speeds: AdBlockStatsWidget (hidden when AdGuard not enabled)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _NetworkStatusCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final netAsync = ref.watch(networkStatusProvider);
+
     return netAsync.when(
       data: (n) => AppCard(
         child: Column(
           children: [
+            // WiFi row
             _netStatusRow(
               icon: Icons.wifi_rounded,
-              label: n.wifiConnected
-                  ? 'WiFi: ${n.wifiSsid ?? "Connected"}'
+              label: 'WiFi',
+              status: n.wifiConnected
+                  ? (n.wifiSsid ?? 'Connected')
                   : n.wifiEnabled
-                      ? 'WiFi: Not connected'
-                      : 'WiFi: Off',
-              subtitle: n.wifiIp,
+                      ? 'Not connected'
+                      : 'Off',
+              subtitle: n.wifiConnected ? n.wifiIp : null,
               connected: n.wifiConnected,
               enabled: n.wifiEnabled,
             ),
             const Divider(color: AppColors.cardBorder, height: 1),
+
+            // Ethernet row
             _netStatusRow(
               icon: Icons.lan_rounded,
-              label: n.lanConnected ? 'Ethernet: Connected' : 'Ethernet: Disconnected',
+              label: 'Ethernet',
+              status: n.lanConnected ? 'Connected' : 'Disconnected',
               subtitle: n.lanConnected
                   ? [n.lanIp, n.lanSpeed].whereType<String>().join(' • ')
                   : null,
@@ -587,19 +614,24 @@ class _NetworkStatusCard extends ConsumerWidget {
               enabled: true,
             ),
             const Divider(color: AppColors.cardBorder, height: 1),
+
+            // Bluetooth row
             _netStatusRow(
               icon: Icons.bluetooth_rounded,
-              label: n.bluetoothEnabled ? 'Bluetooth: On' : 'Bluetooth: Off',
+              label: 'Bluetooth',
+              status: n.bluetoothEnabled ? 'On' : 'Off',
               connected: n.bluetoothEnabled,
               enabled: n.bluetoothEnabled,
             ),
             const Divider(color: AppColors.cardBorder, height: 1),
+
+            // Real-time upload / download speeds from WebSocket stream
             Consumer(
               builder: (context, ref, _) {
                 final statsAsync = ref.watch(systemStatsStreamProvider);
                 return statsAsync.when(
                   data: (s) => Padding(
-                    padding: const EdgeInsets.only(top: 10, bottom: 4),
+                    padding: const EdgeInsets.only(top: 12, bottom: 4),
                     child: Row(
                       children: [
                         Expanded(
@@ -611,7 +643,9 @@ class _NetworkStatusCard extends ConsumerWidget {
                           ),
                         ),
                         Container(
-                            width: 1, height: 36, color: AppColors.cardBorder),
+                            width: 1,
+                            height: 36,
+                            color: AppColors.cardBorder),
                         Expanded(
                           child: _speedCol(
                             Icons.arrow_downward_rounded,
@@ -628,6 +662,9 @@ class _NetworkStatusCard extends ConsumerWidget {
                 );
               },
             ),
+
+            // AdBlock statistics — only visible when AdGuard is enabled & has data
+            const AdBlockStatsWidget(),
           ],
         ),
       ).animate().fadeIn(delay: 550.ms),
@@ -660,14 +697,21 @@ class _NetworkStatusCard extends ConsumerWidget {
       children: [
         Icon(icon, color: c, size: 18),
         const SizedBox(height: 4),
-        Text(value,
-            style: GoogleFonts.sora(
-                color: AppColors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600)),
-        Text(label,
-            style: GoogleFonts.dmSans(
-                color: AppColors.textSecondary, fontSize: 11)),
+        Text(
+          value,
+          style: GoogleFonts.sora(
+            color: AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            color: AppColors.textSecondary,
+            fontSize: 11,
+          ),
+        ),
       ],
     );
   }
@@ -675,43 +719,77 @@ class _NetworkStatusCard extends ConsumerWidget {
   Widget _netStatusRow({
     required IconData icon,
     required String label,
+    required String status,
     String? subtitle,
     required bool connected,
     required bool enabled,
   }) {
-    final color = connected
+    final dotColor = connected
         ? AppColors.success
         : enabled
             ? AppColors.textSecondary
             : AppColors.textMuted;
+    final iconColor = connected
+        ? AppColors.success
+        : enabled
+            ? AppColors.textSecondary
+            : AppColors.textMuted;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
+          Icon(icon, color: iconColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
+                // Label bold + status inline, e.g. "Ethernet  Connected"
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: label,
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '  $status',
+                        style: GoogleFonts.dmSans(
+                          color: connected
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (subtitle != null && subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
                     style: GoogleFonts.dmSans(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500)),
-                if (subtitle != null && subtitle.isNotEmpty)
-                  Text(subtitle,
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary, fontSize: 11)),
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
+          // Status indicator dot
           Container(
             width: 8,
             height: 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color,
+              color: dotColor,
             ),
           ),
         ],
@@ -841,77 +919,11 @@ class _SearchResultTile extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AD BLOCKING BADGE — compact stats row, hidden if AdGuard not enabled
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _AdBlockingBadge extends ConsumerWidget {
-  const _AdBlockingBadge();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(adGuardStatsSilentProvider);
-    return statsAsync.when(
-      data: (stats) {
-        if (stats == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
-        final blocked = stats['blocked_today'] as int? ?? 0;
-        if (blocked == 0 && (stats['dns_queries'] as int? ?? 0) == 0) {
-          return const SliverToBoxAdapter(child: SizedBox.shrink());
-        }
-        final formatted = _formatCount(blocked);
-        return SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: AppCard(
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.shield_rounded,
-                        color: AppColors.success, size: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.textSecondary, fontSize: 13),
-                        children: [
-                          TextSpan(
-                            text: '$formatted ads',
-                            style: GoogleFonts.dmSans(
-                                color: AppColors.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600),
-                          ),
-                          const TextSpan(text: ' blocked today'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(duration: 400.ms),
-          ),
-        );
-      },
-      loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
-      error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-    );
-  }
-
-  String _formatCount(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return n.toString();
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // HERO STATUS CARD
+//
+// Shows overall system health — green when all metrics are nominal, red when
+// any threshold is exceeded.  Hardware metrics (CPU %, temp, uptime) are
+// intentionally absent here; they live in the System Metrics card below.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _HeroStatusCard extends StatelessWidget {
@@ -925,28 +937,22 @@ class _HeroStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stats = statsAsync.valueOrNull;
+    final stats  = statsAsync.valueOrNull;
     final device = deviceAsync.valueOrNull;
 
-    final cpuHigh = (stats?.cpuPercent ?? 0) >= 80;
-    final ramHigh = (stats?.ramPercent ?? 0) >= 85;
-    final tempHigh = (stats?.tempCelsius ?? 0) >= 65;
-    final allGood = !cpuHigh && !ramHigh && !tempHigh;
+    final cpuHigh  = (stats?.cpuPercent    ?? 0) >= 80;
+    final ramHigh  = (stats?.ramPercent    ?? 0) >= 85;
+    final tempHigh = (stats?.tempCelsius   ?? 0) >= 65;
+    final allGood  = !cpuHigh && !ramHigh && !tempHigh;
 
     final statusColor = allGood ? AppColors.success : AppColors.error;
-    final statusText = allGood
-        ? 'Everything is running fine'
+    final statusText  = allGood
+        ? 'Everything running smoothly'
         : [
-            if (cpuHigh) 'CPU high',
-            if (ramHigh) 'RAM high',
+            if (cpuHigh)  'CPU high',
+            if (ramHigh)  'RAM high',
             if (tempHigh) 'Temperature high',
           ].join('  ·  ');
-
-    final uptimePart = stats != null ? _formatUptime(stats.uptime) : '—';
-    final tempPart = stats != null
-        ? '${stats.tempCelsius.toStringAsFixed(0)}°C'
-        : '—';
-    const connPart = 'LAN';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -969,6 +975,7 @@ class _HeroStatusCard extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Glowing status dot
           Container(
             width: 10,
             height: 10,
@@ -989,6 +996,7 @@ class _HeroStatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Device / app name
                 Text(
                   device?.name ?? 'AiHomeCloud',
                   style: GoogleFonts.sora(
@@ -998,6 +1006,7 @@ class _HeroStatusCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
+                // Health summary text
                 Text(
                   statusText,
                   style: GoogleFonts.dmSans(
@@ -1006,12 +1015,13 @@ class _HeroStatusCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
+                // Timestamp — shows "just now" when live WS data is flowing
                 Text(
-                  'Uptime $uptimePart  ·  $tempPart  ·  $connPart',
+                  stats != null ? 'Last update: just now' : 'Connecting…',
                   style: GoogleFonts.dmSans(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -1021,111 +1031,79 @@ class _HeroStatusCard extends StatelessWidget {
       ),
     ).animate().fadeIn(duration: 500.ms);
   }
-
 }
+
+// ── Uptime formatters ─────────────────────────────────────────────────────────
 
 String _formatUptime(Duration d) {
   final days = d.inDays;
-  final hrs = d.inHours.remainder(24);
+  final hrs  = d.inHours.remainder(24);
   final mins = d.inMinutes.remainder(60);
   if (days > 0) return '${days}d ${hrs}h';
-  if (hrs > 0) return '${hrs}h ${mins}m';
+  if (hrs  > 0) return '${hrs}h ${mins}m';
   return '${mins}m';
 }
 
+/// Compact form used inside the ring indicator (e.g. "13h", "2d").
+String _formatUptimeShort(Duration d) {
+  if (d.inDays  > 0) return '${d.inDays}d';
+  if (d.inHours > 0) return '${d.inHours}h';
+  return '${d.inMinutes}m';
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// SYSTEM COMPACT CARD
+// SYSTEM METRICS CARD
+//
+// Four evenly-spaced circular ring indicators: CPU / RAM / TEMP / UPTIME.
+// Each ring uses a CustomPainter arc so we avoid heavy chart dependencies.
+// Accent colours follow the design spec:
+//   CPU  → green (AppColors.success)
+//   RAM  → blue  (AppColors.secondary)
+//   TEMP → amber (AppColors.primary)
+//   UP   → grey  (AppColors.textSecondary)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _SystemCompactCard extends StatelessWidget {
+class _SystemMetricsCard extends StatelessWidget {
   final SystemStats stats;
-  const _SystemCompactCard({required this.stats});
+  const _SystemMetricsCard({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final cpu = stats.cpuPercent.clamp(0, 100).toDouble();
-    final ram = stats.ramPercent.clamp(0, 100).toDouble();
-    final temp = stats.tempCelsius;
-    final uptimeHours = stats.uptime.inHours;
+    final upHours = stats.uptime.inHours;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder, width: 1),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.card,
-            AppColors.surface.withValues(alpha: 0.55),
-          ],
-        ),
-      ),
+    return AppCard(
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.memory_rounded,
-              color: AppColors.primary,
-              size: 19,
-            ),
+          _MetricRing(
+            label: 'CPU',
+            subLabel: 'Load',
+            value: '${stats.cpuPercent.toStringAsFixed(0)}%',
+            fraction: (stats.cpuPercent / 100).clamp(0.0, 1.0),
+            color: AppColors.success,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _SystemMetricIndicator(
-                    value: '${cpu.toStringAsFixed(0)}%',
-                    label: 'CPU',
-                    progress: cpu / 100,
-                    color: AppColors.success,
-                  ),
-                ),
-                const _SystemMetricDivider(),
-                Expanded(
-                  child: _SystemMetricIndicator(
-                    value: '${ram.toStringAsFixed(0)}%',
-                    label: 'RAM',
-                    progress: ram / 100,
-                    color: AppColors.secondary,
-                  ),
-                ),
-                const _SystemMetricDivider(),
-                Expanded(
-                  child: _SystemMetricIndicator(
-                    value: '${temp.toStringAsFixed(0)}°',
-                    label: 'TEMP',
-                    progress: 0.4,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const _SystemMetricDivider(),
-                Expanded(
-                  child: _SystemMetricIndicator(
-                    value: '${uptimeHours}h',
-                    label: 'UPTIME',
-                    progress: 0.25,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+          _MetricRing(
+            label: 'RAM',
+            subLabel: 'Usage',
+            value: '${stats.ramPercent.toStringAsFixed(0)}%',
+            fraction: (stats.ramPercent / 100).clamp(0.0, 1.0),
+            color: AppColors.secondary,
+          ),
+          _MetricRing(
+            label: 'TEMP',
+            subLabel: 'System',
+            // Show degrees symbol without °C for compactness
+            value: '${stats.tempCelsius.toStringAsFixed(0)}°',
+            fraction: (stats.tempCelsius / 100).clamp(0.0, 1.0),
+            color: AppColors.primary,
+          ),
+          _MetricRing(
+            label: 'UPTIME',
+            subLabel: 'Runtime',
+            value: _formatUptimeShort(stats.uptime),
+            // Ring fills proportionally up to 24 h, then stays full
+            fraction: (upHours / 24).clamp(0.0, 1.0),
+            color: AppColors.textSecondary,
           ),
         ],
       ),
@@ -1133,77 +1111,127 @@ class _SystemCompactCard extends StatelessWidget {
   }
 }
 
-class _SystemMetricIndicator extends StatelessWidget {
-  final String value;
+// ── Circular ring indicator ────────────────────────────────────────────────────
+
+class _MetricRing extends StatelessWidget {
   final String label;
-  final double progress;
+  final String subLabel;
+  final String value;
+  final double fraction; // 0.0 – 1.0
   final Color color;
 
-  const _SystemMetricIndicator({
-    required this.value,
+  const _MetricRing({
     required this.label,
-    required this.progress,
+    required this.subLabel,
+    required this.value,
+    required this.fraction,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    const double size = 72;
+    const double strokeWidth = 5;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                strokeWidth: 3.5,
-                backgroundColor: AppColors.cardBorder.withValues(alpha: 0.7),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-              Text(
+          width: size,
+          height: size,
+          child: CustomPaint(
+            painter: _ArcPainter(
+              fraction: fraction,
+              color: color,
+              trackColor: AppColors.surface,
+              strokeWidth: strokeWidth,
+            ),
+            child: Center(
+              child: Text(
                 value,
-                style: GoogleFonts.dmSans(
+                style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
-                  fontSize: 10.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
           label,
-          style: GoogleFonts.dmSans(
-            color: AppColors.textSecondary.withValues(alpha: 0.85),
-            fontSize: 10,
+          style: GoogleFonts.sora(
+            color: AppColors.textPrimary,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          subLabel,
+          style: GoogleFonts.dmSans(
+            color: AppColors.textSecondary,
+            fontSize: 10,
+          ),
         ),
       ],
     );
   }
 }
 
-class _SystemMetricDivider extends StatelessWidget {
-  const _SystemMetricDivider();
+// ── Arc painter (lightweight — no third-party chart lib needed) ───────────────
+
+class _ArcPainter extends CustomPainter {
+  final double fraction;
+  final Color color;
+  final Color trackColor;
+  final double strokeWidth;
+
+  const _ArcPainter({
+    required this.fraction,
+    required this.color,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 44,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: AppColors.cardBorder.withValues(alpha: 0.55),
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (math.min(size.width, size.height) - strokeWidth) / 2;
+    final rect   = Rect.fromCircle(center: center, radius: radius);
+    const startAngle = -math.pi / 2; // top of circle
+
+    // Background track
+    canvas.drawArc(
+      rect,
+      0,
+      2 * math.pi,
+      false,
+      Paint()
+        ..color = trackColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round,
     );
+
+    // Filled arc
+    if (fraction > 0) {
+      canvas.drawArc(
+        rect,
+        startAngle,
+        2 * math.pi * fraction,
+        false,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round,
+      );
+    }
   }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) =>
+      old.fraction != fraction || old.color != color;
 }

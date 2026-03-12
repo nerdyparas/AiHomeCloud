@@ -77,6 +77,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `FileListTile` | `widgets/file_list_tile.dart` | File/folder row in file listings |
 | `FolderView` | `widgets/folder_view.dart` | Full file browser with breadcrumbs, upload, sort, pagination (~730 lines) |
 | `StorageDonutChart` | `widgets/storage_donut_chart.dart` | Circular storage usage chart |
+| `AdBlockStatsWidget` | `widgets/adblock_stats_widget.dart` | Reusable AdGuard stats row for dashboard network card |
 | `CubieNotificationOverlay` | `widgets/notification_listener.dart` | Toast-style notification overlay from WebSocket events |
 | `EmojiPickerGrid` | `widgets/emoji_picker_grid.dart` | 32-emoji avatar picker (16 people + 16 misc) with custom input |
 | `UserAvatar` | `widgets/user_avatar.dart` | Circular emoji/initial avatar with 8-color cycling |

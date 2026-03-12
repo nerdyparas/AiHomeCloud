@@ -14,6 +14,18 @@
 
 ---
 
+## 2026-03-12 — Dashboard premium UI refactor
+
+**Features completed:** Refactored `dashboard_screen.dart` UI layout to premium card-based structure while preserving existing Riverpod providers, API calls, and dark theme palette. Added reusable `AdBlockStatsWidget` and moved ad-block statistics into the Network card.
+
+**Key decisions:**
+- Kept state/data architecture unchanged (`deviceInfoProvider`, `systemStatsStreamProvider`, `storageDevicesProvider`, `networkStatusProvider`, `adGuardStatsSilentProvider`)
+- Replaced compact system text row with a 4-ring metrics card (CPU, RAM, TEMP, UPTIME) using lightweight `CustomPainter`
+- Simplified top status card to overall health messaging only (no hardware metric line)
+- Embedded AdGuard stats under upload/download rows for clearer network context
+
+---
+
 ## 2025-07-25 — Repository audit and KB rebuild
 
 **Changes:** `copilot-instructions.md` rewritten from scratch. All `kb/` files verified against source code and updated. Created `kb/architecture.md`, `kb/features.md`, `kb/flutter-patterns.md`, `kb/backend-patterns.md`, `kb/changelog.md`. Rebuilt `kb/api-contracts.md` from 78 lines to full 62-endpoint reference. Created `tasks.md`. Removed stale root-level prompt artifacts.
