@@ -110,6 +110,10 @@ class Settings(BaseSettings):
     # ── Telegram Bot (optional — disabled if token is empty) ─────────────────
     telegram_bot_token: str = ""   # CUBIE_TELEGRAM_BOT_TOKEN
     telegram_allowed_ids: str = ""  # CUBIE_TELEGRAM_ALLOWED_IDS — comma-sep chat IDs; empty = no restriction
+    telegram_api_id: int = 0          # from my.telegram.org — needed for local server
+    telegram_api_hash: str = ""       # from my.telegram.org — needed for local server
+    telegram_local_api_enabled: bool = False   # True when local server is running
+    telegram_local_api_url: str = "http://127.0.0.1:8081"  # local server address
 
     # ── SQLite file index (feature-flagged — off by default) ──────────────────
     enable_sqlite: bool = False   # CUBIE_ENABLE_SQLITE — creates file_index + ai_jobs tables when True

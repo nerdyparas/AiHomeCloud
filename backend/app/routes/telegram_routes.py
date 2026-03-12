@@ -28,6 +28,9 @@ _STORE_KEY = "telegram_config"
 
 class TelegramConfigIn(BaseModel):
     bot_token: str
+    api_id: int = 0
+    api_hash: str = ""
+    local_api_enabled: bool = False
 
 
 class TelegramConfigOut(BaseModel):
@@ -35,6 +38,9 @@ class TelegramConfigOut(BaseModel):
     token_preview: str       # e.g. "1234567:AB…xyz" (masked middle)
     linked_count: int        # number of Telegram accounts that have sent /auth
     bot_running: bool        # True if the bot process is currently polling
+    local_api_enabled: bool  # True when local bot API server is active
+    api_id: int              # returned so UI can show it's configured
+    max_file_mb: int         # 20 when cloud API, 2000 when local
 
 
 # ---------------------------------------------------------------------------
@@ -66,12 +72,16 @@ async def get_config(user: dict = Depends(require_admin)):
     saved: dict = await _store.get_value(_STORE_KEY, default={})
     token = saved.get("bot_token", "") or settings.telegram_bot_token
     linked_ids = await _store.get_value("telegram_linked_ids", default=[])
+    local_enabled = saved.get("local_api_enabled", False)
 
     return TelegramConfigOut(
         configured=bool(token),
         token_preview=_mask_token(token) if token else "",
         linked_count=len(linked_ids),
         bot_running=_bot_is_running(),
+        local_api_enabled=local_enabled,
+        api_id=saved.get("api_id", 0),
+        max_file_mb=2000 if local_enabled else 20,
     )
 
 
@@ -86,18 +96,25 @@ async def save_config(body: TelegramConfigIn, user: dict = Depends(require_admin
             "bot_token must not be empty",
         )
 
-    # Persist only the token — linked_ids are managed by /auth command
-    await _store.set_value(_STORE_KEY, {"bot_token": token})
+    await _store.set_value(_STORE_KEY, {
+        "bot_token": token,
+        "api_id": body.api_id,
+        "api_hash": body.api_hash,
+        "local_api_enabled": body.local_api_enabled,
+    })
 
-    # Also update runtime settings so the bot picks up the new values immediately
-    settings.telegram_bot_token = token      # type: ignore[misc]
+    # Update runtime settings so the bot picks up the new values immediately
+    settings.telegram_bot_token = token                                # type: ignore[misc]
+    settings.telegram_api_id = body.api_id                             # type: ignore[misc]
+    settings.telegram_api_hash = body.api_hash                         # type: ignore[misc]
+    settings.telegram_local_api_enabled = body.local_api_enabled       # type: ignore[misc]
 
     # Restart bot
     try:
         from ..telegram_bot import stop_bot, start_bot
         await stop_bot()
         await start_bot()
-        logger.info("Telegram bot restarted via API config save")
+        logger.info("Telegram bot restarted — local_api=%s", body.local_api_enabled)
     except Exception as exc:
         logger.warning("Telegram bot restart failed: %s", exc)
 

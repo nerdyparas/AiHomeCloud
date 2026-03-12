@@ -19,12 +19,18 @@ class TelegramSetupScreen extends ConsumerStatefulWidget {
 
 class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   final _tokenCtrl = TextEditingController();
+  final _apiIdCtrl = TextEditingController();
+  final _apiHashCtrl = TextEditingController();
   bool _obscureToken = true;
+  bool _obscureApiHash = true;
   bool _loading = true;
   bool _saving = false;
   bool _botRunning = false;
   bool _configured = false;
+  bool _localApiEnabled = false;
   int _linkedCount = 0;
+  int _maxFileMb = 20;
+  int _apiId = 0;
   String? _errorMsg;
 
   @override
@@ -36,6 +42,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   @override
   void dispose() {
     _tokenCtrl.dispose();
+    _apiIdCtrl.dispose();
+    _apiHashCtrl.dispose();
     super.dispose();
   }
 
@@ -51,7 +59,11 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
         setState(() {
           _configured = cfg['configured'] as bool? ?? false;
           _botRunning = cfg['bot_running'] as bool? ?? false;
+          _localApiEnabled = cfg['local_api_enabled'] as bool? ?? false;
           _linkedCount = cfg['linked_count'] as int? ?? 0;
+          _maxFileMb = cfg['max_file_mb'] as int? ?? 20;
+          _apiId = cfg['api_id'] as int? ?? 0;
+          if (_apiId > 0) _apiIdCtrl.text = _apiId.toString();
           _loading = false;
         });
       }
@@ -68,9 +80,22 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   Future<void> _save() async {
     final token = _tokenCtrl.text.trim();
 
-    if (token.isEmpty) {
+    if (token.isEmpty && !_configured) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bot Token is required.')),
+      );
+      return;
+    }
+
+    final apiId = int.tryParse(_apiIdCtrl.text.trim()) ?? 0;
+    final apiHash = _apiHashCtrl.text.trim();
+
+    if (_localApiEnabled && (apiId == 0 || apiHash.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('API ID and API Hash are required for large file mode.'),
+        ),
       );
       return;
     }
@@ -81,12 +106,18 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
     });
 
     try {
-      await ref.read(apiServiceProvider).saveTelegramConfig(token);
+      await ref.read(apiServiceProvider).saveTelegramConfig(
+            token.isNotEmpty ? token : '',
+            apiId: apiId,
+            apiHash: apiHash,
+            localApiEnabled: _localApiEnabled,
+          );
       if (mounted) {
         _tokenCtrl.clear();
+        _apiHashCtrl.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Telegram Bot configured! Bot is now active.'),
+            content: Text('Telegram Bot configured!'),
           ),
         );
         await _loadConfig();
@@ -233,21 +264,204 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 const SizedBox(height: 24),
 
                 // Linked accounts status
+                if (_configured) ...[
+                  AppCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (_linkedCount > 0
+                                    ? AppColors.success
+                                    : AppColors.textMuted)
+                                .withAlpha(30),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.people_rounded,
+                              color: _linkedCount > 0
+                                  ? AppColors.success
+                                  : AppColors.textMuted,
+                              size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _linkedCount == 0
+                                    ? 'No accounts linked yet'
+                                    : '$_linkedCount account${_linkedCount == 1 ? '' : 's'} linked',
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              if (_linkedCount == 0)
+                                Text('Open your bot and send /auth',
+                                    style: GoogleFonts.dmSans(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // File limit info card
                 AppCard(
                   child: Row(
                     children: [
-                      const Icon(Icons.people_outline,
-                          color: AppColors.textSecondary, size: 20),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(30),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.upload_file_rounded,
+                            color: AppColors.primary, size: 18),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          _linkedCount > 0
-                              ? '$_linkedCount linked account${_linkedCount == 1 ? '' : 's'}'
-                              : 'No accounts linked yet — send /auth to your bot',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textSecondary, fontSize: 13),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('File upload limit: $_maxFileMb MB',
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600)),
+                            Text(
+                              _localApiEnabled
+                                  ? 'Large file mode active — up to 2 GB'
+                                  : 'Enable large file mode below to upload up to 2 GB',
+                              style: GoogleFonts.dmSans(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12),
+                            ),
+                          ],
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Large file mode toggle + api_id/api_hash fields
+                AppCard(
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _localApiEnabled,
+                        onChanged: (v) =>
+                            setState(() => _localApiEnabled = v),
+                        activeColor: AppColors.primary,
+                        title: Text('Large file mode (up to 2 GB)',
+                            style: GoogleFonts.dmSans(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          'Requires Telegram API credentials and the local server '
+                          'setup script to be run on your device.',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textSecondary,
+                              fontSize: 12),
+                        ),
+                      ),
+                      if (_localApiEnabled) ...[
+                        const Divider(
+                            color: AppColors.cardBorder, height: 24),
+                        Text(
+                          'Get API ID and Hash at my.telegram.org → '
+                          'API development tools',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textSecondary,
+                              fontSize: 12),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _apiIdCtrl,
+                          keyboardType: TextInputType.number,
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary, fontSize: 14),
+                          decoration: InputDecoration(
+                            labelText: 'API ID',
+                            labelStyle: GoogleFonts.dmSans(
+                                color: AppColors.textSecondary),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.cardBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.cardBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primary, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _apiHashCtrl,
+                          obscureText: _obscureApiHash,
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary, fontSize: 14),
+                          decoration: InputDecoration(
+                            labelText: 'API Hash',
+                            labelStyle: GoogleFonts.dmSans(
+                                color: AppColors.textSecondary),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.cardBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.cardBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primary, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                  _obscureApiHash
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
+                                  color: AppColors.textMuted,
+                                  size: 18),
+                              onPressed: () => setState(
+                                  () => _obscureApiHash = !_obscureApiHash),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Run scripts/setup-telegram-local-api.sh on your '
+                          'device before enabling this.',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.primary, fontSize: 11),
+                        ),
+                      ],
                     ],
                   ),
                 ),

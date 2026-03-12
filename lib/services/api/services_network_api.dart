@@ -234,14 +234,26 @@ extension ServicesNetworkApi on ApiService {
     return (jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  /// POST /api/v1/telegram/config  body: {bot_token}
-  Future<void> saveTelegramConfig(String botToken) async {
+  /// POST /api/v1/telegram/config  body: {bot_token, api_id, api_hash, local_api_enabled}
+  Future<void> saveTelegramConfig(
+    String botToken, {
+    int apiId = 0,
+    String apiHash = '',
+    bool localApiEnabled = false,
+  }) async {
+    final body = <String, dynamic>{
+      'local_api_enabled': localApiEnabled,
+    };
+    if (botToken.isNotEmpty) body['bot_token'] = botToken;
+    if (apiId > 0) body['api_id'] = apiId;
+    if (apiHash.isNotEmpty) body['api_hash'] = apiHash;
+
     final res = await _withAutoRefresh(
       () => _client
           .post(
             Uri.parse('$_baseUrl${AppConstants.apiVersion}/telegram/config'),
             headers: _headers,
-            body: jsonEncode({'bot_token': botToken}),
+            body: jsonEncode(body),
           )
           .timeout(ApiService._timeout),
     );

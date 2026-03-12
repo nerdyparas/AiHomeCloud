@@ -197,6 +197,8 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
         )
         return
 
+    from .config import settings
+
     message = update.message
     pending: Optional[PendingUpload] = None
 
@@ -236,6 +238,15 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
             file_size=int(getattr(photo, "file_size", 0) or 0),
             caption=(message.caption or "").strip(),
         )
+    elif getattr(message, "voice", None):
+        voice = message.voice
+        pending = PendingUpload(
+            file_id=voice.file_id,
+            filename=f"voice_{voice.file_unique_id}.ogg",
+            kind="voice",
+            file_size=int(getattr(voice, "file_size", 0) or 0),
+            caption=(message.caption or "").strip(),
+        )
 
     if pending is None:
         await update.message.reply_text("Unsupported file type. Send a document, photo, video, or audio.")
@@ -243,10 +254,11 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
 
     _pending_uploads[chat_id] = pending
 
-    # For oversized files, note the size in the prompt so the user knows it
-    # will be handled via a direct upload link after they pick a destination.
+    # For oversized files when NOT using local API, note the size in the prompt
+    # so the user knows it will be handled via a direct upload link.
     size_note = ""
-    if pending.file_size > _TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES:
+    if (pending.file_size > _TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES
+            and not settings.telegram_local_api_enabled):
         size_note = (
             f"\n⚠️ This file ({_human_size(pending.file_size)}) is too large "
             "for Telegram bot download. After you choose a destination, "
@@ -278,8 +290,9 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
 
     dest_key, target_label = dest_map[choice]
 
-    # ── Large file → generate one-time upload link ──
-    if pending.file_size > _TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES:
+    # ── Large file without local API → generate one-time upload link ──
+    if (pending.file_size > _TELEGRAM_FILE_DOWNLOAD_LIMIT_BYTES
+            and not settings.telegram_local_api_enabled):
         from .routes.telegram_upload_routes import create_upload_token
 
         token = create_upload_token(
@@ -520,15 +533,30 @@ async def start_bot() -> None:
         return
 
     try:
-        _application = (
+        builder = (
             ApplicationBuilder()
             .token(settings.telegram_bot_token)
             .connect_timeout(_HTTP_TIMEOUT_SECONDS)
             .read_timeout(_HTTP_TIMEOUT_SECONDS)
             .write_timeout(_HTTP_TIMEOUT_SECONDS)
             .pool_timeout(_HTTP_TIMEOUT_SECONDS)
-            .build()
         )
+
+        # Use local Bot API server if configured — removes 20MB file limit
+        if settings.telegram_local_api_enabled and settings.telegram_local_api_url:
+            local_url = settings.telegram_local_api_url.rstrip("/")
+            builder = (
+                builder
+                .base_url(f"{local_url}/bot")
+                .base_file_url(f"{local_url}/file/bot")
+                .local_mode(True)
+            )
+            logger.info("Telegram bot using local API at %s (2GB file limit)",
+                        settings.telegram_local_api_url)
+        else:
+            logger.info("Telegram bot using cloud API (20MB file limit)")
+
+        _application = builder.build()
 
         _application.add_handler(CommandHandler("start", _handle_start))
         _application.add_handler(CommandHandler("auth", _handle_auth))
@@ -536,7 +564,7 @@ async def start_bot() -> None:
         _application.add_handler(CommandHandler("list", _handle_list))
         _application.add_handler(
             MessageHandler(
-                filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO,
+                filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO | filters.VOICE,
                 _handle_media_message,
             )
         )
