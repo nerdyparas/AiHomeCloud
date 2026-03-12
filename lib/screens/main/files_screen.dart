@@ -52,11 +52,12 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       );
     }
 
-    // Root view: show 2 folder entries
+    // Root view: show 3 folder entries
     final session = ref.watch(authSessionProvider);
     final username = session?.username ?? 'My Files';
     final personalPath = '${AppConstants.personalBasePath}$username/';
-    const sharedPath = AppConstants.sharedPath;
+    const familyPath = AppConstants.familyPath;
+    const entertainmentPath = AppConstants.entertainmentPath;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -81,14 +82,24 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                     name: username,
                     icon: Icons.person_rounded,
                     color: AppColors.primary,
+                    subtitle: 'Your private files',
                     onTap: () => _openFolder(personalPath, username),
                   ),
                   const SizedBox(height: 12),
                   _FolderCard(
-                    name: 'Shared',
+                    name: 'Family',
                     icon: Icons.people_rounded,
-                    color: AppColors.secondary,
-                    onTap: () => _openFolder(sharedPath, 'Shared'),
+                    color: const Color(0xFF4CE88A),
+                    subtitle: 'Shared with everyone',
+                    onTap: () => _openFolder(familyPath, 'Family'),
+                  ),
+                  const SizedBox(height: 12),
+                  _FolderCard(
+                    name: 'Entertainment',
+                    icon: Icons.movie_rounded,
+                    color: const Color(0xFFE84CA8),
+                    subtitle: 'Movies, series, music',
+                    onTap: () => _openFolder(entertainmentPath, 'Entertainment'),
                   ),
                 ],
               ),
@@ -104,12 +115,14 @@ class _FolderCard extends StatelessWidget {
   final String name;
   final IconData icon;
   final Color color;
+  final String subtitle;
   final VoidCallback onTap;
 
   const _FolderCard({
     required this.name,
     required this.icon,
     required this.color,
+    required this.subtitle,
     required this.onTap,
   });
 
@@ -132,6 +145,11 @@ class _FolderCard extends StatelessWidget {
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w600,
             fontSize: 15,
+          )),
+        subtitle: Text(subtitle,
+          style: GoogleFonts.dmSans(
+            color: AppColors.textMuted,
+            fontSize: 12,
           )),
         trailing: const Icon(Icons.chevron_right_rounded,
           color: AppColors.textMuted),

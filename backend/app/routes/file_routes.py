@@ -72,7 +72,7 @@ def _require_external_storage() -> None:
 
 def _safe_resolve(raw_path: str) -> Path:
     """
-    Resolve a NAS-relative path (e.g. /srv/nas/shared/Photos) to an
+    Resolve a NAS-relative path (e.g. /srv/nas/family/Photos) to an
     absolute filesystem path, ensuring it stays within nas_root.
     """
     # Reject null bytes early — they can confuse OS path operations
@@ -83,7 +83,7 @@ def _safe_resolve(raw_path: str) -> Path:
     if len(raw_path) > 4096:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path too long")
 
-    # raw_path from the app looks like /srv/nas/shared/...
+    # raw_path from the app looks like /srv/nas/family/...
     # Strip the nas_root prefix if present so we don't double it.
     nas_prefix = str(settings.nas_root)
     if raw_path.startswith(nas_prefix):
@@ -181,7 +181,7 @@ def _scandir_list(resolved: Path, nas_root_str: str, sort_key: str, reverse: boo
 
 @router.get("/list", response_model=FileListResponse)
 async def list_files(
-    path: str = Query("/srv/nas/shared/"),
+    path: str = Query("/srv/nas/family/"),
     page: int = Query(0, ge=0),
     page_size: int = Query(50, ge=1, le=500, alias="page_size"),
     sort_by: str = Query("name"),

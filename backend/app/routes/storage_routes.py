@@ -80,7 +80,8 @@ async def _post_mount_setup(partition_path: str, disk: dict, display_name: str) 
     """After a successful mount: create dirs, persist storage state, start services."""
     nas_root = str(settings.nas_root)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
-    settings.shared_path.mkdir(parents=True, exist_ok=True)
+    settings.family_path.mkdir(parents=True, exist_ok=True)
+    settings.entertainment_path.mkdir(parents=True, exist_ok=True)
     await store.save_storage_state({
         "activeDevice": partition_path,
         "mountedAt": nas_root,
@@ -360,7 +361,8 @@ async def mount_device(
 
     # Create standard NAS directories
     settings.personal_path.mkdir(parents=True, exist_ok=True)
-    settings.shared_path.mkdir(parents=True, exist_ok=True)
+    settings.family_path.mkdir(parents=True, exist_ok=True)
+    settings.entertainment_path.mkdir(parents=True, exist_ok=True)
 
     # Persist mount state
     await store.save_storage_state({
@@ -520,7 +522,8 @@ async def try_auto_remount():
         logger.info("Auto-remount: successfully mounted %s at %s", device_path, nas_root)
         # Ensure NAS dirs exist
         settings.personal_path.mkdir(parents=True, exist_ok=True)
-        settings.shared_path.mkdir(parents=True, exist_ok=True)
+        settings.family_path.mkdir(parents=True, exist_ok=True)
+        settings.entertainment_path.mkdir(parents=True, exist_ok=True)
         # Start NAS services
         await start_nas_services()
     else:
