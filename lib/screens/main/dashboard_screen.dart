@@ -1043,67 +1043,167 @@ class _SystemCompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cpuOk = stats.cpuPercent < 80;
-    final ramOk = stats.ramPercent < 85;
-    final tempOk = stats.tempCelsius < 65;
+    final cpu = stats.cpuPercent.clamp(0, 100).toDouble();
+    final ram = stats.ramPercent.clamp(0, 100).toDouble();
+    final temp = stats.tempCelsius;
+    final uptimeHours = stats.uptime.inHours;
 
-    return AppCard(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.cardBorder, width: 1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.card,
+            AppColors.surface.withValues(alpha: 0.55),
+          ],
+        ),
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
-            child: const Icon(Icons.memory_rounded,
-                color: AppColors.primary, size: 18),
+            child: const Icon(
+              Icons.memory_rounded,
+              color: AppColors.primary,
+              size: 19,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text.rich(
-              TextSpan(
-                style: GoogleFonts.dmSans(
-                    color: AppColors.textSecondary, fontSize: 13),
-                children: [
-                  _statSpan(
-                      'CPU ${stats.cpuPercent.toStringAsFixed(0)}%', cpuOk),
-                  _sep(),
-                  _statSpan(
-                      'RAM ${stats.ramPercent.toStringAsFixed(0)}%', ramOk),
-                  _sep(),
-                  _statSpan(
-                      '${stats.tempCelsius.toStringAsFixed(0)}°C', tempOk),
-                  _sep(),
-                  TextSpan(
-                    text: _formatUptime(stats.uptime),
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.textSecondary, fontSize: 13),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SystemMetricIndicator(
+                    value: '${cpu.toStringAsFixed(0)}%',
+                    label: 'CPU',
+                    progress: cpu / 100,
+                    color: AppColors.success,
                   ),
-                ],
-              ),
-              overflow: TextOverflow.ellipsis,
+                ),
+                const _SystemMetricDivider(),
+                Expanded(
+                  child: _SystemMetricIndicator(
+                    value: '${ram.toStringAsFixed(0)}%',
+                    label: 'RAM',
+                    progress: ram / 100,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const _SystemMetricDivider(),
+                Expanded(
+                  child: _SystemMetricIndicator(
+                    value: '${temp.toStringAsFixed(0)}°',
+                    label: 'TEMP',
+                    progress: 0.4,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const _SystemMetricDivider(),
+                Expanded(
+                  child: _SystemMetricIndicator(
+                    value: '${uptimeHours}h',
+                    label: 'UPTIME',
+                    progress: 0.25,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textMuted, size: 18),
         ],
       ),
     );
   }
+}
 
-  InlineSpan _statSpan(String text, bool ok) => TextSpan(
-        text: text,
-        style: GoogleFonts.dmSans(
-          color: ok ? AppColors.textPrimary : AppColors.error,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+class _SystemMetricIndicator extends StatelessWidget {
+  final String value;
+  final String label;
+  final double progress;
+  final Color color;
+
+  const _SystemMetricIndicator({
+    required this.value,
+    required this.label,
+    required this.progress,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                strokeWidth: 3.5,
+                backgroundColor: AppColors.cardBorder.withValues(alpha: 0.7),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.dmSans(
+                  color: AppColors.textPrimary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
-      );
+        const SizedBox(height: 5),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            color: AppColors.textSecondary.withValues(alpha: 0.85),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
 
-  InlineSpan _sep() => TextSpan(
-        text: '  ·  ',
-        style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13),
-      );
+class _SystemMetricDivider extends StatelessWidget {
+  const _SystemMetricDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 44,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: AppColors.cardBorder.withValues(alpha: 0.55),
+    );
+  }
 }
