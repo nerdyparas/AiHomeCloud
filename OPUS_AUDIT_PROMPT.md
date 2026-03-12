@@ -195,9 +195,8 @@ Check for:
 Read `.github/workflows/backend-tests.yml` and `.github/workflows/flutter-analyze.yml`.
 
 Check for:
-- **Python version mismatch**: CI uses Python 3.12. The Radxa Cubie runs
-  Python 3.11 (as established in previous sessions). Does this matter for
-  any f-string, match statement, or type hint syntax used? Note any
+- **Python version**: CI and the Radxa Cubie both run Python 3.12.10.
+  Confirm no Python 3.13-only syntax is used. Note any
   Python 3.12-only syntax found in backend code.
 - **Missing path triggers**: `flutter-analyze.yml` only triggers on
   `lib/**`, `test/**`, `pubspec.yaml`. It does NOT trigger on changes to

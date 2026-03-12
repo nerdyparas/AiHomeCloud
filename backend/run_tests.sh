@@ -17,11 +17,16 @@ set -e
 
 cd "$(dirname "$0")"
 
+PYTEST="venv/bin/python -m pytest"
+if ! [ -f venv/bin/python ]; then
+    PYTEST="pytest"
+fi
+
 echo "Running AiHomeCloud backend tests..."
 echo ""
 
 # Run pytest with verbose output and short tracebacks
-pytest tests/ -v --tb=short "$@"
+$PYTEST tests/ -v --tb=short "$@"
 
 echo ""
 echo "✓ All tests passed!"
