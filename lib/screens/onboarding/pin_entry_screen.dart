@@ -25,14 +25,20 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   List<String> _userNames = [];
   String? _selectedUser;
   bool _loadingUsers = true;
+  bool _offlineError = false;
 
   @override
   void initState() {
     super.initState();
+    _pinController.addListener(() => setState(() {}));
     _fetchUsers();
   }
 
   Future<void> _fetchUsers() async {
+    setState(() {
+      _loadingUsers = true;
+      _offlineError = false;
+    });
     try {
       final api = ApiService.instance;
       final names = await api.fetchUserNames(widget.deviceIp);
@@ -46,7 +52,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
       if (!mounted) return;
       setState(() {
         _loadingUsers = false;
-        _error = friendlyError(e);
+        _offlineError = true;
       });
     }
   }
@@ -59,7 +65,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   Future<void> _submit() async {
     final pin = _pinController.text.trim();
-    if (pin.isEmpty || _selectedUser == null) return;
+    if (_selectedUser == null) return;
 
     setState(() {
       _loading = true;
@@ -117,9 +123,55 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   ];
 
   Widget _buildBody() {
+    if (_offlineError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_rounded, color: AppColors.textMuted, size: 56),
+              const SizedBox(height: 20),
+              Text("Can't reach your AiHomeCloud",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.sora(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                )),
+              const SizedBox(height: 8),
+              Text(widget.deviceIp,
+                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13)),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _fetchUsers,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => context.go('/'),
+                child: Text('Find a different device',
+                  style: GoogleFonts.dmSans(color: AppColors.textSecondary, fontSize: 14)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_userNames.isEmpty) {
-      return Center(child: Text(_error ?? 'No users found.',
-        style: GoogleFonts.dmSans(color: AppColors.error)));
+      return Center(child: Text('No users found.',
+        style: GoogleFonts.dmSans(color: AppColors.textMuted)));
     }
 
     return Column(
@@ -189,6 +241,37 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
                   ],
                 ),
               ),
+            // Add User tile
+            GestureDetector(
+              onTap: () async {
+                final added = await context.push<bool>(
+                  '/profile-creation',
+                  extra: {'ip': widget.deviceIp, 'isAddingUser': true},
+                );
+                if (added == true) _fetchUsers();
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.cardBorder, width: 1.5),
+                    ),
+                    child: const Icon(Icons.add_rounded, color: AppColors.textMuted, size: 28),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Add User',
+                    style: GoogleFonts.dmSans(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    )),
+                ],
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 40),
@@ -246,6 +329,17 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
                   const SizedBox(height: 8),
                   Text(_error!,
                     style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 13)),
+                ],
+                if (_pinController.text.isEmpty) ...[
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: _submit,
+                    child: Text('No PIN? Tap here to continue',
+                      style: GoogleFonts.dmSans(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                      )),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 SizedBox(
