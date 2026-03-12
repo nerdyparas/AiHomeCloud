@@ -6,12 +6,14 @@ on:
       - 'lib/**'
       - 'test/**'
       - 'pubspec.yaml'
+      - 'analysis_options.yaml'
       - '.github/workflows/flutter-analyze.yml'
   pull_request:
     paths:
       - 'lib/**'
       - 'test/**'
       - 'pubspec.yaml'
+      - 'analysis_options.yaml'
 
 jobs:
   flutter-analyze:

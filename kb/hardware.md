@@ -41,7 +41,8 @@
 |---|---|
 | `/srv/nas/` | NAS mount point (external storage mounts here) |
 | `/srv/nas/personal/` | Per-user private folders |
-| `/srv/nas/shared/` | Family shared folder |
+| `/srv/nas/family/` | Family shared folder |
+| `/srv/nas/entertainment/` | Entertainment media (Music, Videos, etc.) |
 | `/var/lib/cubie/` | Backend config/state JSON files |
 | `/opt/cubie/backend/` | Backend code + venv |
 | `/etc/systemd/system/cubie-backend.service` | Systemd service |

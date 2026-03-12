@@ -273,3 +273,41 @@ async def test_atomic_write_survives_concurrent_access(tmp_path, monkeypatch):
     assert len(users) == 10
 
     store._cache.clear()
+
+
+@pytest.mark.asyncio
+async def test_add_user_icon_emoji_is_stored(tmp_path, monkeypatch):
+    """TASK-014: add_user stores icon_emoji and get_users returns it."""
+    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    from app.config import settings
+    from app import store
+    settings.data_dir = tmp_path
+    store._cache.clear()
+
+    user = await store.add_user("emoji_user", pin=None, icon_emoji="\U0001f3e0")
+    assert user["icon_emoji"] == "\U0001f3e0", "icon_emoji must be present in returned dict"
+
+    # Verify it persists through get_users()
+    users = await store.get_users()
+    found = next((u for u in users if u["name"] == "emoji_user"), None)
+    assert found is not None
+    assert found["icon_emoji"] == "\U0001f3e0", "icon_emoji must survive round-trip through store"
+
+    store._cache.clear()
+
+
+@pytest.mark.asyncio
+async def test_add_user_icon_emoji_defaults_to_empty_string(tmp_path, monkeypatch):
+    """TASK-014: add_user without icon_emoji stores empty string, not None."""
+    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    from app.config import settings
+    from app import store
+    settings.data_dir = tmp_path
+    store._cache.clear()
+
+    user = await store.add_user("plain_user", pin=None)
+    assert user.get("icon_emoji", None) == "", (
+        "icon_emoji must default to empty string when not supplied"
+    )
+
+    store._cache.clear()

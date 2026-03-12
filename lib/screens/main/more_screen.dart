@@ -28,7 +28,6 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     final userName = session?.username ?? 'User';
     final fingerprint = ref.watch(certFingerprintProvider);
     final servicesAsync = ref.watch(servicesProvider);
-    final tailscaleAsync = ref.watch(tailscaleStatusProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -164,12 +163,6 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                       ),
                     ),
                   ),
-
-                  _divider(),
-
-                  // Remote Access (Tailscale)
-                  _TailscaleRow(
-                      isAdmin: isAdmin, statusAsync: tailscaleAsync),
 
                   // Telegram Bot (admin only)
                   if (isAdmin) ...[
@@ -792,111 +785,6 @@ class _ProfileCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ─── Tailscale row ────────────────────────────────────────────────────────────
-
-class _TailscaleRow extends ConsumerStatefulWidget {
-  final bool isAdmin;
-  final AsyncValue<Map<String, dynamic>> statusAsync;
-  const _TailscaleRow({required this.isAdmin, required this.statusAsync});
-
-  @override
-  ConsumerState<_TailscaleRow> createState() => _TailscaleRowState();
-}
-
-class _TailscaleRowState extends ConsumerState<_TailscaleRow> {
-  bool _loading = false;
-
-  Future<void> _enable() async {
-    if (!widget.isAdmin) return;
-    setState(() => _loading = true);
-    try {
-      final result = await ref.read(apiServiceProvider).tailscaleUp();
-      final ip = result['tailscaleIp'] as String?;
-      if (ip != null && ip.isNotEmpty) {
-        final prefs = ref.read(sharedPreferencesProvider);
-        await prefs.setString(AppConstants.prefTailscaleIp, ip);
-        ref.read(apiServiceProvider).setTailscaleIp(ip);
-      }
-      ref.invalidate(tailscaleStatusProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ip != null && ip.isNotEmpty
-              ? 'Remote access active — $ip'
-              : 'Tailscale connected'),
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = widget.statusAsync.valueOrNull;
-    final connected = status?['connected'] as bool? ?? false;
-    final ip = status?['tailscaleIp'] as String?;
-    final installed = status?['installed'] as bool? ?? false;
-
-    final subtitle = connected
-        ? 'Connected — $ip'
-        : installed
-            ? 'Tap to connect'
-            : 'Not installed on device';
-
-    Widget? trailing;
-    if (connected) {
-      trailing = const Icon(Icons.check_circle_rounded,
-          color: AppColors.success, size: 20);
-    } else if (widget.isAdmin && installed) {
-      trailing = _loading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.primary),
-            )
-          : TextButton(
-              onPressed: _enable,
-              child: Text('Enable',
-                  style: GoogleFonts.dmSans(
-                      color: AppColors.primary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600)),
-            );
-    }
-
-    return ListTile(
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: (connected ? AppColors.success : AppColors.textSecondary)
-              .withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(Icons.vpn_lock_rounded,
-            color: connected ? AppColors.success : AppColors.textSecondary,
-            size: 18),
-      ),
-      title: Text('Remote Access',
-          style: GoogleFonts.dmSans(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle,
-          style: GoogleFonts.dmSans(
-              color: connected ? AppColors.success : AppColors.textSecondary,
-              fontSize: 12)),
-      trailing: trailing,
     );
   }
 }

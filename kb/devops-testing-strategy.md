@@ -84,7 +84,8 @@ def tmp_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "data_dir", tmp_path)
     monkeypatch.setattr(config.settings, "nas_root", tmp_path / "nas")
     (tmp_path / "nas" / "personal").mkdir(parents=True)
-    (tmp_path / "nas" / "shared").mkdir(parents=True)
+    (tmp_path / "nas" / "family").mkdir(parents=True)
+    (tmp_path / "nas" / "entertainment").mkdir(parents=True)
     return tmp_path
 
 @pytest.fixture()
@@ -139,7 +140,7 @@ def test_accepts_valid_subpath():
     assert str(result).startswith(str(config.settings.nas_root))
 
 def test_accepts_nested_subpath():
-    result = safe_resolve("shared/photos/2026/img.jpg")
+    result = safe_resolve("family/photos/2026/img.jpg")
     assert result is not None
 ```
 
@@ -367,7 +368,7 @@ Release: ___________  Tester: ___________  Date: ___________  Hardware: ________
 
 ### Storage Management
 [ ] Hot-plug USB drive: detected by scan within 10 seconds
-[ ] Format → Mount → verify personal/ and shared/ created on device
+[ ] Format → Mount → verify personal/, family/, and entertainment/ created on device
 [ ] Unmount with open file handle: returns 409 with blockers list
 [ ] Safe eject: USB power cut confirmed (dmesg shows device removal)
 [ ] Unplug USB mid-read (file download): backend returns error, does not crash

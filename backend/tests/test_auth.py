@@ -499,3 +499,66 @@ async def test_migrate_plaintext_pins(client: AsyncClient):
     # Running migration again on already-hashed PINs must migrate 0
     second_run = await migrate_plaintext_pins()
     assert second_run == 0, "Second run should find nothing to migrate"
+
+
+@pytest.mark.asyncio
+async def test_list_user_names_response_format(client: AsyncClient):
+    """
+    TASK-013: GET /auth/users/names returns {users: [{name, has_pin, icon_emoji}]}
+    and has_pin correctly reflects whether a PIN is set.
+    This endpoint is intentionally public (no auth required).
+    """
+    # Create first user with a PIN and icon_emoji — becomes admin, no auth needed
+    resp = await client.post(
+        "/api/v1/users",
+        json={"name": "pinned_user", "pin": "1234", "icon_emoji": "🏠"},
+    )
+    assert resp.status_code in (200, 201), f"User creation failed: {resp.text}"
+
+    # Login as the first user to get an admin token for the second creation
+    resp = await client.post("/api/v1/auth/login", json={"name": "pinned_user", "pin": "1234"})
+    assert resp.status_code == 200, f"Login failed: {resp.text}"
+    admin_token = resp.json()["accessToken"]
+
+    # Create a second user without a PIN — requires auth since first user exists
+    resp = await client.post(
+        "/api/v1/users",
+        json={"name": "no_pin_user"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code in (200, 201), f"Pinless user creation failed: {resp.text}"
+
+    # Call the public endpoint — no Authorization header needed
+    resp = await client.get("/api/v1/auth/users/names")
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+    data = resp.json()
+    assert "users" in data, f"Response must have 'users' key, got: {data}"
+    assert isinstance(data["users"], list), "'users' must be a list"
+    assert len(data["users"]) >= 2, "Should contain at least the two created users"
+
+    # Verify each entry has the required fields with correct types
+    for entry in data["users"]:
+        assert "name" in entry, f"Missing 'name' in entry: {entry}"
+        assert "has_pin" in entry, f"Missing 'has_pin' in entry: {entry}"
+        assert "icon_emoji" in entry, f"Missing 'icon_emoji' in entry: {entry}"
+        assert isinstance(entry["name"], str)
+        assert isinstance(entry["has_pin"], bool)
+        assert isinstance(entry["icon_emoji"], str)
+
+    # Verify has_pin is True for the user with a PIN
+    pinned = next((u for u in data["users"] if u["name"] == "pinned_user"), None)
+    assert pinned is not None, "pinned_user not found in response"
+    assert pinned["has_pin"] is True, "User with PIN must have has_pin=True"
+    assert pinned["icon_emoji"] == "\U0001f3e0", "icon_emoji must round-trip correctly"
+
+    # Verify has_pin is False for the user without a PIN
+    no_pin = next((u for u in data["users"] if u["name"] == "no_pin_user"), None)
+    assert no_pin is not None, "no_pin_user not found in response"
+    assert no_pin["has_pin"] is False, "User without PIN must have has_pin=False"
+
+    # Verify no sensitive fields are leaked
+    for entry in data["users"]:
+        assert "pin" not in entry, "PIN hash must never be returned"
+        assert "id" not in entry, "Internal user ID must never be returned"
+        assert "is_admin" not in entry, "Admin flag must never be returned"

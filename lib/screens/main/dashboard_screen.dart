@@ -942,7 +942,7 @@ class _HeroStatusCard extends StatelessWidget {
             if (tempHigh) 'Temperature high',
           ].join('  ·  ');
 
-    final uptimePart = stats != null ? _uptime(stats.uptime) : '—';
+    final uptimePart = stats != null ? _formatUptime(stats.uptime) : '—';
     final tempPart = stats != null
         ? '${stats.tempCelsius.toStringAsFixed(0)}°C'
         : '—';
@@ -1022,14 +1022,15 @@ class _HeroStatusCard extends StatelessWidget {
     ).animate().fadeIn(duration: 500.ms);
   }
 
-  String _uptime(Duration d) {
-    final days = d.inDays;
-    final hrs = d.inHours.remainder(24);
-    final mins = d.inMinutes.remainder(60);
-    if (days > 0) return '${days}d ${hrs}h';
-    if (hrs > 0) return '${hrs}h ${mins}m';
-    return '${mins}m';
-  }
+}
+
+String _formatUptime(Duration d) {
+  final days = d.inDays;
+  final hrs = d.inHours.remainder(24);
+  final mins = d.inMinutes.remainder(60);
+  if (days > 0) return '${days}d ${hrs}h';
+  if (hrs > 0) return '${hrs}h ${mins}m';
+  return '${mins}m';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1075,7 +1076,7 @@ class _SystemCompactCard extends StatelessWidget {
                       '${stats.tempCelsius.toStringAsFixed(0)}°C', tempOk),
                   _sep(),
                   TextSpan(
-                    text: _uptime(stats.uptime),
+                    text: _formatUptime(stats.uptime),
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary, fontSize: 13),
                   ),
@@ -1105,13 +1106,4 @@ class _SystemCompactCard extends StatelessWidget {
         text: '  ·  ',
         style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13),
       );
-
-  String _uptime(Duration d) {
-    final days = d.inDays;
-    final hrs = d.inHours.remainder(24);
-    final mins = d.inMinutes.remainder(60);
-    if (days > 0) return '${days}d ${hrs}h';
-    if (hrs > 0) return '${hrs}h ${mins}m';
-    return '${mins}m';
-  }
 }

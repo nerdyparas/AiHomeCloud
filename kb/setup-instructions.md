@@ -42,7 +42,7 @@ sudo useradd -r -m -s /bin/bash cubie 2>/dev/null || true
 
 ```bash
 # NAS mount point + default folders
-sudo mkdir -p /srv/nas/personal /srv/nas/shared
+sudo mkdir -p /srv/nas/personal /srv/nas/family /srv/nas/entertainment
 
 # Backend persistent data directory
 sudo mkdir -p /var/lib/cubie/tls
@@ -371,7 +371,8 @@ curl -k https://<cubie-ip>:8443/api/v1/system/info \
 
 /srv/nas/                        # NAS mount point (external storage)
 ├── personal/{username}/         # Per-user private folders
-└── shared/                      # Family shared folder
+├── family/                      # Family shared folder
+└── entertainment/               # Entertainment media (Music, Videos, etc.)
 ```
 
 ## Troubleshooting

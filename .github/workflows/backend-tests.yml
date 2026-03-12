@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - 'backend/**'
+      - 'scripts/**'
       - '.github/workflows/backend-tests.yml'
   pull_request:
     paths:
       - 'backend/**'
+      - 'scripts/**'
 
 jobs:
   backend-tests:
@@ -39,6 +41,9 @@ jobs:
 
       - name: Run pip-audit
         run: pip-audit --requirement backend/requirements.txt
+
+      - name: Check shell script syntax
+        run: bash -n scripts/first-boot-setup.sh
 
       - name: Run backend tests
         working-directory: backend

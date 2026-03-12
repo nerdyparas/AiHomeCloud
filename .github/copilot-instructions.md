@@ -1,4 +1,4 @@
-# Copilot Instructions — CubieCloud
+# Copilot Instructions — AiHomeCloud
 
 > **This is the single source of truth for AI-assisted development.**
 > GitHub Copilot loads this file automatically. Keep it accurate.
@@ -8,20 +8,20 @@
 
 ## Project Overview
 
-CubieCloud is a **personal home NAS appliance** built on the **Radxa Cubie A7Z** (ARM, 8 GB RAM). It consists of:
+AiHomeCloud is a **personal home NAS appliance** built on the **Radxa Cubie A7Z** (ARM, 8 GB RAM). It consists of:
 
 - **Flutter app** (`lib/`) — Android mobile client (Dart, Riverpod, GoRouter)
 - **FastAPI backend** (`backend/`) — Python server running on the Cubie hardware
 
 The app pairs with the Cubie over the local network, authenticates via JWT, and provides file management, system monitoring, family user management, and NAS service control.
 
-**Current status:** Milestones 1–8 complete. See `tasks.md` for open work.
+**Current status:** Milestones 1–8 complete. See `TASKSv2.md` for open work.
 
 ---
 
 ## Quick Start — How to Work on This Project
 
-1. **Read `tasks.md`** — current priorities and in-progress work
+1. **Read `TASKSv2.md`** — current priorities and in-progress work
 2. **Read `logs.md`** — recent decisions, context, timestamps
 3. **Browse `kb/`** — deep-dive architecture docs (see index below)
 4. **Always edit both backend AND frontend** when adding a new API endpoint
@@ -29,7 +29,7 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 6. **Run validation** before considering any change done:
    - Backend: `cd backend && python -m pytest tests/ -q`
    - Flutter: `flutter analyze && flutter test`
-7. **Keep changes focused** — one feature per set of edits, update `tasks.md` after
+7. **Keep changes focused** — one feature per set of edits, update `TASKSv2.md` after
 
 ---
 
@@ -59,7 +59,7 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 |---|---|---|
 | Entry point | `lib/main.dart` | App bootstrap, SharedPreferences init |
 | Constants | `lib/core/constants.dart` | Ports, BLE UUIDs, pref keys, NAS paths, API version |
-| Theme | `lib/core/theme.dart` | Dark theme — `CubieColors` / `CubieTheme` |
+| Theme | `lib/core/theme.dart` | Dark theme — `AppColors` / `AppTheme` |
 | Error utils | `lib/core/error_utils.dart` | `friendlyError()` — converts raw exceptions to user-readable text |
 | Models | `lib/models/` | Split by domain: `models.dart`, `device_models.dart`, `file_models.dart`, `storage_models.dart`, `service_models.dart`, `user_models.dart`, `notification_models.dart` |
 | API Service | `lib/services/api_service.dart` | HTTP + WebSocket client, singleton, 10s timeout |
@@ -68,10 +68,10 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 | Network scan | `lib/services/network_scanner.dart` | Local subnet IP scanner for first-time setup |
 | Providers | `lib/providers.dart` | Riverpod providers (state, future, stream, notifiers) |
 | Router | `lib/navigation/app_router.dart` | GoRouter with onboarding + main shell routes |
-| Shell | `lib/navigation/main_shell.dart` | Bottom nav (5 tabs) + disconnected banner |
-| Screens | `lib/screens/main/` | Dashboard, MyFolder, SharedFolder, Family, Settings, StorageExplorer, FilePreview, FolderView |
+| Shell | `lib/navigation/main_shell.dart` | Bottom nav (3 tabs: Home, Files, More) + disconnected banner |
+| Screens | `lib/screens/main/` | Dashboard, Files, More, Family, StorageExplorer, FilePreview, FolderView, TelegramSetup |
 | Screens | `lib/screens/onboarding/` | Splash, Welcome, QrScan, Discovery, NetworkScan, SetupComplete |
-| Widgets | `lib/widgets/` | Reusable: `CubieCard`, `StatTile`, `StorageDonutChart`, `FileListTile`, `FolderView`, `NotificationListener` |
+| Widgets | `lib/widgets/` | Reusable: `AppCard`, `StatTile`, `StorageDonutChart`, `FileListTile`, `FolderView`, `NotificationListener`, `EmojiPickerGrid`, `UserAvatar` |
 | Localization | `lib/l10n/` | ARB-based, 145+ strings, English |
 
 ---
@@ -97,7 +97,7 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 - **State management:** Riverpod (`StateProvider`, `FutureProvider`, `StreamProvider`, `StateNotifier`)
 - **Routing:** GoRouter with `ShellRoute` for bottom nav
 - **Fonts:** Google Fonts — Sora (headings), DM Sans (body)
-- **Theme:** Custom dark theme in `CubieColors` / `CubieTheme`
+- **Theme:** Custom dark theme in `AppColors` / `AppTheme`
 - **API calls:** All go through `ApiService` singleton with `.timeout(_timeout)`
 - **File naming:** `snake_case` for files, `PascalCase` for classes
 - **Widget pattern:** Prefer `ConsumerWidget` / `ConsumerStatefulWidget`
@@ -239,7 +239,7 @@ The app pairs with the Cubie over the local network, authenticates via JWT, and 
 
 When making significant changes to the codebase:
 
-1. **Update `tasks.md`** — mark completed tasks, add new ones
+1. **Update `TASKSv2.md`** — mark completed tasks, add new ones
 2. **Append to `logs.md`** — date-stamped entry with what changed and why
 3. **Update `kb/api-contracts.md`** — if API endpoints/models change
 4. **Update this file** — if architecture, file structure, or conventions change

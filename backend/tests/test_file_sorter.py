@@ -217,3 +217,70 @@ async def test_add_user_creates_standard_folders(client):
     personal_dir = settings.personal_path / "testuser"
     for folder in ("Photos", "Videos", "Documents", "Others", ".inbox"):
         assert (personal_dir / folder).is_dir(), f"Missing folder: {folder}"
+
+
+# ─── Entertainment sort rules (TASK-015) ────────────────────────────────────────────
+
+def test_entertainment_sort_rules_maps_video_extensions(tmp_path: Path):
+    """TASK-015: ENTERTAINMENT_SORT_RULES maps common video extensions to Movies."""
+    from app.file_sorter import ENTERTAINMENT_SORT_RULES
+    for ext in (".mp4", ".mkv", ".avi", ".mov"):
+        assert ENTERTAINMENT_SORT_RULES.get(ext) == "Movies", (
+            f"{ext} should route to Movies, got {ENTERTAINMENT_SORT_RULES.get(ext)}"
+        )
+
+
+def test_entertainment_sort_rules_maps_audio_extensions(tmp_path: Path):
+    """TASK-015: ENTERTAINMENT_SORT_RULES maps common audio extensions to Music."""
+    from app.file_sorter import ENTERTAINMENT_SORT_RULES
+    for ext in (".mp3", ".flac", ".aac", ".m4a"):
+        assert ENTERTAINMENT_SORT_RULES.get(ext) == "Music", (
+            f"{ext} should route to Music, got {ENTERTAINMENT_SORT_RULES.get(ext)}"
+        )
+
+
+def test_destination_folder_uses_entertainment_rules_when_base_is_entertainment(tmp_path: Path, monkeypatch):
+    """TASK-015: _destination_folder returns entertainment sub-folder when base_dir is entertainment_path."""
+    from app import file_sorter, config
+    # Patch the real stored field; computed @property entertainment_path derives from it
+    monkeypatch.setattr(config.settings, "nas_root", tmp_path)
+    entertainment_dir = config.settings.entertainment_path  # tmp_path / "entertainment"
+    entertainment_dir.mkdir(parents=True, exist_ok=True)
+
+    for name, expected in [
+        ("movie.mp4", "Movies"),
+        ("song.mp3", "Music"),
+        ("episode.ts", "Series"),
+        ("data.xyz", "Others"),
+    ]:
+        f = tmp_path / name
+        f.write_bytes(b"fake")
+        assert file_sorter._destination_folder(f, base_dir=entertainment_dir) == expected, name
+
+
+def test_collect_inboxes_includes_entertainment_inbox(tmp_path: Path, monkeypatch):
+    """TASK-015: _collect_inboxes() discovers entertainment/.inbox/ alongside personal inboxes."""
+    from app import file_sorter, config
+
+    # Patch nas_root so all computed @property paths resolve under tmp_path
+    monkeypatch.setattr(config.settings, "nas_root", tmp_path)
+
+    user_inbox = config.settings.personal_path / "alice" / ".inbox"
+    family_inbox = config.settings.family_path / ".inbox"
+    entertainment_inbox = config.settings.entertainment_path / ".inbox"
+
+    for d in (user_inbox, family_inbox, entertainment_inbox):
+        d.mkdir(parents=True)
+
+    inboxes = file_sorter._collect_inboxes()
+    inbox_dirs = [str(inbox) for inbox, _ in inboxes]
+
+    assert str(entertainment_inbox) in inbox_dirs, (
+        f"entertainment/.inbox/ not found in collected inboxes: {inbox_dirs}"
+    )
+    assert str(family_inbox) in inbox_dirs, (
+        f"family/.inbox/ not found in collected inboxes: {inbox_dirs}"
+    )
+    assert str(user_inbox) in inbox_dirs, (
+        f"personal/alice/.inbox/ not found in collected inboxes: {inbox_dirs}"
+    )

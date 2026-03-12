@@ -1,5 +1,6 @@
 # AI context (prompt + tasks — gitignored)
 .ai-context/
+logs.md
 
 # Miscellaneous
 *.class

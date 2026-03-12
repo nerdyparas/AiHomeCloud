@@ -8,7 +8,8 @@ Storage is treated as a single monolithic partition at `/srv/nas`. The backend u
 /srv/nas/              ← NAS root (currently on SD card)
 ├── personal/          ← per-user folders (personal/<username>/)
 │   └── paras/
-└── shared/            ← shared family folder
+├── family/            ← shared family folder
+└── entertainment/     ← media files (Music, Videos, etc.)
 ```
 
 **Problem:** SD card is small, has OS on it, and is not meant for bulk NAS data.
@@ -30,7 +31,8 @@ External Storage (USB or NVMe):
     ├── personal/
     │   ├── paras/
     │   └── kid1/
-    └── shared/
+    ├── family/
+    └── entertainment/
 ```
 
 ### Storage Device Types
@@ -74,7 +76,7 @@ App shows: "USB Drive 64GB — ext4 — Not mounted"
         │
         └── [Mount as NAS] → POST /api/v1/storage/mount {device}
                               mount /dev/sda1 /srv/nas
-                              creates personal/ + shared/ dirs
+                              creates personal/ + family/ + entertainment/ dirs
                               updates config
         │
         ▼
