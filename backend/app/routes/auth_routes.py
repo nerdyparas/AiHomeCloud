@@ -223,10 +223,20 @@ async def create_user(
         is_admin=is_admin,
         icon_emoji=body.icon_emoji.strip(),
     )
+
+    # Auto-login: return tokens immediately so the client needs only one request.
+    access_token = create_token(
+        subject=user["id"],
+        extra={"type": "user", "is_admin": is_admin},
+    )
+    refresh_token_str, _jti, _exp = await create_refresh_token(user["id"])
+
     return {
         "id": user["id"],
         "name": user["name"],
         "isAdmin": user.get("is_admin", False),
+        "accessToken": access_token,
+        "refreshToken": refresh_token_str,
     }
 
 

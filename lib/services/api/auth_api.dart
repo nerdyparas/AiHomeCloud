@@ -46,8 +46,10 @@ extension AuthApi on ApiService {
     return data['token'] as String;
   }
 
-  /// POST /api/v1/users  body: {name, pin}
-  Future<void> createUser(
+  /// POST /api/v1/users  body: {name, pin, icon_emoji}
+  /// Returns the created user plus auto-login tokens {id, name, isAdmin,
+  /// accessToken, refreshToken} so the caller avoids a second login request.
+  Future<Map<String, dynamic>> createUser(
     String name,
     String? pin, {
     String? hostOverride,
@@ -73,6 +75,7 @@ extension AuthApi on ApiService {
           .timeout(ApiService._timeout),
     );
     _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   /// POST /api/v1/auth/logout

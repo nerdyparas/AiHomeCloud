@@ -19,14 +19,28 @@ import '../screens/onboarding/pin_entry_screen.dart';
 import '../screens/onboarding/profile_creation_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
 import '../providers.dart';
+import '../services/auth_session.dart';
 import 'main_shell.dart';
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authSession = ref.watch(authSessionProvider);
+/// Lightweight ChangeNotifier used to trigger GoRouter redirect re-evaluation
+/// when auth state changes — without recreating the entire router.
+class _RouterRefresher extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
 
-  return GoRouter(
+final routerProvider = Provider<GoRouter>((ref) {
+  final refresher = _RouterRefresher();
+
+  // Re-run GoRouter's redirect whenever auth state changes.
+  // This avoids the bug where watching auth state recreates the GoRouter,
+  // resetting the navigation stack to '/' and causing a loading loop.
+  ref.listen<AuthSession?>(authSessionProvider, (_, __) => refresher.refresh());
+
+  final router = GoRouter(
     initialLocation: '/',
+    refreshListenable: refresher,
     redirect: (_, state) {
+      final authSession = ref.read(authSessionProvider);
       final loc = state.matchedLocation;
       final onOnboarding = loc == '/' ||
           loc == '/scan-network' ||
@@ -155,4 +169,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  ref.onDispose(router.dispose);
+  ref.onDispose(refresher.dispose);
+  return router;
 });

@@ -55,17 +55,12 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen> {
     try {
       final pin = _pinCtrl.text.trim();
 
-      await ref.read(apiServiceProvider).createUser(
+      // createUser auto-logs in and returns tokens — no second request needed.
+      final result = await ref.read(apiServiceProvider).createUser(
             name,
             pin.isNotEmpty ? pin : null,
             hostOverride: widget.deviceIp,
             iconEmoji: _selectedEmoji,
-          );
-
-      final result = await ref.read(apiServiceProvider).loginWithPin(
-            widget.deviceIp,
-            name,
-            pin,
           );
 
       await ref.read(authSessionProvider.notifier).login(
@@ -74,7 +69,7 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen> {
             token: result['accessToken'] as String,
             refreshToken: result['refreshToken'] as String?,
             username: name,
-            isAdmin: true,
+            isAdmin: result['isAdmin'] as bool? ?? false,
           );
 
       if (!mounted) return;
@@ -86,10 +81,11 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = friendlyError(e);
-          _saving = false;
-        });
+        setState(() => _error = friendlyError(e));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
       }
     }
   }
