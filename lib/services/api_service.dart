@@ -45,14 +45,6 @@ class ApiService {
   late final HttpClient _httpClient;
   late final http.Client _client;
 
-  /// The currently active connection mode (LAN or Remote).
-  final ConnectionMode _connectionMode = ConnectionMode.lan;
-  ConnectionMode get connectionMode => _connectionMode;
-
-  /// Tailscale IP stored here after a successful `tailscale-up` call.
-  String? _tailscaleIp;
-  void setTailscaleIp(String? ip) => _tailscaleIp = ip;
-
   /// Initialize TLS HTTP client. By default trusts any cert until a fingerprint
   /// is set via `setTrustedFingerprint`.
   void _initHttpClient() {
@@ -150,10 +142,6 @@ class ApiService {
     final port = _session?.port ?? AppConstants.apiPort;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
-    }
-    // When in remote mode, use the Tailscale IP if available.
-    if (_connectionMode == ConnectionMode.remote && _tailscaleIp != null) {
-      return 'https://$_tailscaleIp:$port';
     }
     return 'https://$host:$port';
   }
