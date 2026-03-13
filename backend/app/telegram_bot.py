@@ -20,7 +20,6 @@ import asyncio
 from contextlib import suppress
 from datetime import datetime
 import logging
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -165,12 +164,12 @@ def _format_avg_speed(num_bytes: int, elapsed_seconds: float) -> str:
     return f"{_human_size(int(num_bytes / elapsed_seconds))}/s"
 
 
-async def _safe_edit_text(message, text: str) -> None:
+async def _safe_edit_text(message, text: str, parse_mode: str = "HTML") -> None:
     """Best-effort edit for status messages (ignore edit failures)."""
     if message is None:
         return
     try:
-        await message.edit_text(text)
+        await message.edit_text(text, parse_mode=parse_mode)
     except Exception:
         return
 
@@ -184,12 +183,12 @@ async def _upload_progress_heartbeat(message, filename: str, size_text: str, tar
         await _safe_edit_text(
             message,
             (
-                "📥 Download in progress...\n"
-                f"File: {filename}\n"
-                f"Target: {target_label}\n"
-                f"Size: {size_text}\n"
-                f"Elapsed: {elapsed}\n\n"
-                "If network is slow, this can take a while."
+                f"📥 <b>Downloading…</b>\n\n"
+                f"📄 <code>{filename}</code>\n"
+                f"📦 {size_text}\n"
+                f"📂 {target_label}\n"
+                f"⏱ {elapsed}\n\n"
+                "<i>Large files can take a few minutes.</i>"
             ),
         )
 
@@ -236,15 +235,26 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
     return dest_path
 
 
-def _pending_upload_prompt(filename: str) -> str:
-    return (
-        f"Received: {filename}\n\n"
-        "Choose where to save:\n"
-        "1. My personal folder\n"
-        "2. Family shared folder\n"
-        "3. Entertainment\n\n"
-        "Reply with 1, 2, or 3."
-    )
+def _file_type_emoji(kind: str) -> str:
+    """Return an emoji for a given file kind."""
+    return {
+        "document": "📄",
+        "video":    "🎬",
+        "audio":    "🎵",
+        "photo":    "🖼",
+        "voice":    "🎙",
+    }.get(kind, "📁")
+
+
+def _make_destination_keyboard(chat_id: int):
+    """Return a 4-button inline keyboard for upload destination choice."""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("👤  My Folder",        callback_data=f"dest:{chat_id}:1")],
+        [InlineKeyboardButton("👨\u200d👩\u200d👧  Family Shared",   callback_data=f"dest:{chat_id}:2")],
+        [InlineKeyboardButton("🎬  Entertainment",   callback_data=f"dest:{chat_id}:3")],
+        [InlineKeyboardButton("❌  Cancel",            callback_data=f"dest:{chat_id}:cancel")],
+    ])
 
 
 async def _handle_media_message(update, context) -> None:  # type: ignore[type-arg]
@@ -307,56 +317,108 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
         )
 
     if pending is None:
-        await update.message.reply_text("Unsupported file type. Send a document, photo, video, or audio.")
+        await update.message.reply_text(
+            "⚠️ <i>Unsupported file type.</i>\n\nSend a document, photo, video, or audio.",
+            parse_mode="HTML",
+        )
         return
 
     _pending_uploads[chat_id] = pending
 
-    await update.message.reply_text(_pending_upload_prompt(pending.filename))
+    emoji = _file_type_emoji(pending.kind)
+    size_text = _human_size(pending.file_size) if pending.file_size else "unknown size"
+    await update.message.reply_text(
+        f"{emoji} <b>{pending.filename}</b>\n"
+        f"<i>{size_text}</i>\n\n"
+        "Where would you like to save this?",
+        parse_mode="HTML",
+        reply_markup=_make_destination_keyboard(chat_id),
+    )
 
 
-async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  # type: ignore[type-arg]
-    chat_id = update.effective_chat.id
+async def _handle_destination_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Handle inline keyboard taps for upload destination."""
+    query = update.callback_query
+    await query.answer()  # dismiss loading spinner on button
+
+    data = query.data or ""
+    # Format: "dest:{chat_id}:{choice}"
+    parts = data.split(":")
+    if len(parts) != 3 or parts[0] != "dest":
+        return
+
+    chat_id = int(parts[1])
+    choice = parts[2]
+
+    if choice == "cancel":
+        _pending_uploads.pop(chat_id, None)
+        await query.edit_message_text(
+            "\u274c Upload cancelled.",
+            parse_mode="HTML",
+        )
+        return
+
+    if choice not in {"1", "2", "3"}:
+        return
+
+    # Remove the keyboard so buttons can't be tapped twice
+    await query.edit_message_reply_markup(reply_markup=None)
+
     pending = _pending_uploads.get(chat_id)
     if pending is None:
-        return False
+        await query.edit_message_text(
+            "⚠️ <i>No pending upload found. Please resend the file.</i>",
+            parse_mode="HTML",
+        )
+        return
 
+    await _process_upload_choice(query, context, chat_id, choice, pending)
+
+
+async def _process_upload_choice(
+    source,
+    context,
+    chat_id: int,
+    choice: str,
+    pending: PendingUpload,
+) -> None:
+    """Process an upload destination choice from either a callback query or text message."""
     from .config import settings
 
-    owner_hint = update.effective_user.username or update.effective_user.first_name or ""
+    owner_hint = ""
+    if hasattr(source, "effective_user") and source.effective_user:
+        owner_hint = source.effective_user.username or source.effective_user.first_name or ""
+    elif hasattr(source, "from_user") and source.from_user:
+        owner_hint = source.from_user.username or source.from_user.first_name or ""
+
     owner = await _resolve_personal_owner(chat_id, owner_hint)
 
-    # Map choice → destination label
-    dest_map = {
-        "1": ("private", f"private personal ({owner})"),
-        "2": ("shared", "family"),
-        "3": ("entertainment", "entertainment"),
+    dest_labels = {
+        "1": f"\U0001f464 My Folder ({owner})",
+        "2": "\U0001f468\u200d\U0001f469\u200d\U0001f467 Family Shared",
+        "3": "\U0001f3ac Entertainment",
     }
-    if choice not in dest_map:
-        await update.message.reply_text("Reply with 1, 2, or 3.")
-        return True
+    target_label = dest_labels[choice]
+    emoji = _file_type_emoji(pending.kind)
+    size_text = _human_size(pending.file_size) if pending.file_size else "unknown size"
 
-    _, target_label = dest_map[choice]
-
-    # ── Download file directly on SBC ──
-    # If the bot is connected to the local API server (telegram_local_api_enabled=True),
-    # files up to 2GB are downloaded directly. If the local API server is not enabled,
-    # files over 20MB will fail here — the user is told to enable it in settings.
-    size_mb = round(pending.file_size / (1024 * 1024), 1) if pending.file_size else 0
-    size_text = _human_size(pending.file_size)
     loop = asyncio.get_running_loop()
     started_at = loop.time()
-    status_message = await update.message.reply_text(
-        (
-            "📥 Download started\n"
-            f"File: {pending.filename}\n"
-            f"Target: {target_label}\n"
-            f"Size: {size_text}\n"
-            "Elapsed: 0s"
-        )
+
+    status_message = await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            f"\U0001f4e5 <b>Downloading\u2026</b>\n\n"
+            f"{emoji} <code>{pending.filename}</code>\n"
+            f"\U0001f4e6 {size_text}\n"
+            f"\U0001f4c2 {target_label}\n"
+            f"\u23f1 Just started"
+        ),
+        parse_mode="HTML",
     )
 
     progress_task = None
+    size_mb = pending.file_size / (1024 * 1024) if pending.file_size else 0
     if size_mb >= 5:
         progress_task = asyncio.create_task(
             _upload_progress_heartbeat(
@@ -381,78 +443,63 @@ async def _handle_pending_upload_choice(update, context, choice: str) -> bool:  
         _pending_uploads.pop(chat_id, None)
         actual_bytes = dest.stat().st_size
         elapsed_seconds = loop.time() - started_at
+
         await _safe_edit_text(
             status_message,
             (
-                "✅ Download complete\n"
-                f"File: {dest.name}\n"
-                f"Target: {target_label}\n"
-                f"Size: {_human_size(actual_bytes)}\n"
-                f"Elapsed: {_format_elapsed(elapsed_seconds)}\n"
-                f"Average speed: {_format_avg_speed(actual_bytes, elapsed_seconds)}"
+                f"\u2705 <b>Saved</b>\n\n"
+                f"{emoji} <code>{dest.name}</code>\n"
+                f"\U0001f4c2 {target_label}\n"
+                f"\U0001f4e6 {_human_size(actual_bytes)}\n"
+                f"\u26a1 {_format_avg_speed(actual_bytes, elapsed_seconds)}  "
+                f"\u23f1 {_format_elapsed(elapsed_seconds)}"
             ),
-        )
-        await update.message.reply_text(
-            (
-                f"✅ Saved to {target_label}: {dest.name}\n"
-                f"Summary: {_human_size(actual_bytes)} in {_format_elapsed(elapsed_seconds)} "
-                f"({_format_avg_speed(actual_bytes, elapsed_seconds)})"
-            )
         )
 
     except Exception as exc:
         logger.warning(
-            "telegram_upload_store_failed chat_id=%s file=%s error=%s",
+            "telegram_upload_failed chat_id=%s file=%s error=%s",
             chat_id, pending.filename, exc,
         )
         elapsed_seconds = loop.time() - started_at
+        elapsed_text = _format_elapsed(elapsed_seconds)
+
         if _is_too_large_telegram_file_error(exc):
             await _safe_edit_text(
                 status_message,
                 (
-                    "⚠️ Download failed\n"
-                    f"File: {pending.filename}\n"
-                    f"Elapsed: {_format_elapsed(elapsed_seconds)}\n"
-                    "Reason: file is too large for standard bot download."
+                    f"\u26a0\ufe0f <b>File too large</b>\n\n"
+                    f"{emoji} <code>{pending.filename}</code>\n"
+                    f"\u23f1 Failed after {elapsed_text}\n\n"
+                    "Ask your admin to enable <b>Large File mode</b> in AiHomeCloud:\n"
+                    "<i>More \u2192 Telegram Bot \u2192 Large file mode (up to 2 GB)</i>"
                 ),
-            )
-            await update.message.reply_text(
-                f"⚠️ {pending.filename} is too large for standard bot download.\n\n"
-                "Ask your admin to enable Large File mode in the AiHomeCloud app:\n"
-                "More → Telegram Bot → Large file mode (up to 2 GB)"
             )
         elif _is_timeout_error(exc):
             await _safe_edit_text(
                 status_message,
                 (
-                    "⚠️ Download timed out\n"
-                    f"File: {pending.filename}\n"
-                    f"Elapsed: {_format_elapsed(elapsed_seconds)}\n"
-                    "Reason: network/API timeout while fetching file."
+                    f"\u23f1 <b>Download timed out</b>\n\n"
+                    f"{emoji} <code>{pending.filename}</code>\n"
+                    f"Failed after {elapsed_text}\n\n"
+                    "Network may be slow. Please try again."
                 ),
-            )
-            await update.message.reply_text(
-                "⚠️ Download timed out. Network may be slow or unstable.\n"
-                "Please retry. If this repeats, keep Large file mode enabled and check network speed/stability."
             )
         else:
             await _safe_edit_text(
                 status_message,
                 (
-                    "⚠️ Download failed\n"
-                    f"File: {pending.filename}\n"
-                    f"Elapsed: {_format_elapsed(elapsed_seconds)}"
+                    f"\u274c <b>Save failed</b>\n\n"
+                    f"{emoji} <code>{pending.filename}</code>\n"
+                    f"\u23f1 {elapsed_text}\n\n"
+                    "Please try again."
                 ),
-            )
-            await update.message.reply_text(
-                f"⚠️ Failed to save {pending.filename}. Please try again."
             )
     finally:
         if progress_task is not None:
             progress_task.cancel()
             with suppress(asyncio.CancelledError):
                 await progress_task
-    return True
 
 
 async def _is_allowed(chat_id: int) -> bool:
@@ -471,14 +518,18 @@ async def _handle_start(update, context) -> None:  # type: ignore[type-arg]
 
     if not await _is_allowed(chat_id):
         await update.message.reply_text(
-            f"👋 Hi {first_name}! This is a private AiHomeCloud.\n\n"
-            "Send /auth to link your Telegram account and get access."
+            f"👋 <b>Hi {first_name}!</b>\n\n"
+            "This is a private AiHomeCloud. Send /auth to link your account and get access.",
+            parse_mode="HTML",
         )
         return
 
     await update.message.reply_text(
-        f"👋 Welcome back, {first_name}!\n\n"
-        "Type anything to search your documents, or /help for all commands."
+        f"🏠 <b>Welcome back, {first_name}!</b>\n\n"
+        "Type anything to search your files.\n"
+        "Send a file to save it to your cloud.\n\n"
+        "Use /help to see all commands.",
+        parse_mode="HTML",
     )
 
 
@@ -491,12 +542,16 @@ async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
         requested_owner = text.split(" ", 1)[1].strip()
 
     if await _is_allowed(chat_id):
+        owner = await _get_chat_folder_owner(chat_id) or "admin"
         if requested_owner:
-            owner = await _resolve_personal_owner(chat_id, requested_owner)
-            await _set_chat_folder_owner(chat_id, owner)
+            new_owner = await _resolve_personal_owner(chat_id, requested_owner)
+            await _set_chat_folder_owner(chat_id, new_owner)
+            owner = new_owner
         await update.message.reply_text(
-            f"✅ You're already linked, {first_name}!\n"
-            "Type anything to search your files, or /list for recent documents."
+            f"✅ <b>Already linked, {first_name}</b>\n\n"
+            f"👤 Personal folder: <b>{owner}</b>\n\n"
+            "To switch folder: <code>/auth &lt;name&gt;</code>",
+            parse_mode="HTML",
         )
         return
 
@@ -504,13 +559,15 @@ async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
     owner = await _resolve_personal_owner(chat_id, requested_owner or first_name)
     await _set_chat_folder_owner(chat_id, owner)
     await update.message.reply_text(
-        f"✅ Linked! Welcome, {first_name}.\n\n"
+        f"✅ <b>Linked! Welcome, {first_name}.</b>\n\n"
+        f"👤 Personal folder: <b>{owner}</b>\n\n"
         "You can now:\n"
-        "• Type anything to search documents\n"
-        "• /list — see recent files\n"
-        "• Send a file to store it\n"
-        f"• Personal folder linked to: {owner}\n"
-        "• /help — show all commands"
+        "• Type anything to <b>search documents</b>\n"
+        "• Send a file to <b>save it to your cloud</b>\n"
+        "• /list — recent files\n"
+        "• /status — device health\n"
+        "• /help — all commands",
+        parse_mode="HTML",
     )
 
 
@@ -518,44 +575,61 @@ async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
         await update.message.reply_text(
-            "Send /auth first to link your account to AiHomeCloud."
+            "🔒 Send /auth first to link your account.",
+            parse_mode="HTML",
         )
         return
+
+    owner = await _get_chat_folder_owner(chat_id) or "admin"
     await update.message.reply_text(
-        "🏠 AiHomeCloud Bot\n\n"
-        "Commands:\n"
-        "• /list — last 10 documents\n"
+        "🏠 <b>AiHomeCloud Bot</b>\n\n"
+        "<b>Commands</b>\n"
+        "• /list — last 10 indexed documents\n"
+        "• /status — device health and storage\n"
+        "• /whoami — your linked profile\n"
+        "• /cancel — discard a pending file upload\n"
+        "• /unlink — disconnect this Telegram account\n"
         "• /help — this message\n\n"
-        "Search:\n"
-        "• Type any word to search your files\n"
+        "<b>Search</b>\n"
+        "• Type any word to search files\n"
         "• Reply with a number to receive that file\n\n"
-        "Upload:\n"
-        "• Send any file (up to 2 GB with Large File mode)\n"
-        "• Reply 1 = private, 2 = shared, 3 = entertainment\n"
-        "• The device saves it directly — no other steps needed\n\n"
-        "Examples: aadhaar, pan card, invoice, passport"
+        "<b>Upload</b>\n"
+        "• Send any file — tap where to save it\n"
+        "• Supports documents, photos, videos, audio\n"
+        f"• Files save to your <b>{owner}</b> folder by default\n\n"
+        "<i>Examples: aadhaar, pan card, invoice, passport</i>",
+        parse_mode="HTML",
     )
 
 
 async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
-        await update.message.reply_text(
-            "Send /auth first to link your account to AiHomeCloud."
-        )
+        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
         return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
     from .document_index import list_recent_documents
     docs = await list_recent_documents(limit=10)
     if not docs:
-        await update.message.reply_text("No documents indexed yet.")
+        await update.message.reply_text(
+            "📂 <i>No documents indexed yet.</i>\n\nSend a file to start building your library.",
+            parse_mode="HTML",
+        )
         return
 
     _last_results[chat_id] = docs
-    lines = [f"{i + 1}. {d['filename']} (by {d['added_by']})" for i, d in enumerate(docs)]
+    lines = []
+    for i, d in enumerate(docs, 1):
+        added_by = d.get("added_by", "?")
+        lines.append(f"{i}. <code>{d['filename']}</code>  <i>({added_by})</i>")
+
     await update.message.reply_text(
-        "📄 Recent documents:\n" + "\n".join(lines) +
-        "\n\nReply with a number to receive the file."
+        "📄 <b>Recent documents</b>\n\n"
+        + "\n".join(lines)
+        + "\n\n<i>Reply with a number to receive the file.</i>",
+        parse_mode="HTML",
     )
 
 
@@ -563,17 +637,12 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
         await update.message.reply_text(
-            "Send /auth first to link your account to AiHomeCloud."
+            "🔒 Send /auth first to link your account.",
+            parse_mode="HTML",
         )
         return
 
     text = (update.message.text or "").strip()
-
-    # Pending upload destination choice takes precedence over search result numbering.
-    if text in {"1", "2", "3"}:
-        handled = await _handle_pending_upload_choice(update, context, text)
-        if handled:
-            return
 
     # Numeric reply → send file from previous search / list
     if text.isdigit():
@@ -583,16 +652,23 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
             await _send_file(update, prev[idx])
         else:
             await update.message.reply_text(
-                "Invalid number. Search for something first or use /list."
+                "❓ <i>Invalid number.</i> Search for something first or use /list.",
+                parse_mode="HTML",
             )
         return
 
     # Full-text search (admin-scope — bot has unrestricted access to the index)
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
     from .document_index import search_documents
     results = await search_documents(query=text, limit=5, user_role="admin", username="")
 
     if not results:
-        await update.message.reply_text(f"🔍 No documents found for '{text}'.")
+        await update.message.reply_text(
+            f"🔍 <i>No documents found for</i> <b>{text}</b>.\n\n"
+            "Try a different word or /list to browse recent files.",
+            parse_mode="HTML",
+        )
         return
 
     if len(results) == 1:
@@ -602,10 +678,12 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
 
     # 2-5 results → numbered list
     _last_results[chat_id] = results
-    lines = [f"{i + 1}. {r['filename']}" for i, r in enumerate(results)]
+    lines = [f"{i + 1}. <code>{r['filename']}</code>" for i, r in enumerate(results)]
     await update.message.reply_text(
-        f"🔍 Found {len(results)} documents:\n" + "\n".join(lines) +
-        "\n\nReply with a number to receive the file."
+        f"🔍 <b>Found {len(results)} files</b>\n\n"
+        + "\n".join(lines)
+        + "\n\n<i>Reply with a number to receive the file.</i>",
+        parse_mode="HTML",
     )
 
 
@@ -616,13 +694,174 @@ async def _send_file(update, doc: dict) -> None:
     abs_path = settings.nas_root / nas_path.lstrip("/")
     p = Path(str(abs_path))
     if not p.exists() or not p.is_file():
-        # Self-heal stale search index entries when files were deleted out-of-band.
         if nas_path:
             await remove_document(nas_path)
-        await update.message.reply_text(f"⚠️ File not found: {doc.get('filename', '?')}")
+        await update.message.reply_text(
+            f"⚠️ <b>File not found</b>\n\n"
+            f"<code>{doc.get('filename', '?')}</code>\n\n"
+            "<i>It may have been moved or deleted. The index has been updated.</i>",
+            parse_mode="HTML",
+        )
         return
     with open(p, "rb") as fh:
         await update.message.reply_document(document=fh, filename=doc.get("filename", p.name))
+
+
+# ---------------------------------------------------------------------------
+# New commands: /status, /cancel, /whoami, /unlink
+# ---------------------------------------------------------------------------
+
+
+async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    try:
+        import psutil
+        import time as _time
+
+        cpu = psutil.cpu_percent(interval=0.3)
+        ram = psutil.virtual_memory()
+        ram_pct = round(ram.percent, 1)
+        ram_used_gb = round(ram.used / (1024 ** 3), 1)
+        ram_total_gb = round(ram.total / (1024 ** 3), 1)
+
+        # Uptime
+        boot_time = psutil.boot_time()
+        uptime_sec = int(_time.time() - boot_time)
+        hours, rem = divmod(uptime_sec, 3600)
+        minutes, _ = divmod(rem, 60)
+        if hours >= 24:
+            uptime_str = f"{hours // 24}d {hours % 24}h"
+        else:
+            uptime_str = f"{hours}h {minutes}m"
+
+        # Temperature
+        temp_str = "n/a"
+        try:
+            temps = psutil.sensors_temperatures()
+            if temps:
+                for key in ("cpu_thermal", "soc_thermal", "coretemp"):
+                    entries = temps.get(key, [])
+                    if entries:
+                        temp_str = f"{entries[0].current:.0f}\u00b0C"
+                        break
+        except Exception:
+            pass
+
+        # Storage
+        from .config import settings
+        try:
+            usage = psutil.disk_usage(str(settings.nas_root))
+            used_gb = round(usage.used / (1024 ** 3), 1)
+            total_gb_s = round(usage.total / (1024 ** 3), 1)
+            free_gb = round(usage.free / (1024 ** 3), 1)
+            pct = round(usage.used / usage.total * 100, 1)
+            storage_bar = _storage_bar(pct)
+            storage_str = f"{storage_bar}  {used_gb} / {total_gb_s} GB ({pct}%)"
+        except Exception:
+            storage_str = "unavailable"
+            free_gb = 0.0
+
+        # Health indicator
+        if cpu > 80 or ram_pct > 85:
+            health_icon, health_text = "🔴", "High load"
+        elif cpu > 50 or ram_pct > 70:
+            health_icon, health_text = "🟡", "Moderate"
+        else:
+            health_icon, health_text = "🟢", "Healthy"
+
+        await update.message.reply_text(
+            f"🖥 <b>AiHomeCloud Status</b>  {health_icon} {health_text}\n\n"
+            f"\u23f1 Uptime:  <b>{uptime_str}</b>\n"
+            f"\U0001f9e0 CPU:     <b>{cpu:.0f}%</b>\n"
+            f"\U0001f4be RAM:     <b>{ram_used_gb} / {ram_total_gb} GB</b>  ({ram_pct}%)\n"
+            f"\U0001f321 Temp:    <b>{temp_str}</b>\n\n"
+            f"\U0001f4bd Storage\n{storage_str}\n"
+            f"<i>{free_gb} GB free</i>",
+            parse_mode="HTML",
+        )
+
+    except Exception as exc:
+        logger.warning("telegram_status_error: %s", exc)
+        await update.message.reply_text(
+            "⚠️ <i>Could not read device status.</i>",
+            parse_mode="HTML",
+        )
+
+
+def _storage_bar(percent: float, width: int = 10) -> str:
+    """Return a text progress bar for storage, e.g. \u2593\u2593\u2593\u2593\u2593\u2591\u2591\u2591\u2591\u2591 50%."""
+    filled = round(percent / 100 * width)
+    bar = "\u2593" * filled + "\u2591" * (width - filled)
+    return bar
+
+
+async def _handle_cancel(update, context) -> None:  # type: ignore[type-arg]
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        return
+
+    had_pending = chat_id in _pending_uploads
+    _pending_uploads.pop(chat_id, None)
+    _last_results.pop(chat_id, None)
+
+    if had_pending:
+        await update.message.reply_text(
+            "\u274c <b>Upload cancelled.</b>\n\n<i>Send a new file whenever you're ready.</i>",
+            parse_mode="HTML",
+        )
+    else:
+        await update.message.reply_text(
+            "\u2705 <i>Nothing to cancel.</i>",
+            parse_mode="HTML",
+        )
+
+
+async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        return
+
+    owner = await _get_chat_folder_owner(chat_id) or "admin"
+    first_name = update.effective_user.first_name or "there"
+    tg_username = update.effective_user.username
+    tg_line = f"@{tg_username}" if tg_username else f"ID: {chat_id}"
+
+    await update.message.reply_text(
+        f"👤 <b>{first_name}</b>  ({tg_line})\n\n"
+        f"Personal folder: <b>{owner}</b>\n\n"
+        "<i>To switch folder: /auth &lt;name&gt;</i>",
+        parse_mode="HTML",
+    )
+
+
+async def _handle_unlink(update, context) -> None:  # type: ignore[type-arg]
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Not linked. Nothing to unlink.", parse_mode="HTML")
+        return
+
+    from .store import get_value, set_value
+    ids = await get_value("telegram_linked_ids", default=[])
+    ids = [i for i in ids if int(i) != chat_id]
+    await set_value("telegram_linked_ids", ids)
+
+    _pending_uploads.pop(chat_id, None)
+    _last_results.pop(chat_id, None)
+
+    await update.message.reply_text(
+        "🔓 <b>Account unlinked.</b>\n\n"
+        "<i>Your Telegram account has been removed from AiHomeCloud.\n"
+        "Send /auth to link again.</i>",
+        parse_mode="HTML",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -658,15 +897,14 @@ async def _trash_warning_loop() -> None:
 
             total_gb = total_bytes / (1024 ** 3)
             msg = (
-                f"\U0001f5d1 *Trash is getting full!*\n\n"
-                f"Total trash: *{total_gb:.1f} GB* (limit: 10 GB)\n\n"
-                f"Please clean up your trash to free up space.\n"
-                f"Open the CubieCloud app \u2192 Files \u2192 Trash."
+                f"🗑 <b>Trash is getting full</b>\n\n"
+                f"Total trash: <b>{total_gb:.1f} GB</b> (threshold: 10 GB)\n\n"
+                f"Open <b>AiHomeCloud</b> \u2192 Files \u2192 Trash to free up space."
             )
             for chat_id in linked_ids:
                 with suppress(Exception):
                     await _application.bot.send_message(
-                        chat_id=chat_id, text=msg, parse_mode="Markdown"
+                        chat_id=chat_id, text=msg, parse_mode="HTML"
                     )
 
             await _store.set_value("trash_warn_week", iso_week)
@@ -694,7 +932,10 @@ async def start_bot() -> None:
         return
 
     try:
-        from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+        from telegram.ext import (
+            ApplicationBuilder, CommandHandler, MessageHandler,
+            CallbackQueryHandler, filters,
+        )
     except ImportError:
         logger.warning("python-telegram-bot not installed — Telegram bot disabled")
         return
@@ -725,10 +966,14 @@ async def start_bot() -> None:
 
         _application = builder.build()
 
-        _application.add_handler(CommandHandler("start", _handle_start))
-        _application.add_handler(CommandHandler("auth", _handle_auth))
-        _application.add_handler(CommandHandler("help", _handle_help))
-        _application.add_handler(CommandHandler("list", _handle_list))
+        _application.add_handler(CommandHandler("start",  _handle_start))
+        _application.add_handler(CommandHandler("auth",   _handle_auth))
+        _application.add_handler(CommandHandler("help",   _handle_help))
+        _application.add_handler(CommandHandler("list",   _handle_list))
+        _application.add_handler(CommandHandler("status", _handle_status))
+        _application.add_handler(CommandHandler("cancel", _handle_cancel))
+        _application.add_handler(CommandHandler("whoami", _handle_whoami))
+        _application.add_handler(CommandHandler("unlink", _handle_unlink))
         _application.add_handler(
             MessageHandler(
                 filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO | filters.VOICE,
@@ -737,6 +982,9 @@ async def start_bot() -> None:
         )
         _application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, _handle_message)
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_destination_callback, pattern=r"^dest:")
         )
 
         await _application.initialize()

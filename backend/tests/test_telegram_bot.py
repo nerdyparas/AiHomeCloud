@@ -39,7 +39,11 @@ def _make_update(text: str = "", chat_id: int = 12345, first_name: str = "Test")
 
 
 def _make_context() -> MagicMock:
-    return MagicMock()
+    ctx = MagicMock()
+    ctx.bot.send_chat_action = AsyncMock()
+    ctx.bot.send_message = AsyncMock()
+    ctx.bot.get_file = AsyncMock()
+    return ctx
 
 
 # ---------------------------------------------------------------------------
@@ -389,9 +393,7 @@ async def test_handle_media_message_prompts_for_destination():
 
     assert 88 in tb._pending_uploads
     prompt = update.message.reply_text.call_args[0][0]
-    assert "1. My personal folder" in prompt
-    assert "2. Family shared folder" in prompt
-    assert "3. Entertainment" in prompt
+    assert "Where would you like to save" in prompt or "save" in prompt.lower()
 
 
 @pytest.mark.asyncio
@@ -415,61 +417,68 @@ async def test_handle_media_message_oversized_file_prompts_destination():
     # No size-warning text, just the destination prompt
     assert "too large" not in msg.lower()
     assert "upload link" not in msg.lower()
-    assert "1. My personal folder" in msg
+    assert "save" in msg.lower()
 
 
 @pytest.mark.asyncio
 async def test_handle_pending_upload_choice_private_completes(tmp_path):
     import app.telegram_bot as tb
     tb._pending_uploads.clear()
-    tb._pending_uploads[99] = tb.PendingUpload(
+    pending = tb.PendingUpload(
         file_id="doc-2",
         filename="license.pdf",
         kind="document",
     )
+    tb._pending_uploads[99] = pending
 
     update = _make_update(text="1", chat_id=99, first_name="Alice")
     context = _make_context()
+    status_msg = MagicMock()
+    status_msg.edit_text = AsyncMock()
+    context.bot.send_message = AsyncMock(return_value=status_msg)
+
     saved = tmp_path / "nas" / "personal" / "alice" / "Documents" / "license.pdf"
     saved.parent.mkdir(parents=True, exist_ok=True)
     saved.write_text("ok")
 
     with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
          patch("app.telegram_bot._store_private_or_shared_file", new=AsyncMock(return_value=saved)):
-        handled = await tb._handle_pending_upload_choice(update, context, "1")
+        await tb._process_upload_choice(update, context, 99, "1", pending)
 
-    assert handled is True
     assert 99 not in tb._pending_uploads
-    msg = update.message.reply_text.call_args[0][0]
-    assert "Saved to" in msg
-    assert "private personal" in msg
+    msg_text = status_msg.edit_text.call_args.args[0]
+    assert "Saved" in msg_text
 
 
 @pytest.mark.asyncio
 async def test_handle_pending_upload_choice_entertainment_completes(tmp_path):
     import app.telegram_bot as tb
     tb._pending_uploads.clear()
-    tb._pending_uploads[100] = tb.PendingUpload(
+    pending = tb.PendingUpload(
         file_id="vid-1",
         filename="fun.mp4",
         kind="video",
     )
+    tb._pending_uploads[100] = pending
 
     update = _make_update(text="3", chat_id=100, first_name="Alice")
     context = _make_context()
+    status_msg = MagicMock()
+    status_msg.edit_text = AsyncMock()
+    context.bot.send_message = AsyncMock(return_value=status_msg)
+
     saved = tmp_path / "nas" / "shared" / "Entertainment" / "fun.mp4"
     saved.parent.mkdir(parents=True, exist_ok=True)
     saved.write_text("ok")
 
     with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
          patch("app.telegram_bot._store_entertainment_file", new=AsyncMock(return_value=saved)):
-        handled = await tb._handle_pending_upload_choice(update, context, "3")
+        await tb._process_upload_choice(update, context, 100, "3", pending)
 
-    assert handled is True
     assert 100 not in tb._pending_uploads
-    msg = update.message.reply_text.call_args[0][0]
-    assert "Saved to" in msg
-    assert "entertainment" in msg
+    msg_text = status_msg.edit_text.call_args.args[0]
+    assert "Saved" in msg_text
+    assert "Entertainment" in msg_text
 
 
 @pytest.mark.asyncio
@@ -477,26 +486,29 @@ async def test_handle_pending_upload_choice_too_big_shows_specific_error():
     """When the bot API raises 'file is too big' at download time, a clear message is shown."""
     import app.telegram_bot as tb
     tb._pending_uploads.clear()
-    tb._pending_uploads[101] = tb.PendingUpload(
+    pending = tb.PendingUpload(
         file_id="vid-big",
         filename="huge.mp4",
         kind="video",
-        file_size=1000,  # small enough to skip upload-link path
+        file_size=1000,  # small enough to skip progress task
     )
+    tb._pending_uploads[101] = pending
 
     update = _make_update(text="3", chat_id=101, first_name="Alice")
     context = _make_context()
+    status_msg = MagicMock()
+    status_msg.edit_text = AsyncMock()
+    context.bot.send_message = AsyncMock(return_value=status_msg)
 
     with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
          patch("app.telegram_bot._store_entertainment_file", new=AsyncMock(side_effect=RuntimeError("File is too big"))):
-        handled = await tb._handle_pending_upload_choice(update, context, "3")
+        await tb._process_upload_choice(update, context, 101, "3", pending)
 
-    assert handled is True
     # Keep pending upload so user can retry with another option/file.
     assert 101 in tb._pending_uploads
-    msg = update.message.reply_text.call_args[0][0]
-    assert "too large" in msg.lower()
-    assert "telegram" in msg.lower()
+    msg_text = status_msg.edit_text.call_args.args[0]
+    assert "too large" in msg_text.lower()
+    assert "telegram" in msg_text.lower()
 
 
 @pytest.mark.asyncio
@@ -504,27 +516,30 @@ async def test_handle_pending_upload_choice_oversized_tells_user_to_enable_large
     """When Telegram API rejects a large file, user is told to enable Large File mode."""
     import app.telegram_bot as tb
     tb._pending_uploads.clear()
-    tb._pending_uploads[200] = tb.PendingUpload(
+    pending = tb.PendingUpload(
         file_id="vid-huge",
         filename="big_movie.mp4",
         kind="video",
         file_size=500 * 1024 * 1024,
     )
+    tb._pending_uploads[200] = pending
 
     update = _make_update(text="3", chat_id=200, first_name="Alice")
     context = _make_context()
+    status_msg = MagicMock()
+    status_msg.edit_text = AsyncMock()
+    context.bot.send_message = AsyncMock(return_value=status_msg)
 
     with patch("app.telegram_bot._resolve_personal_owner", new=AsyncMock(return_value="alice")), \
          patch("app.telegram_bot._store_entertainment_file",
                new=AsyncMock(side_effect=RuntimeError("File is too big"))):
-        handled = await tb._handle_pending_upload_choice(update, context, "3")
+        await tb._process_upload_choice(update, context, 200, "3", pending)
 
-    assert handled is True
     assert 200 in tb._pending_uploads  # kept so user can retry
-    msg = update.message.reply_text.call_args[0][0]
-    assert "Large file mode" in msg
-    assert "upload link" not in msg.lower()
-    assert "phone" not in msg.lower()
+    msg_text = status_msg.edit_text.call_args.args[0]
+    assert "large file mode" in msg_text.lower()
+    assert "upload link" not in msg_text.lower()
+    assert "phone" not in msg_text.lower()
 
 
 # ---------------------------------------------------------------------------

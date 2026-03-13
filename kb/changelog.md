@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-13 — Telegram bot polish: HTML messages, inline keyboard, 4 new commands
+
+**Changes:** Full rewrite of `backend/app/telegram_bot.py` for improved UX.
+
+**Behaviour changes:**
+- All bot messages now use `parse_mode="HTML"` with bold/italic/code formatting
+- File upload destination prompt replaced with inline keyboard (4 buttons: My Folder, Family Shared, Entertainment, Cancel) — keyboard is removed after tap
+- Typing indicator (`send_chat_action`) added to `/list` and search handlers
+- File type emojis shown in upload messages (📄/🖼️/🎬/🎵/🎤)
+- Single success edit (status message edited in-place, no duplicate reply)
+- Brand fix: "CubieCloud" → "AiHomeCloud" in all messages
+
+**New commands:**
+- `/status` — device health (CPU, RAM, temp, uptime, storage bar)
+- `/cancel` — discard a pending file upload
+- `/whoami` — show linked profile, Telegram handle, and personal folder
+- `/unlink` — remove this Telegram account from AiHomeCloud
+
+**`_handle_auth`:** Shows current personal folder name; allows switching folder with `/auth <name>`
+**`_handle_help`:** Lists all 7 commands with HTML formatting
+
+**Tests updated:** `backend/tests/test_telegram_bot.py` — 36 tests, all passing. Updated `_make_context()` to include `AsyncMock` for `bot.send_chat_action` and `bot.send_message`; replaced deprecated `_handle_pending_upload_choice` references with `_process_upload_choice`.
+
+---
+
 ## 2026-03-13 — Ad Blocking state-machine fix
 
 **Changes:** Implemented AdGuard setup/runtime state probing and rewired the More-screen Ad Blocking card to handle installation, app-enabled, service-running, and active-stats states explicitly.
