@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
@@ -22,6 +26,30 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   String? _currentPath;
   String? _currentTitle;
   bool _trashOpen = false;
+
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  String _activeQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(() { if (mounted) setState(() {}); });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _activeQuery = value.trim());
+    });
+  }
 
   void _openFolder(String path, String title) {
     setState(() {
@@ -76,7 +104,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Text('Files',
                 style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
@@ -84,45 +112,96 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                   fontWeight: FontWeight.w700,
                 )),
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  _FolderCard(
-                    name: username,
-                    icon: Icons.person_rounded,
-                    color: AppColors.primary,
-                    subtitle: 'Your private files',
-                    onTap: () => _openFolder(personalPath, username),
-                  ),
-                  const SizedBox(height: 12),
-                  _FolderCard(
-                    name: 'Family',
-                    icon: Icons.people_rounded,
-                    color: const Color(0xFF4CE88A),
-                    subtitle: 'Shared with everyone',
-                    onTap: () => _openFolder(familyPath, 'Family'),
-                  ),
-                  const SizedBox(height: 12),
-                  _FolderCard(
-                    name: 'Entertainment',
-                    icon: Icons.movie_rounded,
-                    color: const Color(0xFFE84CA8),
-                    subtitle: 'Movies, series, music',
-                    onTap: () => _openFolder(entertainmentPath, 'Entertainment'),
-                  ),
-                  const SizedBox(height: 12),
-                  _FolderCard(
-                    name: 'Trash',
-                    icon: Icons.delete_outline_rounded,
-                    color: AppColors.error,
-                    subtitle: 'Recently deleted files',
-                    onTap: () => setState(() => _trashOpen = true),
-                  ),
-                ],
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: _buildSearchBar(),
             ),
+            if (_activeQuery.isNotEmpty)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: _DocSearchResults(query: _activeQuery),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    _FolderCard(
+                      name: username,
+                      icon: Icons.person_rounded,
+                      color: AppColors.primary,
+                      subtitle: 'Your private files',
+                      onTap: () => _openFolder(personalPath, username),
+                    ),
+                    const SizedBox(height: 12),
+                    _FolderCard(
+                      name: 'Family',
+                      icon: Icons.people_rounded,
+                      color: const Color(0xFF4CE88A),
+                      subtitle: 'Shared with everyone',
+                      onTap: () => _openFolder(familyPath, 'Family'),
+                    ),
+                    const SizedBox(height: 12),
+                    _FolderCard(
+                      name: 'Entertainment',
+                      icon: Icons.movie_rounded,
+                      color: const Color(0xFFE84CA8),
+                      subtitle: 'Movies, series, music',
+                      onTap: () => _openFolder(entertainmentPath, 'Entertainment'),
+                    ),
+                    const SizedBox(height: 12),
+                    _FolderCard(
+                      name: 'Trash',
+                      icon: Icons.delete_outline_rounded,
+                      color: AppColors.error,
+                      subtitle: 'Recently deleted files',
+                      onTap: () => setState(() => _trashOpen = true),
+                    ),
+                  ],
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: _searchCtrl,
+      onChanged: _onSearchChanged,
+      style: GoogleFonts.dmSans(color: AppColors.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: 'Search documents…',
+        hintStyle: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 14),
+        prefixIcon: const Icon(
+            Icons.search_rounded, color: AppColors.textMuted, size: 20),
+        suffixIcon: _searchCtrl.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear_rounded,
+                    color: AppColors.textMuted, size: 20),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  _onSearchChanged('');
+                },
+              )
+            : null,
+        filled: true,
+        fillColor: AppColors.card,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
     );
@@ -174,6 +253,126 @@ class _FolderCard extends StatelessWidget {
         onTap: onTap,
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Document search results
+// ---------------------------------------------------------------------------
+
+class _DocSearchResults extends ConsumerWidget {
+  final String query;
+  const _DocSearchResults({required this.query});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resultsAsync = ref.watch(docSearchResultsProvider(query));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: resultsAsync.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary)),
+        ),
+        error: (e, _) => AppCard(
+          child: Text(friendlyError(e),
+              style: const TextStyle(color: AppColors.error)),
+        ),
+        data: (results) {
+          if (results.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.search_off_rounded,
+                      color: AppColors.textMuted, size: 48),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No documents found for "$query"',
+                    style: GoogleFonts.dmSans(
+                        color: AppColors.textSecondary, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+          return Column(
+            children: [
+              for (int i = 0; i < results.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _SearchResultTile(result: results[i])
+                      .animate()
+                      .fadeIn(delay: (50 * i).ms)
+                      .slideY(begin: 0.05, end: 0),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  final SearchResult result;
+  const _SearchResultTile({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final file = result.toFileItem();
+    return AppCard(
+      onTap: () => context.push('/file-preview', extra: file),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: file.iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(file.icon, color: file.iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result.filename,
+                  style: GoogleFonts.dmSans(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${result.addedBy}  •  ${_formatDate(result.addedAt)}',
+                  style: GoogleFonts.dmSans(
+                      color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded,
+              color: AppColors.textMuted, size: 18),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays < 1) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }
 
