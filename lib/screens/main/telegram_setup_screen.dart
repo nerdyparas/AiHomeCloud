@@ -32,6 +32,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   int _maxFileMb = 20;
   int _apiId = 0;
   String? _errorMsg;
+  List<Map<String, dynamic>> _pendingApprovals = [];
+  bool _pendingLoading = false;
 
   @override
   void initState() {
@@ -66,6 +68,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
           if (_apiId > 0) _apiIdCtrl.text = _apiId.toString();
           _loading = false;
         });
+        // Load pending approvals (admin only)
+        _loadPending();
       }
     } catch (e) {
       if (mounted) {
@@ -75,6 +79,159 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadPending() async {
+    setState(() => _pendingLoading = true);
+    try {
+      final list = await ref.read(apiServiceProvider).getTelegramPending();
+      if (mounted) setState(() => _pendingApprovals = list);
+    } catch (_) {
+      // non-critical: silently ignore
+    } finally {
+      if (mounted) setState(() => _pendingLoading = false);
+    }
+  }
+
+  Future<void> _approvePending(int chatId) async {
+    try {
+      await ref.read(apiServiceProvider).approveTelegramRequest(chatId);
+      await _loadPending();
+      await _loadConfig();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${friendlyError(e)}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _denyPending(int chatId) async {
+    try {
+      await ref.read(apiServiceProvider).denyTelegramRequest(chatId);
+      await _loadPending();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${friendlyError(e)}')),
+        );
+      }
+    }
+  }
+
+  List<Widget> _buildPendingSection() {
+    return [
+      Text(
+        'PENDING REQUESTS',
+        style: GoogleFonts.dmSans(
+            color: AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5),
+      ),
+      const SizedBox(height: 8),
+      AppCard(
+        child: _pendingLoading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.primary),
+                  ),
+                ),
+              )
+            : Column(
+                children: _pendingApprovals.asMap().entries.map((e) {
+                  final i = e.key;
+                  final p = e.value;
+                  final chatId = p['chat_id'] as int;
+                  final firstName = p['first_name'] as String? ?? 'Unknown';
+                  final username = p['username'] as String? ?? '';
+                  return Column(
+                    children: [
+                      if (i > 0)
+                        const Divider(color: AppColors.cardBorder, height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(30),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                firstName.isNotEmpty
+                                    ? firstName[0].toUpperCase()
+                                    : '?',
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.primary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(firstName,
+                                    style: GoogleFonts.dmSans(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600)),
+                                Text(
+                                  username.isNotEmpty
+                                      ? '@$username · ID: $chatId'
+                                      : 'ID: $chatId',
+                                  style: GoogleFonts.dmSans(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _denyPending(chatId),
+                            style: TextButton.styleFrom(
+                                foregroundColor: AppColors.error,
+                                minimumSize: const Size(0, 32),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10)),
+                            child: Text('Deny',
+                                style: GoogleFonts.dmSans(fontSize: 12)),
+                          ),
+                          const SizedBox(width: 4),
+                          FilledButton(
+                            onPressed: () => _approvePending(chatId),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              minimumSize: const Size(0, 32),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: Text('Approve',
+                                style: GoogleFonts.dmSans(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+      ),
+    ];
   }
 
   Future<void> _save() async {
@@ -313,7 +470,13 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+
+                  // Pending approval requests (shown when there are any)
+                  if (_pendingApprovals.isNotEmpty || _pendingLoading) ...[
+                    ..._buildPendingSection(),
+                    const SizedBox(height: 8),
+                  ],
                 ],
 
                 // File limit info card

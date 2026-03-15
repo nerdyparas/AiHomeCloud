@@ -129,3 +129,55 @@ async def unlink_account(chat_id: int, user: dict = Depends(require_admin)):
     ids = await _store.get_value("telegram_linked_ids", default=[])
     ids = [i for i in ids if int(i) != chat_id]
     await _store.set_value("telegram_linked_ids", ids)
+
+
+@router.get("/pending")
+async def get_pending_approvals(user: dict = Depends(require_admin)):
+    """Return list of pending Telegram auth requests (admin only)."""
+    return await _store.get_value("telegram_pending_approvals", default=[])
+
+
+@router.post("/pending/{chat_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
+async def approve_telegram_request(chat_id: int, user: dict = Depends(require_admin)):
+    """Approve a pending Telegram auth request (admin only)."""
+    try:
+        from ..telegram_bot import _add_linked_id, _remove_pending_approval, _resolve_personal_owner, _set_chat_folder_owner, _get_pending_approvals, _application  # type: ignore[attr-defined]
+        pendings   = await _get_pending_approvals()
+        info       = next((p for p in pendings if p["chat_id"] == chat_id), {})
+        first_name = info.get("first_name", "User")
+        await _add_linked_id(chat_id)
+        owner = await _resolve_personal_owner(chat_id, first_name)
+        await _set_chat_folder_owner(chat_id, owner)
+        await _remove_pending_approval(chat_id)
+        if _application is not None:
+            from contextlib import suppress
+            with suppress(Exception):
+                await _application.bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        f"\u2705 <b>Access approved! Welcome, {first_name}.</b>\n\n"
+                        f"\U0001f464 Personal folder: <b>{owner}</b>\n\n"
+                        "/help to see available commands."
+                    ),
+                    parse_mode="HTML",
+                )
+    except ImportError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Telegram bot not available")
+
+
+@router.post("/pending/{chat_id}/deny", status_code=status.HTTP_204_NO_CONTENT)
+async def deny_telegram_request(chat_id: int, user: dict = Depends(require_admin)):
+    """Deny a pending Telegram auth request (admin only)."""
+    try:
+        from ..telegram_bot import _remove_pending_approval, _application  # type: ignore[attr-defined]
+        await _remove_pending_approval(chat_id)
+        if _application is not None:
+            from contextlib import suppress
+            with suppress(Exception):
+                await _application.bot.send_message(
+                    chat_id=chat_id,
+                    text="\u274c <b>Access denied.</b>\n\nContact the device owner to request access.",
+                    parse_mode="HTML",
+                )
+    except ImportError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Telegram bot not available")

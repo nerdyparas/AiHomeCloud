@@ -19,9 +19,11 @@ configured.  If python-telegram-bot is not installed the startup silently skips.
 import asyncio
 from contextlib import suppress
 from datetime import datetime
+import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
 from typing import Optional
 
 logger = logging.getLogger("aihomecloud.telegram_bot")
@@ -46,6 +48,18 @@ class PendingUpload:
 
 # Per-chat pending upload selection state.
 _pending_uploads: dict[int, PendingUpload] = {}
+
+# Per-chat duplicate-detection pending state.
+_pending_duplicates: dict[int, dict] = {}
+
+
+class DuplicateFileError(Exception):
+    """Raised when an uploaded file matches an existing MD5 hash."""
+
+    def __init__(self, md5: str, existing: dict, temp_path: Path) -> None:
+        self.md5 = md5
+        self.existing = existing
+        self.temp_path = temp_path
 
 # Module-level Application instance (None when bot is disabled)
 _application = None
@@ -73,6 +87,60 @@ async def _add_linked_id(chat_id: int) -> None:
     if chat_id not in ids:
         ids.append(chat_id)
         await set_value("telegram_linked_ids", ids)
+
+
+# ---------------------------------------------------------------------------
+# Pending approval helpers (Task 9)
+# ---------------------------------------------------------------------------
+
+async def _get_pending_approvals() -> list[dict]:
+    """Return the list of pending Telegram auth approval requests."""
+    from .store import get_value
+    return await get_value("telegram_pending_approvals", default=[])
+
+
+async def _add_pending_approval(chat_id: int, username: str, first_name: str) -> None:
+    """Add a chat_id to the pending-approval list."""
+    from .store import get_value, set_value
+    items = await get_value("telegram_pending_approvals", default=[])
+    if not any(p["chat_id"] == chat_id for p in items):
+        items.append({
+            "chat_id": chat_id,
+            "username": username,
+            "first_name": first_name,
+            "requested_at": datetime.now().isoformat(),
+        })
+        await set_value("telegram_pending_approvals", items)
+
+
+async def _remove_pending_approval(chat_id: int) -> None:
+    """Remove a chat_id from the pending-approval list."""
+    from .store import get_value, set_value
+    items = await get_value("telegram_pending_approvals", default=[])
+    items = [p for p in items if p["chat_id"] != chat_id]
+    await set_value("telegram_pending_approvals", items)
+
+
+async def _get_admin_chat_ids() -> set[int]:
+    """Return Telegram chat IDs whose folder owner is an AHC admin user."""
+    from .store import get_users, get_value
+    users = await get_users()
+    admin_names = {
+        str(u.get("name", "")).casefold()
+        for u in users
+        if u.get("is_admin")
+    }
+    if not admin_names:
+        return set()
+    mapping = await get_value("telegram_chat_folder_owners", default={})
+    result: set[int] = set()
+    for str_id, owner_name in mapping.items():
+        if str(owner_name).casefold() in admin_names:
+            try:
+                result.add(int(str_id))
+            except ValueError:
+                pass
+    return result
 
 
 async def _set_chat_folder_owner(chat_id: int, username: str) -> None:
@@ -201,6 +269,56 @@ async def _download_to_path(bot, file_id: str, dest_path: Path) -> Path:
     return dest_path
 
 
+# ---------------------------------------------------------------------------
+# Duplicate-detection helpers (Task 10)
+# ---------------------------------------------------------------------------
+
+def _compute_md5(path: Path) -> str:
+    """Return the hex MD5 digest of *path*."""
+    h = hashlib.md5()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+async def _check_duplicate(path: Path) -> Optional[dict]:
+    """Return existing file-hash record if MD5 matches, else None."""
+    from .store import get_value
+    md5 = _compute_md5(path)
+    hashes = await get_value("telegram_file_hashes", default={})
+    record = hashes.get(md5)
+    if record:
+        return {**record, "md5": md5}
+    return None
+
+
+async def _record_file_hash(md5: str, filename: str, path: str) -> None:
+    """Persist an MD5 → file mapping in the KV store."""
+    from .store import get_value, set_value
+    hashes = await get_value("telegram_file_hashes", default={})
+    hashes[md5] = {
+        "filename": filename,
+        "path": path,
+        "saved_at": datetime.now().isoformat(),
+    }
+    await set_value("telegram_file_hashes", hashes)
+
+
+async def _record_recent_file(chat_id: int, filename: str, path: str, size: int) -> None:
+    """Prepend an entry to the recent-files list (max 5 entries)."""
+    from .store import get_value, set_value
+    recent = await get_value("telegram_recent_files", default=[])
+    recent.insert(0, {
+        "filename": filename,
+        "path": path,
+        "size": size,
+        "chat_id": chat_id,
+        "saved_at": datetime.now().isoformat(),
+    })
+    await set_value("telegram_recent_files", recent[:5])
+
+
 async def _store_private_or_shared_file(bot, pending: PendingUpload, base_dir: Path, added_by: str) -> Path:
     """Download to .inbox, sort immediately, and index if it lands in Documents/."""
     from .document_index import index_document
@@ -212,6 +330,11 @@ async def _store_private_or_shared_file(bot, pending: PendingUpload, base_dir: P
     temp_path = inbox_dir / temp_name
     await _download_to_path(bot, pending.file_id, temp_path)
 
+    # Duplicate detection: compare MD5 against known-file index
+    existing = await _check_duplicate(temp_path)
+    if existing:
+        raise DuplicateFileError(md5=existing["md5"], existing=existing, temp_path=temp_path)
+
     dest = _sort_file(temp_path, base_dir, check_age=False)
     if dest is None:
         raise RuntimeError("Failed to sort downloaded file")
@@ -219,6 +342,8 @@ async def _store_private_or_shared_file(bot, pending: PendingUpload, base_dir: P
     if dest.parent.name == "Documents":
         await index_document(str(dest), dest.name, added_by)
 
+    # Record hash (MD5 of final file) and return
+    await _record_file_hash(_compute_md5(dest), dest.name, str(dest))
     return dest
 
 
@@ -232,6 +357,13 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
     safe_name = _sanitize_filename(pending.filename, default_stem="telegram_media")
     dest_path = _unique_dest(entertainment_dir, safe_name)
     await _download_to_path(bot, pending.file_id, dest_path)
+
+    # Duplicate detection
+    existing = await _check_duplicate(dest_path)
+    if existing:
+        raise DuplicateFileError(md5=existing["md5"], existing=existing, temp_path=dest_path)
+
+    await _record_file_hash(_compute_md5(dest_path), dest_path.name, str(dest_path))
     return dest_path
 
 
@@ -450,6 +582,8 @@ async def _process_upload_choice(
         actual_bytes = dest.stat().st_size
         elapsed_seconds = loop.time() - started_at
 
+        await _record_recent_file(chat_id, dest.name, str(dest), actual_bytes)
+
         await _safe_edit_text(
             status_message,
             (
@@ -459,6 +593,28 @@ async def _process_upload_choice(
                 f"\U0001f4e6 {_human_size(actual_bytes)}\n"
                 f"\u26a1 {_format_avg_speed(actual_bytes, elapsed_seconds)}  "
                 f"\u23f1 {_format_elapsed(elapsed_seconds)}"
+            ),
+        )
+
+    except DuplicateFileError as dup:
+        # Keep temp file on disk so /keep can proceed without re-downloading
+        _pending_duplicates[chat_id] = {
+            "md5": dup.md5,
+            "existing": dup.existing,
+            "temp_path": dup.temp_path,
+            "choice": choice,
+            "pending": pending,
+            "owner": owner,
+        }
+        saved_on = dup.existing.get("saved_at", "")[:10]
+        await _safe_edit_text(
+            status_message,
+            (
+                f"\u26a0\ufe0f <b>Duplicate detected</b>\n\n"
+                f"This file already exists as "
+                f"<code>{dup.existing.get('filename', '?')}</code>\n"
+                f"Saved on: <i>{saved_on}</i>\n\n"
+                "Use /keep to save anyway, or /skip to cancel."
             ),
         )
 
@@ -561,21 +717,34 @@ async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
         )
         return
 
-    await _add_linked_id(chat_id)
-    owner = await _resolve_personal_owner(chat_id, requested_owner or first_name)
-    await _set_chat_folder_owner(chat_id, owner)
+    username = update.effective_user.username or ""
+    await _add_pending_approval(chat_id, username, first_name)
+    admin_ids = await _get_admin_chat_ids()
+    if admin_ids and _application is not None:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("✅ Approve", callback_data=f"approval:approve:{chat_id}"),
+            InlineKeyboardButton("❌ Deny",    callback_data=f"approval:deny:{chat_id}"),
+        ]])
+        req_text = (
+            f"👤 <b>New pairing request</b>\n\n"
+            f"Name: <b>{first_name}</b>\n"
+            f"Username: @{username}\n"
+            f"Chat ID: <code>{chat_id}</code>\n"
+            f"Folder request: <b>{requested_owner or '(default)'}</b>"
+        )
+        for admin_id in admin_ids:
+            with suppress(Exception):
+                await _application.bot.send_message(
+                    chat_id=admin_id, text=req_text,
+                    parse_mode="HTML", reply_markup=kb,
+                )
     await update.message.reply_text(
-        f"âœ… <b>Linked! Welcome, {first_name}.</b>\n\n"
-        f"ðŸ‘¤ Personal folder: <b>{owner}</b>\n\n"
-        "You can now:\n"
-        "â€¢ Type anything to <b>search documents</b>\n"
-        "â€¢ Send a file to <b>save it to your cloud</b>\n"
-        "â€¢ /list â€” recent files\n"
-        "â€¢ /status â€” device health\n"
-        "â€¢ /help â€” all commands",
+        "⏳ <b>Access request sent.</b>\n\n"
+        "An admin will review your request.\n"
+        "You'll receive a message here when approved.",
         parse_mode="HTML",
     )
-
 
 async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
@@ -587,26 +756,35 @@ async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
         return
 
     owner = await _get_chat_folder_owner(chat_id) or "admin"
+    is_admin = await _is_admin_chat(chat_id)
+    admin_section = (
+        "\n<b>Admin</b>\n"
+        "• /approve &lt;chat_id&gt; — approve a pending request\n"
+        "• /deny &lt;chat_id&gt; — deny a pending request\n"
+    ) if is_admin else ""
     await update.message.reply_text(
-        "ðŸ  <b>AiHomeCloud Bot</b>\n\n"
+        "🏠 <b>AiHomeCloud Bot</b>\n\n"
         "<b>Commands</b>\n"
-        "â€¢ /list â€” last 10 indexed documents\n"
-        "â€¢ /status â€” device health and storage\n"
-        "â€¢ /whoami â€” your linked profile\n"
-        "â€¢ /cancel â€” discard a pending file upload\n"
-        "â€¢ /unlink â€” disconnect this Telegram account\n"
-        "â€¢ /help â€” this message\n\n"
+        "• /list — last 10 indexed documents\n"
+        "• /recent — your last 5 uploaded files\n"
+        "• /storage — storage usage\n"
+        "• /status — device health\n"
+        "• /whoami — your linked profile\n"
+        "• /cancel — discard a pending upload\n"
+        "• /unlink — disconnect this Telegram account\n"
+        "• /help — this message\n\n"
         "<b>Search</b>\n"
-        "â€¢ Type any word to search files\n"
-        "â€¢ Reply with a number to receive that file\n\n"
+        "• Type any word to search files\n"
+        "• Reply with a number to receive that file\n\n"
         "<b>Upload</b>\n"
-        "â€¢ Send any file â€” tap where to save it\n"
-        "â€¢ Supports documents, photos, videos, audio\n"
-        f"â€¢ Files save to your <b>{owner}</b> folder by default\n\n"
-        "<i>Examples: aadhaar, pan card, invoice, passport</i>",
+        "• Send any file — tap where to save it\n"
+        "• Supports documents, photos, videos, audio\n"
+        "• Use /keep or /skip when a duplicate is detected\n"
+        f"• Files save to your <b>{owner}</b> folder by default\n\n"
+        + admin_section
+        + "<i>Examples: aadhaar, pan card, invoice, passport</i>",
         parse_mode="HTML",
     )
-
 
 async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
@@ -879,12 +1057,43 @@ async def _trash_warning_loop() -> None:
     """Hourly loop â€” sends a Telegram notification on Saturday at 10 AM when total
     trash exceeds 10 GB.  Fires at most once per ISO week via the KV store."""
     from . import store as _store
+    from .config import settings
 
     while True:
         try:
             await asyncio.sleep(3600)
 
             now = datetime.now()
+
+            # ── 85 % storage check (daily at hour 9) ────────────────────
+            if now.hour == 9:
+                storage_warn_day = f"{now.date()}"
+                if await _store.get_value("storage_warn_day", default="") != storage_warn_day:
+                    try:
+                        usage = shutil.disk_usage(settings.nas_root)
+                        pct   = usage.used / usage.total * 100 if usage.total else 0
+                        if pct >= 85:
+                            linked_ids = await _get_linked_ids()
+                            if linked_ids and _application is not None:
+                                used_gb  = usage.used  / (1024 ** 3)
+                                total_gb = usage.total / (1024 ** 3)
+                                bar      = _storage_bar(int(pct))
+                                smsg = (
+                                    f"💾 <b>Storage almost full</b>\n\n"
+                                    f"{bar} {pct:.0f}%\n"
+                                    f"Used: <b>{used_gb:.1f} GB</b> / {total_gb:.1f} GB\n\n"
+                                    "Free up space by emptying the Trash or removing files."
+                                )
+                                for cid in linked_ids:
+                                    with suppress(Exception):
+                                        await _application.bot.send_message(
+                                            chat_id=cid, text=smsg, parse_mode="HTML"
+                                        )
+                                await _store.set_value("storage_warn_day", storage_warn_day)
+                    except Exception as _se:
+                        logger.warning("storage 85%% check error: %s", _se)
+
+            # ── Saturday 10 AM trash check ──────────────────────────────
             if now.weekday() != 5 or now.hour != 10:  # weekday 5 = Saturday
                 continue
 
@@ -903,14 +1112,18 @@ async def _trash_warning_loop() -> None:
 
             total_gb = total_bytes / (1024 ** 3)
             msg = (
-                f"ðŸ—‘ <b>Trash is getting full</b>\n\n"
+                f"🗑 <b>Trash is getting full</b>\n\n"
                 f"Total trash: <b>{total_gb:.1f} GB</b> (threshold: 10 GB)\n\n"
-                f"Open <b>AiHomeCloud</b> \u2192 Files \u2192 Trash to free up space."
+                "Tap <b>Empty Trash</b> to free up space."
             )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("🗑 Empty Trash", callback_data="trash:empty"),
+            ]])
             for chat_id in linked_ids:
                 with suppress(Exception):
                     await _application.bot.send_message(
-                        chat_id=chat_id, text=msg, parse_mode="HTML"
+                        chat_id=chat_id, text=msg, parse_mode="HTML", reply_markup=kb
                     )
 
             await _store.set_value("trash_warn_week", iso_week)
@@ -923,6 +1136,273 @@ async def _trash_warning_loop() -> None:
         except Exception as exc:
             logger.warning("trash_warning_loop error: %s", exc)
 
+
+# ---------------------------------------------------------------------------
+# Admin helpers
+# ---------------------------------------------------------------------------
+
+async def _is_admin_chat(chat_id: int) -> bool:
+    """Return True if the chat_id belongs to an admin user."""
+    return chat_id in await _get_admin_chat_ids()
+
+
+# ---------------------------------------------------------------------------
+# Approval & deny handlers (Task 9)
+# ---------------------------------------------------------------------------
+
+async def _handle_approval_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Handle Approve/Deny inline-button presses from admin chat."""
+    query = update.callback_query
+    await query.answer()
+    parts = query.data.split(":")
+    action         = parts[1]
+    target_chat_id = int(parts[2])
+
+    if action == "approve":
+        pendings = await _get_pending_approvals()
+        info = next((p for p in pendings if p["chat_id"] == target_chat_id), {})
+        first_name = info.get("first_name", "User")
+        await _add_linked_id(target_chat_id)
+        owner = await _resolve_personal_owner(target_chat_id, first_name)
+        await _set_chat_folder_owner(target_chat_id, owner)
+        await _remove_pending_approval(target_chat_id)
+        if _application is not None:
+            with suppress(Exception):
+                await _application.bot.send_message(
+                    chat_id=target_chat_id,
+                    text=(
+                        f"✅ <b>Access approved! Welcome, {first_name}.</b>\n\n"
+                        f"👤 Personal folder: <b>{owner}</b>\n\n"
+                        "• Type anything to <b>search documents</b>\n"
+                        "• Send a file to <b>save it to your cloud</b>\n"
+                        "• /help — all commands"
+                    ),
+                    parse_mode="HTML",
+                )
+        await query.edit_message_text(
+            f"✅ Approved <b>{first_name}</b> (chat_id: <code>{target_chat_id}</code>)",
+            parse_mode="HTML",
+        )
+    else:
+        await _remove_pending_approval(target_chat_id)
+        if _application is not None:
+            with suppress(Exception):
+                await _application.bot.send_message(
+                    chat_id=target_chat_id,
+                    text="❌ <b>Access denied.</b>\n\nContact the device owner to request access.",
+                    parse_mode="HTML",
+                )
+        await query.edit_message_text(
+            f"❌ Denied request from chat_id <code>{target_chat_id}</code>",
+            parse_mode="HTML",
+        )
+
+
+async def _handle_approve_command(update, context) -> None:  # type: ignore[type-arg]
+    """Admin command: /approve <chat_id>"""
+    chat_id = update.effective_chat.id
+    if not await _is_admin_chat(chat_id):
+        await update.message.reply_text("🔒 Admin only.", parse_mode="HTML")
+        return
+    args = context.args or []
+    if not args or not args[0].lstrip("-").isdigit():
+        await update.message.reply_text("Usage: /approve &lt;chat_id&gt;", parse_mode="HTML")
+        return
+    target = int(args[0])
+    pendings = await _get_pending_approvals()
+    info = next((p for p in pendings if p["chat_id"] == target), {})
+    first_name = info.get("first_name", "User")
+    await _add_linked_id(target)
+    owner = await _resolve_personal_owner(target, first_name)
+    await _set_chat_folder_owner(target, owner)
+    await _remove_pending_approval(target)
+    if _application is not None:
+        with suppress(Exception):
+            await _application.bot.send_message(
+                chat_id=target,
+                text=f"✅ <b>Access approved! Welcome, {first_name}.</b>\n\n/help to see commands.",
+                parse_mode="HTML",
+            )
+    await update.message.reply_text(f"✅ Approved <code>{target}</code>", parse_mode="HTML")
+
+
+async def _handle_deny_command(update, context) -> None:  # type: ignore[type-arg]
+    """Admin command: /deny <chat_id>"""
+    chat_id = update.effective_chat.id
+    if not await _is_admin_chat(chat_id):
+        await update.message.reply_text("🔒 Admin only.", parse_mode="HTML")
+        return
+    args = context.args or []
+    if not args or not args[0].lstrip("-").isdigit():
+        await update.message.reply_text("Usage: /deny &lt;chat_id&gt;", parse_mode="HTML")
+        return
+    target = int(args[0])
+    await _remove_pending_approval(target)
+    if _application is not None:
+        with suppress(Exception):
+            await _application.bot.send_message(
+                chat_id=target,
+                text="❌ <b>Access denied.</b>\n\nContact the device owner.",
+                parse_mode="HTML",
+            )
+    await update.message.reply_text(f"❌ Denied <code>{target}</code>", parse_mode="HTML")
+
+
+# ---------------------------------------------------------------------------
+# Duplicate file handlers (Task 10)
+# ---------------------------------------------------------------------------
+
+async def _handle_keep(update, context) -> None:  # type: ignore[type-arg]
+    """Keep (save) a file that was flagged as a duplicate."""
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first.", parse_mode="HTML")
+        return
+    dup = _pending_duplicates.pop(chat_id, None)
+    if not dup:
+        await update.message.reply_text("No duplicate pending. Send a file first.", parse_mode="HTML")
+        return
+    temp_path = Path(dup["temp_path"])
+    dest_path = Path(dup["dest_path"])
+    try:
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(temp_path), str(dest_path))
+        await _record_file_hash(dup["md5"], dest_path.name, str(dest_path))
+        await _record_recent_file(chat_id, dest_path.name, str(dest_path), dup.get("file_size", 0))
+        await update.message.reply_text(
+            f"✅ <b>Saved</b> <code>{dest_path.name}</code>", parse_mode="HTML"
+        )
+    except Exception as exc:
+        logger.warning("keep handler error: %s", exc)
+        await update.message.reply_text(f"❌ Save failed: {exc}", parse_mode="HTML")
+
+
+async def _handle_skip(update, context) -> None:  # type: ignore[type-arg]
+    """Skip (discard) a file that was flagged as a duplicate."""
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first.", parse_mode="HTML")
+        return
+    dup = _pending_duplicates.pop(chat_id, None)
+    if not dup:
+        await update.message.reply_text("No duplicate pending.", parse_mode="HTML")
+        return
+    try:
+        temp_path = Path(dup["temp_path"])
+        if temp_path.exists():
+            temp_path.unlink()
+    except Exception:
+        pass
+    await update.message.reply_text(
+        "🗑 Duplicate skipped — file discarded.", parse_mode="HTML"
+    )
+
+
+async def _handle_recent(update, context) -> None:  # type: ignore[type-arg]
+    """Show the user's last 5 uploaded files with delete buttons."""
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first.", parse_mode="HTML")
+        return
+    from .store import get_value
+    all_recent = await get_value("telegram_recent_files", default=[])
+    mine = [r for r in all_recent if r.get("chat_id") == chat_id][-5:]
+    if not mine:
+        await update.message.reply_text("📂 No recent uploads yet.", parse_mode="HTML")
+        return
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    rows = []
+    for i, r in enumerate(reversed(mine), 1):
+        sz     = r.get("size", 0)
+        sz_str = f"{sz/(1024*1024):.1f} MB" if sz >= 1024*1024 else f"{sz//1024} KB"
+        rows.append([InlineKeyboardButton(
+            f"🗑 Delete {r['filename']} ({sz_str})",
+            callback_data=f"delrecent:{i-1}:{chat_id}",
+        )])
+    lines_txt = [f"{i}. <code>{r['filename']}</code>" for i, r in enumerate(reversed(mine), 1)]
+    await update.message.reply_text(
+        "📂 <b>Recent uploads</b>\n\n" + "\n".join(lines_txt),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+
+
+async def _handle_storage_cmd(update, context) -> None:  # type: ignore[type-arg]
+    """Show storage usage for the NAS root."""
+    chat_id = update.effective_chat.id
+    if not await _is_allowed(chat_id):
+        await update.message.reply_text("🔒 Send /auth first.", parse_mode="HTML")
+        return
+    from .config import settings
+    try:
+        usage    = shutil.disk_usage(settings.nas_root)
+        pct      = int(usage.used / usage.total * 100) if usage.total else 0
+        used_gb  = usage.used  / (1024 ** 3)
+        total_gb = usage.total / (1024 ** 3)
+        free_gb  = usage.free  / (1024 ** 3)
+        bar      = _storage_bar(pct)
+        await update.message.reply_text(
+            f"💾 <b>Storage</b>\n\n"
+            f"{bar} {pct}%\n"
+            f"Used:  <b>{used_gb:.1f} GB</b>\n"
+            f"Free:  <b>{free_gb:.1f} GB</b>\n"
+            f"Total: <b>{total_gb:.1f} GB</b>",
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        await update.message.reply_text(f"❌ Failed to read storage: {exc}", parse_mode="HTML")
+
+
+async def _handle_delete_recent_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Handle delete-button press from /recent list."""
+    query = update.callback_query
+    await query.answer()
+    parts     = query.data.split(":")
+    idx       = int(parts[1])
+    owner_cid = int(parts[2])
+    from .store import get_value, set_value
+    all_recent = await get_value("telegram_recent_files", default=[])
+    mine       = [r for r in all_recent if r.get("chat_id") == owner_cid]
+    rev_mine   = list(reversed(mine))
+    if idx >= len(rev_mine):
+        await query.edit_message_text("❌ File not found.", parse_mode="HTML")
+        return
+    target = rev_mine[idx]
+    p = Path(target.get("path", ""))
+    try:
+        if p.exists():
+            p.unlink()
+    except Exception as exc:
+        await query.edit_message_text(f"❌ Delete failed: {exc}", parse_mode="HTML")
+        return
+    key        = target.get("path", "")
+    all_recent = [r for r in all_recent if r.get("path") != key]
+    await set_value("telegram_recent_files", all_recent)
+    await query.edit_message_text(
+        f"✅ Deleted <code>{target['filename']}</code>", parse_mode="HTML"
+    )
+
+
+async def _handle_empty_trash_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Handle Empty Trash inline-button press from trash warning."""
+    query = update.callback_query
+    await query.answer()
+    from . import store as _st
+    from .routes.file_routes import _unlink_trash_item
+    items  = await _st.get_trash_items()
+    errors = 0
+    for item in items:
+        try:
+            _unlink_trash_item(item)
+        except Exception:
+            errors += 1
+    await _st.save_trash_items([])
+    if errors:
+        await query.edit_message_text(
+            f"⚠️ Trash emptied with {errors} error(s).", parse_mode="HTML"
+        )
+    else:
+        await query.edit_message_text("✅ <b>Trash emptied.</b>", parse_mode="HTML")
 
 # ---------------------------------------------------------------------------
 # Lifecycle
@@ -972,14 +1452,20 @@ async def start_bot() -> None:
 
         _application = builder.build()
 
-        _application.add_handler(CommandHandler("start",  _handle_start))
-        _application.add_handler(CommandHandler("auth",   _handle_auth))
-        _application.add_handler(CommandHandler("help",   _handle_help))
-        _application.add_handler(CommandHandler("list",   _handle_list))
-        _application.add_handler(CommandHandler("status", _handle_status))
-        _application.add_handler(CommandHandler("cancel", _handle_cancel))
-        _application.add_handler(CommandHandler("whoami", _handle_whoami))
-        _application.add_handler(CommandHandler("unlink", _handle_unlink))
+        _application.add_handler(CommandHandler("start",   _handle_start))
+        _application.add_handler(CommandHandler("auth",    _handle_auth))
+        _application.add_handler(CommandHandler("help",    _handle_help))
+        _application.add_handler(CommandHandler("list",    _handle_list))
+        _application.add_handler(CommandHandler("status",  _handle_status))
+        _application.add_handler(CommandHandler("cancel",  _handle_cancel))
+        _application.add_handler(CommandHandler("whoami",  _handle_whoami))
+        _application.add_handler(CommandHandler("unlink",  _handle_unlink))
+        _application.add_handler(CommandHandler("recent",  _handle_recent))
+        _application.add_handler(CommandHandler("storage", _handle_storage_cmd))
+        _application.add_handler(CommandHandler("keep",    _handle_keep))
+        _application.add_handler(CommandHandler("skip",    _handle_skip))
+        _application.add_handler(CommandHandler("approve", _handle_approve_command))
+        _application.add_handler(CommandHandler("deny",    _handle_deny_command))
         _application.add_handler(
             MessageHandler(
                 filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO | filters.VOICE,
@@ -991,6 +1477,15 @@ async def start_bot() -> None:
         )
         _application.add_handler(
             CallbackQueryHandler(_handle_destination_callback, pattern=r"^dest:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_approval_callback, pattern=r"^approval:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_delete_recent_callback, pattern=r"^delrecent:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_empty_trash_callback, pattern=r"^trash:empty$")
         )
 
         await _application.initialize()

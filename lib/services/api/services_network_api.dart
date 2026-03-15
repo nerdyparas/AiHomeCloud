@@ -215,4 +215,47 @@ extension ServicesNetworkApi on ApiService {
     );
     _check(res);
   }
+
+  /// GET /api/v1/telegram/pending
+  Future<List<Map<String, dynamic>>> getTelegramPending() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/telegram/pending'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    final list = jsonDecode(res.body) as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  /// POST /api/v1/telegram/pending/{chatId}/approve
+  Future<void> approveTelegramRequest(int chatId) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/telegram/pending/$chatId/approve'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
+
+  /// POST /api/v1/telegram/pending/{chatId}/deny
+  Future<void> denyTelegramRequest(int chatId) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/telegram/pending/$chatId/deny'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
 }
