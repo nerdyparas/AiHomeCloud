@@ -160,22 +160,6 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("PIN migration failed: %s", e)
 
-    # Create default admin user on first boot (PIN 0000)
-    try:
-        from . import store as _store_module
-        import asyncio
-        from passlib.hash import bcrypt as _bcrypt_hash
-
-        _existing_users = await _store_module.get_users()
-        if not _existing_users:
-            _hashed = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: _bcrypt_hash.hash("0000")
-            )
-            await _store_module.add_user("admin", pin=_hashed, is_admin=True)
-            logger.info("First boot: created default admin user with PIN 0000")
-    except (OSError, RuntimeError, ValueError) as e:
-        logger.error("Default admin creation failed: %s", e)
-
     # Initialise document search index (FTS5)
     try:
         from .document_index import init_db as _init_doc_db

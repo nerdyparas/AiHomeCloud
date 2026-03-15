@@ -272,8 +272,60 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
     }
 
     if (_users.isEmpty) {
-      return Center(child: Text('No users found.',
-        style: GoogleFonts.dmSans(color: AppColors.textMuted)));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Welcome to\nAiHomeCloud",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.sora(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'No profiles yet. Set up yours to get started.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => context.push<bool>(
+                    '/profile-creation',
+                    extra: {'ip': widget.deviceIp, 'isAddingUser': false},
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Create your profile',
+                    style: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Center(
