@@ -1,5 +1,5 @@
 ﻿"""
-System, Family, Service, Network, Health, Job, and AdGuard route tests.
+System, Family, Service, Network, Health, and Job route tests.
 Covers endpoints not yet tested by existing test files.
 """
 

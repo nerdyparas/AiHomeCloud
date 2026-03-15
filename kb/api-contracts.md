@@ -2,7 +2,7 @@
 
 > Authoritative reference for every backend endpoint.
 > Verified against source code as of 2026-03-13.
-> **63 endpoints** across 14 route files.
+> **59 endpoints** across 13 route files.
 
 ---
 
@@ -43,11 +43,11 @@
 | GET | `/firmware` | User | Firmware version check (current, latest, changelog) |
 | POST | `/update` | Admin | Trigger OTA firmware update (TODO: not yet implemented) |
 | PUT | `/name` | Admin | Rename device (body: `{ name }`) |
-| POST | `/shutdown` | Admin | Shutdown the Cubie |
-| POST | `/reboot` | Admin | Reboot the Cubie |
+| POST | `/shutdown` | Admin | Shutdown the device |
+| POST | `/reboot` | Admin | Reboot the device |
 
 **Key models:**
-- Response `GET /info` (`CubieDevice`): `{ serial, name, ip, firmwareVersion, boardModel }`
+- Response `GET /info` (`AhcDevice`): `{ serial, name, ip, firmwareVersion, boardModel }`
 
 ---
 
@@ -158,20 +158,6 @@
 
 **Key models:**
 - `NetworkStatus`: `{ wifiEnabled, wifiConnected, wifiSsid?, wifiIp?, hotspotEnabled, hotspotSsid?, bluetoothEnabled, lanConnected, lanIp?, lanSpeed?, gateway?, dns? }`
-
----
-
-## AdGuard (`adguard_routes.py` — prefix `/api/v1/adguard`)
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/status` | User | Installation and runtime status probe (`installed`, `service_running`, `app_enabled`) |
-| GET | `/stats` | User | Ad blocking statistics |
-| POST | `/pause` | User | Pause protection (body: `{ minutes: 5|30|60 }`) |
-| POST | `/toggle` | Admin | Enable/disable protection (body: `{ enabled: bool }`) |
-
-**Response `GET /stats`:** `{ dns_queries, blocked_today, blocked_percent, top_blocked, protection_enabled }`
-**Response `GET /status`:** `{ installed, service_running, app_enabled }`
 
 ---
 

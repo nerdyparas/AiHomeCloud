@@ -50,14 +50,13 @@
 | `service_routes.py` | `/api/v1/services` | 2 | List services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | 9 | Devices, scan, SMART, usage, format, mount, unmount, eject, stats |
 | `network_routes.py` | `/api/v1/network` | 3 | Status, Wi-Fi get/set |
-| `adguard_routes.py` | `/api/v1/adguard` | 4 | Status, stats, pause, toggle |
 | `tailscale_routes.py` | `/api/v1/tailscale` | 2 | Status, bring up |
 | `telegram_routes.py` | `/api/v1/telegram` | 3 | Config get/set, unlink |
 | `telegram_upload_routes.py` | `/telegram-upload` | 2 | HTML upload form (GET), file upload (POST) — token auth |
 | `jobs_routes.py` | `/api/v1/jobs` | 1 | Job status polling |
 | `event_routes.py` | `/ws` | 1 WS | Real-time event stream (`/ws/events`) |
 
-**Key config:** env prefix = `CUBIE_`, data dir = `/var/lib/cubie`, NAS root = `/srv/nas`, port = `8443`.
+**Key config:** env prefix = `AHC_`, data dir = `/var/lib/aihomecloud`, NAS root = `/srv/nas`, port = `8443`.
 
 ### Frontend (Flutter / Dart)
 
@@ -107,7 +106,7 @@
 | `FileListTile` | `file_list_tile.dart` | File/folder row in listings |
 | `FolderView` | `folder_view.dart` | File browser with breadcrumbs, upload, sort |
 | `StorageDonutChart` | `storage_donut_chart.dart` | Circular storage usage chart |
-| `CubieNotificationOverlay` | `notification_listener.dart` | Toast-style notification overlay |
+| `AhcNotificationOverlay` | `notification_listener.dart` | Toast-style notification overlay |
 | `EmojiPickerGrid` | `emoji_picker_grid.dart` | 32-emoji avatar picker with custom input |
 | `UserAvatar` | `user_avatar.dart` | Circular emoji/initial avatar with color cycling |
 
@@ -179,10 +178,10 @@ These rules are non-negotiable. Every session must follow them.
 - **Models:** Domain files in `lib/models/`, barrel re-exported from `models.dart`
 
 ### Python / FastAPI
-- **Config:** pydantic-settings with `CUBIE_` env prefix
+- **Config:** pydantic-settings with `AHC_` env prefix
 - **Auth:** JWT via python-jose, `get_current_user` / `require_admin` as `Depends()`
 - **Models:** Pydantic v2 with `Field(alias="camelCase")` to match Flutter
-- **Storage:** JSON files in `/var/lib/cubie/` — no database
+- **Storage:** JSON files in `/var/lib/aihomecloud/` — no database
 - **Path safety:** All file ops through `_safe_resolve()` sandboxing under NAS root
 - **Subprocess:** Always `subprocess_runner.run_command()` — never `shell=True`
 - **Concurrency:** `asyncio.Lock` (not `threading.Lock`) for shared state

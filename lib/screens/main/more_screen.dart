@@ -887,4 +887,4 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
     );
   }
 }
-
+

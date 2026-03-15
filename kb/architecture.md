@@ -28,7 +28,6 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `service_routes.py` | `/api/v1/services` | User/Admin | 2 endpoints: list services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | User/Admin | 9 endpoints: devices, scan, smart-activate, check-usage, format, mount, unmount, eject, stats |
 | `network_routes.py` | `/api/v1` | User | 3 endpoints: network status, Wi-Fi get/set |
-| `adguard_routes.py` | `/api/v1/adguard` | User/Admin | 4 endpoints: status, stats, pause, toggle protection |
 | `tailscale_routes.py` | `/api/v1/system` | User/Admin | 2 endpoints: VPN status, bring up |
 | `telegram_routes.py` | `/api/v1/telegram` | Admin | 3 endpoints: config get/set, unlink chat |
 | `telegram_upload_routes.py` | `/telegram-upload` | Token URL | 2 endpoints: browser upload form + POST |
@@ -46,7 +45,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | Screen | File | Route | Purpose |
 |--------|------|-------|---------|
 | Splash | `screens/onboarding/splash_screen.dart` | `/` | Boot screen, auth check, route to setup or dashboard |
-| Network Scan | `screens/onboarding/network_scan_screen.dart` | `/scan-network` | mDNS + subnet sweep to find Cubie |
+| Network Scan | `screens/onboarding/network_scan_screen.dart` | `/scan-network` | mDNS + subnet sweep to find AiHomeCloud device |
 | User Picker / PIN | `screens/onboarding/pin_entry_screen.dart` | `/user-picker` | Netflix-style avatar circles, optional PIN entry |
 | Profile Creation | `screens/onboarding/profile_creation_screen.dart` | `/profile-creation` | First user creates name + emoji avatar |
 
@@ -77,8 +76,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `FileListTile` | `widgets/file_list_tile.dart` | File/folder row in file listings |
 | `FolderView` | `widgets/folder_view.dart` | Full file browser with breadcrumbs, upload, sort, pagination (~730 lines) |
 | `StorageDonutChart` | `widgets/storage_donut_chart.dart` | Circular storage usage chart |
-| `AdBlockStatsWidget` | `widgets/adblock_stats_widget.dart` | Reusable AdGuard stats row for dashboard network card |
-| `CubieNotificationOverlay` | `widgets/notification_listener.dart` | Toast-style notification overlay from WebSocket events |
+| `AhcNotificationOverlay` | `widgets/notification_listener.dart` | Toast-style notification overlay from WebSocket events |
 | `EmojiPickerGrid` | `widgets/emoji_picker_grid.dart` | 32-emoji avatar picker (16 people + 16 misc) with custom input |
 | `UserAvatar` | `widgets/user_avatar.dart` | Circular emoji/initial avatar with 8-color cycling |
 
@@ -107,13 +105,12 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `tailscaleStatusProvider` | `FutureProvider<Map<String, dynamic>>` | VPN status |
 | `notificationStreamProvider` | `StreamProvider<AppNotification>` | Real-time notification stream (WS) |
 | `notificationHistoryProvider` | `StateNotifierProvider` | Last 50 notifications |
-| `adGuardStatsSilentProvider` | `FutureProvider<Map<String, dynamic>?>` | Ad blocker stats (null if unavailable) |
 
 ### Device (`device_providers.dart`)
 
 | Provider | Type | Purpose |
 |----------|------|---------|
-| `deviceInfoProvider` | `FutureProvider<CubieDevice>` | Board model, serial, IP, firmware |
+| `deviceInfoProvider` | `FutureProvider<AhcDevice>` | Board model, serial, IP, firmware |
 | `systemStatsStreamProvider` | `StreamProvider<SystemStats>` | Real-time CPU/RAM/temp via WS |
 | `connectionProvider` | `StateNotifierProvider<ConnectionNotifier, ConnectionStatus>` | Connection state with exponential backoff |
 | `storageStatsProvider` | `FutureProvider<StorageStats>` | Total/used/free disk space |
@@ -149,7 +146,7 @@ The API client is a singleton (`ApiService`) defined in `lib/services/api_servic
 | `api/files_api.dart` | Files | `listFiles()`, `mkdir()`, `delete()`, `rename()`, `upload()`, `download()`, `search()`, trash ops |
 | `api/system_api.dart` | System | `getDeviceInfo()`, `getFirmware()`, `rename()`, `shutdown()`, `reboot()` |
 | `api/storage_api.dart` | Storage | `getDevices()`, `scan()`, `smartActivate()`, `format()`, `mount()`, `unmount()`, `eject()` |
-| `api/services_network_api.dart` | Services + Network | `getServices()`, `toggleService()`, `getNetworkStatus()`, `getWifi()`, AdGuard, Tailscale, Telegram |
+| `api/services_network_api.dart` | Services + Network | `getServices()`, `toggleService()`, `getNetworkStatus()`, `getWifi()`, Tailscale, Telegram |
 
 All methods use `.timeout(ApiService._timeout)` — no raw HTTP client calls.
 

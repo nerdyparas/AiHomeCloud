@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-15 — Task 3+4: Remove AdGuard feature and rename all Cubie branding to AiHomeCloud
+
+**Task 3 — AdGuard/AdBlock removal:**
+- Deleted `lib/widgets/adblock_stats_widget.dart`, `backend/app/routes/adguard_routes.py`, `backend/tests/test_adguard.py`, `FIX_ADBLOCKING.md`, `scripts/install-adguard.sh`
+- Removed `_AdBlockingCard` from `more_screen.dart`, `adGuardStatsSilentProvider` from `data_providers.dart`, AdGuard widget from `dashboard_screen.dart`, all 4 AdGuard methods from `services_network_api.dart`, `adguard` entry from `service_routes.py`, adguard settings from `config.py`, adguard router from `main.py`
+
+**Task 4 — Cubie branding renamed to AiHomeCloud:**
+- Android package: `com.cubiecloud.cubie_cloud` → `com.aihomecloud.app`; `MainActivity.kt` moved to new path; deep-link scheme `cubie://` → `aihomecloud://`
+- Flutter package name: `cubie_cloud` → `aihomecloud` (pubspec.yaml + all 13 import files)
+- `CubieDevice` → `AhcDevice` (models, routes, providers, tests, backend models)
+- `CubieNotificationOverlay` → `AhcNotificationOverlay`; `isCubie` → `isAhc` in `DiscoveredHost`
+- Backend env prefix: `CUBIE_` → `AHC_` across all Python files
+- Logger names: `cubie.*` → `aihomecloud.*` in 23 Python files
+- Paths: `/var/lib/cubie` → `/var/lib/aihomecloud`, `/opt/cubie` → `/opt/aihomecloud`
+- Trash folder: `.cubie_trash` → `.ahc_trash`; serial format: `CUBIE-{mac}` → `AHC-{mac}`
+- mDNS type: `_cubie-nas._tcp` → `_aihomecloud-nas._tcp`; QR scheme: `cubie://pair` → `aihomecloud://pair`
+- Renamed `cubie-backend.service` → `aihomecloud.service`, `50-cubie-network.rules` → `50-aihomecloud-network.rules`
+- Updated `deploy.sh`, `scripts/first-boot-setup.sh`, `backend/README.md`
+
+**Docs updated:** `copilot-instructions.md`, `kb/architecture.md`, `kb/api-contracts.md`, `kb/changelog.md` — AdGuard entries removed, `CubieDevice`/`CubieNotificationOverlay` renamed, env prefix and path references corrected.
+
+**Verified:** `dart analyze` 0 errors; `pytest` 251 passed, 3 pre-existing Windows failures.
+
+**Known exception:** `backend/app/board.py` retains `"Radxa CUBIE A7A"` / `"Radxa CUBIE A7Z"` / `"cubie a7z"` — these are manufacturer hardware model strings read from `/proc/device-tree/model` and must not be changed.
+
+---
+
 ## 2026-03-13 — Telegram bot polish: HTML messages, inline keyboard, 4 new commands
 
 **Changes:** Full rewrite of `backend/app/telegram_bot.py` for improved UX.
