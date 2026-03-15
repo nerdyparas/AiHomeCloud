@@ -194,36 +194,46 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               child: Column(
                 children: [
 
-                  // Server Certificate
-                  ListTile(
-                    leading: _iconBox(
-                        Icons.verified_user_rounded, AppColors.success),
-                    title: Text('Server Certificate',
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500)),
-                    subtitle: Text(
-                      fingerprint != null
-                          ? fingerprint.toUpperCase()
-                          : 'Not pinned yet',
-                      style: GoogleFonts.dmSans(
-                          color: fingerprint != null
-                              ? AppColors.textSecondary
-                              : AppColors.textMuted,
-                          fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded,
-                        color: AppColors.textMuted, size: 20),
-                    onTap: () => _verifyServerCertificate(fingerprint),
-                  ),
+                  // Trash
+                  const _TrashCard(),
 
                   _divider(),
 
-                  // Trash
-                  const _TrashCard(),
+                  // Server Certificate — demoted to small text link
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: GestureDetector(
+                      onTap: _showCertDialog,
+                      child: Row(
+                        children: [
+                          Icon(Icons.lock_outline_rounded,
+                              size: 13,
+                              color: fingerprint != null
+                                  ? AppColors.success
+                                  : AppColors.textMuted),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Server Certificate',
+                            style: GoogleFonts.dmSans(
+                                color: fingerprint != null
+                                    ? AppColors.textSecondary
+                                    : AppColors.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppColors.textMuted),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            fingerprint != null ? '· pinned' : '· not pinned',
+                            style: GoogleFonts.dmSans(
+                                color: AppColors.textMuted, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ).animate().fadeIn(delay: 120.ms),
@@ -398,26 +408,8 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
   // â”€â”€ Dialogs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  Future<void> _verifyServerCertificate(String? storedFingerprint) async {
-    final api = ref.read(apiServiceProvider);
-    String? serverFingerprint;
-    String message;
-
-    try {
-      serverFingerprint = await api.fetchServerFingerprint();
-      if (serverFingerprint == null) {
-        message = 'Unable to fetch the fingerprint from the device.';
-      } else if (storedFingerprint == null) {
-        message = 'Fingerprint retrieved from the current device.';
-      } else if (storedFingerprint == serverFingerprint) {
-        message = 'Stored fingerprint matches the server certificate.';
-      } else {
-        message = 'Stored fingerprint differs from the server certificate.';
-      }
-    } catch (e) {
-      message = 'Failed to verify fingerprint: ${friendlyError(e)}';
-    }
-
+  void _showCertDialog() {
+    final stored = ref.read(certFingerprintProvider);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -426,23 +418,25 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Stored fingerprint:', style: GoogleFonts.dmSans(fontSize: 12)),
+            Text('Pinned fingerprint:',
+                style: GoogleFonts.dmSans(fontSize: 12)),
+            const SizedBox(height: 4),
             SelectableText(
-              storedFingerprint?.toUpperCase() ?? 'Not set',
+              stored?.toUpperCase() ?? 'Not pinned yet',
               style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 12),
+                  color: stored != null
+                      ? AppColors.textSecondary
+                      : AppColors.textMuted,
+                  fontSize: 12),
             ),
-            const SizedBox(height: 8),
-            Text('Server fingerprint:', style: GoogleFonts.dmSans(fontSize: 12)),
-            SelectableText(
-              serverFingerprint?.toUpperCase() ?? 'Unavailable',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            Text(message,
+            if (stored != null) ...[  
+              const SizedBox(height: 10),
+              Text(
+                'This fingerprint is pinned to your device and used to verify the connection.',
                 style: GoogleFonts.dmSans(
-                    color: AppColors.textSecondary, fontSize: 12)),
+                    color: AppColors.textMuted, fontSize: 11),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -450,18 +444,6 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text('Close', style: GoogleFonts.dmSans()),
           ),
-          if (serverFingerprint != null)
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                await persistServerFingerprint(ref, serverFingerprint!);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Fingerprint pinned to certificate.')));
-                }
-              },
-              child: Text('Trust Fingerprint', style: GoogleFonts.dmSans()),
-            ),
         ],
       ),
     );
