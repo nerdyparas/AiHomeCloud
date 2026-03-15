@@ -142,10 +142,9 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
       context.go('/dashboard');
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = friendlyError(e);
-        _loading = false;
-      });
+      setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -184,9 +183,10 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
         if (!mounted) return;
         setState(() {
           _error = friendlyError(e);
-          _loggingIn = false;
           _selectedUser = null;
         });
+      } finally {
+        if (mounted) setState(() => _loggingIn = false);
       }
     }
   }

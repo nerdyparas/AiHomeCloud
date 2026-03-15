@@ -74,7 +74,9 @@ String friendlyError(Object error) {
   if (msg.startsWith('Exception: ')) {
     final inner = msg.substring(11);
     // Re-run through the same checks now that the prefix is stripped.
-    return friendlyError(Exception(inner));
+    // Pass as a plain String, NOT Exception(inner) — wrapping in Exception
+    // would re-add "Exception: " and cause infinite recursion.
+    return friendlyError(inner);
   }
 
   // ── Fallback ────────────────────────────────────────────────────────────

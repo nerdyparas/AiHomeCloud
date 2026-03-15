@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-15 — Fix: infinite recursion in `friendlyError` causing spinner deadlock
+
+**Bug:** After any failed login (wrong PIN) or failed profile creation, the spinner never cleared — buttons were stuck in loading state indefinitely.
+
+**Root cause:** `friendlyError(e)` in `lib/core/error_utils.dart` had infinite recursion:
+- `Exception("Invalid credentials").toString()` → `"Exception: Invalid credentials"`
+- The "strip Exception: prefix" branch called `return friendlyError(Exception(inner))` 
+- This re-wrapped the inner string in a new `Exception`, producing the *same* `.toString()` output
+- Result: unbounded recursion → stack overflow inside the `catch` block's `setState`
+- `_loading`/`_saving` flags were never reset; spinner froze permanently
+
+**Fixes applied:**
+
+- **`lib/core/error_utils.dart`**: Changed `return friendlyError(Exception(inner))` → `return friendlyError(inner)` (pass raw String, not a new Exception wrapper) — eliminates infinite recursion
+- **`lib/screens/onboarding/pin_entry_screen.dart`** `_submit()`: Moved `_loading = false` into `finally` block (was only in `catch` — defensively correct now even if future exceptions occur)
+- **`lib/screens/onboarding/pin_entry_screen.dart`** `_onUserTapped()`: Same `finally`-block pattern applied for `_loggingIn = false`
+
+**After fix:**
+- Wrong PIN → spinner clears, error "Invalid credentials" shown
+- No auth token for admin-required endpoints → spinner clears, error message shown
+
+---
+
 ## 2026-03-15 — New hardware bring-up: Rock Pi 4A + full backend setup audit
 
 **Hardware:** Radxa ROCK Pi 4A (RK3399, Armbian Ubuntu 24.04 Noble, kernel 6.18-rockchip64).
