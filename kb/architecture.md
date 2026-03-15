@@ -102,7 +102,6 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `familyUsersProvider` | `FutureProvider<List<FamilyUser>>` | Family member list from API |
 | `networkStatusProvider` | `FutureProvider<NetworkStatus>` | Network connectivity info |
 | `servicesProvider` | `FutureProvider<List<ServiceInfo>>` | Managed services list |
-| `tailscaleStatusProvider` | `FutureProvider<Map<String, dynamic>>` | VPN status |
 | `notificationStreamProvider` | `StreamProvider<AppNotification>` | Real-time notification stream (WS) |
 | `notificationHistoryProvider` | `StateNotifierProvider` | Last 50 notifications |
 
@@ -146,7 +145,7 @@ The API client is a singleton (`ApiService`) defined in `lib/services/api_servic
 | `api/files_api.dart` | Files | `listFiles()`, `mkdir()`, `delete()`, `rename()`, `upload()`, `download()`, `search()`, trash ops |
 | `api/system_api.dart` | System | `getDeviceInfo()`, `getFirmware()`, `rename()`, `shutdown()`, `reboot()` |
 | `api/storage_api.dart` | Storage | `getDevices()`, `scan()`, `smartActivate()`, `format()`, `mount()`, `unmount()`, `eject()` |
-| `api/services_network_api.dart` | Services + Network | `getServices()`, `toggleService()`, `getNetworkStatus()`, `getWifi()`, Tailscale, Telegram |
+| `api/services_network_api.dart` | Services + Network | `getServices()`, `toggleService()`, `getNetworkStatus()`, `getWifi()`, Telegram |
 
 All methods use `.timeout(ApiService._timeout)` — no raw HTTP client calls.
 

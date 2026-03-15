@@ -212,7 +212,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
 
-              // ── 5 & 6. NETWORK SECTION (incl. AdBlock stats) ────────────
+              // ── 5 & 6. NETWORK SECTION ────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),

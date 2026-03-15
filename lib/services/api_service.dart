@@ -72,13 +72,6 @@ class ApiService {
         _trustedFingerprint == null ? true : _validateCertFingerprint(cert);
   }
 
-  /// Store the Tailscale IP assigned to this device. Used after `tailscale up`
-  /// to record the remote-access address in persistent storage.
-  void setTailscaleIp(String ip) {
-    // IP is persisted in SharedPreferences by the caller; this hook exists
-    // for future routing or UI state updates that depend on the Tailscale IP.
-  }
-
   /// Validate a server certificate against the stored fingerprint.
   ///
   /// Extracts the DER-encoded certificate from PEM, computes SHA-256 hash,
