@@ -44,11 +44,18 @@ class ServicesSettingsScreen extends ConsumerWidget {
                   for (int i = 0; i < services.length; i++) ...[
                     _ServiceToggle(
                       service: services[i],
-                      onToggle: (v) async {
-                        await ref
-                            .read(apiServiceProvider)
-                            .toggleService(services[i].id, v);
-                        ref.invalidate(servicesProvider);
+                      onToggle: (v) {
+                        ref.read(servicesProvider.notifier).toggle(
+                          services[i].id,
+                          v,
+                          onError: (msg) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(friendlyError(Exception(msg))),
+                              ),
+                            );
+                          },
+                        );
                       },
                     ),
                     if (i < services.length - 1)

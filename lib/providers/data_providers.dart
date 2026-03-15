@@ -16,10 +16,47 @@ final networkStatusProvider = FutureProvider<NetworkStatus>((ref) async {
   return api.getNetworkStatus();
 });
 
-final servicesProvider = FutureProvider<List<ServiceInfo>>((ref) async {
-  final api = ref.read(apiServiceProvider);
-  return api.getServices();
-});
+class ServicesNotifier
+    extends StateNotifier<AsyncValue<List<ServiceInfo>>> {
+  final ApiService _api;
+
+  ServicesNotifier(this._api) : super(const AsyncLoading()) {
+    load();
+  }
+
+  Future<void> load() async {
+    state = const AsyncLoading();
+    try {
+      state = AsyncData(await _api.getServices());
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  Future<void> toggle(
+    String serviceId,
+    bool enabled, {
+    required void Function(String message) onError,
+  }) async {
+    final previous = state;
+    // Optimistic update
+    state = state.whenData((list) => [
+          for (final s in list)
+            if (s.id == serviceId) s.copyWith(isEnabled: enabled) else s,
+        ]);
+    try {
+      await _api.toggleService(serviceId, enabled);
+    } catch (e) {
+      state = previous; // rollback
+      onError(e.toString());
+    }
+  }
+}
+
+final servicesProvider =
+    StateNotifierProvider<ServicesNotifier, AsyncValue<List<ServiceInfo>>>(
+  (ref) => ServicesNotifier(ref.read(apiServiceProvider)),
+);
 
 final notificationStreamProvider = StreamProvider<AppNotification>((ref) {
   final api = ref.read(apiServiceProvider);

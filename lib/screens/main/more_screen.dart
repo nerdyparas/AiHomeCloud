@@ -104,21 +104,20 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                                 color: AppColors.textSecondary, fontSize: 12)),
                         trailing: Switch(
                           value: media.isEnabled,
-                          onChanged: (v) async {
-                            final messenger =
-                                ScaffoldMessenger.of(context);
-                            try {
-                              await ref
-                                  .read(apiServiceProvider)
-                                  .toggleService(media.id, v);
-                              ref.invalidate(servicesProvider);
-                            } catch (e) {
-                              if (mounted) {
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(friendlyError(e))),
-                                );
-                              }
-                            }
+                          onChanged: (v) {
+                            final messenger = ScaffoldMessenger.of(context);
+                            ref.read(servicesProvider.notifier).toggle(
+                              media.id,
+                              v,
+                              onError: (msg) {
+                                if (mounted) {
+                                  messenger.showSnackBar(SnackBar(
+                                    content: Text(friendlyError(
+                                        Exception(msg))),
+                                  ));
+                                }
+                              },
+                            );
                           },
                           activeThumbColor: AppColors.primary,
                         ),
@@ -147,7 +146,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                           style: GoogleFonts.dmSans(
                               color: AppColors.textMuted, fontSize: 12)),
                       trailing: GestureDetector(
-                        onTap: () => ref.invalidate(servicesProvider),
+                        onTap: () => ref.read(servicesProvider.notifier).load(),
                         child: Container(
                           width: 10,
                           height: 10,
