@@ -372,6 +372,12 @@ async def _handle_destination_callback(update, context) -> None:  # type: ignore
         )
         return
 
+    # Delete the "where to save?" message so only the result remains in chat.
+    try:
+        await query.message.delete()
+    except Exception:
+        pass  # Message may be too old or already deleted — upload must still proceed.
+
     await _process_upload_choice(query, context, chat_id, choice, pending)
 
 
