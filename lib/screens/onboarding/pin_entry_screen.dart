@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,10 +13,6 @@ import '../../core/theme.dart';
 import '../../providers/core_providers.dart';
 import '../../services/api_service.dart';
 
-
-// In-memory cache: host IP → user list. Populated on first fetch so that
-// switching profiles or returning to the picker shows users instantly.
-final Map<String, List<UserPickerEntry>> _userPickerCache = {};
 
 class PinEntryScreen extends ConsumerStatefulWidget {
   final String deviceIp;
@@ -47,26 +45,48 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
   }
 
   Future<void> _fetchUsers() async {
-    // Show cached users instantly — no spinner on warm cache
-    final cached = _userPickerCache[widget.deviceIp];
-    if (cached != null && cached.isNotEmpty) {
-      setState(() {
-        _users = cached;
-        _loadingUsers = false;
-        _error = null;
-      });
-    } else {
-      setState(() {
-        _loadingUsers = true;
-        _error = null;
-      });
+    final prefs = ref.read(sharedPreferencesProvider);
+    final cacheKey = AppConstants.prefUserPickerCachePrefix + widget.deviceIp;
+
+    // Load persisted cache immediately — no spinner if cached data exists
+    final raw = prefs.getString(cacheKey);
+    if (raw != null) {
+      try {
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+        final cached = list
+            .map((m) => UserPickerEntry(
+                  name: m['name'] as String,
+                  hasPin: m['hasPin'] as bool,
+                  iconEmoji: m['iconEmoji'] as String? ?? '',
+                ))
+            .toList();
+        if (cached.isNotEmpty) {
+          setState(() {
+            _users = cached;
+            _loadingUsers = false;
+            _error = null;
+          });
+        }
+      } catch (_) {
+        // Corrupted cache — ignore, spinner stays until fresh fetch arrives
+      }
     }
 
     // Always refresh from server in background
     try {
       final api = ApiService.instance;
       final entries = await api.fetchUserEntries(widget.deviceIp);
-      _userPickerCache[widget.deviceIp] = entries;
+      // Persist updated list to survive process death
+      await prefs.setString(
+        cacheKey,
+        jsonEncode(entries
+            .map((e) => {
+                  'name': e.name,
+                  'hasPin': e.hasPin,
+                  'iconEmoji': e.iconEmoji,
+                })
+            .toList()),
+      );
       if (!mounted) return;
       setState(() {
         _users = entries;

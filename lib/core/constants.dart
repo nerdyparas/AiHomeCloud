@@ -34,6 +34,7 @@ class AppConstants {
   static const String prefIsAdmin = 'is_admin';
   static const String kCertFingerprintPrefKey = 'ahcFingerprint';
   static const String prefTailscaleIp = 'tailscale_ip';
+  static const String prefUserPickerCachePrefix = 'user_picker_cache_';
 
   // â”€â”€ Storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const double totalStorageGB = 500.0;
