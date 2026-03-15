@@ -234,6 +234,8 @@ def _remove_sync(nas_path: str) -> None:
     try:
         conn.execute("DELETE FROM doc_index WHERE path = ?", (nas_path,))
         conn.commit()
+    except sqlite3.OperationalError:
+        pass  # table not yet created — nothing to remove
     finally:
         conn.close()
 
@@ -245,6 +247,8 @@ def _remove_prefix_sync(nas_prefix: str) -> int:
         cur = conn.execute("DELETE FROM doc_index WHERE path LIKE ?", (f"{nas_prefix}%",))
         conn.commit()
         return cur.rowcount or 0
+    except sqlite3.OperationalError:
+        return 0  # table not yet created — nothing to remove
     finally:
         conn.close()
 

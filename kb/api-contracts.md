@@ -161,17 +161,6 @@
 
 ---
 
-## Tailscale (`tailscale_routes.py` — prefix `/api/v1/system`)
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/tailscale-status` | User | VPN connection status |
-| POST | `/tailscale-up` | Admin | Bring up Tailscale VPN |
-
-**Response `GET /tailscale-status`:** `{ installed, connected, tailscaleIp? }`
-
----
-
 ## Telegram (`telegram_routes.py` — prefix `/api/v1/telegram`)
 
 | Method | Path | Auth | Description |

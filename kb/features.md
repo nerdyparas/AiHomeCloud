@@ -51,9 +51,6 @@
 - **Wi-Fi toggle** — Enable/disable Wi-Fi
 - **Service management** — Toggle SSH, NFS, media (DLNA + Samba)
 - **Unified media service** — Single "TV & Computer Sharing" toggle for smbd + nmbd + minidlna
-- **AdGuard stats** — DNS queries, blocked count, protection status
-- **AdGuard pause** — Temporary pause (5/30/60 min)
-- **Tailscale VPN** — Status view and bring-up
 
 ### Telegram Integration
 - **Bot setup** — Token configuration screen

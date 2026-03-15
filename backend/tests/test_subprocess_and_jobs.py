@@ -2,6 +2,7 @@
 Subprocess runner and job store tests.
 """
 
+import sys
 import pytest
 
 
@@ -10,7 +11,7 @@ async def test_run_command_basic():
     """Run a simple command and get output."""
     from app.subprocess_runner import run_command
 
-    rc, out, err = await run_command(["echo", "hello"])
+    rc, out, err = await run_command([sys.executable, "-c", "print('hello')"])
     assert rc == 0
     assert "hello" in out
 
@@ -49,7 +50,9 @@ async def test_run_command_timeout():
     """Command that exceeds timeout returns -1 with 'timeout'."""
     from app.subprocess_runner import run_command
 
-    rc, out, err = await run_command(["sleep", "10"], timeout=1)
+    rc, out, err = await run_command(
+        [sys.executable, "-c", "import time\ntime.sleep(10)"], timeout=1
+    )
     assert rc == -1
     assert err == "timeout"
 
@@ -59,7 +62,9 @@ async def test_run_command_stderr():
     """Command that writes to stderr captures it."""
     from app.subprocess_runner import run_command
 
-    rc, out, err = await run_command(["ls", "/nonexistent_path_xyz"])
+    rc, out, err = await run_command(
+        [sys.executable, "-c", "import sys\nsys.stderr.write('oops')\nsys.exit(1)"]
+    )
     assert rc != 0
     assert err  # stderr should contain error message
 

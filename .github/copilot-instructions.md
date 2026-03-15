@@ -50,7 +50,6 @@
 | `service_routes.py` | `/api/v1/services` | 2 | List services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | 9 | Devices, scan, SMART, usage, format, mount, unmount, eject, stats |
 | `network_routes.py` | `/api/v1/network` | 3 | Status, Wi-Fi get/set |
-| `tailscale_routes.py` | `/api/v1/tailscale` | 2 | Status, bring up |
 | `telegram_routes.py` | `/api/v1/telegram` | 3 | Config get/set, unlink |
 | `telegram_upload_routes.py` | `/telegram-upload` | 2 | HTML upload form (GET), file upload (POST) — token auth |
 | `jobs_routes.py` | `/api/v1/jobs` | 1 | Job status polling |
