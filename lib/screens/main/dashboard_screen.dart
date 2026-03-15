@@ -135,12 +135,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ],
                       );
                     },
-                    loading: () => const SizedBox(
-                      height: 80,
-                      child: Center(
-                          child:
-                              CircularProgressIndicator(color: AppColors.primary)),
-                    ),
+                    loading: () => _StorageSkeletonCard(),
                     error: (e, _) => AppCard(
                       child: Row(
                         children: [
@@ -185,8 +180,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: statsAsync.when(
                     data: (s) =>
                         _SystemCompactCard(stats: s).animate().fadeIn(delay: 200.ms),
-                    loading: () =>
-                        const SizedBox(height: 80),
+                    loading: () => _SystemSkeletonCard(),
                     error: (e, __) => AppCard(
                       child: Row(
                         children: [
@@ -537,11 +531,7 @@ class _NetworkStatusCard extends ConsumerWidget {
           ],
         ),
       ).animate().fadeIn(delay: 550.ms),
-      loading: () => const SizedBox(
-        height: 60,
-        child: Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
-      ),
+      loading: () => _NetworkSkeletonCard(),
       error: (e, _) => AppCard(
         child: Row(
           children: [
@@ -949,5 +939,175 @@ class _SystemMetricDivider extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 8),
       color: AppColors.cardBorder.withValues(alpha: 0.55),
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON / SHIMMER PLACEHOLDERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _SkeletonBar extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const _SkeletonBar({
+    required this.width,
+    this.height = 12,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
+      ),
+    );
+  }
+}
+
+class _StorageSkeletonCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        children: [
+          // Icon placeholder
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SkeletonBar(width: 100, height: 14),
+                const SizedBox(height: 8),
+                const _SkeletonBar(width: 60, height: 10),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    height: 6,
+                    color: AppColors.surface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate(onPlay: (c) => c.repeat()).shimmer(
+          duration: 1200.ms,
+          color: AppColors.cardBorder.withValues(alpha: 0.3),
+        );
+  }
+}
+
+class _SystemSkeletonCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.cardBorder, width: 1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.card,
+            AppColors.surface.withValues(alpha: 0.55),
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          // Chip icon placeholder
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 14),
+          // 4 metric circle placeholders
+          for (int i = 0; i < 4; i++) ...[
+            if (i > 0) const _SystemMetricDivider(),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.cardBorder.withValues(alpha: 0.7),
+                        width: 3.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  const _SkeletonBar(width: 28, height: 10),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    ).animate(onPlay: (c) => c.repeat()).shimmer(
+          duration: 1200.ms,
+          color: AppColors.cardBorder.withValues(alpha: 0.3),
+        );
+  }
+}
+
+class _NetworkSkeletonCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        children: [
+          for (int i = 0; i < 3; i++) ...[
+            if (i > 0)
+              const Divider(color: AppColors.cardBorder, height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const _SkeletonBar(width: 70, height: 13),
+                  const Spacer(),
+                  const _SkeletonBar(width: 90, height: 11),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    ).animate(onPlay: (c) => c.repeat()).shimmer(
+          duration: 1200.ms,
+          color: AppColors.cardBorder.withValues(alpha: 0.3),
+        );
   }
 }

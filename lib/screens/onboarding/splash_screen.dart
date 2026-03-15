@@ -33,8 +33,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _init() async {
     final session = ref.read(authSessionProvider);
     if (session != null) {
-      // Already authenticated — go directly to the dashboard.
-      // No network ping needed here; the dashboard handles offline state itself.
+      // Already authenticated — warm providers so dashboard never shows blank.
+      ref.read(deviceInfoProvider);
+      ref.read(storageDevicesProvider);
       if (!mounted) return;
       context.go('/dashboard');
       return;
