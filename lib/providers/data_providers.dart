@@ -47,21 +47,4 @@ final notificationHistoryProvider =
   (ref) => NotificationHistoryNotifier(),
 );
 
-/// Ad Blocking stats — silently returns null if AdGuard is disabled/unreachable.
-/// Used on the Home tab to optionally show the ad blocking badge.
-/// Checks /status first to avoid a 503 from /stats when AdGuard is not configured.
-final adGuardStatsSilentProvider =
-    FutureProvider<Map<String, dynamic>?>((ref) async {
-  try {
-    final status = await ref.read(apiServiceProvider).getAdGuardStatus();
-    final installed = status['installed'] as bool? ?? false;
-    final running = status['service_running'] as bool? ?? false;
-    final enabled = status['app_enabled'] as bool? ?? false;
-    if (!installed || !running || !enabled) return null;
-    return await ref.read(apiServiceProvider).getAdGuardStats();
-  } catch (_) {
-    return null;
-  }
-});
-
 

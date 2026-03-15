@@ -1,9 +1,9 @@
-part of '../api_service.dart';
+﻿part of '../api_service.dart';
 
 /// Device info, firmware, system monitoring, and WebSocket streams.
 extension SystemApi on ApiService {
   /// GET /api/v1/system/info
-  Future<CubieDevice> getDeviceInfo() async {
+  Future<AhcDevice> getDeviceInfo() async {
     final res = await _withAutoRefresh(
       () => _client
           .get(
@@ -14,7 +14,7 @@ extension SystemApi on ApiService {
     );
     _check(res);
     final data = jsonDecode(res.body);
-    return CubieDevice(
+    return AhcDevice(
       serial: data['serial'],
       name: data['name'],
       ip: data['ip'],
@@ -22,7 +22,7 @@ extension SystemApi on ApiService {
     );
   }
 
-  /// WebSocket /ws/monitor â€” streams SystemStats every 2 s.
+  /// WebSocket /ws/monitor Ã¢â‚¬â€ streams SystemStats every 2 s.
   Stream<SystemStats> monitorSystemStats() {
     final host = _session?.host;
     final port = _session?.port ?? AppConstants.apiPort;
@@ -78,7 +78,7 @@ extension SystemApi on ApiService {
     return ctrl.stream;
   }
 
-  /// WebSocket /ws/events â€” real-time notification stream from the backend.
+  /// WebSocket /ws/events Ã¢â‚¬â€ real-time notification stream from the backend.
   Stream<AppNotification> notificationStream() {
     final host = _session?.host;
     final port = _session?.port ?? AppConstants.apiPort;
@@ -163,7 +163,7 @@ extension SystemApi on ApiService {
     _check(res);
   }
 
-  /// POST /api/v1/system/shutdown — stop all services and power off
+  /// POST /api/v1/system/shutdown â€” stop all services and power off
   Future<void> shutdownDevice() async {
     final res = await _withAutoRefresh(
       () => _client
@@ -176,7 +176,7 @@ extension SystemApi on ApiService {
     _check(res);
   }
 
-  /// POST /api/v1/system/reboot — restart the device
+  /// POST /api/v1/system/reboot â€” restart the device
   Future<void> rebootDevice() async {
     final res = await _withAutoRefresh(
       () => _client
@@ -189,7 +189,7 @@ extension SystemApi on ApiService {
     _check(res);
   }
 
-  /// GET /api/v1/system/tailscale-status — current Tailscale connectivity state.
+  /// GET /api/v1/system/tailscale-status â€” current Tailscale connectivity state.
   Future<Map<String, dynamic>> getTailscaleStatus() async {
     final res = await _withAutoRefresh(
       () => _client
@@ -204,7 +204,7 @@ extension SystemApi on ApiService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  /// POST /api/v1/system/tailscale-up — bring Tailscale up (admin only).
+  /// POST /api/v1/system/tailscale-up â€” bring Tailscale up (admin only).
   Future<Map<String, dynamic>> tailscaleUp() async {
     final res = await _withAutoRefresh(
       () => _client

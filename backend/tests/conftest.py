@@ -1,15 +1,15 @@
-import pytest
+﻿import pytest
 
 # Ensure asyncio fixtures have HTTP client
 from httpx import AsyncClient, ASGITransport
 
 # Set environment variable before importing the app so Settings picks it up
-# Note: event_loop fixture removed — pytest-asyncio 0.23.x auto-provides per-function event loops.
+# Note: event_loop fixture removed â€” pytest-asyncio 0.23.x auto-provides per-function event loops.
 
 @pytest.fixture
 async def client(tmp_path, monkeypatch):
     # Point the app data dir AND NAS root to temporary paths before FastAPI loads settings
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
 
     nas_tmp = tmp_path / "nas"
     nas_tmp.mkdir()

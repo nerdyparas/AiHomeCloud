@@ -1,4 +1,4 @@
-/// Device state providers — device info, system stats stream, connection status,
+﻿/// Device state providers â€” device info, system stats stream, connection status,
 /// storage stats, and storage device listing.
 library;
 import 'dart:async';
@@ -9,7 +9,7 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import 'core_providers.dart';
 
-final deviceInfoProvider = FutureProvider<CubieDevice>((ref) async {
+final deviceInfoProvider = FutureProvider<AhcDevice>((ref) async {
   final api = ref.read(apiServiceProvider);
   return api.getDeviceInfo();
 });

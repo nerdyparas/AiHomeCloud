@@ -1,7 +1,7 @@
-/// Barrel file — re-exports all provider domain files.
+﻿/// Barrel file â€” re-exports all provider domain files.
 ///
 /// Import this single file to access every provider in the app:
-///   import 'package:cubie_cloud/providers.dart';
+///   import 'package:aihomecloud/providers.dart';
 library;
 export 'providers/core_providers.dart';
 export 'providers/device_providers.dart';

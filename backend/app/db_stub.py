@@ -1,11 +1,11 @@
-"""
-SQLite schema stub for the file index — feature-flagged, off by default.
+﻿"""
+SQLite schema stub for the file index â€” feature-flagged, off by default.
 
-Enable via env var:  CUBIE_ENABLE_SQLITE=true
+Enable via env var:  AHC_ENABLE_SQLITE=true
 
 When enabled, creates two tables in {data_dir}/file_index.db:
-  - file_index  — FTS5-searchable record for every indexed file
-  - ai_jobs     — queue of pending AI processing tasks
+  - file_index  â€” FTS5-searchable record for every indexed file
+  - ai_jobs     â€” queue of pending AI processing tasks
 
 When disabled, this module is a no-op and has zero impact on startup time
 or runtime behaviour.
@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("cubie.db_stub")
+logger = logging.getLogger("aihomecloud.db_stub")
 
-# ─── Schema ───────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _CREATE_FILE_INDEX = """
 CREATE TABLE IF NOT EXISTS file_index (
@@ -52,18 +52,18 @@ CREATE TABLE IF NOT EXISTS ai_jobs (
 """
 
 
-# ─── Public API ───────────────────────────────────────────────────────────────
+# â”€â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def init_db() -> None:
     """
     Create the SQLite database and tables if `enable_sqlite` is True.
-    Safe to call multiple times — all statements are CREATE IF NOT EXISTS.
+    Safe to call multiple times â€” all statements are CREATE IF NOT EXISTS.
     Zero cost when the flag is off.
     """
     from .config import settings
 
     if not settings.enable_sqlite:
-        logger.debug("SQLite file index disabled (CUBIE_ENABLE_SQLITE=false)")
+        logger.debug("SQLite file index disabled (AHC_ENABLE_SQLITE=false)")
         return
 
     import aiosqlite

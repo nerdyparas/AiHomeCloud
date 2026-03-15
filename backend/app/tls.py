@@ -1,4 +1,4 @@
-"""
+﻿"""
 TLS certificate management for AiHomeCloud.
 Auto-generates a self-signed certificate on first boot.
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 from .config import settings
 from .subprocess_runner import run_command
 
-logger = logging.getLogger("cubie.tls")
+logger = logging.getLogger("aihomecloud.tls")
 
 
 def _get_local_ips() -> list[str]:
@@ -38,7 +38,7 @@ async def ensure_tls_cert() -> tuple[Path, Path]:
         logger.info("TLS cert already exists at %s", cert_path)
         return cert_path, key_path
 
-    logger.info("Generating self-signed TLS certificate…")
+    logger.info("Generating self-signed TLS certificateâ€¦")
     cert_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Build SAN entries for local IPs + hostname

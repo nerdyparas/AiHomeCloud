@@ -1,5 +1,5 @@
-"""
-AiHomeCloud Backend — FastAPI application.
+﻿"""
+AiHomeCloud Backend â€” FastAPI application.
 Run with: python -m app.main (auto-configures TLS)
 """
 
@@ -18,12 +18,11 @@ from slowapi.errors import RateLimitExceeded
 
 from .config import settings, JWT_SECRET_FILE
 from .limiter import limiter
-import os  # noqa: E402 — used for env var check below
+import os  # noqa: E402 â€” used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .board import detect_board
 from .routes import (
-    adguard_routes,
     auth_routes,
     system_routes,
     monitor_routes,
@@ -38,7 +37,7 @@ from .routes import (
     telegram_upload_routes,
 )
 
-logger = logging.getLogger("cubie.main")
+logger = logging.getLogger("aihomecloud.main")
 
 
 @asynccontextmanager
@@ -67,7 +66,7 @@ async def lifespan(app: FastAPI):
     # Ensure family .inbox/ exists for auto-sorting of shared-folder uploads
     (settings.family_path / ".inbox").mkdir(exist_ok=True)
 
-    # One-time migration: shared/ → family/ and entertainment/
+    # One-time migration: shared/ â†’ family/ and entertainment/
     import shutil as _shutil
     old_shared = settings.nas_root / "shared"
     new_family = settings.family_path
@@ -75,7 +74,7 @@ async def lifespan(app: FastAPI):
     new_entertainment = settings.entertainment_path
 
     if old_shared.exists() and not new_family.exists():
-        logger.info("Migrating shared/ → family/ and entertainment/")
+        logger.info("Migrating shared/ â†’ family/ and entertainment/")
         try:
             if old_entertainment.exists():
                 new_entertainment.mkdir(parents=True, exist_ok=True)
@@ -83,7 +82,7 @@ async def lifespan(app: FastAPI):
                     _shutil.move(str(item), str(new_entertainment / item.name))
                 old_entertainment.rmdir()
             _shutil.move(str(old_shared), str(new_family))
-            logger.info("Migration complete: shared/ → family/")
+            logger.info("Migration complete: shared/ â†’ family/")
         except (OSError, _shutil.Error) as e:
             logger.error("Migration failed: %s", e)
 
@@ -91,7 +90,7 @@ async def lifespan(app: FastAPI):
     if settings.tls_enabled:
         try:
             cert, key = await ensure_tls_cert()
-            logger.info("TLS enabled — cert=%s key=%s", cert, key)
+            logger.info("TLS enabled â€” cert=%s key=%s", cert, key)
         except (OSError, RuntimeError, ValueError) as e:
             logger.warning("TLS cert generation failed, running without TLS: %s", e)
             settings.tls_enabled = False
@@ -106,7 +105,7 @@ async def lifespan(app: FastAPI):
     try:
         if JWT_SECRET_FILE.exists():
             logger.info("JWT secret loaded from %s", JWT_SECRET_FILE)
-        elif os.getenv("CUBIE_JWT_SECRET"):
+        elif os.getenv("AHC_JWT_SECRET"):
             logger.info("JWT secret provided via environment variable")
         else:
             logger.info("JWT secret: using default placeholder (insecure)")
@@ -215,7 +214,7 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("DocumentIndexWatcher startup failed: %s", e)
 
-    # Start Telegram bot (optional — skipped if token not set)
+    # Start Telegram bot (optional â€” skipped if token not set)
     try:
         # Restore Telegram runtime settings from persisted config.
         saved_tg = await _store_module.get_value("telegram_config", default={})
@@ -289,7 +288,7 @@ app.add_middleware(
 )
 
 
-# Paths called very frequently — skip per-request logging to reduce overhead.
+# Paths called very frequently â€” skip per-request logging to reduce overhead.
 _QUIET_PATHS = frozenset({
     "/api/v1/files/list",
     "/api/v1/files/download",
@@ -339,14 +338,13 @@ app.include_router(service_routes.router)
 app.include_router(storage_routes.router)
 app.include_router(event_routes.router)
 app.include_router(network_routes.router)
-app.include_router(adguard_routes.router)
 app.include_router(telegram_routes.router)
 app.include_router(telegram_upload_routes.router)
 
 
 @app.get("/api/health")
 async def health():
-    """Health check — unversioned, always available."""
+    """Health check â€” unversioned, always available."""
     return {"status": "ok"}
 
 
@@ -368,7 +366,7 @@ async def redirect_api(path: str, request: Request):
     return RedirectResponse(url=target, status_code=308)
 
 
-# ── Entry point for python -m app.main ──────────────────────────────────────
+# â”€â”€ Entry point for python -m app.main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 if __name__ == "__main__":
     kwargs = {

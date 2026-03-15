@@ -1,18 +1,18 @@
-"""
+﻿"""
 Telegram bot for document retrieval from AiHomeCloud.
 
 Bot commands:
-  /start — welcome + prompt to /auth if not linked
-  /auth  — link Telegram account to AiHomeCloud
-  /list  — last 10 indexed documents
-  /help  — show all commands
-  <text> — full-text search; 0 results → message; 1 → send file; 2-5 → numbered list
-  <num>  — send the nth file from the last search
+  /start â€” welcome + prompt to /auth if not linked
+  /auth  â€” link Telegram account to AiHomeCloud
+  /list  â€” last 10 indexed documents
+  /help  â€” show all commands
+  <text> â€” full-text search; 0 results â†’ message; 1 â†’ send file; 2-5 â†’ numbered list
+  <num>  â€” send the nth file from the last search
 
 Security: users must send /auth to link their Telegram account before accessing
 any data. Linked chat IDs are persisted in the KV store.
 
-The bot is entirely optional — it is only started when CUBIE_TELEGRAM_BOT_TOKEN is
+The bot is entirely optional â€” it is only started when AHC_TELEGRAM_BOT_TOKEN is
 configured.  If python-telegram-bot is not installed the startup silently skips.
 """
 
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("cubie.telegram_bot")
+logger = logging.getLogger("aihomecloud.telegram_bot")
 
 _POLL_TIMEOUT_SECONDS = 2
 _HTTP_TIMEOUT_SECONDS = 600
@@ -56,7 +56,7 @@ _trash_warning_task: asyncio.Task | None = None
 
 
 # ---------------------------------------------------------------------------
-# Access control — linked chat IDs persisted in KV store
+# Access control â€” linked chat IDs persisted in KV store
 # ---------------------------------------------------------------------------
 
 async def _get_linked_ids() -> set[int]:
@@ -183,11 +183,11 @@ async def _upload_progress_heartbeat(message, filename: str, size_text: str, tar
         await _safe_edit_text(
             message,
             (
-                f"📥 <b>Downloading…</b>\n\n"
-                f"📄 <code>{filename}</code>\n"
-                f"📦 {size_text}\n"
-                f"📂 {target_label}\n"
-                f"⏱ {elapsed}\n\n"
+                f"ðŸ“¥ <b>Downloadingâ€¦</b>\n\n"
+                f"ðŸ“„ <code>{filename}</code>\n"
+                f"ðŸ“¦ {size_text}\n"
+                f"ðŸ“‚ {target_label}\n"
+                f"â± {elapsed}\n\n"
                 "<i>Large files can take a few minutes.</i>"
             ),
         )
@@ -238,22 +238,22 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
 def _file_type_emoji(kind: str) -> str:
     """Return an emoji for a given file kind."""
     return {
-        "document": "📄",
-        "video":    "🎬",
-        "audio":    "🎵",
-        "photo":    "🖼",
-        "voice":    "🎙",
-    }.get(kind, "📁")
+        "document": "ðŸ“„",
+        "video":    "ðŸŽ¬",
+        "audio":    "ðŸŽµ",
+        "photo":    "ðŸ–¼",
+        "voice":    "ðŸŽ™",
+    }.get(kind, "ðŸ“")
 
 
 def _make_destination_keyboard(chat_id: int):
     """Return a 4-button inline keyboard for upload destination choice."""
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("👤  My Folder",        callback_data=f"dest:{chat_id}:1")],
-        [InlineKeyboardButton("👨\u200d👩\u200d👧  Family Shared",   callback_data=f"dest:{chat_id}:2")],
-        [InlineKeyboardButton("🎬  Entertainment",   callback_data=f"dest:{chat_id}:3")],
-        [InlineKeyboardButton("❌  Cancel",            callback_data=f"dest:{chat_id}:cancel")],
+        [InlineKeyboardButton("ðŸ‘¤  My Folder",        callback_data=f"dest:{chat_id}:1")],
+        [InlineKeyboardButton("ðŸ‘¨\u200dðŸ‘©\u200dðŸ‘§  Family Shared",   callback_data=f"dest:{chat_id}:2")],
+        [InlineKeyboardButton("ðŸŽ¬  Entertainment",   callback_data=f"dest:{chat_id}:3")],
+        [InlineKeyboardButton("âŒ  Cancel",            callback_data=f"dest:{chat_id}:cancel")],
     ])
 
 
@@ -318,7 +318,7 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
 
     if pending is None:
         await update.message.reply_text(
-            "⚠️ <i>Unsupported file type.</i>\n\nSend a document, photo, video, or audio.",
+            "âš ï¸ <i>Unsupported file type.</i>\n\nSend a document, photo, video, or audio.",
             parse_mode="HTML",
         )
         return
@@ -367,7 +367,7 @@ async def _handle_destination_callback(update, context) -> None:  # type: ignore
     pending = _pending_uploads.get(chat_id)
     if pending is None:
         await query.edit_message_text(
-            "⚠️ <i>No pending upload found. Please resend the file.</i>",
+            "âš ï¸ <i>No pending upload found. Please resend the file.</i>",
             parse_mode="HTML",
         )
         return
@@ -518,14 +518,14 @@ async def _handle_start(update, context) -> None:  # type: ignore[type-arg]
 
     if not await _is_allowed(chat_id):
         await update.message.reply_text(
-            f"👋 <b>Hi {first_name}!</b>\n\n"
+            f"ðŸ‘‹ <b>Hi {first_name}!</b>\n\n"
             "This is a private AiHomeCloud. Send /auth to link your account and get access.",
             parse_mode="HTML",
         )
         return
 
     await update.message.reply_text(
-        f"🏠 <b>Welcome back, {first_name}!</b>\n\n"
+        f"ðŸ  <b>Welcome back, {first_name}!</b>\n\n"
         "Type anything to search your files.\n"
         "Send a file to save it to your cloud.\n\n"
         "Use /help to see all commands.",
@@ -548,8 +548,8 @@ async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
             await _set_chat_folder_owner(chat_id, new_owner)
             owner = new_owner
         await update.message.reply_text(
-            f"✅ <b>Already linked, {first_name}</b>\n\n"
-            f"👤 Personal folder: <b>{owner}</b>\n\n"
+            f"âœ… <b>Already linked, {first_name}</b>\n\n"
+            f"ðŸ‘¤ Personal folder: <b>{owner}</b>\n\n"
             "To switch folder: <code>/auth &lt;name&gt;</code>",
             parse_mode="HTML",
         )
@@ -559,14 +559,14 @@ async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
     owner = await _resolve_personal_owner(chat_id, requested_owner or first_name)
     await _set_chat_folder_owner(chat_id, owner)
     await update.message.reply_text(
-        f"✅ <b>Linked! Welcome, {first_name}.</b>\n\n"
-        f"👤 Personal folder: <b>{owner}</b>\n\n"
+        f"âœ… <b>Linked! Welcome, {first_name}.</b>\n\n"
+        f"ðŸ‘¤ Personal folder: <b>{owner}</b>\n\n"
         "You can now:\n"
-        "• Type anything to <b>search documents</b>\n"
-        "• Send a file to <b>save it to your cloud</b>\n"
-        "• /list — recent files\n"
-        "• /status — device health\n"
-        "• /help — all commands",
+        "â€¢ Type anything to <b>search documents</b>\n"
+        "â€¢ Send a file to <b>save it to your cloud</b>\n"
+        "â€¢ /list â€” recent files\n"
+        "â€¢ /status â€” device health\n"
+        "â€¢ /help â€” all commands",
         parse_mode="HTML",
     )
 
@@ -575,28 +575,28 @@ async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
         await update.message.reply_text(
-            "🔒 Send /auth first to link your account.",
+            "ðŸ”’ Send /auth first to link your account.",
             parse_mode="HTML",
         )
         return
 
     owner = await _get_chat_folder_owner(chat_id) or "admin"
     await update.message.reply_text(
-        "🏠 <b>AiHomeCloud Bot</b>\n\n"
+        "ðŸ  <b>AiHomeCloud Bot</b>\n\n"
         "<b>Commands</b>\n"
-        "• /list — last 10 indexed documents\n"
-        "• /status — device health and storage\n"
-        "• /whoami — your linked profile\n"
-        "• /cancel — discard a pending file upload\n"
-        "• /unlink — disconnect this Telegram account\n"
-        "• /help — this message\n\n"
+        "â€¢ /list â€” last 10 indexed documents\n"
+        "â€¢ /status â€” device health and storage\n"
+        "â€¢ /whoami â€” your linked profile\n"
+        "â€¢ /cancel â€” discard a pending file upload\n"
+        "â€¢ /unlink â€” disconnect this Telegram account\n"
+        "â€¢ /help â€” this message\n\n"
         "<b>Search</b>\n"
-        "• Type any word to search files\n"
-        "• Reply with a number to receive that file\n\n"
+        "â€¢ Type any word to search files\n"
+        "â€¢ Reply with a number to receive that file\n\n"
         "<b>Upload</b>\n"
-        "• Send any file — tap where to save it\n"
-        "• Supports documents, photos, videos, audio\n"
-        f"• Files save to your <b>{owner}</b> folder by default\n\n"
+        "â€¢ Send any file â€” tap where to save it\n"
+        "â€¢ Supports documents, photos, videos, audio\n"
+        f"â€¢ Files save to your <b>{owner}</b> folder by default\n\n"
         "<i>Examples: aadhaar, pan card, invoice, passport</i>",
         parse_mode="HTML",
     )
@@ -605,7 +605,7 @@ async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
 async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
-        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        await update.message.reply_text("ðŸ”’ Send /auth first to link your account.", parse_mode="HTML")
         return
 
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
@@ -614,7 +614,7 @@ async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
     docs = await list_recent_documents(limit=10)
     if not docs:
         await update.message.reply_text(
-            "📂 <i>No documents indexed yet.</i>\n\nSend a file to start building your library.",
+            "ðŸ“‚ <i>No documents indexed yet.</i>\n\nSend a file to start building your library.",
             parse_mode="HTML",
         )
         return
@@ -626,7 +626,7 @@ async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
         lines.append(f"{i}. <code>{d['filename']}</code>  <i>({added_by})</i>")
 
     await update.message.reply_text(
-        "📄 <b>Recent documents</b>\n\n"
+        "ðŸ“„ <b>Recent documents</b>\n\n"
         + "\n".join(lines)
         + "\n\n<i>Reply with a number to receive the file.</i>",
         parse_mode="HTML",
@@ -637,14 +637,14 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
         await update.message.reply_text(
-            "🔒 Send /auth first to link your account.",
+            "ðŸ”’ Send /auth first to link your account.",
             parse_mode="HTML",
         )
         return
 
     text = (update.message.text or "").strip()
 
-    # Numeric reply → send file from previous search / list
+    # Numeric reply â†’ send file from previous search / list
     if text.isdigit():
         prev = _last_results.get(chat_id, [])
         idx = int(text) - 1
@@ -652,12 +652,12 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
             await _send_file(update, prev[idx])
         else:
             await update.message.reply_text(
-                "❓ <i>Invalid number.</i> Search for something first or use /list.",
+                "â“ <i>Invalid number.</i> Search for something first or use /list.",
                 parse_mode="HTML",
             )
         return
 
-    # Full-text search (admin-scope — bot has unrestricted access to the index)
+    # Full-text search (admin-scope â€” bot has unrestricted access to the index)
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
     from .document_index import search_documents
@@ -665,7 +665,7 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
 
     if not results:
         await update.message.reply_text(
-            f"🔍 <i>No documents found for</i> <b>{text}</b>.\n\n"
+            f"ðŸ” <i>No documents found for</i> <b>{text}</b>.\n\n"
             "Try a different word or /list to browse recent files.",
             parse_mode="HTML",
         )
@@ -676,11 +676,11 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
         await _send_file(update, results[0])
         return
 
-    # 2-5 results → numbered list
+    # 2-5 results â†’ numbered list
     _last_results[chat_id] = results
     lines = [f"{i + 1}. <code>{r['filename']}</code>" for i, r in enumerate(results)]
     await update.message.reply_text(
-        f"🔍 <b>Found {len(results)} files</b>\n\n"
+        f"ðŸ” <b>Found {len(results)} files</b>\n\n"
         + "\n".join(lines)
         + "\n\n<i>Reply with a number to receive the file.</i>",
         parse_mode="HTML",
@@ -697,7 +697,7 @@ async def _send_file(update, doc: dict) -> None:
         if nas_path:
             await remove_document(nas_path)
         await update.message.reply_text(
-            f"⚠️ <b>File not found</b>\n\n"
+            f"âš ï¸ <b>File not found</b>\n\n"
             f"<code>{doc.get('filename', '?')}</code>\n\n"
             "<i>It may have been moved or deleted. The index has been updated.</i>",
             parse_mode="HTML",
@@ -715,7 +715,7 @@ async def _send_file(update, doc: dict) -> None:
 async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
-        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        await update.message.reply_text("ðŸ”’ Send /auth first to link your account.", parse_mode="HTML")
         return
 
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
@@ -769,14 +769,14 @@ async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
 
         # Health indicator
         if cpu > 80 or ram_pct > 85:
-            health_icon, health_text = "🔴", "High load"
+            health_icon, health_text = "ðŸ”´", "High load"
         elif cpu > 50 or ram_pct > 70:
-            health_icon, health_text = "🟡", "Moderate"
+            health_icon, health_text = "ðŸŸ¡", "Moderate"
         else:
-            health_icon, health_text = "🟢", "Healthy"
+            health_icon, health_text = "ðŸŸ¢", "Healthy"
 
         await update.message.reply_text(
-            f"🖥 <b>AiHomeCloud Status</b>  {health_icon} {health_text}\n\n"
+            f"ðŸ–¥ <b>AiHomeCloud Status</b>  {health_icon} {health_text}\n\n"
             f"\u23f1 Uptime:  <b>{uptime_str}</b>\n"
             f"\U0001f9e0 CPU:     <b>{cpu:.0f}%</b>\n"
             f"\U0001f4be RAM:     <b>{ram_used_gb} / {ram_total_gb} GB</b>  ({ram_pct}%)\n"
@@ -789,7 +789,7 @@ async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
     except Exception as exc:
         logger.warning("telegram_status_error: %s", exc)
         await update.message.reply_text(
-            "⚠️ <i>Could not read device status.</i>",
+            "âš ï¸ <i>Could not read device status.</i>",
             parse_mode="HTML",
         )
 
@@ -804,7 +804,7 @@ def _storage_bar(percent: float, width: int = 10) -> str:
 async def _handle_cancel(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
-        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        await update.message.reply_text("ðŸ”’ Send /auth first to link your account.", parse_mode="HTML")
         return
 
     had_pending = chat_id in _pending_uploads
@@ -826,7 +826,7 @@ async def _handle_cancel(update, context) -> None:  # type: ignore[type-arg]
 async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
-        await update.message.reply_text("🔒 Send /auth first to link your account.", parse_mode="HTML")
+        await update.message.reply_text("ðŸ”’ Send /auth first to link your account.", parse_mode="HTML")
         return
 
     owner = await _get_chat_folder_owner(chat_id) or "admin"
@@ -835,7 +835,7 @@ async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
     tg_line = f"@{tg_username}" if tg_username else f"ID: {chat_id}"
 
     await update.message.reply_text(
-        f"👤 <b>{first_name}</b>  ({tg_line})\n\n"
+        f"ðŸ‘¤ <b>{first_name}</b>  ({tg_line})\n\n"
         f"Personal folder: <b>{owner}</b>\n\n"
         "<i>To switch folder: /auth &lt;name&gt;</i>",
         parse_mode="HTML",
@@ -845,7 +845,7 @@ async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
 async def _handle_unlink(update, context) -> None:  # type: ignore[type-arg]
     chat_id = update.effective_chat.id
     if not await _is_allowed(chat_id):
-        await update.message.reply_text("🔒 Not linked. Nothing to unlink.", parse_mode="HTML")
+        await update.message.reply_text("ðŸ”’ Not linked. Nothing to unlink.", parse_mode="HTML")
         return
 
     from .store import get_value, set_value
@@ -857,7 +857,7 @@ async def _handle_unlink(update, context) -> None:  # type: ignore[type-arg]
     _last_results.pop(chat_id, None)
 
     await update.message.reply_text(
-        "🔓 <b>Account unlinked.</b>\n\n"
+        "ðŸ”“ <b>Account unlinked.</b>\n\n"
         "<i>Your Telegram account has been removed from AiHomeCloud.\n"
         "Send /auth to link again.</i>",
         parse_mode="HTML",
@@ -870,7 +870,7 @@ async def _handle_unlink(update, context) -> None:  # type: ignore[type-arg]
 
 
 async def _trash_warning_loop() -> None:
-    """Hourly loop — sends a Telegram notification on Saturday at 10 AM when total
+    """Hourly loop â€” sends a Telegram notification on Saturday at 10 AM when total
     trash exceeds 10 GB.  Fires at most once per ISO week via the KV store."""
     from . import store as _store
 
@@ -897,7 +897,7 @@ async def _trash_warning_loop() -> None:
 
             total_gb = total_bytes / (1024 ** 3)
             msg = (
-                f"🗑 <b>Trash is getting full</b>\n\n"
+                f"ðŸ—‘ <b>Trash is getting full</b>\n\n"
                 f"Total trash: <b>{total_gb:.1f} GB</b> (threshold: 10 GB)\n\n"
                 f"Open <b>AiHomeCloud</b> \u2192 Files \u2192 Trash to free up space."
             )
@@ -928,7 +928,7 @@ async def start_bot() -> None:
     from .config import settings
 
     if not settings.telegram_bot_token:
-        logger.info("Telegram bot token not set — bot disabled")
+        logger.info("Telegram bot token not set â€” bot disabled")
         return
 
     try:
@@ -937,7 +937,7 @@ async def start_bot() -> None:
             CallbackQueryHandler, filters,
         )
     except ImportError:
-        logger.warning("python-telegram-bot not installed — Telegram bot disabled")
+        logger.warning("python-telegram-bot not installed â€” Telegram bot disabled")
         return
 
     try:
@@ -950,7 +950,7 @@ async def start_bot() -> None:
             .pool_timeout(_HTTP_TIMEOUT_SECONDS)
         )
 
-        # Use local Bot API server if configured — removes 20MB file limit
+        # Use local Bot API server if configured â€” removes 20MB file limit
         if settings.telegram_local_api_enabled and settings.telegram_local_api_url:
             local_url = settings.telegram_local_api_url.rstrip("/")
             builder = (

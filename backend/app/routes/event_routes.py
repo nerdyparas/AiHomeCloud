@@ -1,4 +1,4 @@
-"""
+﻿"""
 In-app event bus for AiHomeCloud.
 Broadcasts events to all connected WebSocket clients (Flutter apps).
 """
@@ -13,12 +13,12 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
-logger = logging.getLogger("cubie.events")
+logger = logging.getLogger("aihomecloud.events")
 
 router = APIRouter(tags=["events"])
 
 
-# ─── Event types ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Event types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class EventSeverity(str, Enum):
     info = "info"
@@ -40,7 +40,7 @@ class AppEvent:
         return json.dumps(asdict(self))
 
 
-# ─── Global event bus ────────────────────────────────────────────────────────
+# â”€â”€â”€ Global event bus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class EventBus:
     """Simple pub-sub for broadcasting events to WebSocket clients."""
@@ -84,7 +84,7 @@ class EventBus:
 event_bus = EventBus()
 
 
-# ─── Convenience emitters ───────────────────────────────────────────────────
+# â”€â”€â”€ Convenience emitters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def emit_upload_complete(file_name: str, user_name: str):
     await event_bus.publish(AppEvent(
@@ -152,7 +152,7 @@ async def emit_device_ejected(device: str):
     ))
 
 
-# ─── WebSocket endpoint ─────────────────────────────────────────────────────
+# â”€â”€â”€ WebSocket endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.websocket("/ws/events")
 async def events_ws(ws: WebSocket, token: str = Query(default=None)):

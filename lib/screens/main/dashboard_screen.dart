@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +9,6 @@ import '../../core/error_utils.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
-import '../../widgets/adblock_stats_widget.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -30,8 +29,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── 1. SYSTEM STATUS CARD ────────────────────────────────────────
-            // Shows overall health only — no hardware metrics in this card.
+            // â”€â”€ 1. SYSTEM STATUS CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Shows overall health only â€” no hardware metrics in this card.
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -42,7 +41,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-              // ── 3. STORAGE SECTION ───────────────────────────────────────
+              // â”€â”€ 3. STORAGE SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -164,7 +163,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
 
-              // ── 4. SYSTEM COMPACT ROW ────────────────────────────────────
+              // â”€â”€ 4. SYSTEM COMPACT ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -179,7 +178,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
 
-              // ── System compact row ──────────────────────────────────────────
+              // â”€â”€ System compact row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -213,7 +212,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
 
-              // ── 5 & 6. NETWORK SECTION (incl. AdBlock stats) ────────────
+              // â”€â”€ 5 & 6. NETWORK SECTION (incl. AdBlock stats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -282,9 +281,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // STORAGE DEVICE TILE (Google Files style)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _StorageDeviceTile extends StatelessWidget {
   final StorageDevice device;
@@ -322,7 +321,7 @@ class _StorageDeviceTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Top row: icon + name + status badge + chevron ────────────────
+          // â”€â”€ Top row: icon + name + status badge + chevron â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Row(
             children: [
               Container(
@@ -375,7 +374,7 @@ class _StorageDeviceTile extends StatelessWidget {
             ],
           ),
 
-          // ── Storage bar (only when stats available) ───────────────────────
+          // â”€â”€ Storage bar (only when stats available) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (usedFraction != null) ...[
             const SizedBox(height: 14),
 
@@ -409,7 +408,7 @@ class _StorageDeviceTile extends StatelessWidget {
               ],
             ),
           ] else ...[
-            // No stats yet — show total size as before
+            // No stats yet â€” show total size as before
             const SizedBox(height: 4),
             Text(
               device.sizeDisplay,
@@ -443,13 +442,13 @@ class _StorageDeviceTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // NETWORK STATUS CARD
 //
 // Rows: WiFi | Ethernet | Bluetooth
 // Below rows: upload / download speed indicators (live from WebSocket)
 // Below speeds: AdBlockStatsWidget (hidden when AdGuard not enabled)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _NetworkStatusCard extends ConsumerWidget {
   @override
@@ -481,7 +480,7 @@ class _NetworkStatusCard extends ConsumerWidget {
               label: 'Ethernet',
               status: n.lanConnected ? 'Connected' : 'Disconnected',
               subtitle: n.lanConnected
-                  ? [n.lanIp, n.lanSpeed].whereType<String>().join(' • ')
+                  ? [n.lanIp, n.lanSpeed].whereType<String>().join(' â€¢ ')
                   : null,
               connected: n.lanConnected,
               enabled: true,
@@ -536,8 +535,6 @@ class _NetworkStatusCard extends ConsumerWidget {
               },
             ),
 
-            // AdBlock statistics — only visible when AdGuard is enabled & has data
-            const AdBlockStatsWidget(),
           ],
         ),
       ).animate().fadeIn(delay: 550.ms),
@@ -671,16 +668,16 @@ class _NetworkStatusCard extends ConsumerWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HERO STATUS CARD
 //
-// Shows overall system health — green when all metrics are nominal, red when
+// Shows overall system health â€” green when all metrics are nominal, red when
 // any threshold is exceeded.  Hardware metrics (CPU %, temp, uptime) are
 // intentionally absent here; they live in the System Metrics card below.
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _HeroStatusCard extends StatelessWidget {
-  final AsyncValue<CubieDevice> deviceAsync;
+  final AsyncValue<AhcDevice> deviceAsync;
   final AsyncValue<SystemStats> statsAsync;
 
   const _HeroStatusCard({
@@ -705,7 +702,7 @@ class _HeroStatusCard extends StatelessWidget {
             if (cpuHigh)  'CPU high',
             if (ramHigh)  'RAM high',
             if (tempHigh) 'Temperature high',
-          ].join('  ·  ');
+          ].join('  Â·  ');
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -778,12 +775,12 @@ class _HeroStatusCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// SYSTEM COMPACT CARD — V1 DESIGN (LOCKED)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SYSTEM COMPACT CARD â€” V1 DESIGN (LOCKED)
 //
 // DO NOT MODIFY this widget without explicit user confirmation.
 // Small circular progress rings (44px) + chip icon + single labels.
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _SystemCompactCard extends StatelessWidget {
   final SystemStats stats;
@@ -857,7 +854,7 @@ class _SystemCompactCard extends StatelessWidget {
                 const _SystemMetricDivider(),
                 Expanded(
                   child: _SystemMetricIndicator(
-                    value: '${temp.toStringAsFixed(0)}°',
+                    value: '${temp.toStringAsFixed(0)}Â°',
                     label: 'TEMP',
                     progress: (temp / 100).clamp(0.0, 1.0),
                     color: AppColors.primary,

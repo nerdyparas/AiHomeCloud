@@ -1,5 +1,5 @@
-"""
-File management routes — list, mkdir, delete, rename, upload, download.
+﻿"""
+File management routes â€” list, mkdir, delete, rename, upload, download.
 All paths are sandboxed under settings.nas_root.
 External storage must be mounted at nas_root; SD card fallback is blocked.
 """
@@ -26,7 +26,7 @@ from ..file_sorter import _destination_folder
 from ..events import file_event_bus, FileEvent
 from .event_routes import emit_upload_complete
 
-# Larger write buffer for uploads — 2 MB (fewer syscalls on ARM)
+# Larger write buffer for uploads â€” 2 MB (fewer syscalls on ARM)
 _UPLOAD_WRITE_BUF = 2 * 1024 * 1024
 
 # Lock to prevent concurrent trash purge operations
@@ -76,7 +76,7 @@ def _safe_resolve(raw_path: str) -> Path:
     Resolve a NAS-relative path (e.g. /srv/nas/family/Photos) to an
     absolute filesystem path, ensuring it stays within nas_root.
     """
-    # Reject null bytes early — they can confuse OS path operations
+    # Reject null bytes early â€” they can confuse OS path operations
     if "\x00" in raw_path:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
@@ -94,7 +94,7 @@ def _safe_resolve(raw_path: str) -> Path:
 
     candidate = settings.nas_root / raw_path.lstrip("/")
 
-    # Reject symlinks — they could point outside the NAS root
+    # Reject symlinks â€” they could point outside the NAS root
     if candidate.is_symlink():
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Symbolic links are not allowed")
 
@@ -243,7 +243,7 @@ async def delete_file(
     ts = int(datetime.now(timezone.utc).timestamp())
     trash_name = f"{ts}_{filename}"
 
-    # Per-user trash directory: {nas_root}/.cubie_trash/{user_id}/
+    # Per-user trash directory: {nas_root}/.ahc_trash/{user_id}/
     user_trash_dir = settings.trash_dir / user_id
     user_trash_dir.mkdir(parents=True, exist_ok=True)
 
@@ -290,11 +290,11 @@ async def delete_file(
         user=user_id,
     ))
 
-    # Run trash purge in background — don't block the delete response
+    # Run trash purge in background â€” don't block the delete response
     asyncio.create_task(_safe_purge_trash())
 
 
-# ─── Trash helpers ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Trash helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _TRASH_MAX_DAYS = 30
 
@@ -315,7 +315,7 @@ def _validate_trash_path(trash_path_str: str) -> Path:
 
 
 async def _safe_purge_trash() -> None:
-    """Best-effort background trash purge — never raises. Lock prevents concurrent runs."""
+    """Best-effort background trash purge â€” never raises. Lock prevents concurrent runs."""
     if _trash_purge_lock.locked():
         return  # Another purge is already running
     async with _trash_purge_lock:
@@ -384,7 +384,7 @@ def _unlink_trash_item(item: dict) -> None:
         pass
 
 
-# ─── Trash CRUD endpoints ─────────────────────────────────────────────────────
+# â”€â”€â”€ Trash CRUD endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/trash", response_model=list[TrashItem])
 async def list_trash(user: dict = Depends(get_current_user)):
@@ -412,7 +412,7 @@ async def restore_trash_item(item_id: str, user: dict = Depends(get_current_user
 
     trash_path = _validate_trash_path(match["trashPath"])
     if not trash_path.exists():
-        # Physical file gone — remove metadata and 404
+        # Physical file gone â€” remove metadata and 404
         remaining = [i for i in all_items if i.get("id") != item_id]
         await store.save_trash_items(remaining)
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Trash file no longer exists")
@@ -420,7 +420,7 @@ async def restore_trash_item(item_id: str, user: dict = Depends(get_current_user
     original_path = _safe_resolve(match["originalPath"])
     original_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Handle restore collision — add "_restored" suffix
+    # Handle restore collision â€” add "_restored" suffix
     dest = original_path
     if dest.exists():
         stem = dest.stem
@@ -570,7 +570,7 @@ async def upload_file(
     if not safe_name or safe_name in (".", ".."):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
 
-    # Block executable and dangerous file types — check ALL suffixes, not just last
+    # Block executable and dangerous file types â€” check ALL suffixes, not just last
     all_suffixes = [s.lower() for s in Path(safe_name).suffixes]
     for ext in all_suffixes:
         if ext in BLOCKED_EXTENSIONS:
@@ -737,7 +737,7 @@ async def sort_now(
 
 @router.get("/roots")
 async def storage_roots(user: dict = Depends(get_current_user)):
-    """Return browseable storage roots — mounted USB/NVMe drives."""
+    """Return browseable storage roots â€” mounted USB/NVMe drives."""
     from .storage_helpers import build_device_list, list_block_devices
 
     raw = await list_block_devices()

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +10,7 @@ import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
 
-/// Tab 4 — More: a hub for sharing, security, storage, network, and account.
+/// Tab 4 â€” More: a hub for sharing, security, storage, network, and account.
 /// Replaces the old 5-tab Settings screen and consolidates all settings here.
 class MoreScreen extends ConsumerStatefulWidget {
   const MoreScreen({super.key});
@@ -36,7 +36,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           children: [
             const SizedBox(height: 16),
 
-            // ── Screen title ───────────────────────────────────────────────
+            // â”€â”€ Screen title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Text('More',
                     style: GoogleFonts.sora(
                         color: AppColors.textPrimary,
@@ -47,7 +47,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
             const SizedBox(height: 20),
 
-            // ── 1. PROFILE CARD ────────────────────────────────────────────
+            // â”€â”€ 1. PROFILE CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _ProfileCard(
               userName: userName,
               onChangePinTap: _changePin,
@@ -58,13 +58,13 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             _sectionLabel('Sharing'),
             const SizedBox(height: 8),
 
-            // ── 2. SHARING CARD ────────────────────────────────────────────
+            // â”€â”€ 2. SHARING CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
 
-                  // TV & Computer Sharing — toggle row
+                  // TV & Computer Sharing â€” toggle row
                   servicesAsync.when(
                     data: (services) {
                       final media = services.cast<ServiceInfo?>().firstWhere(
@@ -187,9 +187,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             _sectionLabel('Privacy & Security'),
             const SizedBox(height: 8),
 
-            // ── 3. PRIVACY & SECURITY CARD ─────────────────────────────────
-            _AdBlockingCard(isAdmin: isAdmin).animate().fadeIn(delay: 110.ms),
-
+            // â”€â”€ 3. PRIVACY & SECURITY CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const SizedBox(height: 4),
 
             AppCard(
@@ -235,7 +233,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             _sectionLabel('Family & Storage'),
             const SizedBox(height: 8),
 
-            // ── 4. FAMILY & STORAGE CARD ───────────────────────────────────
+            // â”€â”€ 4. FAMILY & STORAGE CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
@@ -276,7 +274,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               ),
             ).animate().fadeIn(delay: 140.ms),
 
-            // ── 5. FOOTER ──────────────────────────────────────────────────
+            // â”€â”€ 5. FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const SizedBox(height: 32),
 
             Center(
@@ -355,7 +353,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     );
   }
 
-  // ── Shared widgets ────────────────────────────────────────────────────────
+  // â”€â”€ Shared widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _sectionLabel(String text) => Text(text,
       style: GoogleFonts.sora(
@@ -399,7 +397,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         onTap: onTap,
       );
 
-  // ── Dialogs ───────────────────────────────────────────────────────────────
+  // â”€â”€ Dialogs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _verifyServerCertificate(String? storedFingerprint) async {
     final api = ref.read(apiServiceProvider);
@@ -570,7 +568,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   Future<void> _performReboot() async {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Restarting AiHomeCloud…')),
+      const SnackBar(content: Text('Restarting AiHomeCloudâ€¦')),
     );
     try {
       await ref.read(apiServiceProvider).rebootDevice();
@@ -622,7 +620,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   Future<void> _performShutdown() async {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Shutting down AiHomeCloud…')),
+      const SnackBar(content: Text('Shutting down AiHomeCloudâ€¦')),
     );
     try {
       await ref.read(apiServiceProvider).shutdownDevice();
@@ -674,7 +672,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   }
 }
 
-// ─── Profile card ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Profile card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ProfileCard extends StatelessWidget {
   final String userName;
@@ -785,7 +783,7 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
-// ─── Trash card (Privacy section) ─────────────────────────────────────────────
+// â”€â”€â”€ Trash card (Privacy section) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _TrashCard extends ConsumerStatefulWidget {
   const _TrashCard();
@@ -866,7 +864,7 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
       subtitle: Text(
           items.isEmpty
               ? 'Empty'
-              : '${items.length} item${items.length > 1 ? 's' : ''} · $totalMB MB',
+              : '${items.length} item${items.length > 1 ? 's' : ''} Â· $totalMB MB',
           style: GoogleFonts.dmSans(
               color: AppColors.textSecondary, fontSize: 12)),
       trailing: items.isEmpty
@@ -889,457 +887,4 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
     );
   }
 }
-
-// ─── Ad Blocking card ────────────────────────────────────────────────────────
-
-class _AdBlockingCard extends ConsumerStatefulWidget {
-  final bool isAdmin;
-  const _AdBlockingCard({required this.isAdmin});
-
-  @override
-  ConsumerState<_AdBlockingCard> createState() => _AdBlockingCardState();
-}
-
-class _AdBlockingCardState extends ConsumerState<_AdBlockingCard> {
-  bool? _installed;
-  bool? _serviceRunning;
-  bool? _appEnabled;
-  Map<String, dynamic>? _stats;
-  bool _loading = true;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _errorMessage = null;
-    });
-    try {
-      final status = await ref.read(apiServiceProvider).getAdGuardStatus();
-      if (!mounted) return;
-
-      final installed = status['installed'] as bool? ?? false;
-      final serviceRunning = status['service_running'] as bool? ?? false;
-      final appEnabled = status['app_enabled'] as bool? ?? false;
-
-      setState(() {
-        _installed = installed;
-        _serviceRunning = serviceRunning;
-        _appEnabled = appEnabled;
-      });
-
-      if (installed && serviceRunning && appEnabled) {
-        final stats = await ref.read(apiServiceProvider).getAdGuardStats();
-        if (!mounted) return;
-        setState(() {
-          _stats = stats;
-          _loading = false;
-        });
-      } else {
-        if (mounted) {
-          setState(() {
-            _stats = null;
-            _loading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (!mounted) return;
-      final message = friendlyError(e);
-      setState(() {
-        _loading = false;
-        _errorMessage = message;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return AppCard(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          leading: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child:
-                const Icon(Icons.shield_rounded, color: AppColors.primary, size: 18),
-          ),
-          title: Text('Ad Blocking',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textPrimary, fontSize: 14)),
-          trailing: const SizedBox(
-            width: 20,
-            height: 20,
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-          ),
-        ),
-      );
-    }
-
-    if (_installed == false) {
-      return AppCard(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          leading: _iconBox(Icons.shield_outlined, AppColors.textMuted),
-          title: Text('Ad Blocking',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textPrimary, fontSize: 14)),
-          subtitle: Text(
-            'Not set up on this device',
-            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.info_outline_rounded,
-                color: AppColors.primary, size: 20),
-            tooltip: 'Setup instructions',
-            onPressed: _showSetupInstructions,
-          ),
-          onTap: _showSetupInstructions,
-        ),
-      );
-    }
-
-    if (_appEnabled == false) {
-      return AppCard(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          leading: _iconBox(Icons.shield_rounded, AppColors.primary),
-          title: Text('Ad Blocking',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500)),
-          subtitle: Text(
-            'Installed - finish setup to activate',
-            style: GoogleFonts.dmSans(color: AppColors.primary, fontSize: 12),
-          ),
-          trailing: Container(
-            width: 10,
-            height: 10,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary,
-            ),
-          ),
-          onTap: _showSetupInstructions,
-        ),
-      );
-    }
-
-    if (_serviceRunning == false) {
-      return AppCard(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          leading: _iconBox(Icons.shield_rounded, AppColors.error),
-          title: Text('Ad Blocking',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500)),
-          subtitle: Text(
-            'Service stopped',
-            style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 12),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.refresh_rounded,
-                color: AppColors.primary, size: 20),
-            tooltip: 'Retry',
-            onPressed: _load,
-          ),
-        ),
-      );
-    }
-
-    if (_stats == null) {
-      return AppCard(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          leading: _iconBox(Icons.shield_outlined, AppColors.textMuted),
-          title: Text('Ad Blocking',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textPrimary, fontSize: 14)),
-          subtitle: Text(
-            _errorMessage ?? 'Unable to load status',
-            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.refresh_rounded,
-                color: AppColors.primary, size: 20),
-            onPressed: _load,
-          ),
-        ),
-      );
-    }
-
-    final blocked = _stats!['blocked_today'] as int? ?? 0;
-    final queries = _stats!['dns_queries'] as int? ?? 0;
-    final percent = _stats!['blocked_percent'] as double? ?? 0.0;
-    final topBlocked =
-        (_stats!['top_blocked'] as List<dynamic>? ?? []).cast<String>();
-    final protectionEnabled = _stats!['protection_enabled'] as bool? ?? true;
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.shield_rounded,
-                    color: AppColors.primary, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Ad Blocking',
-                        style: GoogleFonts.dmSans(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500)),
-                    Text(
-                        protectionEnabled
-                            ? '$blocked of $queries blocked today (${percent.toStringAsFixed(0)}%)'
-                            : 'Protection paused',
-                        style: GoogleFonts.dmSans(
-                            color: protectionEnabled
-                                ? AppColors.textSecondary
-                                : AppColors.error,
-                            fontSize: 12)),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: _load,
-                child: const Icon(Icons.refresh_rounded,
-                    color: AppColors.textMuted, size: 18),
-              ),
-            ],
-          ),
-
-          if (topBlocked.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text('Top blocked:',
-                style: GoogleFonts.dmSans(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: topBlocked.take(5).map((domain) {
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBorder.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(domain,
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary, fontSize: 11)),
-                );
-              }).toList(),
-            ),
-          ],
-
-          // Pause / toggle row
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _PauseButton(minutes: 5),
-              const SizedBox(width: 8),
-              _PauseButton(minutes: 30),
-              const SizedBox(width: 8),
-              _PauseButton(minutes: 60),
-              if (widget.isAdmin) ...[
-                const Spacer(),
-                Text('Enable',
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.textSecondary, fontSize: 12)),
-                const SizedBox(width: 4),
-                Switch(
-                  value: protectionEnabled,
-                  onChanged: (v) => _toggle(v),
-                  activeThumbColor: AppColors.primary,
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _toggle(bool enabled) async {
-    try {
-      await ref.read(apiServiceProvider).toggleAdGuard(enabled);
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
-      }
-    }
-  }
-
-  void _showSetupInstructions() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text('Set Up Ad Blocking',
-            style: GoogleFonts.sora(color: AppColors.textPrimary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Ad Blocking blocks ads and trackers for every device on your home network - phones, TVs, and computers.',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 14, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            Text('To enable it:',
-                style: GoogleFonts.dmSans(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            _setupStep(
-              '1',
-              'Open a terminal and connect to your AiHomeCloud device over SSH',
-            ),
-            const SizedBox(height: 8),
-            _setupStep(
-              '2',
-              'Run: sudo bash scripts/install-adguard.sh',
-              isCode: true,
-            ),
-            const SizedBox(height: 8),
-            _setupStep(
-              '3',
-              'Point your router DNS to this device IP - the script prints exact steps when it finishes',
-            ),
-            const SizedBox(height: 8),
-            _setupStep(
-              '4',
-              'Come back here and tap refresh',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Got it',
-                style: GoogleFonts.dmSans(
-                    color: AppColors.primary, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _setupStep(String number, String text, {bool isCode = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(number,
-                style: GoogleFonts.dmSans(
-                    color: AppColors.primary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700)),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: isCode
-                ? GoogleFonts.robotoMono(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    backgroundColor: AppColors.cardBorder.withValues(alpha: 0.5),
-                  )
-                : GoogleFonts.dmSans(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    height: 1.4),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _iconBox(IconData icon, Color color) => Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 18),
-      );
-}
-
-class _PauseButton extends ConsumerWidget {
-  final int minutes;
-  const _PauseButton({required this.minutes});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final label = minutes >= 60 ? '1h' : '${minutes}m';
-    return OutlinedButton(
-      onPressed: () async {
-        try {
-          await ref.read(apiServiceProvider).pauseAdGuard(minutes);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ad Blocking paused for $label')),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(friendlyError(e))));
-        }
-      },
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w500),
-      ),
-      child: Text('Pause $label'),
-    );
-  }
-}
+

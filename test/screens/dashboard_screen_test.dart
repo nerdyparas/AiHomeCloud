@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:cubie_cloud/models/models.dart';
-import 'package:cubie_cloud/providers/core_providers.dart';
-import 'package:cubie_cloud/providers/device_providers.dart';
-import 'package:cubie_cloud/screens/main/dashboard_screen.dart';
+import 'package:aihomecloud/models/models.dart';
+import 'package:aihomecloud/providers/core_providers.dart';
+import 'package:aihomecloud/providers/device_providers.dart';
+import 'package:aihomecloud/screens/main/dashboard_screen.dart';
 
 void main() {
   late SharedPreferences prefs;
@@ -35,7 +35,7 @@ void main() {
     final overrides = [
       // Never completes â†’ keeps the FutureProvider in loading state.
       deviceInfoProvider.overrideWith(
-          (ref) => Future<CubieDevice>.delayed(const Duration(days: 9999))),
+          (ref) => Future<AhcDevice>.delayed(const Duration(days: 9999))),
       systemStatsStreamProvider
           .overrideWith((ref) => const Stream<SystemStats>.empty()),
       storageDevicesProvider
@@ -85,7 +85,7 @@ void main() {
 
   testWidgets('renders dashboard content when data is available',
       (WidgetTester tester) async {
-    const mockDevice = CubieDevice(
+    const mockDevice = AhcDevice(
       serial: 'TEST-001',
       name: 'My AiHomeCloud',
       ip: '192.168.1.100',

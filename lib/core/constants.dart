@@ -1,26 +1,26 @@
-/// App-wide constants for AiHomeCloud.
+﻿/// App-wide constants for AiHomeCloud.
 class AppConstants {
   AppConstants._();
 
-  // ── API ────────────────────────────────────────────────────────────────────
+  // â”€â”€ API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const int apiPort = 8443;
   static const String apiScheme = 'https';
   static const String apiVersion = '/api/v1';
 
-  // ── BLE ────────────────────────────────────────────────────────────────────
+  // â”€â”€ BLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const String bleServiceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
   static const String bleCharUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
   static const String bleDevicePrefix = 'AiHomeCloud-';
 
-  // ── mDNS ───────────────────────────────────────────────────────────────────
-  static const String mdnsType = '_cubie-nas._tcp';
+  // â”€â”€ mDNS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  static const String mdnsType = '_aihomecloud-nas._tcp';
   static const Duration mdnsTimeout = Duration(seconds: 10);
 
-  // ── QR ─────────────────────────────────────────────────────────────────────
-  static const String qrScheme = 'cubie';
+  // â”€â”€ QR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  static const String qrScheme = 'aihomecloud';
   static const String qrHost = 'pair';
 
-  // ── SharedPreferences keys ─────────────────────────────────────────────────
+  // â”€â”€ SharedPreferences keys â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const String prefDeviceIp = 'device_ip';
   static const String prefDeviceToken = 'device_token';
   static const String prefDeviceName = 'device_name';
@@ -32,16 +32,16 @@ class AppConstants {
   static const String prefRefreshToken = 'refresh_token';
   static const String prefDevicePort = 'device_port';
   static const String prefIsAdmin = 'is_admin';
-  static const String kCertFingerprintPrefKey = 'cubieFingerprint';
+  static const String kCertFingerprintPrefKey = 'ahcFingerprint';
   static const String prefTailscaleIp = 'tailscale_ip';
 
-  // ── Storage ────────────────────────────────────────────────────────────────
+  // â”€â”€ Storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const double totalStorageGB = 500.0;
 
-  // ── Upload ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const int uploadChunkSize = 1024 * 1024; // 1 MB
 
-  // ── NAS paths ──────────────────────────────────────────────────────────────
+  // â”€â”€ NAS paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static const String personalBasePath = '/srv/nas/personal/';
   static const String familyPath = '/srv/nas/family/';
   static const String entertainmentPath = '/srv/nas/entertainment/';

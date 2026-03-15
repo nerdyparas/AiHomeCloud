@@ -1,4 +1,4 @@
-"""Continuous watcher to keep document_index in sync with NAS file changes."""
+﻿"""Continuous watcher to keep document_index in sync with NAS file changes."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from .document_index import (
     remove_document,
 )
 
-logger = logging.getLogger("cubie.index_watcher")
+logger = logging.getLogger("aihomecloud.index_watcher")
 
 # Polling interval in seconds. Keep moderate to reduce IO on ARM hardware.
 _DEFAULT_INTERVAL_SECONDS = 20

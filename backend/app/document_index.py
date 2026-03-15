@@ -1,15 +1,15 @@
-"""
-Document index — SQLite FTS5 full-text search for files sorted into Documents/.
+﻿"""
+Document index â€” SQLite FTS5 full-text search for files sorted into Documents/.
 Database is stored at settings.data_dir / "docs.db".
 
 OCR strategy:
-  .txt / .md / .csv / .rtf  → read file directly
-  .pdf                       → pdftotext (from poppler-utils)
-  .jpg / .png / .heic / ...  → tesseract OCR (eng+hin)
-  anything else              → empty string
+  .txt / .md / .csv / .rtf  â†’ read file directly
+  .pdf                       â†’ pdftotext (from poppler-utils)
+  .jpg / .png / .heic / ...  â†’ tesseract OCR (eng+hin)
+  anything else              â†’ empty string
 
 If pdftotext / tesseract is not installed, a warning is logged and the file
-is indexed with an empty ocr_text — never fails permanently.
+is indexed with an empty ocr_text â€” never fails permanently.
 """
 
 import asyncio
@@ -22,7 +22,7 @@ from fnmatch import fnmatch
 from .config import settings
 from .subprocess_runner import run_command
 
-logger = logging.getLogger("cubie.document_index")
+logger = logging.getLogger("aihomecloud.document_index")
 
 
 _INDEXABLE_EXTENSIONS: frozenset[str] = frozenset({
@@ -32,7 +32,7 @@ _INDEXABLE_EXTENSIONS: frozenset[str] = frozenset({
 
 
 # ---------------------------------------------------------------------------
-# DB helpers (sync — executed via run_in_executor)
+# DB helpers (sync â€” executed via run_in_executor)
 # ---------------------------------------------------------------------------
 
 def _db_path() -> Path:
@@ -71,7 +71,7 @@ async def init_db() -> None:
 
 
 # ---------------------------------------------------------------------------
-# OCR helpers — async, never raise
+# OCR helpers â€” async, never raise
 # ---------------------------------------------------------------------------
 
 async def _extract_text(file_path: Path) -> str:
@@ -100,7 +100,7 @@ async def _extract_text(file_path: Path) -> str:
         if rc == 0:
             return stdout[:100_000]
         if stderr == "not_found":
-            logger.warning("pdftotext_missing file=%s — indexed without OCR", file_path.name)
+            logger.warning("pdftotext_missing file=%s â€” indexed without OCR", file_path.name)
         else:
             logger.warning(
                 "pdftotext_failed file=%s rc=%d stderr=%s", file_path.name, rc, stderr[:200]
@@ -115,7 +115,7 @@ async def _extract_text(file_path: Path) -> str:
         if rc == 0:
             return stdout[:100_000]
         if stderr == "not_found":
-            logger.warning("tesseract_missing file=%s — indexed without OCR", file_path.name)
+            logger.warning("tesseract_missing file=%s â€” indexed without OCR", file_path.name)
         else:
             logger.warning(
                 "tesseract_failed file=%s rc=%d stderr=%s", file_path.name, rc, stderr[:200]
@@ -139,21 +139,21 @@ def _to_nas_path(abs_path: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Query normalization — expand common aliases and misspellings
+# Query normalization â€” expand common aliases and misspellings
 # ---------------------------------------------------------------------------
 
 # Maps common user search terms to FTS5 OR queries.
 # Covers Hindi/English variants and frequent misspellings.
 _SEARCH_ALIASES: dict[str, str] = {
-    "aadhar":    'aadhaar OR aadhar OR आधार OR uidai',
-    "aadhaar":   'aadhaar OR aadhar OR आधार OR uidai',
-    "aadharcard":'aadhaar OR aadhar OR आधार OR uidai',
-    "pan":       'pan OR pancard OR आयकर OR "income tax"',
-    "pancard":   'pan OR pancard OR आयकर OR "income tax"',
+    "aadhar":    'aadhaar OR aadhar OR à¤†à¤§à¤¾à¤° OR uidai',
+    "aadhaar":   'aadhaar OR aadhar OR à¤†à¤§à¤¾à¤° OR uidai',
+    "aadharcard":'aadhaar OR aadhar OR à¤†à¤§à¤¾à¤° OR uidai',
+    "pan":       'pan OR pancard OR à¤†à¤¯à¤•à¤° OR "income tax"',
+    "pancard":   'pan OR pancard OR à¤†à¤¯à¤•à¤° OR "income tax"',
     "license":   'license OR licence OR driving OR DL',
     "licence":   'license OR licence OR driving OR DL',
     "dl":        'license OR licence OR driving OR DL',
-    "passport":  'passport OR पासपोर्ट',
+    "passport":  'passport OR à¤ªà¤¾à¤¸à¤ªà¥‹à¤°à¥à¤Ÿ',
     "invoice":   'invoice OR bill OR receipt',
     "receipt":   'invoice OR bill OR receipt',
     "marksheet": 'marksheet OR marks OR result OR "mark sheet"',
@@ -165,7 +165,7 @@ def _normalize_query(raw: str) -> str:
     stripped = raw.strip().lower()
     if stripped in _SEARCH_ALIASES:
         return _SEARCH_ALIASES[stripped]
-    # Single word under 12 chars → also try prefix match for typo tolerance
+    # Single word under 12 chars â†’ also try prefix match for typo tolerance
     words = stripped.split()
     if len(words) == 1 and len(stripped) <= 12 and stripped.isalpha():
         return f'{stripped} OR {stripped}*'
@@ -173,7 +173,7 @@ def _normalize_query(raw: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Sync DB operations — called via run_in_executor
+# Sync DB operations â€” called via run_in_executor
 # ---------------------------------------------------------------------------
 
 def _upsert_sync(nas_path: str, filename: str, ocr_text: str, added_by: str) -> None:
@@ -200,7 +200,7 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
             rows = conn.execute(
                 """
                 SELECT path, filename, added_by, added_at,
-                       snippet(doc_index, 2, '', '', '…', 10) AS snippet
+                       snippet(doc_index, 2, '', '', 'â€¦', 10) AS snippet
                 FROM doc_index
                 WHERE doc_index MATCH ?
                 ORDER BY rank
@@ -215,7 +215,7 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
             rows = conn.execute(
                 """
                 SELECT path, filename, added_by, added_at,
-                       snippet(doc_index, 2, '', '', '…', 10) AS snippet
+                       snippet(doc_index, 2, '', '', 'â€¦', 10) AS snippet
                 FROM doc_index
                 WHERE doc_index MATCH ?
                   AND (path LIKE ? OR path LIKE ?)
@@ -292,8 +292,8 @@ def _remove_missing_sync() -> int:
 async def index_document(path: str, filename: str, added_by: str) -> None:
     """
     Async: OCR and index a document at *path*.
-    *path* may be an absolute filesystem path or a NAS-relative path (/personal/…).
-    Never raises — errors are logged as warnings.
+    *path* may be an absolute filesystem path or a NAS-relative path (/personal/â€¦).
+    Never raises â€” errors are logged as warnings.
     """
     try:
         abs_path = (
@@ -323,8 +323,8 @@ async def search_documents(
     Async FTS5 full-text search.
 
     Scope:
-      admin  → all indexed documents
-      member → own (/personal/{username}/…) + shared (/shared/…) only
+      admin  â†’ all indexed documents
+      member â†’ own (/personal/{username}/â€¦) + shared (/shared/â€¦) only
     """
     if not query.strip():
         return []

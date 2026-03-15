@@ -1,5 +1,5 @@
-"""
-Network routes — WiFi status, user toggle, and LAN network status.
+﻿"""
+Network routes â€” WiFi status, user toggle, and LAN network status.
 """
 
 import logging
@@ -13,7 +13,7 @@ from ..models import NetworkStatus
 from ..subprocess_runner import run_command
 from ..wifi_manager import get_wifi_status, set_user_wifi_override
 
-logger = logging.getLogger("cubie.network")
+logger = logging.getLogger("aihomecloud.network")
 
 router = APIRouter(prefix="/api/v1", tags=["network"])
 

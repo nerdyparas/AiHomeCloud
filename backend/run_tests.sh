@@ -9,8 +9,8 @@
 #
 # Environment:
 #   PYTHONPATH: Set to . (current backend directory)
-#   CUBIE_DATA_DIR: Temporary directory for test data
-#   CUBIE_NAS_ROOT: Temporary directory for test NAS root
+#   AHC_DATA_DIR: Temporary directory for test data
+#   AHC_NAS_ROOT: Temporary directory for test NAS root
 #
 
 set -e

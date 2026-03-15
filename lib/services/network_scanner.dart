@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,20 +6,20 @@ import 'package:multicast_dns/multicast_dns.dart';
 
 import '../core/constants.dart';
 
-const _recognizedServiceNames = {'CubieCloud', 'AiHomeCloud'};
+const _recognizedServiceNames = {'AiHomeCloud'};
 
 /// A discovered AiHomeCloud device on the local network.
 class DiscoveredHost {
   final String ip;
   final String? hostname;
-  final bool isCubie;
+  final bool isAhc;
   final String? deviceName;
   final String? serial;
 
   const DiscoveredHost({
     required this.ip,
     this.hostname,
-    this.isCubie = false,
+    this.isAhc = false,
     this.deviceName,
     this.serial,
   });
@@ -28,12 +28,12 @@ class DiscoveredHost {
 /// Fast, service-based network scanner.
 ///
 /// Discovery strategy (ordered by speed):
-///   1. **mDNS** — query `_cubie-nas._tcp` for instant results (~1-2 s)
-///   2. **Subnet sweep** — parallel HTTP probes on port 8443 to the root
+///   1. **mDNS** â€” query `_aihomecloud-nas._tcp` for instant results (~1-2 s)
+///   2. **Subnet sweep** â€” parallel HTTP probes on port 8443 to the root
 ///      endpoint, checking the `service` field for AiHomeCloud identity
 ///
 /// Only AiHomeCloud backends are returned. Random hosts with port 8443 open
-/// are silently ignored. This is hardware-agnostic — any board running the
+/// are silently ignored. This is hardware-agnostic â€” any board running the
 /// backend (Radxa, RPi, x86, etc.) will be discovered.
 class NetworkScanner {
   NetworkScanner._();
@@ -41,15 +41,15 @@ class NetworkScanner {
 
   /// Discover the local Wi-Fi/LAN IP.
   ///
-  /// Strategy 1 — routing trick: open a raw TCP socket toward a well-known
+  /// Strategy 1 â€” routing trick: open a raw TCP socket toward a well-known
   /// external IP (8.8.8.8); the OS selects the correct outbound interface
   /// and we read back the *local* address. No data is sent.
   ///
-  /// Strategy 2 — interface enumeration fallback: walk [NetworkInterface.list]
+  /// Strategy 2 â€” interface enumeration fallback: walk [NetworkInterface.list]
   /// sorted to prefer wlan/eth over virtual interfaces and skip reserved
   /// address ranges.
   Future<String?> getLocalIp() async {
-    // Strategy 1: routing trick — most reliable on Android/iOS.
+    // Strategy 1: routing trick â€” most reliable on Android/iOS.
     try {
       final raw = await RawSocket.connect(
         '8.8.8.8',
@@ -60,7 +60,7 @@ class NetworkScanner {
       raw.close();
       if (ip.isNotEmpty && ip != '0.0.0.0') return ip;
     } catch (_) {
-      // No internet path — fall through to interface enumeration.
+      // No internet path â€” fall through to interface enumeration.
     }
 
     // Strategy 2: interface enumeration, filtered and sorted.
@@ -95,7 +95,7 @@ class NetworkScanner {
     return null;
   }
 
-  // ── mDNS fast path ──────────────────────────────────────────────────────
+  // â”€â”€ mDNS fast path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Try mDNS service discovery for up to [timeout].
   /// Returns all AiHomeCloud devices found during that window.
@@ -123,14 +123,14 @@ class NetworkScanner {
                 ResourceRecordQuery.addressIPv4(srv.target),
               )
               .timeout(const Duration(seconds: 2), onTimeout: (sink) => sink.close())) {
-            // We found an mDNS-advertised device — verify it's ours via HTTP.
+            // We found an mDNS-advertised device â€” verify it's ours via HTTP.
             final host = await _probeService(ip.address.address);
             if (host != null) results.add(host);
           }
         }
       }
     } catch (_) {
-      // mDNS unavailable or timed out — that's fine, subnet scan follows.
+      // mDNS unavailable or timed out â€” that's fine, subnet scan follows.
     } finally {
       try { client.stop(); } catch (_) {}
     }
@@ -138,7 +138,7 @@ class NetworkScanner {
     return results;
   }
 
-  // ── Subnet sweep ────────────────────────────────────────────────────────
+  // â”€â”€ Subnet sweep â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   String _subnetPrefix(String ip) {
     final parts = ip.split('.');
@@ -154,16 +154,16 @@ class NetworkScanner {
     final localIp = await getLocalIp();
     if (localIp == null) return;
 
-    final found = <String>{}; // IPs already yielded — dedup across phases.
+    final found = <String>{}; // IPs already yielded â€” dedup across phases.
 
-    // ── Phase 1: mDNS (instant) ──────────────────────────────────────────
+    // â”€â”€ Phase 1: mDNS (instant) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     final mdnsHosts = await _mdnsDiscover();
     for (final h in mdnsHosts) {
       found.add(h.ip);
       yield h;
     }
 
-    // ── Phase 2: parallel subnet sweep ───────────────────────────────────
+    // â”€â”€ Phase 2: parallel subnet sweep â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Step 1: Fast TCP connect scan to find IPs with port 8443 open.
     // Step 2: HTTPS verify only the handful of IPs that passed TCP check.
     final prefix = _subnetPrefix(localIp);
@@ -193,7 +193,7 @@ class NetworkScanner {
     }
 
     // Step 2: HTTPS verify only the IPs with open port 8443.
-    // Typically 0-3 hosts, so sequential is fine — avoids socket exhaustion.
+    // Typically 0-3 hosts, so sequential is fine â€” avoids socket exhaustion.
     for (final ip in openIps) {
       if (found.contains(ip)) continue;
       final host = await _probeService(ip);
@@ -204,10 +204,10 @@ class NetworkScanner {
     }
   }
 
-  // ── TCP pre-check ───────────────────────────────────────────────────────
+  // â”€â”€ TCP pre-check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Lightweight TCP connect to check if port 8443 is open.
-  /// Returns the IP if open, null otherwise. No TLS, no HTTP — just TCP SYN.
+  /// Returns the IP if open, null otherwise. No TLS, no HTTP â€” just TCP SYN.
   Future<String?> _tcpCheck(String ip) async {
     try {
       final socket = await Socket.connect(
@@ -222,7 +222,7 @@ class NetworkScanner {
     }
   }
 
-  // ── Single-host HTTPS probe ─────────────────────────────────────────────
+  // â”€â”€ Single-host HTTPS probe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Probe a single IP for the AiHomeCloud root endpoint via HTTPS.
   /// Returns null if not our service or unreachable.
@@ -252,7 +252,7 @@ class NetworkScanner {
 
       return DiscoveredHost(
         ip: ip,
-        isCubie: true,
+        isAhc: true,
         deviceName: json['deviceName'] as String? ?? 'AiHomeCloud',
         serial: json['serial'] as String?,
       );

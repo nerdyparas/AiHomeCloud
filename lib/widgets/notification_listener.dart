@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,17 +10,17 @@ import '../providers.dart';
 /// Listens to the backend event WebSocket and shows in-app toast notifications.
 ///
 /// Place this widget once near the top of the widget tree (e.g. inside the shell).
-class CubieNotificationOverlay extends ConsumerStatefulWidget {
+class AhcNotificationOverlay extends ConsumerStatefulWidget {
   final Widget child;
 
-  const CubieNotificationOverlay({super.key, required this.child});
+  const AhcNotificationOverlay({super.key, required this.child});
 
   @override
-  ConsumerState<CubieNotificationOverlay> createState() =>
-      _CubieNotificationOverlayState();
+  ConsumerState<AhcNotificationOverlay> createState() =>
+      _AhcNotificationOverlayState();
 }
 
-class _CubieNotificationOverlayState extends ConsumerState<CubieNotificationOverlay> {
+class _AhcNotificationOverlayState extends ConsumerState<AhcNotificationOverlay> {
   final List<_ToastEntry> _visible = [];
   int _counter = 0;
 
@@ -47,7 +47,7 @@ class _CubieNotificationOverlayState extends ConsumerState<CubieNotificationOver
           right: 16,
           child: Column(
             children: _visible
-                .map((entry) => _CubieToast(
+                .map((entry) => _AhcToast(
                       key: ValueKey(entry.id),
                       notification: entry.notification,
                       onDismiss: () => _removeToast(entry.id),
@@ -83,11 +83,11 @@ class _ToastEntry {
 }
 
 /// Themed toast card matching AiHomeCloud design system.
-class _CubieToast extends StatelessWidget {
+class _AhcToast extends StatelessWidget {
   final AppNotification notification;
   final VoidCallback onDismiss;
 
-  const _CubieToast({
+  const _AhcToast({
     super.key,
     required this.notification,
     required this.onDismiss,

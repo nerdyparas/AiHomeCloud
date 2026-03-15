@@ -1,0 +1,38 @@
+﻿[Unit]
+Description=AiHomeCloud Backend API
+After=network.target
+
+[Service]
+SyslogIdentifier=aihomecloud
+Type=simple
+User=aihomecloud
+Group=aihomecloud
+WorkingDirectory=/opt/aihomecloud/backend
+ExecStart=/opt/aihomecloud/backend/venv/bin/python -m app.main
+Restart=always
+RestartSec=5
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/aihomecloud /srv/nas
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+
+# Environment overrides (edit as needed)
+# NOTE: Do NOT hardcode `AHC_JWT_SECRET` here. Use one of the following safer options:
+# - Provide `AHC_JWT_SECRET` as an environment variable from a secure system-wide secret manager.
+# - Place the secret in `/var/lib/aihomecloud/jwt_secret` (file is read by the app when no env var provided).
+# - If you need to set environment variables from a file, use `EnvironmentFile=` with a file owned by root and mode 600.
+# The service intentionally avoids embedding the JWT secret in this unit file to reduce accidental leaks.
+Environment=AHC_DEVICE_SERIAL=AHC-A7A-2025-001
+Environment=AHC_PAIRING_KEY=your-pairing-key
+Environment=AHC_NAS_ROOT=/srv/nas
+Environment=AHC_DATA_DIR=/var/lib/aihomecloud
+Environment=AHC_TLS_ENABLED=true
+# Optional extra CORS origins (comma-separated). Leave empty to keep defaults:
+# http://localhost,http://localhost:3000
+Environment=AHC_CORS_ORIGINS=
+
+[Install]
+WantedBy=multi-user.target

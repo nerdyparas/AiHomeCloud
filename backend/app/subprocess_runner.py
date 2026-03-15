@@ -1,4 +1,4 @@
-"""Central async subprocess runner with validation and structured logging.
+﻿"""Central async subprocess runner with validation and structured logging.
 
 Provides `run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]`.
 All callers should use this instead of `shell=True` or ad-hoc `create_subprocess_*`.
@@ -10,7 +10,7 @@ import logging
 import re
 from typing import Tuple, List
 
-logger = logging.getLogger("cubie.subproc")
+logger = logging.getLogger("aihomecloud.subproc")
 
 
 _SHELL_DANGERS = re.compile(r"[;&\|`$]")
@@ -27,7 +27,7 @@ async def run_command(cmd: List[str], timeout: int = 30) -> Tuple[int, str, str]
     if not cmd or not isinstance(cmd, list):
         raise ValueError("cmd must be a non-empty list of strings")
 
-    # Defensive validation — reject suspicious tokens
+    # Defensive validation â€” reject suspicious tokens
     for t in cmd:
         if _SHELL_DANGERS.search(t):
             raise ValueError(f"command token contains forbidden chars: {t}")

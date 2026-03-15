@@ -1,4 +1,4 @@
-"""
+﻿"""
 System, Family, Service, Network, Health, Job, and AdGuard route tests.
 Covers endpoints not yet tested by existing test files.
 """
@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 
 
-# ─── Health ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_health_endpoint_returns_ok(client: AsyncClient):
@@ -29,7 +29,7 @@ async def test_root_endpoint_returns_device_info(client: AsyncClient):
     assert "serial" in data
 
 
-# ─── System ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ System â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_system_info_returns_device(authenticated_client: AsyncClient):
@@ -92,7 +92,7 @@ async def test_system_info_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# ─── Family / Users ─────────────────────────────────────────────────────────
+# â”€â”€â”€ Family / Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_family_list_returns_users(authenticated_client: AsyncClient):
@@ -156,7 +156,7 @@ async def test_remove_nonexistent_family_returns_404(authenticated_client: Async
     assert response.status_code == 404
 
 
-# ─── Services ────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_services_list(authenticated_client: AsyncClient):
@@ -205,7 +205,7 @@ async def test_services_list_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# ─── Jobs ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_job_nonexistent_returns_404(authenticated_client: AsyncClient):
@@ -221,7 +221,7 @@ async def test_job_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# ─── Backward compatibility redirect ────────────────────────────────────────
+# â”€â”€â”€ Backward compatibility redirect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_api_redirect_preserves_path(client: AsyncClient):
@@ -230,7 +230,7 @@ async def test_api_redirect_preserves_path(client: AsyncClient):
     assert response.status_code == 200
 
 
-# ─── Cert fingerprint ───────────────────────────────────────────────────────
+# â”€â”€â”€ Cert fingerprint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_cert_fingerprint_endpoint(client: AsyncClient):
@@ -242,7 +242,7 @@ async def test_cert_fingerprint_endpoint(client: AsyncClient):
     assert data["algorithm"] == "sha256"
 
 
-# ─── QR Pairing ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ QR Pairing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_qr_pairing_endpoint(client: AsyncClient):
@@ -290,173 +290,3 @@ async def test_pair_with_correct_credentials(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert "token" in data
-
-
-# ─── AdGuard Home ─────────────────────────────────────────────────────────────
-#
-# AdGuard integration is DISABLED by default (settings.adguard_enabled = False).
-# Tests that need the integration active patch settings.adguard_enabled and
-# mock httpx.AsyncClient to avoid real network calls.
-
-
-@pytest.mark.asyncio
-async def test_adguard_stats_disabled(client: AsyncClient, admin_token: str):
-    """GET /api/v1/adguard/stats returns 503 when integration is off."""
-    resp = await client.get(
-        "/api/v1/adguard/stats",
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
-    assert resp.status_code == 503
-
-
-@pytest.mark.asyncio
-async def test_adguard_stats_requires_auth(client: AsyncClient):
-    """GET /api/v1/adguard/stats requires authentication."""
-    resp = await client.get("/api/v1/adguard/stats")
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_adguard_pause_disabled(client: AsyncClient, admin_token: str):
-    """POST /api/v1/adguard/pause returns 503 when integration is off."""
-    resp = await client.post(
-        "/api/v1/adguard/pause",
-        json={"minutes": 5},
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
-    assert resp.status_code == 503
-
-
-@pytest.mark.asyncio
-async def test_adguard_pause_requires_auth(client: AsyncClient):
-    """POST /api/v1/adguard/pause requires authentication."""
-    resp = await client.post("/api/v1/adguard/pause", json={"minutes": 5})
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_adguard_toggle_disabled(client: AsyncClient, admin_token: str):
-    """POST /api/v1/adguard/toggle returns 503 when integration is off."""
-    resp = await client.post(
-        "/api/v1/adguard/toggle",
-        json={"enabled": False},
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
-    assert resp.status_code == 503
-
-
-@pytest.mark.asyncio
-async def test_adguard_toggle_requires_auth(client: AsyncClient):
-    """POST /api/v1/adguard/toggle requires authentication."""
-    resp = await client.post("/api/v1/adguard/toggle", json={"enabled": True})
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_adguard_toggle_requires_admin(
-    client: AsyncClient, admin_token: str
-):
-    """POST /api/v1/adguard/toggle is admin-only; a member token is rejected."""
-    from app.config import settings  # noqa: PLC0415
-
-    with patch.object(settings, "adguard_enabled", True):
-        # Obtain a member-level token from the test fixture user (username="testuser")
-        login_resp = await client.post(
-            "/api/v1/auth/login",
-            json={"username": "testuser", "password": "testpassword"},
-        )
-        if login_resp.status_code != 200:
-            pytest.skip("member token not available in this fixture")
-
-        member_token = login_resp.json().get("accessToken") or login_resp.json().get("access_token")
-        resp = await client.post(
-            "/api/v1/adguard/toggle",
-            json={"enabled": False},
-            headers={"Authorization": f"Bearer {member_token}"},
-        )
-        assert resp.status_code in (403, 401)
-
-
-@pytest.mark.asyncio
-async def test_adguard_pause_invalid_minutes(
-    client: AsyncClient, admin_token: str
-):
-    """POST /api/v1/adguard/pause rejects minutes values other than 5, 30, 60."""
-    from app.config import settings  # noqa: PLC0415
-
-    mock_response = AsyncMock()
-    mock_response.status_code = 200
-    mock_response.raise_for_status = AsyncMock()
-
-    with patch.object(settings, "adguard_enabled", True), \
-         patch("app.routes.adguard_routes.httpx.AsyncClient") as mock_client:
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client.return_value)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
-        mock_client.return_value.post = AsyncMock(return_value=mock_response)
-
-        resp = await client.post(
-            "/api/v1/adguard/pause",
-            json={"minutes": 15},
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        assert resp.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_adguard_stats_proxied(client: AsyncClient, admin_token: str):
-    """GET /api/v1/adguard/stats proxies AdGuard and returns shaped stats."""
-    from app.config import settings  # noqa: PLC0415
-
-    fake_adguard_payload = {
-        "num_dns_queries": 200,
-        "num_blocked_filtering": 50,
-        "top_blocked_domains": [
-            {"name": "ads.example.com", "count": 20},
-            {"name": "tracking.bad.com", "count": 10},
-        ],
-    }
-
-    mock_response = AsyncMock()
-    mock_response.status_code = 200
-    mock_response.raise_for_status = MagicMock()  # sync call in route
-    mock_response.json = lambda: fake_adguard_payload
-
-    with patch.object(settings, "adguard_enabled", True), \
-         patch("app.routes.adguard_routes.httpx.AsyncClient") as mock_client:
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client.return_value)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
-        mock_client.return_value.get = AsyncMock(return_value=mock_response)
-
-        resp = await client.get(
-            "/api/v1/adguard/stats",
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data.get("dns_queries") == 200
-    assert data.get("blocked_today") == 50
-    assert data.get("blocked_percent") == 25.0
-
-
-@pytest.mark.asyncio
-async def test_adguard_stats_unreachable(client: AsyncClient, admin_token: str):
-    """GET /api/v1/adguard/stats returns 503 when AdGuard is unreachable."""
-    import httpx as httpx_lib
-    from app.config import settings  # noqa: PLC0415
-
-    with patch.object(settings, "adguard_enabled", True), \
-         patch("app.routes.adguard_routes.httpx.AsyncClient") as mock_client:
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client.return_value)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
-        mock_client.return_value.get = AsyncMock(
-            side_effect=httpx_lib.ConnectError("refused")
-        )
-
-        resp = await client.get(
-            "/api/v1/adguard/stats",
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-
-    assert resp.status_code == 503
-

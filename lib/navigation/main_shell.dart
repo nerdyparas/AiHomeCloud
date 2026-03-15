@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +42,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final connection = ref.watch(connectionProvider);
     final upload = ref.watch(shareUploadProvider);
 
-    // Debounce disconnect banner — only show after 12 continuous seconds
+    // Debounce disconnect banner â€” only show after 12 continuous seconds
     if (connection == ConnectionStatus.disconnected) {
       if (_disconnectTimer == null) {
         _disconnectTimer = Timer(const Duration(seconds: 12), () {
@@ -57,7 +57,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       }
     }
 
-    return CubieNotificationOverlay(
+    return AhcNotificationOverlay(
       child: Scaffold(
         body: Column(
           children: [
@@ -74,7 +74,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     SizedBox(width: 8),
-                    Text('Reconnecting…'),
+                    Text('Reconnectingâ€¦'),
                   ],
                 ),
               ),
@@ -92,7 +92,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Uploading ${upload.done} of ${upload.total} file(s)…',
+                      'Uploading ${upload.done} of ${upload.total} file(s)â€¦',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],

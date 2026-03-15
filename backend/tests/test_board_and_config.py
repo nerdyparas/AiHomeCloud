@@ -38,8 +38,8 @@ def test_generate_device_serial():
     from app.config import generate_device_serial
 
     serial = generate_device_serial()
-    assert serial.startswith("CUBIE-")
-    assert len(serial) == 12  # CUBIE- + 6 hex chars
+    assert serial.startswith("AHC-")
+    assert len(serial) == 10  # AHC- + 6 hex chars
 
 
 def test_generate_hotspot_password():

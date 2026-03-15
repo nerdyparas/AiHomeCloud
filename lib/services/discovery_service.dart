@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -24,22 +24,22 @@ class DiscoveryService {
 
   /// Orchestrates the full discovery flow:
   /// 1. Try mDNS for 10 s
-  /// 2. If mDNS fails → BLE fallback
+  /// 2. If mDNS fails â†’ BLE fallback
   /// [onStatus] receives human-readable progress messages for the UI.
   Future<DiscoveryResult> discover(
     String serial,
     void Function(String) onStatus,
   ) async {
-    // ── Step 1: mDNS ────────────────────────────────────────────────────────
-    onStatus('Searching via mDNS…');
+    // â”€â”€ Step 1: mDNS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    onStatus('Searching via mDNSâ€¦');
     final mdnsResult = await _tryMdns(serial);
     if (mdnsResult != null) {
       onStatus('Found device via mDNS!');
       return DiscoveryResult(ip: mdnsResult, method: DiscoveryMethod.mdns);
     }
 
-    // ── Step 2: BLE fallback ────────────────────────────────────────────────
-    onStatus('mDNS timed out. Trying Bluetooth…');
+    // â”€â”€ Step 2: BLE fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    onStatus('mDNS timed out. Trying Bluetoothâ€¦');
     await Future.delayed(const Duration(seconds: 1));
 
     final bleResult = await _tryBle(serial, onStatus);
@@ -54,16 +54,16 @@ class DiscoveryService {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // mDNS — real implementation using multicast_dns package
-  // ────────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // mDNS â€” real implementation using multicast_dns package
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<String?> _tryMdns(String serial) async {
     final MDnsClient client = MDnsClient();
     try {
       await client.start();
 
-      // Look for AiHomeCloud service type: _cubie-nas._tcp
+      // Look for AiHomeCloud service type: _aihomecloud-nas._tcp
       await for (final PtrResourceRecord ptr in client
           .lookup<PtrResourceRecord>(
             ResourceRecordQuery.serverPointer(AppConstants.mdnsType),
@@ -72,7 +72,7 @@ class DiscoveryService {
         sink.close();
       })) {
         // Optionally match by serial in the service name
-        // Service name is typically "cubie-<SERIAL>._cubie-nas._tcp"
+        // Service name is typically "ahc-<SERIAL>._aihomecloud-nas._tcp"
         await for (final SrvResourceRecord srv in client
             .lookup<SrvResourceRecord>(
               ResourceRecordQuery.service(ptr.domainName),
@@ -103,9 +103,9 @@ class DiscoveryService {
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // BLE — real implementation using flutter_blue_plus package
-  // ────────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // BLE â€” real implementation using flutter_blue_plus package
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<String?> _tryBle(
     String serial,
@@ -130,7 +130,7 @@ class DiscoveryService {
       return null;
     }
 
-    onStatus('Scanning for AiHomeCloud via Bluetooth…');
+    onStatus('Scanning for AiHomeCloud via Bluetoothâ€¦');
 
     try {
       // Start scanning for devices with our service UUID
@@ -140,49 +140,49 @@ class DiscoveryService {
       );
 
       // Listen for scan results
-      BluetoothDevice? cubieDevice;
+      BluetoothDevice? discoveredDevice;
 
       await for (final results in FlutterBluePlus.onScanResults) {
         for (final r in results) {
           final name = r.device.platformName;
           if (name.startsWith(AppConstants.bleDevicePrefix)) {
-            cubieDevice = r.device;
+            discoveredDevice = r.device;
             break;
           }
         }
-        if (cubieDevice != null) break;
+        if (discoveredDevice != null) break;
       }
 
       await FlutterBluePlus.stopScan();
 
-      if (cubieDevice == null) {
+      if (discoveredDevice == null) {
         onStatus('No AiHomeCloud device found via Bluetooth');
         return null;
       }
 
-      onStatus('Connecting to ${cubieDevice.platformName}…');
+      onStatus('Connecting to ${discoveredDevice.platformName}â€¦');
 
       // Connect and read the IP characteristic
-      await cubieDevice.connect(timeout: const Duration(seconds: 10));
+      await discoveredDevice.connect(timeout: const Duration(seconds: 10));
 
       try {
-        final services = await cubieDevice.discoverServices();
+        final services = await discoveredDevice.discoverServices();
         for (final s in services) {
           if (s.uuid == Guid(AppConstants.bleServiceUuid)) {
             for (final c in s.characteristics) {
               if (c.uuid == Guid(AppConstants.bleCharUuid)) {
                 final value = await c.read();
                 final ip = String.fromCharCodes(value);
-                await cubieDevice.disconnect();
+                await discoveredDevice.disconnect();
                 return ip; // e.g. '192.168.0.212'
               }
             }
           }
         }
-        await cubieDevice.disconnect();
+        await discoveredDevice.disconnect();
       } catch (e) {
         try {
-          await cubieDevice.disconnect();
+          await discoveredDevice.disconnect();
         } catch (_) {}
         onStatus('BLE read failed: $e');
       }

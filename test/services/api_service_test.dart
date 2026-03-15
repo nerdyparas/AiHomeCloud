@@ -1,14 +1,14 @@
-/// ApiService deserialization tests (TASK-P7-01).
+﻿/// ApiService deserialization tests (TASK-P7-01).
 ///
-/// Tests the JSON → model contracts that ApiService methods rely on.
+/// Tests the JSON â†’ model contracts that ApiService methods rely on.
 /// Catches regressions where backend field names or types change.
-/// No HTTP mock needed — tests parse the same JSON structures the
+/// No HTTP mock needed â€” tests parse the same JSON structures the
 /// real API returns, using the model constructors directly.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:cubie_cloud/models/models.dart';
+import 'package:aihomecloud/models/models.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

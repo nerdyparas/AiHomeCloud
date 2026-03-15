@@ -1,7 +1,7 @@
-/// Barrel file — re-exports all domain model files.
+﻿/// Barrel file â€” re-exports all domain model files.
 ///
 /// Import this single file to access every model in the app:
-///   import 'package:cubie_cloud/models/models.dart';
+///   import 'package:aihomecloud/models/models.dart';
 library;
 export 'device_models.dart';
 export 'file_models.dart';

@@ -1,27 +1,27 @@
-/// Device state models — CubieDevice, SystemStats, StorageStats, ConnectionStatus.
+﻿/// Device state models â€” AhcDevice, SystemStats, StorageStats, ConnectionStatus.
 ///
 /// Used on the dashboard and throughout system monitoring screens.
 library;
 
-class CubieDevice {
+class AhcDevice {
   final String serial;
   final String name;
   final String ip;
   final String firmwareVersion;
 
-  const CubieDevice({
+  const AhcDevice({
     required this.serial,
     required this.name,
     required this.ip,
     required this.firmwareVersion,
   });
 
-  CubieDevice copyWith({
+  AhcDevice copyWith({
     String? name,
     String? ip,
     String? firmwareVersion,
   }) {
-    return CubieDevice(
+    return AhcDevice(
       serial: serial,
       name: name ?? this.name,
       ip: ip ?? this.ip,

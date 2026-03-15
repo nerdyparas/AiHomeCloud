@@ -174,65 +174,6 @@ extension ServicesNetworkApi on ApiService {
     return list.map((item) => WifiNetwork.fromJson(item)).toList();
   }
 
-  // ── AdGuard Home proxy endpoints ──────────────────────────────────────────
-
-  /// GET /api/v1/adguard/stats
-  Future<Map<String, dynamic>> getAdGuardStats() async {
-    final res = await _withAutoRefresh(
-      () => _client
-          .get(
-            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/stats'),
-            headers: _headers,
-          )
-          .timeout(ApiService._timeout),
-    );
-    _check(res);
-    return (jsonDecode(res.body) as Map<String, dynamic>);
-  }
-
-  /// GET /api/v1/adguard/status — does NOT require adguard to be configured
-  /// Returns {installed, service_running, app_enabled}
-  Future<Map<String, dynamic>> getAdGuardStatus() async {
-    final res = await _withAutoRefresh(
-      () => _client
-          .get(
-            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/status'),
-            headers: _headers,
-          )
-          .timeout(ApiService._timeout),
-    );
-    _check(res);
-    return jsonDecode(res.body) as Map<String, dynamic>;
-  }
-
-  /// POST /api/v1/adguard/toggle  body: {enabled}
-  Future<void> toggleAdGuard(bool enabled) async {
-    final res = await _withAutoRefresh(
-      () => _client
-          .post(
-            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/toggle'),
-            headers: _headers,
-            body: jsonEncode({'enabled': enabled}),
-          )
-          .timeout(ApiService._timeout),
-    );
-    _check(res);
-  }
-
-  /// POST /api/v1/adguard/pause  body: {minutes}
-  Future<void> pauseAdGuard(int minutes) async {
-    final res = await _withAutoRefresh(
-      () => _client
-          .post(
-            Uri.parse('$_baseUrl${AppConstants.apiVersion}/adguard/pause'),
-            headers: _headers,
-            body: jsonEncode({'minutes': minutes}),
-          )
-          .timeout(ApiService._timeout),
-    );
-    _check(res);
-  }
-
   // ── Telegram Bot config endpoints ─────────────────────────────────────────
 
   /// GET /api/v1/telegram/config

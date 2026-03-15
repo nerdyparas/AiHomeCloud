@@ -1,4 +1,4 @@
-"""Startup hygiene utilities for keeping user NAS storage clean."""
+﻿"""Startup hygiene utilities for keeping user NAS storage clean."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from .config import settings
 from .document_index import remove_documents_by_filename_patterns, remove_missing_documents
 
-logger = logging.getLogger("cubie.hygiene")
+logger = logging.getLogger("aihomecloud.hygiene")
 
 # Restrictive allowlist: only known test artifacts, never generic *.txt.
 _TEST_ARTIFACT_PATTERNS: tuple[str, ...] = (

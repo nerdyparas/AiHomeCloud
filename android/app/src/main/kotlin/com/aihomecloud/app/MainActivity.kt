@@ -1,4 +1,4 @@
-package com.cubiecloud.cubie_cloud
+﻿package com.aihomecloud.app
 
 import io.flutter.embedding.android.FlutterActivity
 

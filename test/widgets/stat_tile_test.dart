@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:cubie_cloud/widgets/stat_tile.dart';
+import 'package:aihomecloud/widgets/stat_tile.dart';
 
 void main() {
   group('StatTile Widget Tests (TASK-025)', () {
@@ -57,7 +57,7 @@ void main() {
     testWidgets('renders unit text when provided', (WidgetTester tester) async {
       const testLabel = 'Temperature';
       const testValue = '52';
-      const testUnit = '°C';
+      const testUnit = 'Â°C';
 
       await tester.pumpWidget(
         MaterialApp(

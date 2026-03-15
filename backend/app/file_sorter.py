@@ -1,5 +1,5 @@
-"""
-File sorting — InboxWatcher polls .inbox/ directories every 30 seconds and
+﻿"""
+File sorting â€” InboxWatcher polls .inbox/ directories every 30 seconds and
 auto-sorts files into Photos / Videos / Documents / Others based on extension.
 """
 
@@ -12,9 +12,9 @@ from typing import Optional
 
 from .config import settings
 
-logger = logging.getLogger("cubie.file_sorter")
+logger = logging.getLogger("aihomecloud.file_sorter")
 
-# Extension → destination folder name (lowercase extensions only)
+# Extension â†’ destination folder name (lowercase extensions only)
 SORT_RULES: dict[str, str] = {
     # Photos
     ".jpg": "Photos", ".jpeg": "Photos", ".png": "Photos", ".gif": "Photos",
@@ -50,7 +50,7 @@ ENTERTAINMENT_SORT_RULES: dict[str, str] = {
 }
 
 _MIN_AGE_SECONDS = 5           # file must be at least this old (not still uploading)
-_DOC_PHOTO_MAX_BYTES = 800 * 1024   # < 800 KB image → likely a scanned document
+_DOC_PHOTO_MAX_BYTES = 800 * 1024   # < 800 KB image â†’ likely a scanned document
 
 
 def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
@@ -71,7 +71,7 @@ def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
     ext = file_path.suffix.lower()
     folder = SORT_RULES.get(ext, "Others")
 
-    # Document-photo override: small image OR doc keyword in filename → Documents/
+    # Document-photo override: small image OR doc keyword in filename â†’ Documents/
     if folder == "Photos":
         name_lower = file_path.stem.lower()
         has_keyword = any(kw in name_lower for kw in DOC_KEYWORDS)
@@ -104,7 +104,7 @@ def _sort_file(file_path: Path, base_dir: Path, *, check_age: bool = True) -> Op
     """
     Move *file_path* from .inbox/ to the appropriate sub-folder under *base_dir*.
     Returns the destination Path on success; None if skipped or an error occurred.
-    Sort failures are logged as warnings — the file stays in .inbox/ so it can be
+    Sort failures are logged as warnings â€” the file stays in .inbox/ so it can be
     retried on the next pass.
     """
     try:
@@ -127,7 +127,7 @@ def _sort_file(file_path: Path, base_dir: Path, *, check_age: bool = True) -> Op
 
     except Exception as exc:
         logger.warning(
-            "sort_failed file=%s error=%s — file stays in inbox",
+            "sort_failed file=%s error=%s â€” file stays in inbox",
             file_path.name, exc,
         )
         return None
@@ -147,7 +147,7 @@ async def _try_index_document(dest: Path, added_by: str) -> None:
 def _collect_inboxes() -> list[tuple[Path, Path]]:
     """
     Return list of (inbox_dir, base_dir) pairs to watch.
-    base_dir is the parent of .inbox/ — sorted outputs go directly under it.
+    base_dir is the parent of .inbox/ â€” sorted outputs go directly under it.
     """
     inboxes: list[tuple[Path, Path]] = []
 
@@ -189,7 +189,7 @@ async def _run_sort_pass() -> None:
                 lambda p=file_path, b=base_dir: _sort_file(p, b, check_age=True),
             )
             if dest is not None and dest.parent.name == "Documents":
-                # Best-effort indexing — never blocks the watcher
+                # Best-effort indexing â€” never blocks the watcher
                 asyncio.create_task(
                     _try_index_document(dest, base_dir.name),
                     name=f"index_doc_{dest.name}",
@@ -288,7 +288,7 @@ class InboxWatcher:
             await asyncio.sleep(self._interval)
 
 
-# Module-level singleton — started/stopped from main.py lifespan
+# Module-level singleton â€” started/stopped from main.py lifespan
 _watcher = InboxWatcher()
 
 

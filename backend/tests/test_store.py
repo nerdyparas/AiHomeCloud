@@ -1,5 +1,5 @@
-"""
-Store module tests — JSON persistence, atomic writes, caching,
+﻿"""
+Store module tests â€” JSON persistence, atomic writes, caching,
 token purge, OTP lifecycle, and corrupt file recovery.
 """
 
@@ -11,7 +11,7 @@ from pathlib import Path
 @pytest.mark.asyncio
 async def test_store_users_crud(tmp_path, monkeypatch):
     """Create, find, and remove users."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -53,7 +53,7 @@ async def test_store_users_crud(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_services_defaults(tmp_path, monkeypatch):
     """Services should auto-create defaults when file doesn't exist."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -71,7 +71,7 @@ async def test_store_services_defaults(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_toggle_service(tmp_path, monkeypatch):
     """Toggle a service's enabled state."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -99,7 +99,7 @@ async def test_store_toggle_service(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_device_state(tmp_path, monkeypatch):
     """Device name read/write."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -118,7 +118,7 @@ async def test_store_device_state(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_storage_state_lifecycle(tmp_path, monkeypatch):
     """Save and clear storage state."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -144,7 +144,7 @@ async def test_store_storage_state_lifecycle(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_tokens_add_get_revoke(tmp_path, monkeypatch):
     """Token CRUD and revocation."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -177,7 +177,7 @@ async def test_store_tokens_add_get_revoke(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_token_purge_uses_correct_key(tmp_path, monkeypatch):
     """Purge should use 'expiresAt' key (camelCase) matching auth.py."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -202,7 +202,7 @@ async def test_store_token_purge_uses_correct_key(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_otp_lifecycle(tmp_path, monkeypatch):
     """OTP save, get, clear cycle."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -222,7 +222,7 @@ async def test_store_otp_lifecycle(tmp_path, monkeypatch):
     await store.clear_otp()
     store._cache.clear()  # force re-read from disk
     otp = await store.get_otp()
-    # After clear, file contains {} which is falsy — get_otp returns None
+    # After clear, file contains {} which is falsy â€” get_otp returns None
     assert otp is None
 
     store._cache.clear()
@@ -231,7 +231,7 @@ async def test_store_otp_lifecycle(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_store_corrupt_json_recovery(tmp_path, monkeypatch):
     """Corrupt JSON file should be recovered gracefully."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -255,7 +255,7 @@ async def test_store_corrupt_json_recovery(tmp_path, monkeypatch):
 async def test_atomic_write_survives_concurrent_access(tmp_path, monkeypatch):
     """Multiple concurrent writes should not corrupt the store."""
     import asyncio
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -278,7 +278,7 @@ async def test_atomic_write_survives_concurrent_access(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_add_user_icon_emoji_is_stored(tmp_path, monkeypatch):
     """TASK-014: add_user stores icon_emoji and get_users returns it."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path
@@ -299,7 +299,7 @@ async def test_add_user_icon_emoji_is_stored(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_add_user_icon_emoji_defaults_to_empty_string(tmp_path, monkeypatch):
     """TASK-014: add_user without icon_emoji stores empty string, not None."""
-    monkeypatch.setenv("CUBIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
     from app.config import settings
     from app import store
     settings.data_dir = tmp_path

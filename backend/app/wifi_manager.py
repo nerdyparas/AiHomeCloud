@@ -1,5 +1,5 @@
-"""
-WiFi management — auto-disable WiFi when Ethernet is active.
+﻿"""
+WiFi management â€” auto-disable WiFi when Ethernet is active.
 
 Uses nmcli (NetworkManager) for WiFi radio control.
 Reads /sys/class/net/<iface>/operstate for Ethernet link detection.
@@ -12,7 +12,7 @@ from pathlib import Path
 from .subprocess_runner import run_command
 from . import store
 
-logger = logging.getLogger("cubie.wifi")
+logger = logging.getLogger("aihomecloud.wifi")
 
 # Persistent flag: if user explicitly enables WiFi via API, don't auto-disable
 _user_wifi_override = False
@@ -77,17 +77,17 @@ async def auto_disable_wifi_if_ethernet() -> None:
     # Restore persisted override from previous run
     _user_wifi_override = await store.get_value("wifi_user_override", False)
     if _user_wifi_override:
-        logger.info("WiFi auto-disable skipped — user override active (persisted)")
+        logger.info("WiFi auto-disable skipped â€” user override active (persisted)")
         return
     if _ethernet_is_up():
-        logger.info("Ethernet is active — disabling WiFi radio")
+        logger.info("Ethernet is active â€” disabling WiFi radio")
         await disable_wifi()
     else:
-        logger.info("Ethernet is not active — keeping WiFi on")
+        logger.info("Ethernet is not active â€” keeping WiFi on")
 
 
 async def set_user_wifi_override(enabled: bool) -> None:
-    """User explicitly toggles WiFi — set override flag and persist."""
+    """User explicitly toggles WiFi â€” set override flag and persist."""
     global _user_wifi_override
     _user_wifi_override = enabled
     await store.set_value("wifi_user_override", enabled)

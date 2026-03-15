@@ -1,6 +1,6 @@
-"""
+﻿"""
 JSON-file-based persistence for users, services config, and device state.
-Designed for simplicity on a single-device NAS — no database needed.
+Designed for simplicity on a single-device NAS â€” no database needed.
 """
 
 from __future__ import annotations
@@ -17,12 +17,12 @@ import time
 
 from .config import settings
 
-logger = logging.getLogger("cubie.store")
+logger = logging.getLogger("aihomecloud.store")
 
 # Async lock to protect concurrent access to JSON files from async handlers
 _store_lock = asyncio.Lock()
 
-_CACHE_TTL = 5.0  # seconds — longer TTL reduces JSON re-reads during browsing
+_CACHE_TTL = 5.0  # seconds â€” longer TTL reduces JSON re-reads during browsing
 _cache: dict[str, tuple[Any, float]] = {}
 
 # Sentinel for distinguishing "no default passed" from "default=None"
@@ -54,7 +54,7 @@ def _read_json(path: Path, default: Any = _UNSET) -> Any:
     try:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, ValueError):
-        logger.error("corrupt_json path=%s — returning default", path)
+        logger.error("corrupt_json path=%s â€” returning default", path)
         # Rename corrupt file for forensic inspection
         try:
             corrupt_name = path.with_suffix(".json.corrupt")
@@ -95,7 +95,7 @@ def _write_json(path: Path, data: Any) -> None:
     _atomic_write(path, data)
 
 
-# ─── Users ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def get_users() -> List[dict]:
     """Return the list of users, protected by the store lock."""
@@ -138,7 +138,7 @@ async def add_user(
     users.append(user)
     await save_users(users)
 
-    # Create personal folder — sanitize name to prevent path traversal
+    # Create personal folder â€” sanitize name to prevent path traversal
     safe_name = Path(name).name  # strips any directory components like ../
     personal = settings.personal_path / safe_name
     personal.mkdir(parents=True, exist_ok=True)
@@ -200,7 +200,7 @@ async def remove_pin(user_id: str) -> bool:
     return False
 
 
-# ─── Services ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _DEFAULT_SERVICES = [
     {
@@ -277,7 +277,7 @@ async def toggle_service(service_id: str, enabled: bool) -> bool:
     return False
 
 
-# ─── Device state ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Device state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 async def get_device_state() -> dict:
@@ -305,7 +305,7 @@ async def update_device_name(name: str) -> None:
         _write_json(dev_file, state)
 
 
-# ─── Storage state ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Storage state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def get_storage_state() -> dict:
     """Read persisted storage mount info (activeDevice, mountedAt, etc.)."""
@@ -333,7 +333,7 @@ async def clear_storage_state() -> None:
         _write_json(settings.storage_file, {})
 
 
-# ─── Tokens (refresh tokens) ─────────────────────────────────────────────────
+# â”€â”€â”€ Tokens (refresh tokens) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def get_tokens() -> list:
     """Return list of refresh token records."""
@@ -389,7 +389,7 @@ async def purge_expired_tokens(older_than_ts: int) -> int:
     return removed
 
 
-# ─── Pairing / OTP persistence ───────────────────────────────────────────────
+# â”€â”€â”€ Pairing / OTP persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 
@@ -429,7 +429,7 @@ async def clear_otp() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Generic key-value store (kv.json) — for simple config blobs
+# Generic key-value store (kv.json) â€” for simple config blobs
 # ---------------------------------------------------------------------------
 
 async def get_value(key: str, default: Any = None) -> Any:

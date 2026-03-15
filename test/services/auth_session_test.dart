@@ -1,4 +1,4 @@
-/// AuthSessionNotifier and ConnectionNotifier tests (TASK-P7-02).
+﻿/// AuthSessionNotifier and ConnectionNotifier tests (TASK-P7-02).
 ///
 /// Covers the critical state machines:
 ///   - AuthSessionNotifier: login, logout, token update
@@ -9,13 +9,13 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:cubie_cloud/core/constants.dart';
-import 'package:cubie_cloud/models/models.dart';
-import 'package:cubie_cloud/providers/device_providers.dart';
-import 'package:cubie_cloud/services/auth_session.dart';
+import 'package:aihomecloud/core/constants.dart';
+import 'package:aihomecloud/models/models.dart';
+import 'package:aihomecloud/providers/device_providers.dart';
+import 'package:aihomecloud/services/auth_session.dart';
 
 // ---------------------------------------------------------------------------
-// Helper — create a fresh notifier backed by an in-memory SharedPreferences
+// Helper â€” create a fresh notifier backed by an in-memory SharedPreferences
 // ---------------------------------------------------------------------------
 
 Future<({AuthSessionNotifier notifier, SharedPreferences prefs})>
@@ -28,10 +28,10 @@ Future<({AuthSessionNotifier notifier, SharedPreferences prefs})>
 
 void main() {
   // ---------------------------------------------------------------------------
-  // AuthSessionNotifier — login
+  // AuthSessionNotifier â€” login
   // ---------------------------------------------------------------------------
 
-  group('AuthSessionNotifier — login', () {
+  group('AuthSessionNotifier â€” login', () {
     test('login() sets all session fields on the state', () async {
       final (:notifier, prefs: _) = await _makeNotifier();
 
@@ -73,10 +73,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // AuthSessionNotifier — logout
+  // AuthSessionNotifier â€” logout
   // ---------------------------------------------------------------------------
 
-  group('AuthSessionNotifier — logout', () {
+  group('AuthSessionNotifier â€” logout', () {
     test('logout() clears all session state fields to null', () async {
       final (:notifier, prefs: _) = await _makeNotifier();
 
@@ -117,10 +117,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // AuthSessionNotifier — updateToken
+  // AuthSessionNotifier â€” updateToken
   // ---------------------------------------------------------------------------
 
-  group('AuthSessionNotifier — updateToken', () {
+  group('AuthSessionNotifier â€” updateToken', () {
     test('updateToken() replaces token without touching other fields', () async {
       final (:notifier, prefs: _) = await _makeNotifier();
 
@@ -151,10 +151,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // ConnectionNotifier — grace period debounce
+  // ConnectionNotifier â€” grace period debounce
   // ---------------------------------------------------------------------------
 
-  group('ConnectionNotifier — grace period', () {
+  group('ConnectionNotifier â€” grace period', () {
     test('state does NOT change to disconnected within 9 seconds of failure',
         () {
       fakeAsync((async) {
@@ -165,7 +165,7 @@ void main() {
         notifier.markReconnectStart();
         expect(notifier.state, ConnectionStatus.reconnecting);
 
-        // Advance 9 seconds — grace period still active.
+        // Advance 9 seconds â€” grace period still active.
         async.elapse(const Duration(seconds: 9));
         expect(notifier.state, ConnectionStatus.reconnecting,
             reason: 'Should still be reconnecting, not disconnected, at 9s');

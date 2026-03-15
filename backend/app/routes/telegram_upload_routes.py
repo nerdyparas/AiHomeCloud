@@ -1,9 +1,9 @@
-"""
+﻿"""
 One-time upload endpoint for Telegram bot large-file handling.
 
 When a user sends a file >20 MB to the Telegram bot, the bot generates a
 short-lived upload token and sends a clickable link.  The user opens the link
-on their phone, picks the file, and uploads it directly to the NAS — no
+on their phone, picks the file, and uploads it directly to the NAS â€” no
 Telegram size limits apply.
 
 Security:
@@ -25,7 +25,7 @@ from fastapi.responses import HTMLResponse
 
 from ..config import settings
 
-logger = logging.getLogger("cubie.telegram_upload")
+logger = logging.getLogger("aihomecloud.telegram_upload")
 
 router = APIRouter(tags=["telegram-upload"])
 
@@ -46,7 +46,7 @@ class UploadToken:
         return (time.monotonic() - self.created_at) > _TOKEN_TTL_SECONDS
 
 
-# In-memory token store — tokens are single-use and short-lived.
+# In-memory token store â€” tokens are single-use and short-lived.
 _upload_tokens: dict[str, UploadToken] = {}
 
 
@@ -148,7 +148,7 @@ _UPLOAD_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="card">
-  <h1>📤 AiHomeCloud Upload</h1>
+  <h1>ðŸ“¤ AiHomeCloud Upload</h1>
   <p class="info">
     Upload <strong>{{FILENAME}}</strong> to
     <span class="dest">{{DESTINATION}}</span>.
@@ -211,12 +211,12 @@ form.addEventListener('submit', async (e) => {
       let msg = 'Upload complete!';
       try { msg = JSON.parse(xhr.responseText).message || msg; } catch {}
       result.className = 'result ok';
-      result.textContent = '✅ ' + msg;
+      result.textContent = 'âœ… ' + msg;
     } else {
       let msg = 'Upload failed.';
       try { msg = JSON.parse(xhr.responseText).detail || msg; } catch {}
       result.className = 'result err';
-      result.textContent = '❌ ' + msg;
+      result.textContent = 'âŒ ' + msg;
       btn.disabled = false;
     }
     result.style.display = 'block';
@@ -224,7 +224,7 @@ form.addEventListener('submit', async (e) => {
 
   xhr.onerror = () => {
     result.className = 'result err';
-    result.textContent = '❌ Network error. Check your connection.';
+    result.textContent = 'âŒ Network error. Check your connection.';
     result.style.display = 'block';
     btn.disabled = false;
   };
@@ -292,7 +292,7 @@ async def upload_file(token: str, file: UploadFile = File(...)):
         # Notify via Telegram
         await _notify_telegram(
             ut.chat_id,
-            f"✅ Upload complete! Saved to {target_label}: {final_path.name}",
+            f"âœ… Upload complete! Saved to {target_label}: {final_path.name}",
         )
 
         logger.info(
@@ -306,7 +306,7 @@ async def upload_file(token: str, file: UploadFile = File(...)):
             "telegram_upload_failed chat_id=%s file=%s error=%s",
             ut.chat_id, filename, exc,
         )
-        await _notify_telegram(ut.chat_id, f"⚠️ Upload failed for {filename}. Please try again.")
+        await _notify_telegram(ut.chat_id, f"âš ï¸ Upload failed for {filename}. Please try again.")
         raise HTTPException(status_code=500, detail="Upload processing failed.")
 
 
@@ -351,7 +351,7 @@ async def _notify_telegram(chat_id: int, message: str) -> None:
     """Send a notification message to a Telegram chat via the bot."""
     from ..telegram_bot import _application
     if _application is None:
-        logger.debug("Cannot notify Telegram — bot not running")
+        logger.debug("Cannot notify Telegram â€” bot not running")
         return
     try:
         await _application.bot.send_message(chat_id=chat_id, text=message)

@@ -1,6 +1,6 @@
-"""
+﻿"""
 AiHomeCloud backend configuration.
-All settings can be overridden via environment variables prefixed with CUBIE_.
+All settings can be overridden via environment variables prefixed with AHC_.
 """
 
 import os
@@ -12,8 +12,8 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
-JWT_SECRET_FILE = Path("/var/lib/cubie/jwt_secret")
-PAIRING_KEY_FILE = Path("/var/lib/cubie/pairing_key")
+JWT_SECRET_FILE = Path("/var/lib/aihomecloud/jwt_secret")
+PAIRING_KEY_FILE = Path("/var/lib/aihomecloud/pairing_key")
 DEFAULT_CORS_ORIGINS = ["http://localhost", "http://localhost:3000"]
 
 
@@ -46,7 +46,7 @@ def generate_device_serial() -> str:
     import uuid
     mac = uuid.getnode()
     mac_hex = f"{mac:012x}".upper()
-    return f"CUBIE-{mac_hex[-6:]}"
+    return f"AHC-{mac_hex[-6:]}"
 
 
 def generate_hotspot_password() -> str:
@@ -67,32 +67,32 @@ def get_local_ip() -> str:
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "CUBIE_"}
+    model_config = {"env_prefix": "AHC_"}
 
-    # ── Server ────────────────────────────────────────────────────────────────
+    # â”€â”€ Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Intentional for appliance-style LAN service exposure.
     host: str = "0.0.0.0"  # nosec B104
     port: int = 8443
     log_level: str = "INFO"
     cors_origins: list[str] = DEFAULT_CORS_ORIGINS.copy()
 
-    # ── TLS ────────────────────────────────────────────────────────────────────
+    # â”€â”€ TLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     tls_enabled: bool = True
     tls_cert_file: str = ""  # auto-resolved to cert_dir/cert.pem if empty
     tls_key_file: str = ""   # auto-resolved to cert_dir/key.pem if empty
 
-    # ── JWT ────────────────────────────────────────────────────────────────────
+    # â”€â”€ JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expire_hours: int = 1  # 1 hour — use refresh tokens for longer sessions
+    jwt_expire_hours: int = 1  # 1 hour â€” use refresh tokens for longer sessions
 
-    # ── Device ────────────────────────────────────────────────────────────────
+    # â”€â”€ Device â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     device_serial: str = ""  # auto-generated from MAC address if empty
     device_name: str = "My AiHomeCloud"
     firmware_version: str = "2.1.4"
     pairing_key: str = ""  # auto-generated and persisted if empty
 
-    # ── Storage ───────────────────────────────────────────────────────────────
+    # â”€â”€ Storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     nas_root: Path = Path("/srv/nas")
     personal_base: str = "personal"
     shared_dir: str = "shared"
@@ -101,27 +101,23 @@ class Settings(BaseSettings):
     total_storage_gb: float = 500.0
     skip_mount_check: bool = False  # set True in tests to bypass is_mount()
 
-    # ── Upload ────────────────────────────────────────────────────────────────
-    upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB — fewer async cycles on ARM
+    # â”€â”€ Upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB â€” fewer async cycles on ARM
     max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
 
-    # ── AdGuard Home (optional — proxy disabled when False) ───────────────────
-    adguard_enabled: bool = False   # CUBIE_ADGUARD_ENABLED
-    adguard_password: str = ""      # CUBIE_ADGUARD_PASSWORD — AdGuard admin password
-
-    # ── Telegram Bot (optional — disabled if token is empty) ─────────────────
-    telegram_bot_token: str = ""   # CUBIE_TELEGRAM_BOT_TOKEN
-    telegram_allowed_ids: str = ""  # CUBIE_TELEGRAM_ALLOWED_IDS — comma-sep chat IDs; empty = no restriction
-    telegram_api_id: int = 0          # from my.telegram.org — needed for local server
-    telegram_api_hash: str = ""       # from my.telegram.org — needed for local server
+    # â”€â”€ Telegram Bot (optional â€” disabled if token is empty) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    telegram_bot_token: str = ""   # AHC_TELEGRAM_BOT_TOKEN
+    telegram_allowed_ids: str = ""  # AHC_TELEGRAM_ALLOWED_IDS â€” comma-sep chat IDs; empty = no restriction
+    telegram_api_id: int = 0          # from my.telegram.org â€” needed for local server
+    telegram_api_hash: str = ""       # from my.telegram.org â€” needed for local server
     telegram_local_api_enabled: bool = False   # True when local server is running
     telegram_local_api_url: str = "http://127.0.0.1:8081"  # local server address
 
-    # ── SQLite file index (feature-flagged — off by default) ──────────────────
-    enable_sqlite: bool = False   # CUBIE_ENABLE_SQLITE — creates file_index + ai_jobs tables when True
+    # â”€â”€ SQLite file index (feature-flagged â€” off by default) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    enable_sqlite: bool = False   # AHC_ENABLE_SQLITE â€” creates file_index + ai_jobs tables when True
 
-    # ── Data (JSON-file-based persistence for users, services, etc.) ─────────
-    data_dir: Path = Path("/var/lib/cubie")
+    # â”€â”€ Data (JSON-file-based persistence for users, services, etc.) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    data_dir: Path = Path("/var/lib/aihomecloud")
 
     @property
     def personal_path(self) -> Path:
@@ -137,7 +133,7 @@ class Settings(BaseSettings):
 
     @property
     def shared_path(self) -> Path:
-        # Alias for family_path — use family_path in new code
+        # Alias for family_path â€” use family_path in new code
         return self.nas_root / self.family_dir
 
     @property
@@ -171,7 +167,7 @@ class Settings(BaseSettings):
     @property
     def trash_dir(self) -> Path:
         """Hidden trash directory at the root of the NAS mount."""
-        return self.nas_root / ".cubie_trash"
+        return self.nas_root / ".ahc_trash"
 
     @property
     def trash_file(self) -> Path:
@@ -198,13 +194,13 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Ensure a persistent JWT secret exists when the env var is not provided.
-if not os.getenv("CUBIE_JWT_SECRET") and settings.jwt_secret == "change-me-in-production":
+if not os.getenv("AHC_JWT_SECRET") and settings.jwt_secret == "change-me-in-production":
     try:
         settings.jwt_secret = generate_jwt_secret()
     except Exception:
         import logging as _logging
-        _logging.getLogger("cubie.config").critical(
-            "FATAL: Cannot generate JWT secret and no CUBIE_JWT_SECRET env var set. "
+        _logging.getLogger("aihomecloud.config").critical(
+            "FATAL: Cannot generate JWT secret and no AHC_JWT_SECRET env var set. "
             "Refusing to start with insecure default."
         )
         raise SystemExit(1)

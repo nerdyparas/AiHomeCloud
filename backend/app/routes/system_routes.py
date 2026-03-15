@@ -1,5 +1,5 @@
-"""
-System routes — device info, firmware, device name, power management.
+﻿"""
+System routes â€” device info, firmware, device name, power management.
 """
 
 import asyncio
@@ -9,22 +9,22 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..auth import get_current_user, require_admin
 from ..config import settings, get_local_ip
-from ..models import CubieDevice, FirmwareInfo, UpdateNameRequest
+from ..models import AhcDevice, FirmwareInfo, UpdateNameRequest
 from .. import store
 from ..subprocess_runner import run_command
 
-logger = logging.getLogger("cubie.system")
+logger = logging.getLogger("aihomecloud.system")
 
 router = APIRouter(prefix="/api/v1/system", tags=["system"])
 
 
-@router.get("/info", response_model=CubieDevice)
+@router.get("/info", response_model=AhcDevice)
 async def device_info(request: Request, user: dict = Depends(get_current_user)):
     """Return device identity & network info."""
     state = await store.get_device_state()
     board = getattr(request.app.state, "board", None)
     board_model = board.model_name if board else "unknown"
-    return CubieDevice(
+    return AhcDevice(
         serial=settings.device_serial,
         name=state.get("name", settings.device_name),
         ip=get_local_ip(),

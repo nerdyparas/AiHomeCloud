@@ -1,9 +1,9 @@
-"""
-Telegram Bot configuration endpoints — admin only.
+﻿"""
+Telegram Bot configuration endpoints â€” admin only.
 
-GET    /api/v1/telegram/config         — return current config (token masked) + bot status
-POST   /api/v1/telegram/config         — save token, restart bot
-DELETE /api/v1/telegram/linked/{id}    — unlink a Telegram account
+GET    /api/v1/telegram/config         â€” return current config (token masked) + bot status
+POST   /api/v1/telegram/config         â€” save token, restart bot
+DELETE /api/v1/telegram/linked/{id}    â€” unlink a Telegram account
 """
 
 import logging
@@ -15,7 +15,7 @@ from ..auth import require_admin
 from ..config import settings
 from .. import store as _store
 
-logger = logging.getLogger("cubie.telegram_routes")
+logger = logging.getLogger("aihomecloud.telegram_routes")
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
@@ -35,7 +35,7 @@ class TelegramConfigIn(BaseModel):
 
 class TelegramConfigOut(BaseModel):
     configured: bool         # True if a token is saved
-    token_preview: str       # e.g. "1234567:AB…xyz" (masked middle)
+    token_preview: str       # e.g. "1234567:ABâ€¦xyz" (masked middle)
     linked_count: int        # number of Telegram accounts that have sent /auth
     bot_running: bool        # True if the bot process is currently polling
     local_api_enabled: bool  # True when local bot API server is active
@@ -50,8 +50,8 @@ class TelegramConfigOut(BaseModel):
 def _mask_token(token: str) -> str:
     """Show first 10 and last 5 chars, mask the middle."""
     if len(token) <= 15:
-        return token[:3] + "…" + token[-3:]
-    return token[:10] + "…" + token[-5:]
+        return token[:3] + "â€¦" + token[-3:]
+    return token[:10] + "â€¦" + token[-5:]
 
 
 def _bot_is_running() -> bool:
@@ -118,7 +118,7 @@ async def save_config(body: TelegramConfigIn, user: dict = Depends(require_admin
         from ..telegram_bot import stop_bot, start_bot
         await stop_bot()
         await start_bot()
-        logger.info("Telegram bot restarted — local_api=%s", body.local_api_enabled)
+        logger.info("Telegram bot restarted â€” local_api=%s", body.local_api_enabled)
     except Exception as exc:
         logger.warning("Telegram bot restart failed: %s", exc)
 

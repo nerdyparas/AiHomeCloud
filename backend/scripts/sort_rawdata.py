@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 One-shot script: sort files in admin's personal folder and OCR-index documents.
 Uses the backend's file_sorter and document_index modules directly.
@@ -15,9 +15,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Override settings for local run (skip mount check, use real NAS root)
-os.environ.setdefault("CUBIE_SKIP_MOUNT_CHECK", "true")
-os.environ.setdefault("CUBIE_NAS_ROOT", "/srv/nas")
-os.environ.setdefault("CUBIE_DATA_DIR", "/var/lib/cubie")
+os.environ.setdefault("AHC_SKIP_MOUNT_CHECK", "true")
+os.environ.setdefault("AHC_NAS_ROOT", "/srv/nas")
+os.environ.setdefault("AHC_DATA_DIR", "/var/lib/aihomecloud")
 
 
 async def main() -> None:
@@ -36,13 +36,13 @@ async def main() -> None:
     print()
 
     # Initialize the FTS5 database
-    print("Initializing document index DB …")
+    print("Initializing document index DB â€¦")
     await init_db()
     print("DB ready.")
     print()
 
     # Sort files and OCR-index documents
-    print("Sorting files in admin folder …")
+    print("Sorting files in admin folder â€¦")
     stats = await sort_folder_now(admin_folder, added_by="admin")
     print()
     print("=== Sort Results ===")
