@@ -48,6 +48,13 @@ KNOWN_BOARDS: dict[str, BoardConfig] = {
         lan_interface="",  # Will be overridden by auto-detection
         cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
     ),
+    # Radxa ROCK Pi 4A (RK3399 SoC, Armbian Ubuntu 24.04, LAN: end0)
+    "Radxa ROCK Pi 4A": BoardConfig(
+        model_name="Radxa ROCK Pi 4A",
+        thermal_zone_path="",  # Will be overridden by auto-detection
+        lan_interface="",  # Will be overridden by auto-detection
+        cpu_governor_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+    ),
 }
 
 # Substring patterns for fuzzy board matching (used when exact DTB string isn't in KNOWN_BOARDS)
@@ -56,6 +63,7 @@ _BOARD_SUBSTRINGS: list[tuple[str, str]] = [
     ("sun60iw2", "sun60iw2"),       # Allwinner A527 / Cubie A7A
     ("cubie a7z", "Radxa CUBIE A7Z"),
     ("raspberry pi 4", "Raspberry Pi 4 Model B"),
+    ("rock pi 4", "Radxa ROCK Pi 4A"),
 ]
 
 # Fallback default board (thermal_zone_path and lan_interface are auto-detected at runtime)

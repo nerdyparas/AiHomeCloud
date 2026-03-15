@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-15 — New hardware bring-up: Rock Pi 4A + full backend setup audit
+
+**Hardware:** Radxa ROCK Pi 4A (RK3399, Armbian Ubuntu 24.04 Noble, kernel 6.18-rockchip64).
+
+**Root cause of app-not-finding-backend:** Backend service was never installed (`aihomecloud` system
+user and `/opt/aihomecloud` do not exist on a fresh git clone). The backend had been running as an
+orphaned process but was not auto-starting. avahi-daemon was installed but the mDNS service definition
+file was not deployed to `/etc/avahi/services/`, so mDNS discovery was broken. App was falling back
+to slow subnet scan.
+
+**Fixes applied:**
+
+- **`backend/app/main.py`**: Fixed deprecated `asyncio.get_event_loop().run_until_complete()` → `asyncio.run()`
+- **`backend/app/routes/storage_helpers.py`**: Added `"-n"` (non-interactive) to all 6 sudo calls
+- **`backend/app/routes/storage_routes.py`**: Added `"-n"` to all 13 sudo calls
+- **`backend/app/routes/system_routes.py`**: Added `"-n"` to all 3 sudo calls
+- **`backend/app/routes/service_routes.py`**: Added `"-n"` to 1 sudo call
+- **`backend/app/board.py`**: Added `"Radxa ROCK Pi 4A"` to `KNOWN_BOARDS` and `"rock pi 4"` to `_BOARD_SUBSTRINGS`
+- **`backend/tests/test_path_safety.py`**: Fixed `evil_link` test to use `tmp_path/nas` instead of real `/srv/nas` — was leaving a path-traversal symlink artifact in production directory
+- **`backend/tests/test_telegram_bot.py`**: Updated `test_handle_auth_links_new_user` to reflect updated `_handle_auth` approval flow (Task 9 changed `/auth` from direct-link to pending-approval)
+- **`scripts/dev-setup.sh`**: Full rewrite — now 10-step idempotent script: packages, avahi, venv creation, dirs, credentials, system-level service, conflict resolution, sudoers, artifact cleanup, health check
+- **`~/.config/systemd/user/aihomecloud.service`**: Created user-level service (now superseded by system-level)
+- **`/etc/avahi/services/aihomecloud.service`**: Deployed mDNS advertisement
+- **`/etc/sudoers.d/aihomecloud`**: Installed passwordless sudo rules for storage ops
+
+**Key lesson — sudo -n invariant:** All `run_command(["sudo", ...])` calls MUST include `"-n"`.
+Without it, the call blocks for 30 s on a TTY-less daemon process (or on pytest). With `-n`, failure
+is immediate (rc=1) and logged. The backend already had sudoers rules for this hardware so all storage
+calls succeed in production.
+
+**Key lesson — avahi setup is not automatic:** avahi-daemon may be installed but the mDNS service XML
+file must be explicitly deployed to `/etc/avahi/services/`. The Flutter app uses `_aihomecloud-nas._tcp`
+for instant discovery. Without it, discover takes 30+ seconds (full subnet scan).
+
+**mDNS status:** Verified working — `avahi-browse -t _aihomecloud-nas._tcp` returns `AiHomeCloud on rockpi-4a` on both IPv4 and IPv6.
+
+**Test results:** 256 passed, 0 failed (excludes `test_hardware_integration.py`).
+
+**Docs updated:** `kb/hardware.md` (Rock Pi 4A added, Cubie-only refs fixed), `kb/setup-instructions.md` (full rewrite for new hardware), `kb/changelog.md` (this entry), `TASKS.md` (done items added).
+
+---
+
 ## 2026-03-15 — Task 3+4: Remove AdGuard feature and rename all Cubie branding to AiHomeCloud
 
 **Task 3 — AdGuard/AdBlock removal:**

@@ -285,7 +285,7 @@ async def stop_nas_services():
         services.append(dlna_svc)
     for svc in services:
         try:
-            await run_command(["sudo", "systemctl", "stop", svc])
+            await run_command(["sudo", "-n", "systemctl", "stop", svc])
         except Exception:
             pass
 
@@ -298,7 +298,7 @@ async def start_nas_services():
         services.append(dlna_svc)
     for svc in services:
         try:
-            await run_command(["sudo", "systemctl", "start", svc])
+            await run_command(["sudo", "-n", "systemctl", "start", svc])
         except Exception:
             pass
 
@@ -329,8 +329,8 @@ async def ensure_dlna_started_and_enabled() -> bool:
         logger.info("DLNA service unit not found (tried: %s)", ", ".join(_DLNA_SERVICE_CANDIDATES))
         return False
 
-    await run_command(["sudo", "systemctl", "enable", dlna_svc], timeout=15)
-    rc, _, err = await run_command(["sudo", "systemctl", "start", dlna_svc], timeout=15)
+    await run_command(["sudo", "-n", "systemctl", "enable", dlna_svc], timeout=15)
+    rc, _, err = await run_command(["sudo", "-n", "systemctl", "start", dlna_svc], timeout=15)
     if rc != 0:
         logger.warning("Failed to start DLNA service %s: %s", dlna_svc, err)
         return False
@@ -424,10 +424,10 @@ async def do_unmount(force: bool = False) -> str:
     except Exception:
         pass
 
-    rc, _, stderr = await run_command(["sudo", "umount", nas_root])
+    rc, _, stderr = await run_command(["sudo", "-n", "umount", nas_root])
     if rc != 0:
         logger.warning("Normal unmount failed, trying lazy unmount: %s", stderr)
-        rc2, _, stderr2 = await run_command(["sudo", "umount", "-l", nas_root])
+        rc2, _, stderr2 = await run_command(["sudo", "-n", "umount", "-l", nas_root])
         if rc2 != 0:
             raise HTTPException(
                 500,

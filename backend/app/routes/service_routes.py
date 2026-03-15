@@ -29,7 +29,7 @@ _SERVICE_UNITS: dict[str, list[str]] = {
 
 async def _systemctl(action: str, unit: str) -> tuple[bool, str]:
     """Run `systemctl <action> <unit>` via centralized runner."""
-    rc, _, stderr = await run_command(["sudo", "systemctl", action, unit], timeout=15)
+    rc, _, stderr = await run_command(["sudo", "-n", "systemctl", action, unit], timeout=15)
     return rc == 0, stderr
 
 

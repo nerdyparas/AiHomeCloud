@@ -95,7 +95,7 @@ async def shutdown_device(user: dict = Depends(require_admin)):
 
     # 2. Schedule poweroff after a short delay so the response is delivered.
     logger.info("Shutdown requested by user %s", user.get("sub", "unknown"))
-    asyncio.create_task(_deferred_power_command(["sudo", "systemctl", "poweroff"]))
+    asyncio.create_task(_deferred_power_command(["sudo", "-n", "systemctl", "poweroff"]))
     return {"status": "shutting_down"}
 
 
@@ -103,7 +103,7 @@ async def shutdown_device(user: dict = Depends(require_admin)):
 async def reboot_device(user: dict = Depends(require_admin)):
     """Reboot the device.  Response is sent before the OS restarts."""
     logger.info("Reboot requested by user %s", user.get("sub", "unknown"))
-    asyncio.create_task(_deferred_power_command(["sudo", "systemctl", "reboot"]))
+    asyncio.create_task(_deferred_power_command(["sudo", "-n", "systemctl", "reboot"]))
     return {"status": "rebooting"}
 
 
@@ -117,5 +117,5 @@ async def _deferred_power_command(cmd: list[str]) -> None:
 
 async def _systemctl_stop(unit: str) -> tuple[bool, str]:
     """Run `systemctl stop <unit>` via centralized runner."""
-    rc, _, stderr = await run_command(["sudo", "systemctl", "stop", unit], timeout=15)
+    rc, _, stderr = await run_command(["sudo", "-n", "systemctl", "stop", unit], timeout=15)
     return rc == 0, stderr

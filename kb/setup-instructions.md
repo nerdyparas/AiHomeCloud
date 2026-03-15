@@ -1,388 +1,273 @@
-# CubieCloud — Setup & Pairing Instructions
+# AiHomeCloud — Setup & Deployment Instructions
 
-## Part 1: Backend Setup on a Fresh Cubie A7Z
-
-### Prerequisites
-- Radxa Cubie A7Z with a freshly flashed SD card (Debian/Ubuntu ARM image)
-- Cubie connected to your local network (Ethernet or Wi-Fi)
-- SSH access to the Cubie (default user: `cubie`)
-
-### Step 1 — SSH into the Cubie
-
-```bash
-ssh cubie@<cubie-ip>
-# Find the IP from your router's DHCP table, or plug in a monitor
-```
-
-### Step 2 — Install system dependencies
-
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-venv python3-pip openssl \
-    samba nfs-kernel-server avahi-daemon lsof udevadm
-```
-
-| Package | Why |
-|---|---|
-| `python3`, `python3-venv`, `python3-pip` | Backend runtime |
-| `openssl` | Auto-generates self-signed TLS cert on first boot |
-| `samba` | SMB file sharing (Windows/Mac) |
-| `nfs-kernel-server` | NFS file sharing (Linux/Mac) |
-| `avahi-daemon` | mDNS discovery (`_cubie-nas._tcp`) |
-| `lsof` | Open file-handle check before unmount |
-| `udevadm` | USB hot-plug detection / rescan |
-
-### Step 3 — Create the system user (if not already present)
-
-```bash
-sudo useradd -r -m -s /bin/bash cubie 2>/dev/null || true
-```
-
-### Step 4 — Create required directories
-
-```bash
-# NAS mount point + default folders
-sudo mkdir -p /srv/nas/personal /srv/nas/family /srv/nas/entertainment
-
-# Backend persistent data directory
-sudo mkdir -p /var/lib/cubie/tls
-
-# Application code directory
-sudo mkdir -p /opt/cubie/backend
-
-# Set ownership
-sudo chown -R cubie:cubie /srv/nas /var/lib/cubie /opt/cubie
-```
-
-### Step 5 — Deploy backend code
-
-From your **development machine** (Windows/Mac):
-
-```bash
-# From the repo root
-scp -r backend/* cubie@<cubie-ip>:/opt/cubie/backend/
-```
-
-Or, on the Cubie, clone the repo directly:
-
-```bash
-cd /opt/cubie
-git clone https://github.com/nerdyparas/AiHomeCloud.git
-ln -s /opt/cubie/AiHomeCloud/backend /opt/cubie/backend
-```
-
-### Step 6 — Create Python virtual environment & install deps
-
-```bash
-cd /opt/cubie/backend
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### Step 7 — Configure environment
-
-Edit the systemd service file to set your **unique** pairing credentials:
-
-```bash
-sudo cp /opt/cubie/backend/cubie-backend.service /etc/systemd/system/
-sudo nano /etc/systemd/system/cubie-backend.service
-```
-
-**Change these lines** (under `[Service]`):
-
-```ini
-Environment=CUBIE_DEVICE_SERIAL=CUBIE-A7A-2025-001   # Your device serial
-Environment=CUBIE_PAIRING_KEY=your-pairing-key        # Change to a real secret
-Environment=CUBIE_NAS_ROOT=/srv/nas
-Environment=CUBIE_DATA_DIR=/var/lib/cubie
-Environment=CUBIE_TLS_ENABLED=true
-```
-
-> **Security note:** The JWT secret is auto-generated on first boot and saved to
-> `/var/lib/cubie/jwt_secret`. You do NOT need to set `CUBIE_JWT_SECRET` manually.
-
-### Step 8 — Configure polkit for NetworkManager
-
-The backend runs as the `radxa` user (not root). Wi-Fi operations (connect, disconnect, toggle, hotspot) require polkit authorization for NetworkManager.
-
-> **Note:** Radxa OS ships polkit **0.105**, which uses the legacy `.pkla` INI format — **not** the `.rules` JavaScript format (that's polkit 0.106+).
-
-```bash
-sudo tee /etc/polkit-1/localauthority/50-local.d/50-cubie-network.pkla << 'EOF'
-[Allow NetworkManager for cubie backend]
-Identity=unix-group:sudo;unix-group:netdev
-Action=org.freedesktop.NetworkManager.*
-ResultAny=yes
-ResultInactive=yes
-ResultActive=yes
-EOF
-
-sudo systemctl restart polkit
-```
-
-`ResultInactive=yes` is required because the backend runs as a daemon (no interactive session).
-
-### Step 9 — Register mDNS advertisement
-
-This enables instant LAN discovery (~1-2 s) in the app. Without it, the app
-falls back to a slower /24 TCP subnet scan.
-
-```bash
-sudo cp backend/scripts/aihomecloud-mdns.service /etc/avahi/services/aihomecloud.service
-sudo systemctl reload avahi-daemon
-```
-
-Verify it's broadcasting:
-```bash
-sudo journalctl -u avahi-daemon -n 5 --no-pager
-# Should show: Service "AiHomeCloud on <hostname>" successfully established.
-```
-
-### Step 10 — Start the service
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable cubie-backend
-sudo systemctl start cubie-backend
-```
-
-### Step 10 — Verify
-
-```bash
-# Check service status
-sudo systemctl status cubie-backend
-
-# Check logs
-sudo journalctl -u cubie-backend -f --no-pager -n 50
-
-# Health check (from the Cubie itself)
-curl -k https://localhost:8443/api/health
-# Expected: {"status": "ok"}
-```
-
-### What happens on first boot
-
-The backend's startup lifespan hook automatically:
-
-1. Creates `/var/lib/cubie/` subdirectories if missing
-2. Generates a random JWT secret → saves to `/var/lib/cubie/jwt_secret`
-3. Auto-generates a self-signed TLS certificate (10-year validity) → `/var/lib/cubie/tls/cert.pem` + `key.pem`
-4. Starts listening on `https://0.0.0.0:8443`
-5. Registers mDNS service `_cubie-nas._tcp` via avahi (if available)
+> Last verified: 2026-03-15 on Radxa ROCK Pi 4A (Armbian Ubuntu 24.04)
 
 ---
 
-## Part 2: QR Code Pairing Flow
+## Part 1: Quick Start — New Hardware (Clone + One Command)
 
-### How pairing works (end to end)
+This is the standard path for any ARM64 SBC running Ubuntu/Debian.
+Tested on: **Radxa ROCK Pi 4A** (RK3399, Armbian 26.2 Noble, kernel 6.18-rockchip64).
+
+### Prerequisites
+
+- SBC running Ubuntu 24.04 (Noble) or Debian Bookworm, 64-bit ARM
+- SSH access (or direct terminal)
+- User with sudo rights (e.g., `paras`)
+- Network connection (Ethernet recommended)
+
+### Step 1 — SSH into the board
+
+```bash
+# Find the IP from your router, or use the hostname if mDNS is already working
+ssh paras@192.168.x.x
+```
+
+### Step 2 — Install git and clone the repo
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/<your-org>/AiHomeCloud.git ~/AiHomeCloud
+cd ~/AiHomeCloud
+```
+
+### Step 3 — Run dev-setup.sh
+
+```bash
+sudo bash scripts/dev-setup.sh
+```
+
+This single command handles everything (idempotent — safe to re-run):
+
+| Step | What it does |
+|------|-------------|
+| 1 | Installs required packages: `avahi-daemon`, `avahi-utils`, `openssl`, `python3`, `python3-venv`, `lsof`, `curl` |
+| 2 | Deploys Avahi mDNS service → app discovers device in ~1 s instead of 30 s |
+| 3 | Creates Python venv at `backend/.venv/` and installs all Python dependencies |
+| 4 | Creates `/var/lib/aihomecloud/` (data dir) and `/srv/nas/` (NAS folders), owned by your user |
+| 5 | Generates device serial (`AHC-<hostname>-<MAC-last4>`) and a random pairing key |
+| 6 | Installs `/etc/systemd/system/aihomecloud.service` (system-level, survives reboot) |
+| 7 | Disables any conflicting user-level service (`~/.config/systemd/user/`) |
+| 8 | Adds `/etc/sudoers.d/aihomecloud` — passwordless sudo for mount/umount/mkfs/systemctl |
+| 9 | Removes `evil_link` path-traversal artifact if left by pytest in `/srv/nas/` |
+| 10 | Starts the service and runs a health check |
+
+**Expected output at the end:**
+```
+[AiHomeCloud] Health check PASSED ✓
+Backend URL  : https://192.168.0.241:8443
+Device serial: AHC-ROCKPI-4A-5575
+Health check : curl -sk https://localhost:8443/api/health
+mDNS type    : _aihomecloud-nas._tcp (Flutter fast discovery)
+```
+
+### Step 4 — Verify
+
+```bash
+# Health check
+curl -sk https://localhost:8443/api/health
+# → {"status": "ok"}
+
+# Identity check (what the app probes)
+curl -sk https://localhost:8443/
+# → {"service":"AiHomeCloud","version":"0.1.0","deviceName":"...","serial":"AHC-..."}
+
+# mDNS advertisement
+avahi-browse -t _aihomecloud-nas._tcp
+# → + end0 IPv4 AiHomeCloud on rockpi-4a _aihomecloud-nas._tcp local
+
+# Service status
+sudo systemctl status aihomecloud
+```
+
+---
+
+## System Packages — Why Each is Needed
+
+| Package | Required? | Purpose |
+|---------|-----------|---------|
+| `python3`, `python3-venv`, `python3-pip` | ✅ Required | Backend runtime |
+| `openssl` | ✅ Required | Auto-generates self-signed TLS cert on first boot |
+| `avahi-daemon` | ✅ Required | mDNS — `_aihomecloud-nas._tcp` for instant app discovery |
+| `avahi-utils` | ✅ Required | `avahi-browse` for verifying mDNS broadcasts |
+| `lsof` | ✅ Required | Open file-handle check before unmount |
+| `curl` | ✅ Required | Health-check script and backend HTTP probes |
+| `samba` | Optional | SMB file sharing (Windows/Mac) |
+| `nfs-kernel-server` | Optional | NFS file sharing (Linux/Mac) |
+| `minidlna` | Optional | DLNA media streaming for smart TVs |
+| `tesseract-ocr` | Optional | OCR for document indexing |
+| `poppler-utils` | Optional | PDF text extraction (`pdftotext`) for document indexing |
+
+> **Do NOT skip avahi-daemon.** Without it, the Flutter app falls back to a full /24 TCP subnet
+> scan which takes 30+ seconds. With avahi + mDNS, discovery takes ~1 second.
+
+---
+
+## File Locations After Setup
 
 ```
-┌──────────────┐                           ┌──────────────┐
-│  Cubie A7Z   │                           │  Flutter App  │
-│  (backend)   │                           │  (Android)    │
-├──────────────┤                           ├──────────────┤
-│              │                           │              │
-│ 1. GET /api/v1/pair/qr                   │              │
-│    → generates QR payload string         │              │
-│    → generates 6-digit OTP               │              │
-│    → stores OTP hash in pairing.json     │              │
-│    → returns qrValue URL                 │              │
-│                                          │              │
-│ 2. Display QR code on screen / web UI    │              │
-│    (QR encodes the cubie:// URL)         │              │
-│                                          │              │
-│              │                           │ 3. User opens app
-│              │                           │    → Onboarding flow
-│              │                           │    → QR scan screen
-│              │                           │    → Camera scans QR
-│              │                           │              │
-│              │                           │ 4. App parses:
-│              │                           │    cubie://pair?
-│              │                           │      serial=...
-│              │                           │      &key=...
-│              │                           │      &host=...
-│              │                           │      &expiresAt=...
-│              │                           │              │
-│              │  POST /api/v1/pair        │ 5. App calls pair
-│              │  {serial, key}            │    endpoint with
-│              │  ◄─────────────────────── │    parsed credentials
-│              │                           │              │
-│ 6. Validate  │                           │              │
-│    serial +  │  {token: "jwt..."}        │              │
-│    key match │  ──────────────────────►  │ 7. App stores JWT
-│              │                           │    + device info
-│              │                           │    in SharedPrefs
-│              │                           │              │
-│              │                           │ 8. Navigate to
-│              │                           │    main dashboard
-└──────────────┘                           └──────────────┘
+/home/<user>/AiHomeCloud/          # Git repo — backend source + Flutter source
+  backend/
+    .venv/                         # Python venv (created by dev-setup.sh)
+    app/                           # FastAPI backend source
+    requirements.txt               # Python dependencies
+
+/etc/systemd/system/
+  aihomecloud.service              # System-level service (written by dev-setup.sh)
+
+/etc/sudoers.d/
+  aihomecloud                      # Passwordless sudo rules (written by dev-setup.sh)
+
+/etc/avahi/services/
+  aihomecloud.service              # mDNS advertisement (deployed by dev-setup.sh)
+
+/var/lib/aihomecloud/              # Persistent data (owned by login user, chmod 750)
+  jwt_secret                       # Auto-generated JWT signing key (first boot)
+  pairing_key                      # Generated by dev-setup.sh, persisted across reinstalls
+  users.json                       # User accounts
+  storage.json                     # Mount state
+  services.json                    # NAS service toggles
+  tokens.json                      # Refresh token records
+  device.json                      # Device display name
+  tls/
+    cert.pem                       # Self-signed TLS certificate (auto-generated)
+    key.pem                        # TLS private key
+
+/srv/nas/                          # NAS folders (owned by login user)
+  personal/                        # Per-user private folders
+  family/                          # Family shared folder
+  entertainment/
+    Movies/  Music/  ...           # Entertainment subfolders
+```
+
+---
+
+## Why sudo -n is Critical (backend invariant)
+
+All `run_command(["sudo", ...])` calls in the backend use the `-n` (non-interactive) flag.
+
+**Without `-n`**: If sudo requires a password, the call blocks for 30 seconds waiting on a TTY
+that doesn't exist (backend runs as a daemon), then fails. This causes tests to hang and storage
+operations to silently time out in production.
+
+**With `-n`**: If no NOPASSWD rule exists, sudo exits immediately with rc=1. The error is logged
+and returned to the caller — no blocking.
+
+**Lesson from 2026-03-15**: All 23 sudo calls in `storage_helpers.py`, `storage_routes.py`,
+`system_routes.py`, and `service_routes.py` were missing `-n`, causing test hangs. The fix:
+```python
+# Always use -n in run_command() calls:
+await run_command(["sudo", "-n", "mount", device, mount_point])
+#                        ^^^^
+```
+The `/etc/sudoers.d/aihomecloud` file installed by `dev-setup.sh` grants NOPASSWD for all
+storage-related commands so they succeed in production.
+
+---
+
+## Part 2: Managing the Service
+
+```bash
+# Check status
+sudo systemctl status aihomecloud
+
+# View live logs
+sudo journalctl -u aihomecloud -f
+
+# Restart after code changes
+sudo systemctl restart aihomecloud
+
+# Stop
+sudo systemctl stop aihomecloud
+
+# Re-run setup after a git pull that adds new Python dependencies
+sudo bash scripts/dev-setup.sh    # (idempotent — only runs pip install if needed)
+```
+
+---
+
+## Part 3: Production Deploy (first-boot-setup.sh)
+
+For a clean multi-user production deployment (creates a dedicated `aihomecloud` system user,
+installs to `/opt/aihomecloud/`, sets up polkit for NetworkManager):
+
+```bash
+sudo bash scripts/first-boot-setup.sh
+```
+
+> **Note:** This is designed for the Radxa Cubie A7Z production target. For dev on any SBC,
+> use `scripts/dev-setup.sh` instead.
+
+---
+
+## Part 4: QR Code Pairing Flow
+
+### How pairing works
+
+The Flutter app finds the backend via:
+1. mDNS (`_aihomecloud-nas._tcp`) — resolves in ~1 second if avahi is running
+2. Subnet scan (TCP port 8443) — fallback, takes ~30 seconds on a /24
+
+Once found, the app probes `GET /` and checks `json['service'] == 'AiHomeCloud'`.
+
+The pairing flow:
+```
+App GET /api/v1/pair/qr  →  { qrValue, serial, ip, host }
+App POST /api/v1/pair    →  { token }  (using serial + pairing_key)
+App stores: JWT token, device serial, host, TLS cert fingerprint
+```
+
+### Getting the pairing credentials
+
+```bash
+# Get the QR payload (and decode it with jq or Python)
+curl -sk https://localhost:8443/api/v1/pair/qr | python3 -m json.tool
+
+# Fast pair via curl (no QR needed for dev)
+curl -sk -X POST https://localhost:8443/api/v1/pair \
+  -H "Content-Type: application/json" \
+  -d '{"serial":"AHC-ROCKPI-4A-5575","key":"<pairing_key>"}'
+# pairing_key is in /var/lib/aihomecloud/pairing_key
 ```
 
 ### QR payload format
-
 ```
-cubie://pair?serial=CUBIE-A7A-2025-001&key=your-pairing-key&host=cubie-CUBIE-A7A-2025-001.local&expiresAt=1741276800
-```
-
-| Param | Purpose |
-|---|---|
-| `serial` | Device identity — must match `CUBIE_DEVICE_SERIAL` env var |
-| `key` | Pairing secret — must match `CUBIE_PAIRING_KEY` env var |
-| `host` | mDNS hostname for network discovery |
-| `expiresAt` | Unix timestamp — QR valid for 5 minutes |
-
-### Backend endpoints involved
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/v1/pair/qr` | GET | Generate QR payload + OTP (no auth required) |
-| `/api/v1/pair` | POST | Fast pair with serial + key → returns JWT |
-| `/api/v1/pair/complete` | POST | Full pair with serial + key + OTP → returns JWT |
-| `/api/v1/auth/cert-fingerprint` | GET | TLS cert SHA-256 for pinning |
-
-### Flutter side (what the app does)
-
-1. **QR scan screen** (`lib/screens/onboarding/qr_scan_screen.dart`) uses `mobile_scanner` to read the QR code
-2. Parses the `cubie://pair?...` URI into a `QrPairPayload` model
-3. Stores payload in `qrPayloadProvider` (Riverpod)
-4. **Discovery screen** (`lib/screens/onboarding/discovery_screen.dart`) reads the payload and:
-   - Calls `ApiService.pairDevice(serial, key)` → `POST /api/v1/pair`
-   - Receives JWT token
-   - Fetches TLS cert fingerprint for future pinning
-   - Saves everything to SharedPreferences
-5. Navigates to dashboard
-
----
-
-## Part 3: QR Code Generation for Testing
-
-Since the QR code is generated by the **backend** (not a physical display), you have several options for testing:
-
-### Option A — curl the QR endpoint directly (simplest)
-
-```bash
-# On the Cubie (or from any machine on the same network)
-curl -k https://<cubie-ip>:8443/api/v1/pair/qr | python3 -m json.tool
-```
-
-Response:
-```json
-{
-    "qrValue": "cubie://pair?serial=CUBIE-A7A-2025-001&key=your-pairing-key&host=cubie-CUBIE-A7A-2025-001.local&expiresAt=1741277100",
-    "serial": "CUBIE-A7A-2025-001",
-    "ip": "192.168.0.212",
-    "host": "cubie-CUBIE-A7A-2025-001.local",
-    "expiresAt": 1741277100
-}
-```
-
-Take the `qrValue` string and generate a QR image from it (next options).
-
-### Option B — Generate a QR image with Python (on the Cubie or your PC)
-
-```bash
-pip install qrcode[pil]
-```
-
-```python
-import qrcode, requests, json
-
-# Fetch the payload from the running backend
-r = requests.get("https://<cubie-ip>:8443/api/v1/pair/qr", verify=False)
-qr_value = r.json()["qrValue"]
-
-# Generate QR image
-img = qrcode.make(qr_value)
-img.save("cubie-pair.png")
-print(f"QR saved. Scan cubie-pair.png with the app.")
-print(f"Payload: {qr_value}")
-```
-
-Open `cubie-pair.png` on any screen and scan it with the Flutter app.
-
-### Option C — Use an online QR generator (quick & dirty)
-
-1. Run `curl -k https://<cubie-ip>:8443/api/v1/pair/qr`
-2. Copy the `qrValue` string
-3. Paste it into any QR code generator (e.g., browser search "qr code generator")
-4. Scan the result with the Flutter app
-
-> **Note:** The QR payload contains the pairing key, so don't use public QR generators for production secrets. Fine for development/testing.
-
-### Option D — Skip QR entirely (dev shortcut)
-
-The app already has a dev shortcut in `lib/main.dart` that bypasses QR scanning:
-
-```dart
-const devMode = true;
-if (devMode && !prefs.containsKey(CubieConstants.prefIsSetupDone)) {
-    const cubieIp = '192.168.0.212';
-    final token = await ApiService.instance
-        .pairDevice('CUBIE-A7A-2025-001', 'your-pairing-key',
-            hostOverride: cubieIp);
-    // ... stores token, serial, name in SharedPreferences
-}
-```
-
-This auto-pairs on first launch without scanning anything. Set `devMode = false` to test the real QR flow.
-
-### Option E — curl pair directly (no QR, no app)
-
-Test just the pairing API without any QR or Flutter involvement:
-
-```bash
-# Fast pair (no OTP)
-curl -k -X POST https://<cubie-ip>:8443/api/v1/pair \
-  -H "Content-Type: application/json" \
-  -d '{"serial": "CUBIE-A7A-2025-001", "key": "your-pairing-key"}'
-
-# Response: {"token": "eyJ..."}
-```
-
-Use the returned token for all subsequent API calls:
-
-```bash
-TOKEN="eyJ..."
-curl -k https://<cubie-ip>:8443/api/v1/system/info \
-  -H "Authorization: Bearer $TOKEN"
+aihomecloud://pair?serial=AHC-ROCKPI-4A-5575&key=<key>&host=rockpi-4a.local&expiresAt=<unix>
 ```
 
 ---
-
-## Quick Reference: File Locations on the Cubie
-
-```
-/opt/cubie/backend/              # Backend source + venv
-/etc/systemd/system/cubie-backend.service  # Systemd unit
-
-/var/lib/cubie/                  # Persistent data (owned by cubie:cubie)
-├── jwt_secret                   # Auto-generated JWT signing key
-├── users.json                   # User accounts
-├── storage.json                 # Mount state (activeDevice, fstype, etc.)
-├── services.json                # NAS service toggles
-├── tokens.json                  # Refresh token records
-├── device.json                  # Device display name
-├── pairing.json                 # OTP hash + expiry (5 min TTL)
-└── tls/
-    ├── cert.pem                 # Self-signed TLS certificate
-    └── key.pem                  # TLS private key
-
-/srv/nas/                        # NAS mount point (external storage)
-├── personal/{username}/         # Per-user private folders
-├── family/                      # Family shared folder
-└── entertainment/               # Entertainment media (Music, Videos, etc.)
-```
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| `curl: (7) Failed to connect` | Check `sudo systemctl status cubie-backend` and firewall (`sudo ufw allow 8443`) |
-| `403 Unknown serial` | Serial in curl/app doesn't match `CUBIE_DEVICE_SERIAL` in service file |
-| `403 Invalid pairing key` | Key doesn't match `CUBIE_PAIRING_KEY` in service file |
-| TLS cert errors in Flutter | App uses `_CubieHttpOverrides` to trust self-signed certs — ensure it's active |
-| `lsblk` not found | Install `util-linux`: `sudo apt install util-linux` |
-| Backend won't start | Check `sudo journalctl -u cubie-backend -e` for Python tracebacks |
-| QR expired | QR payloads expire after 5 minutes — re-fetch from `/api/v1/pair/qr` |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `curl: Failed to connect` | Service not running | `sudo systemctl status aihomecloud` → check logs |
+| App can't find device (30s scan) | avahi-daemon not installed or service file missing | `sudo bash scripts/dev-setup.sh` |
+| App can't find device (even after scan) | Backend not running on port 8443 | `curl -sk https://localhost:8443/`; check service |
+| `403 Unknown serial` | Serial mismatch | Check `AHC_DEVICE_SERIAL` in service file vs what app has |
+| `403 Invalid pairing key` | Key mismatch | Check `cat /var/lib/aihomecloud/pairing_key` |
+| Storage ops return error immediately | `sudo -n` failing — NOPASSWD rule missing | `sudo bash scripts/dev-setup.sh` to install sudoers rule |
+| Tests hang for minutes | sudo calls blocking on TTY (missing `-n` flag) | All `run_command(["sudo", ...])` must use `"-n"` |
+| `board_unknown` in logs | Board not in `board.py` known boards | Add entry to `KNOWN_BOARDS` and `_BOARD_SUBSTRINGS` in `board.py` |
+| `/srv/nas/evil_link` exists | pytest `test_path_safety.py` bug (pre-2026-03-15) | `rm /srv/nas/evil_link` or run `dev-setup.sh` |
+| Backend won't start after git pull | New Python deps added | `cd backend && .venv/bin/pip install -r requirements.txt` |
+| User-level and system-level service conflict | Both `~/.config/systemd/user/` and `/etc/systemd/system/` services exist | `dev-setup.sh` disables the user-level one; or run it manually |
+| `RuntimeWarning: coroutine was never awaited` | asyncio loop lifecycle issue in tests | Normal in test teardown for subprocess transport; not a test failure |
+
+---
+
+## Running Tests
+
+```bash
+cd backend
+AHC_DATA_DIR=/tmp/ahc_test AHC_SKIP_MOUNT_CHECK=true \
+    .venv/bin/python -m pytest tests/ -q \
+    --ignore=tests/test_hardware_integration.py
+
+# Expected: all pass (256+ tests)
+# test_hardware_integration.py requires real hardware — skip in CI
+```
+
+**Why `AHC_SKIP_MOUNT_CHECK=true`?** On dev hardware, `/srv/nas` is a plain directory (not a
+USB mount point). This env var tells the backend not to fail startup because no storage device
+is mounted.

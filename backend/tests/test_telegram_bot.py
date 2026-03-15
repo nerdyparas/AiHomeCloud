@@ -79,15 +79,16 @@ async def test_is_allowed_rejects_unlinked():
 
 @pytest.mark.asyncio
 async def test_handle_auth_links_new_user():
-    """First /auth from a user → links them and shows welcome."""
+    """First /auth from unlinked user → queues pending approval request."""
     import app.telegram_bot as tb
     with patch("app.telegram_bot._is_allowed", new=AsyncMock(return_value=False)), \
-         patch("app.telegram_bot._add_linked_id", new=AsyncMock()) as mock_add:
+         patch("app.telegram_bot._add_pending_approval", new=AsyncMock()) as mock_pending, \
+         patch("app.telegram_bot._get_admin_chat_ids", new=AsyncMock(return_value=set())):
         update = _make_update(chat_id=42, first_name="Alice")
         await tb._handle_auth(update, _make_context())
-    mock_add.assert_called_once_with(42)
+    mock_pending.assert_called_once_with(42, "alice", "Alice")
     msg = update.message.reply_text.call_args[0][0]
-    assert "Linked" in msg
+    assert "request" in msg.lower() or "pending" in msg.lower() or "admin" in msg.lower()
 
 
 @pytest.mark.asyncio

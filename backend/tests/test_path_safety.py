@@ -116,34 +116,34 @@ async def test_path_with_symbolic_link_escape_attempt_returns_403(
 ):
     """
     Verify that symlink escape attempts are blocked by _safe_resolve().
-    
+
     _safe_resolve() uses .resolve() which follows symlinks to their
     real path, then validates that the result is still within nas_root.
+
+    Uses the fixture-mocked nas_root (tmp_path/nas) so no artifacts
+    are left in the real /srv/nas after the test.
     """
-    # Create a symlink outside NAS root (if permissions allow)
     try:
+        # The conftest fixture mocks settings.nas_root to tmp_path / "nas"
+        nas_root = tmp_path / "nas"
+        nas_root.mkdir(exist_ok=True)
+
         outside_dir = tmp_path / "outside"
         outside_dir.mkdir()
-        
-        nas_root = Path("/srv/nas")
+
         link_path = nas_root / "evil_link"
-        
-        # Try to create symlink (may fail on Windows or due to permissions)
-        if link_path.parent.exists():
-            try:
-                link_path.symlink_to(outside_dir, target_is_directory=True)
-                
-                # Now try to access via the symlink
-                response = await authenticated_client.get("/api/v1/files/list?path=/srv/nas/evil_link")
-                
-                # Should be blocked because symlink resolves outside NAS root
-                assert response.status_code == 403, \
-                    "Symlink escape should be blocked"
-            except (OSError, PermissionError):
-                # Symlink creation failed; skip test on systems that don't support it
-                pytest.skip("Symlink creation not supported on this system")
-    except Exception:
-        pytest.skip("Symlink test environment not available")
+        link_path.symlink_to(outside_dir, target_is_directory=True)
+
+        # Request using the temp nas_root path — _safe_resolve should block this
+        response = await authenticated_client.get(
+            f"/api/v1/files/list?path={link_path}"
+        )
+
+        # Should be blocked because symlink resolves outside the (temp) nas_root
+        assert response.status_code == 403, \
+            f"Symlink escape should be blocked, got {response.status_code}"
+    except (OSError, PermissionError):
+        pytest.skip("Symlink creation not supported on this system")
 
 
 @pytest.mark.asyncio

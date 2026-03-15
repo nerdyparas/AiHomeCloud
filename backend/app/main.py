@@ -378,7 +378,7 @@ if __name__ == "__main__":
     if settings.tls_enabled:
         import asyncio
         try:
-            cert, key = asyncio.get_event_loop().run_until_complete(ensure_tls_cert())
+            cert, key = asyncio.run(ensure_tls_cert())
             kwargs["ssl_certfile"] = str(cert)
             kwargs["ssl_keyfile"] = str(key)
         except (OSError, RuntimeError, ValueError):

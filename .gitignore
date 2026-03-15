@@ -17,6 +17,7 @@ migrate_working_dir/
 
 # Python / Backend
 backend/venv/
+backend/.venv/
 __pycache__/
 *.egg-info/
 .env
