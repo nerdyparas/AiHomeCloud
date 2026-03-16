@@ -107,6 +107,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   }
 
   Widget _buildBody() {
+    final l10n = AppLocalizations.of(context)!;
     if (_error != null && _devices == null) {
       return Center(
         child: Column(
@@ -169,6 +170,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   }
 
   Widget _emptyBanner() {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
@@ -232,6 +234,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   }
 
   Future<void> _unmountDevice(StorageDevice dev) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _busyDevice = dev.path);
     try {
       final usage = await ref.read(apiServiceProvider).checkStorageUsage();
@@ -248,7 +251,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       await ref
           .read(apiServiceProvider)
           .unmountDevice(force: blockers.isNotEmpty);
-      _showSnack(AppLocalizations.of(context)!.storageStoppedSnackbar(dev.displayName));
+      _showSnack(l10n.storageStoppedSnackbar(dev.displayName));
       await _loadDevices();
     } catch (e) {
       _showSnack(friendlyError(e), isError: true);
@@ -258,6 +261,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   }
 
   Future<void> _safeRemove(StorageDevice dev) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirm = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: AppColors.surface,
@@ -272,7 +276,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     setState(() => _busyDevice = dev.path);
     try {
       await ref.read(apiServiceProvider).ejectDevice(dev.path);
-      _showSnack(AppLocalizations.of(context)!.storageSafeToUnplugSnackbar(dev.displayName));
+      _showSnack(l10n.storageSafeToUnplugSnackbar(dev.displayName));
       await _loadDevices();
     } catch (e) {
       _showSnack(friendlyError(e), isError: true);
@@ -342,6 +346,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       try {
         final status = await ref.read(apiServiceProvider).getJobStatus(id);
         if (!mounted) return;
+        final l10n = AppLocalizations.of(context)!;
         setState(() => _activateStartedAt ??= status.startedAt);
 
         if (status.status == 'completed') {
@@ -351,8 +356,8 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           await _loadDevices();
           final active = _devices?.where((d) => d.isNasActive).firstOrNull;
           final msg = active != null
-              ? AppLocalizations.of(context)!.storageReadySnackbar(active.sizeDisplay)
-              : AppLocalizations.of(context)!.storageReadySimpleSnackbar;
+              ? l10n.storageReadySnackbar(active.sizeDisplay)
+              : l10n.storageReadySimpleSnackbar;
           _showSnack(msg);
           return;
         }
@@ -362,7 +367,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           _elapsedTimer?.cancel();
           setState(() => _activateJobId = null);
           _showSnack(
-              AppLocalizations.of(context)!.storageActivateFailedSnackbar,
+              l10n.storageActivateFailedSnackbar,
               isError: true);
         }
       } catch (e) {

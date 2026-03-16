@@ -58,17 +58,17 @@ void main() {
         const MaterialApp(
           home: Scaffold(
             body: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(16.0),
               child: AppCard(
                 title: 'Storage Status',
                 child: Column(
                   children: [
-                    const LinearProgressIndicator(
+                    LinearProgressIndicator(
                       value: 0.65,
                       minHeight: 8,
                     ),
-                    const SizedBox(height: 8),
-                    const Text('65 GB / 100 GB used'),
+                    SizedBox(height: 8),
+                    Text('65 GB / 100 GB used'),
                   ],
                 ),
               ),
@@ -93,23 +93,23 @@ void main() {
         const MaterialApp(
           home: Scaffold(
             body: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(16.0),
               child: AppCard(
                 title: 'System Information',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const ListTile(
+                    ListTile(
                       title: Text('Device'),
                       subtitle: Text('Radxa Cubie A7Z'),
                       dense: true,
                     ),
-                    const ListTile(
+                    ListTile(
                       title: Text('Uptime'),
                       subtitle: Text('2 days, 5 hours'),
                       dense: true,
                     ),
-                    const ListTile(
+                    ListTile(
                       title: Text('Firmware'),
                       subtitle: Text('v1.2.3'),
                       dense: true,
@@ -175,14 +175,14 @@ void main() {
         const MaterialApp(
           home: Scaffold(
             body: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(16.0),
               child: AppCard(
                 title: 'Quick Stats',
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(24.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    const Column(
+                    Column(
                       children: [
                         Text('CPU'),
                         SizedBox(height: 4),
@@ -195,7 +195,7 @@ void main() {
                         ),
                       ],
                     ),
-                    const Column(
+                    Column(
                       children: [
                         Text('RAM'),
                         SizedBox(height: 4),
@@ -208,7 +208,7 @@ void main() {
                         ),
                       ],
                     ),
-                    const Column(
+                    Column(
                       children: [
                         Text('Storage'),
                         SizedBox(height: 4),

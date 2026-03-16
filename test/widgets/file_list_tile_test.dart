@@ -12,12 +12,12 @@ class FileListTile extends StatelessWidget {
   final VoidCallback onLongPress;
 
   const FileListTile({
-    Key? key,
+    super.key,
     required this.name,
     this.isDirectory = false,
     required this.onTap,
     required this.onLongPress,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +38,11 @@ class FileContextMenu extends StatelessWidget {
   final VoidCallback onRename;
 
   const FileContextMenu({
-    Key? key,
+    super.key,
     required this.fileName,
     required this.onDelete,
     required this.onRename,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

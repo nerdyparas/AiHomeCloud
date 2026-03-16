@@ -531,7 +531,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                         value: _localApiEnabled,
                         onChanged: (v) =>
                             setState(() => _localApiEnabled = v),
-                        activeColor: AppColors.primary,
+                        activeThumbColor: AppColors.primary,
                         activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
                         title: Text(l10n.telegramLargeFileModeTitle,
                             style: GoogleFonts.dmSans(

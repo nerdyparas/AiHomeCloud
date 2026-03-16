@@ -1341,6 +1341,1038 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Label may only contain letters, numbers, hyphens, and underscores'**
   String get storageValidationLabelChars;
+
+  /// No description provided for @buttonClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get buttonClose;
+
+  /// No description provided for @buttonRetryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get buttonRetryAction;
+
+  /// No description provided for @buttonUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get buttonUndo;
+
+  /// No description provided for @moreProfileEditSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit name, icon and PIN'**
+  String get moreProfileEditSubtitle;
+
+  /// No description provided for @moreCertFingerprintLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned fingerprint:'**
+  String get moreCertFingerprintLabel;
+
+  /// No description provided for @moreCertNotPinnedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not pinned yet'**
+  String get moreCertNotPinnedYet;
+
+  /// No description provided for @moreCertFingerprintDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This fingerprint is pinned to your device and used to verify the connection.'**
+  String get moreCertFingerprintDescription;
+
+  /// No description provided for @moreProfileChangePinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change my PIN'**
+  String get moreProfileChangePinTitle;
+
+  /// No description provided for @moreRestartDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart AiHomeCloud?'**
+  String get moreRestartDialogTitle;
+
+  /// No description provided for @moreRestartDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The device will restart and come back online in about a minute.'**
+  String get moreRestartDialogMessage;
+
+  /// No description provided for @moreRestartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart'**
+  String get moreRestartButton;
+
+  /// No description provided for @moreRestartStartedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'AiHomeCloud is restarting.'**
+  String get moreRestartStartedSnackbar;
+
+  /// No description provided for @moreRestartFailedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart failed: {error}'**
+  String moreRestartFailedSnackbar(String error);
+
+  /// No description provided for @moreShutdownDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shut Down AiHomeCloud?'**
+  String get moreShutdownDialogTitle;
+
+  /// No description provided for @moreShutdownDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will stop all active services, cancel file transfers, and safely power off the device. You will need physical access to turn it back on.'**
+  String get moreShutdownDialogMessage;
+
+  /// No description provided for @moreShutdownButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Shut Down'**
+  String get moreShutdownButton;
+
+  /// No description provided for @moreShutdownStartedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Shutting down AiHomeCloud…'**
+  String get moreShutdownStartedSnackbar;
+
+  /// No description provided for @moreShutdownCompleteSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'AiHomeCloud is powering off.'**
+  String get moreShutdownCompleteSnackbar;
+
+  /// No description provided for @moreTrashEmptyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty'**
+  String get moreTrashEmptyButton;
+
+  /// No description provided for @familyMakeAdminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make Admin'**
+  String get familyMakeAdminTitle;
+
+  /// No description provided for @familyRemoveAdminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Admin'**
+  String get familyRemoveAdminTitle;
+
+  /// No description provided for @familyMakeAdminDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be able to manage storage, services, and family members.'**
+  String familyMakeAdminDescription(String name);
+
+  /// No description provided for @familyRemoveAdminDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will lose admin privileges.'**
+  String familyRemoveAdminDescription(String name);
+
+  /// No description provided for @filesFolderSubtitlePersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Your private files'**
+  String get filesFolderSubtitlePersonal;
+
+  /// No description provided for @filesFolderSubtitleFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared with everyone'**
+  String get filesFolderSubtitleFamily;
+
+  /// No description provided for @filesFolderSubtitleEntertainment.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies, series, music'**
+  String get filesFolderSubtitleEntertainment;
+
+  /// No description provided for @filesFolderSubtitleTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently deleted files'**
+  String get filesFolderSubtitleTrash;
+
+  /// No description provided for @filesSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No documents found for “{query}”'**
+  String filesSearchNoResults(String query);
+
+  /// No description provided for @filesNoStorageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Storage Connected'**
+  String get filesNoStorageTitle;
+
+  /// No description provided for @filesNoStorageMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a USB drive or NVMe to your Cubie to use shared storage.'**
+  String get filesNoStorageMessage;
+
+  /// No description provided for @filesCheckAgainButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Check Again'**
+  String get filesCheckAgainButton;
+
+  /// No description provided for @telegramPendingRequestsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PENDING REQUESTS'**
+  String get telegramPendingRequestsLabel;
+
+  /// No description provided for @telegramDenyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get telegramDenyButton;
+
+  /// No description provided for @telegramApproveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get telegramApproveButton;
+
+  /// No description provided for @telegramBotTokenRequiredError.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot Token is required.'**
+  String get telegramBotTokenRequiredError;
+
+  /// No description provided for @telegramLargeFileModeRequiredError.
+  ///
+  /// In en, this message translates to:
+  /// **'API ID and API Hash are required for large file mode.'**
+  String get telegramLargeFileModeRequiredError;
+
+  /// No description provided for @telegramConfiguredSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Bot configured!'**
+  String get telegramConfiguredSnackbar;
+
+  /// No description provided for @telegramSetupStepsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup in 3 steps'**
+  String get telegramSetupStepsTitle;
+
+  /// No description provided for @telegramSetupStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Telegram and search @BotFather'**
+  String get telegramSetupStep1;
+
+  /// No description provided for @telegramSetupStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Send /newbot — follow the steps and copy the token'**
+  String get telegramSetupStep2;
+
+  /// No description provided for @telegramSetupStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the token below and tap Save. Then open your bot and send /auth to link your account.'**
+  String get telegramSetupStep3;
+
+  /// No description provided for @telegramTokenHintConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new token to replace existing'**
+  String get telegramTokenHintConfigured;
+
+  /// No description provided for @telegramTokenHintExample.
+  ///
+  /// In en, this message translates to:
+  /// **'1234567890:ABCdefGHIjklMNOpqrSTUvwxyz'**
+  String get telegramTokenHintExample;
+
+  /// No description provided for @telegramBotTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot Token'**
+  String get telegramBotTokenLabel;
+
+  /// No description provided for @telegramSaveActivateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & Activate'**
+  String get telegramSaveActivateButton;
+
+  /// No description provided for @telegramNoAccountsLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts linked yet'**
+  String get telegramNoAccountsLinked;
+
+  /// No description provided for @telegramAccountsLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} account(s) linked'**
+  String telegramAccountsLinked(int count);
+
+  /// No description provided for @telegramOpenBotSendAuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Open your bot and send /auth'**
+  String get telegramOpenBotSendAuth;
+
+  /// No description provided for @telegramFileLimitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'File upload limit: {sizeMb} MB'**
+  String telegramFileLimitLabel(int sizeMb);
+
+  /// No description provided for @telegramLargeFileModeActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Large file mode active — up to 2 GB'**
+  String get telegramLargeFileModeActive;
+
+  /// No description provided for @telegramLargeFileModeInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable large file mode below to upload up to 2 GB'**
+  String get telegramLargeFileModeInactive;
+
+  /// No description provided for @telegramLargeFileModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Large file mode (up to 2 GB)'**
+  String get telegramLargeFileModeTitle;
+
+  /// No description provided for @telegramLargeFileModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires Telegram API credentials and the local server setup script to be run on your device.'**
+  String get telegramLargeFileModeSubtitle;
+
+  /// No description provided for @telegramApiCredentialsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Get API ID and Hash at my.telegram.org → API development tools'**
+  String get telegramApiCredentialsHint;
+
+  /// No description provided for @telegramApiIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API ID'**
+  String get telegramApiIdLabel;
+
+  /// No description provided for @telegramApiHashLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API Hash'**
+  String get telegramApiHashLabel;
+
+  /// No description provided for @telegramScriptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Run scripts/setup-telegram-local-api.sh on your device before enabling this.'**
+  String get telegramScriptHint;
+
+  /// No description provided for @telegramBotActiveStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot is active and polling'**
+  String get telegramBotActiveStatus;
+
+  /// No description provided for @telegramBotConfiguredStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured but not running'**
+  String get telegramBotConfiguredStatus;
+
+  /// No description provided for @telegramBotNotConfiguredStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get telegramBotNotConfiguredStatus;
+
+  /// No description provided for @storageEmptyBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a USB or hard drive'**
+  String get storageEmptyBannerTitle;
+
+  /// No description provided for @storageEmptyBannerMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Plug in a USB drive or NVMe to your AiHomeCloud'**
+  String get storageEmptyBannerMessage;
+
+  /// No description provided for @storagePrepareDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare this drive?'**
+  String get storagePrepareDialogTitle;
+
+  /// No description provided for @storagePreparingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your storage drive…'**
+  String get storagePreparingTitle;
+
+  /// No description provided for @storagePreparingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This takes about 2 minutes. Please keep the app open.'**
+  String get storagePreparingMessage;
+
+  /// No description provided for @storageSafelyRemoveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Safely Remove'**
+  String get storageSafelyRemoveButton;
+
+  /// No description provided for @storageCouldNotLoadDrives.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load drives'**
+  String get storageCouldNotLoadDrives;
+
+  /// No description provided for @profileChangePinDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change PIN'**
+  String get profileChangePinDialogTitle;
+
+  /// No description provided for @profileAddPinDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add PIN'**
+  String get profileAddPinDialogTitle;
+
+  /// No description provided for @profileNewPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New PIN (4–8 digits)'**
+  String get profileNewPinHint;
+
+  /// No description provided for @profileConfirmPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new PIN'**
+  String get profileConfirmPinHint;
+
+  /// No description provided for @profilePinTooShortError.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN must be at least 4 digits'**
+  String get profilePinTooShortError;
+
+  /// No description provided for @profilePinMismatchError.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs do not match'**
+  String get profilePinMismatchError;
+
+  /// No description provided for @profileRemovePinDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove PIN?'**
+  String get profileRemovePinDialogTitle;
+
+  /// No description provided for @profileRemovePinDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone on this device will be able to access your profile without a PIN.'**
+  String get profileRemovePinDialogMessage;
+
+  /// No description provided for @profileDeleteDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile?'**
+  String get profileDeleteDialogTitle;
+
+  /// No description provided for @profileDeleteDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete your profile and all your personal files stored on this device.'**
+  String get profileDeleteDialogMessage;
+
+  /// No description provided for @folderViewNoStorageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Storage Connected'**
+  String get folderViewNoStorageTitle;
+
+  /// No description provided for @folderViewNoStorageMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a USB drive or NVMe to your Cubie to use shared storage.'**
+  String get folderViewNoStorageMessage;
+
+  /// No description provided for @folderViewCheckAgainButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Check Again'**
+  String get folderViewCheckAgainButton;
+
+  /// No description provided for @folderViewBackTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back'**
+  String get folderViewBackTooltip;
+
+  /// No description provided for @moreTrashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash'**
+  String get moreTrashTitle;
+
+  /// No description provided for @moreTrashEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty'**
+  String get moreTrashEmpty;
+
+  /// No description provided for @moreTrashItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s) · {sizeMB} MB'**
+  String moreTrashItemCount(int count, int sizeMB);
+
+  /// No description provided for @moreEmptyTrashDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty Trash?'**
+  String get moreEmptyTrashDialogTitle;
+
+  /// No description provided for @moreEmptyTrashDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete {count} item(s). This cannot be undone.'**
+  String moreEmptyTrashDialogMessage(int count);
+
+  /// No description provided for @moreEmptyTrashButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty Trash'**
+  String get moreEmptyTrashButton;
+
+  /// No description provided for @moreTrashEmptiedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash emptied.'**
+  String get moreTrashEmptiedSnackbar;
+
+  /// No description provided for @moreShutdownFailedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Shutdown failed: {error}'**
+  String moreShutdownFailedSnackbar(String error);
+
+  /// No description provided for @moreRestartingSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Restarting AiHomeCloud…'**
+  String get moreRestartingSnackbar;
+
+  /// No description provided for @trashScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash'**
+  String get trashScreenTitle;
+
+  /// No description provided for @trashEmptyState.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash is empty'**
+  String get trashEmptyState;
+
+  /// No description provided for @trashEmptyAllButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty All'**
+  String get trashEmptyAllButton;
+
+  /// No description provided for @trashDeletePermanentlyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently?'**
+  String get trashDeletePermanentlyTitle;
+
+  /// No description provided for @trashDeletePermanentlyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be permanently deleted. This cannot be undone.'**
+  String trashDeletePermanentlyMessage(String name);
+
+  /// No description provided for @trashRestoredSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored: {name}'**
+  String trashRestoredSnackbar(String name);
+
+  /// No description provided for @trashDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get trashDeleteButton;
+
+  /// No description provided for @trashDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d ago'**
+  String trashDaysAgo(int days);
+
+  /// No description provided for @storageActivatedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage activated!'**
+  String get storageActivatedSnackbar;
+
+  /// No description provided for @storageReadySnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage is ready! {size} available'**
+  String storageReadySnackbar(String size);
+
+  /// No description provided for @storageReadySimpleSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage is ready!'**
+  String get storageReadySimpleSnackbar;
+
+  /// No description provided for @storageActivateFailedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not activate drive. Check the USB connection and try again.'**
+  String get storageActivateFailedSnackbar;
+
+  /// No description provided for @storageStoppedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} stopped. Safe to remove.'**
+  String storageStoppedSnackbar(String name);
+
+  /// No description provided for @storageSafeToUnplugSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is safe to unplug'**
+  String storageSafeToUnplugSnackbar(String name);
+
+  /// No description provided for @storagePrepareDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will erase all files on {name} and set it up for AiHomeCloud. This cannot be undone.'**
+  String storagePrepareDialogMessage(String name);
+
+  /// No description provided for @storagePrepareButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare'**
+  String get storagePrepareButton;
+
+  /// No description provided for @storageActiveStatusBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'✓ Active Storage'**
+  String get storageActiveStatusBadge;
+
+  /// No description provided for @storageReadyStatusBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get storageReadyStatusBadge;
+
+  /// No description provided for @storageNotReadyStatusBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Not ready yet'**
+  String get storageNotReadyStatusBadge;
+
+  /// No description provided for @storageActivateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate'**
+  String get storageActivateButton;
+
+  /// No description provided for @storagePrepareAsStorageButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare as Storage'**
+  String get storagePrepareAsStorageButton;
+
+  /// No description provided for @storagePreparingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This takes about 2 minutes. Please keep the app open.'**
+  String get storagePreparingSubtitle;
+
+  /// No description provided for @storageBlockerDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Files In Use'**
+  String get storageBlockerDialogTitle;
+
+  /// No description provided for @storageBlockerDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} app(s) are still using this storage:'**
+  String storageBlockerDialogMessage(int count);
+
+  /// No description provided for @storageRemoveAnywayButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Anyway'**
+  String get storageRemoveAnywayButton;
+
+  /// No description provided for @storageSafeRemoveSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove safely'**
+  String get storageSafeRemoveSheetTitle;
+
+  /// No description provided for @storageSafeRemoveSheetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We will stop sharing, disconnect {name}, and make it safe to unplug.\n\nMake sure all transfers are complete first.'**
+  String storageSafeRemoveSheetBody(String name);
+
+  /// No description provided for @storageSafeRemoveStepStopSharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing'**
+  String get storageSafeRemoveStepStopSharing;
+
+  /// No description provided for @storageSafeRemoveStepFinishTransfers.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish pending transfers'**
+  String get storageSafeRemoveStepFinishTransfers;
+
+  /// No description provided for @storageSafeRemoveStepSafeToUnplug.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it safe to unplug'**
+  String get storageSafeRemoveStepSafeToUnplug;
+
+  /// No description provided for @profileEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get profileEditTitle;
+
+  /// No description provided for @profileDisplayNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Display Name'**
+  String get profileDisplayNameLabel;
+
+  /// No description provided for @profileDisplayNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get profileDisplayNameHint;
+
+  /// No description provided for @profileIconLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get profileIconLabel;
+
+  /// No description provided for @profileSaveChangesButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get profileSaveChangesButton;
+
+  /// No description provided for @profileUpdatedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated'**
+  String get profileUpdatedSnackbar;
+
+  /// No description provided for @profileNameEmptyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Name cannot be empty.'**
+  String get profileNameEmptyError;
+
+  /// No description provided for @profilePinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get profilePinLabel;
+
+  /// No description provided for @profileChangePinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change PIN'**
+  String get profileChangePinTitle;
+
+  /// No description provided for @profileAddPinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add PIN'**
+  String get profileAddPinTitle;
+
+  /// No description provided for @profileCurrentPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Current PIN'**
+  String get profileCurrentPinHint;
+
+  /// No description provided for @profilePinMinLengthError.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN must be at least 4 digits'**
+  String get profilePinMinLengthError;
+
+  /// No description provided for @profilePinsDoNotMatchError.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs do not match'**
+  String get profilePinsDoNotMatchError;
+
+  /// No description provided for @profilePinUpdatedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN updated'**
+  String get profilePinUpdatedSnackbar;
+
+  /// No description provided for @profilePinAddedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN added'**
+  String get profilePinAddedSnackbar;
+
+  /// No description provided for @profileRemovePinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove PIN?'**
+  String get profileRemovePinTitle;
+
+  /// No description provided for @profileRemovePinMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone on this device will be able to access your profile without a PIN.'**
+  String get profileRemovePinMessage;
+
+  /// No description provided for @profileRemovePinButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove PIN'**
+  String get profileRemovePinButton;
+
+  /// No description provided for @profilePinRemovedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN removed'**
+  String get profilePinRemovedSnackbar;
+
+  /// No description provided for @profileChangePinSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update your current PIN'**
+  String get profileChangePinSubtitle;
+
+  /// No description provided for @profileAddPinSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a PIN to protect this profile'**
+  String get profileAddPinSubtitle;
+
+  /// No description provided for @profileNoPin.
+  ///
+  /// In en, this message translates to:
+  /// **'No PIN needed to access this profile'**
+  String get profileNoPin;
+
+  /// No description provided for @profileAccountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get profileAccountLabel;
+
+  /// No description provided for @profileSwitchProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch Profile'**
+  String get profileSwitchProfileTitle;
+
+  /// No description provided for @profileSwitchProfileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back to the profile picker'**
+  String get profileSwitchProfileSubtitle;
+
+  /// No description provided for @profileDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile?'**
+  String get profileDeleteTitle;
+
+  /// No description provided for @profileDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete your profile and all your personal files stored on this device.'**
+  String get profileDeleteMessage;
+
+  /// No description provided for @profileDeleteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone.'**
+  String get profileDeleteWarning;
+
+  /// No description provided for @profileDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile'**
+  String get profileDeleteButton;
+
+  /// No description provided for @profileDeleteListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile'**
+  String get profileDeleteListTitle;
+
+  /// No description provided for @profileDeleteListSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently remove this profile'**
+  String get profileDeleteListSubtitle;
+
+  /// No description provided for @folderRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get folderRenameTitle;
+
+  /// No description provided for @folderRenameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New name'**
+  String get folderRenameHint;
+
+  /// No description provided for @folderRenameButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get folderRenameButton;
+
+  /// No description provided for @folderDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get folderDeleteTitle;
+
+  /// No description provided for @folderMovedToTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} moved to Trash'**
+  String folderMovedToTrash(String name);
+
+  /// No description provided for @folderDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String folderDeleteFailed(String error);
+
+  /// No description provided for @folderUploadFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload File'**
+  String get folderUploadFileTitle;
+
+  /// No description provided for @folderUploadFileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from your phone'**
+  String get folderUploadFileSubtitle;
+
+  /// No description provided for @folderNewFolderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Folder'**
+  String get folderNewFolderTitle;
+
+  /// No description provided for @folderNewFolderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new directory'**
+  String get folderNewFolderSubtitle;
+
+  /// No description provided for @folderNewFolderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get folderNewFolderHint;
+
+  /// No description provided for @folderCreateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get folderCreateButton;
+
+  /// No description provided for @folderUploadedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ {name} uploaded'**
+  String folderUploadedSnackbar(String name);
+
+  /// No description provided for @folderUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload failed: {error}'**
+  String folderUploadFailed(String error);
+
+  /// No description provided for @folderSortedToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'📸 {name} sorted to Photos'**
+  String folderSortedToPhotos(String name);
+
+  /// No description provided for @folderSortedToVideos.
+  ///
+  /// In en, this message translates to:
+  /// **'🎬 {name} sorted to Videos'**
+  String folderSortedToVideos(String name);
+
+  /// No description provided for @folderSortedToDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'📄 {name} sorted to Documents'**
+  String folderSortedToDocuments(String name);
+
+  /// No description provided for @folderGoBackTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back'**
+  String get folderGoBackTooltip;
+
+  /// No description provided for @folderAddTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add file or folder'**
+  String get folderAddTooltip;
+
+  /// No description provided for @folderEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is empty'**
+  String get folderEmptyTitle;
+
+  /// No description provided for @folderEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload files or create a folder to get started'**
+  String get folderEmptySubtitle;
 }
 
 class _AppLocalizationsDelegate

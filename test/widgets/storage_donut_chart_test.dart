@@ -11,11 +11,11 @@ class StorageDonutChart extends StatelessWidget {
   final double size;
 
   const StorageDonutChart({
-    Key? key,
+    super.key,
     required this.usedGB,
     required this.totalGB,
     this.size = 200.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

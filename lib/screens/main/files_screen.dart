@@ -269,6 +269,7 @@ class _DocSearchResults extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final resultsAsync = ref.watch(docSearchResultsProvider(query));
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
@@ -398,6 +399,7 @@ class _TrashScreen extends ConsumerWidget {
 
   Future<void> _restore(
       BuildContext context, WidgetRef ref, TrashItem item) async {
+    final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(apiServiceProvider).restoreTrashItem(item.id);

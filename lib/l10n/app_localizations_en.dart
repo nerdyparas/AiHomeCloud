@@ -704,4 +704,594 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get storageValidationLabelChars =>
       'Label may only contain letters, numbers, hyphens, and underscores';
+
+  @override
+  String get buttonClose => 'Close';
+
+  @override
+  String get buttonRetryAction => 'Retry';
+
+  @override
+  String get buttonUndo => 'Undo';
+
+  @override
+  String get moreProfileEditSubtitle => 'Edit name, icon and PIN';
+
+  @override
+  String get moreCertFingerprintLabel => 'Pinned fingerprint:';
+
+  @override
+  String get moreCertNotPinnedYet => 'Not pinned yet';
+
+  @override
+  String get moreCertFingerprintDescription =>
+      'This fingerprint is pinned to your device and used to verify the connection.';
+
+  @override
+  String get moreProfileChangePinTitle => 'Change my PIN';
+
+  @override
+  String get moreRestartDialogTitle => 'Restart AiHomeCloud?';
+
+  @override
+  String get moreRestartDialogMessage =>
+      'The device will restart and come back online in about a minute.';
+
+  @override
+  String get moreRestartButton => 'Restart';
+
+  @override
+  String get moreRestartStartedSnackbar => 'AiHomeCloud is restarting.';
+
+  @override
+  String moreRestartFailedSnackbar(String error) {
+    return 'Restart failed: $error';
+  }
+
+  @override
+  String get moreShutdownDialogTitle => 'Shut Down AiHomeCloud?';
+
+  @override
+  String get moreShutdownDialogMessage =>
+      'This will stop all active services, cancel file transfers, and safely power off the device. You will need physical access to turn it back on.';
+
+  @override
+  String get moreShutdownButton => 'Shut Down';
+
+  @override
+  String get moreShutdownStartedSnackbar => 'Shutting down AiHomeCloud…';
+
+  @override
+  String get moreShutdownCompleteSnackbar => 'AiHomeCloud is powering off.';
+
+  @override
+  String get moreTrashEmptyButton => 'Empty';
+
+  @override
+  String get familyMakeAdminTitle => 'Make Admin';
+
+  @override
+  String get familyRemoveAdminTitle => 'Remove Admin';
+
+  @override
+  String familyMakeAdminDescription(String name) {
+    return '$name will be able to manage storage, services, and family members.';
+  }
+
+  @override
+  String familyRemoveAdminDescription(String name) {
+    return '$name will lose admin privileges.';
+  }
+
+  @override
+  String get filesFolderSubtitlePersonal => 'Your private files';
+
+  @override
+  String get filesFolderSubtitleFamily => 'Shared with everyone';
+
+  @override
+  String get filesFolderSubtitleEntertainment => 'Movies, series, music';
+
+  @override
+  String get filesFolderSubtitleTrash => 'Recently deleted files';
+
+  @override
+  String filesSearchNoResults(String query) {
+    return 'No documents found for “$query”';
+  }
+
+  @override
+  String get filesNoStorageTitle => 'No Storage Connected';
+
+  @override
+  String get filesNoStorageMessage =>
+      'Connect a USB drive or NVMe to your Cubie to use shared storage.';
+
+  @override
+  String get filesCheckAgainButton => 'Check Again';
+
+  @override
+  String get telegramPendingRequestsLabel => 'PENDING REQUESTS';
+
+  @override
+  String get telegramDenyButton => 'Deny';
+
+  @override
+  String get telegramApproveButton => 'Approve';
+
+  @override
+  String get telegramBotTokenRequiredError => 'Bot Token is required.';
+
+  @override
+  String get telegramLargeFileModeRequiredError =>
+      'API ID and API Hash are required for large file mode.';
+
+  @override
+  String get telegramConfiguredSnackbar => 'Telegram Bot configured!';
+
+  @override
+  String get telegramSetupStepsTitle => 'Setup in 3 steps';
+
+  @override
+  String get telegramSetupStep1 => 'Open Telegram and search @BotFather';
+
+  @override
+  String get telegramSetupStep2 =>
+      'Send /newbot — follow the steps and copy the token';
+
+  @override
+  String get telegramSetupStep3 =>
+      'Paste the token below and tap Save. Then open your bot and send /auth to link your account.';
+
+  @override
+  String get telegramTokenHintConfigured =>
+      'Enter new token to replace existing';
+
+  @override
+  String get telegramTokenHintExample =>
+      '1234567890:ABCdefGHIjklMNOpqrSTUvwxyz';
+
+  @override
+  String get telegramBotTokenLabel => 'Bot Token';
+
+  @override
+  String get telegramSaveActivateButton => 'Save & Activate';
+
+  @override
+  String get telegramNoAccountsLinked => 'No accounts linked yet';
+
+  @override
+  String telegramAccountsLinked(int count) {
+    return '$count account(s) linked';
+  }
+
+  @override
+  String get telegramOpenBotSendAuth => 'Open your bot and send /auth';
+
+  @override
+  String telegramFileLimitLabel(int sizeMb) {
+    return 'File upload limit: $sizeMb MB';
+  }
+
+  @override
+  String get telegramLargeFileModeActive =>
+      'Large file mode active — up to 2 GB';
+
+  @override
+  String get telegramLargeFileModeInactive =>
+      'Enable large file mode below to upload up to 2 GB';
+
+  @override
+  String get telegramLargeFileModeTitle => 'Large file mode (up to 2 GB)';
+
+  @override
+  String get telegramLargeFileModeSubtitle =>
+      'Requires Telegram API credentials and the local server setup script to be run on your device.';
+
+  @override
+  String get telegramApiCredentialsHint =>
+      'Get API ID and Hash at my.telegram.org → API development tools';
+
+  @override
+  String get telegramApiIdLabel => 'API ID';
+
+  @override
+  String get telegramApiHashLabel => 'API Hash';
+
+  @override
+  String get telegramScriptHint =>
+      'Run scripts/setup-telegram-local-api.sh on your device before enabling this.';
+
+  @override
+  String get telegramBotActiveStatus => 'Bot is active and polling';
+
+  @override
+  String get telegramBotConfiguredStatus => 'Configured but not running';
+
+  @override
+  String get telegramBotNotConfiguredStatus => 'Not configured';
+
+  @override
+  String get storageEmptyBannerTitle => 'Connect a USB or hard drive';
+
+  @override
+  String get storageEmptyBannerMessage =>
+      'Plug in a USB drive or NVMe to your AiHomeCloud';
+
+  @override
+  String get storagePrepareDialogTitle => 'Prepare this drive?';
+
+  @override
+  String get storagePreparingTitle => 'Preparing your storage drive…';
+
+  @override
+  String get storagePreparingMessage =>
+      'This takes about 2 minutes. Please keep the app open.';
+
+  @override
+  String get storageSafelyRemoveButton => 'Safely Remove';
+
+  @override
+  String get storageCouldNotLoadDrives => 'Could not load drives';
+
+  @override
+  String get profileChangePinDialogTitle => 'Change PIN';
+
+  @override
+  String get profileAddPinDialogTitle => 'Add PIN';
+
+  @override
+  String get profileNewPinHint => 'New PIN (4–8 digits)';
+
+  @override
+  String get profileConfirmPinHint => 'Confirm new PIN';
+
+  @override
+  String get profilePinTooShortError => 'PIN must be at least 4 digits';
+
+  @override
+  String get profilePinMismatchError => 'PINs do not match';
+
+  @override
+  String get profileRemovePinDialogTitle => 'Remove PIN?';
+
+  @override
+  String get profileRemovePinDialogMessage =>
+      'Anyone on this device will be able to access your profile without a PIN.';
+
+  @override
+  String get profileDeleteDialogTitle => 'Delete Profile?';
+
+  @override
+  String get profileDeleteDialogMessage =>
+      'This will permanently delete your profile and all your personal files stored on this device.';
+
+  @override
+  String get folderViewNoStorageTitle => 'No Storage Connected';
+
+  @override
+  String get folderViewNoStorageMessage =>
+      'Connect a USB drive or NVMe to your Cubie to use shared storage.';
+
+  @override
+  String get folderViewCheckAgainButton => 'Check Again';
+
+  @override
+  String get folderViewBackTooltip => 'Go back';
+
+  @override
+  String get moreTrashTitle => 'Trash';
+
+  @override
+  String get moreTrashEmpty => 'Empty';
+
+  @override
+  String moreTrashItemCount(int count, int sizeMB) {
+    return '$count item(s) · $sizeMB MB';
+  }
+
+  @override
+  String get moreEmptyTrashDialogTitle => 'Empty Trash?';
+
+  @override
+  String moreEmptyTrashDialogMessage(int count) {
+    return 'This will permanently delete $count item(s). This cannot be undone.';
+  }
+
+  @override
+  String get moreEmptyTrashButton => 'Empty Trash';
+
+  @override
+  String get moreTrashEmptiedSnackbar => 'Trash emptied.';
+
+  @override
+  String moreShutdownFailedSnackbar(String error) {
+    return 'Shutdown failed: $error';
+  }
+
+  @override
+  String get moreRestartingSnackbar => 'Restarting AiHomeCloud…';
+
+  @override
+  String get trashScreenTitle => 'Trash';
+
+  @override
+  String get trashEmptyState => 'Trash is empty';
+
+  @override
+  String get trashEmptyAllButton => 'Empty All';
+
+  @override
+  String get trashDeletePermanentlyTitle => 'Delete permanently?';
+
+  @override
+  String trashDeletePermanentlyMessage(String name) {
+    return '$name will be permanently deleted. This cannot be undone.';
+  }
+
+  @override
+  String trashRestoredSnackbar(String name) {
+    return 'Restored: $name';
+  }
+
+  @override
+  String get trashDeleteButton => 'Delete';
+
+  @override
+  String trashDaysAgo(int days) {
+    return '${days}d ago';
+  }
+
+  @override
+  String get storageActivatedSnackbar => 'Storage activated!';
+
+  @override
+  String storageReadySnackbar(String size) {
+    return 'Storage is ready! $size available';
+  }
+
+  @override
+  String get storageReadySimpleSnackbar => 'Storage is ready!';
+
+  @override
+  String get storageActivateFailedSnackbar =>
+      'Could not activate drive. Check the USB connection and try again.';
+
+  @override
+  String storageStoppedSnackbar(String name) {
+    return '$name stopped. Safe to remove.';
+  }
+
+  @override
+  String storageSafeToUnplugSnackbar(String name) {
+    return '$name is safe to unplug';
+  }
+
+  @override
+  String storagePrepareDialogMessage(String name) {
+    return 'This will erase all files on $name and set it up for AiHomeCloud. This cannot be undone.';
+  }
+
+  @override
+  String get storagePrepareButton => 'Prepare';
+
+  @override
+  String get storageActiveStatusBadge => '✓ Active Storage';
+
+  @override
+  String get storageReadyStatusBadge => 'Ready';
+
+  @override
+  String get storageNotReadyStatusBadge => 'Not ready yet';
+
+  @override
+  String get storageActivateButton => 'Activate';
+
+  @override
+  String get storagePrepareAsStorageButton => 'Prepare as Storage';
+
+  @override
+  String get storagePreparingSubtitle =>
+      'This takes about 2 minutes. Please keep the app open.';
+
+  @override
+  String get storageBlockerDialogTitle => 'Files In Use';
+
+  @override
+  String storageBlockerDialogMessage(int count) {
+    return '$count app(s) are still using this storage:';
+  }
+
+  @override
+  String get storageRemoveAnywayButton => 'Remove Anyway';
+
+  @override
+  String get storageSafeRemoveSheetTitle => 'Remove safely';
+
+  @override
+  String storageSafeRemoveSheetBody(String name) {
+    return 'We will stop sharing, disconnect $name, and make it safe to unplug.\n\nMake sure all transfers are complete first.';
+  }
+
+  @override
+  String get storageSafeRemoveStepStopSharing => 'Stop sharing';
+
+  @override
+  String get storageSafeRemoveStepFinishTransfers => 'Finish pending transfers';
+
+  @override
+  String get storageSafeRemoveStepSafeToUnplug => 'Make it safe to unplug';
+
+  @override
+  String get profileEditTitle => 'Edit Profile';
+
+  @override
+  String get profileDisplayNameLabel => 'Display Name';
+
+  @override
+  String get profileDisplayNameHint => 'Your name';
+
+  @override
+  String get profileIconLabel => 'Icon';
+
+  @override
+  String get profileSaveChangesButton => 'Save Changes';
+
+  @override
+  String get profileUpdatedSnackbar => 'Profile updated';
+
+  @override
+  String get profileNameEmptyError => 'Name cannot be empty.';
+
+  @override
+  String get profilePinLabel => 'PIN';
+
+  @override
+  String get profileChangePinTitle => 'Change PIN';
+
+  @override
+  String get profileAddPinTitle => 'Add PIN';
+
+  @override
+  String get profileCurrentPinHint => 'Current PIN';
+
+  @override
+  String get profilePinMinLengthError => 'PIN must be at least 4 digits';
+
+  @override
+  String get profilePinsDoNotMatchError => 'PINs do not match';
+
+  @override
+  String get profilePinUpdatedSnackbar => 'PIN updated';
+
+  @override
+  String get profilePinAddedSnackbar => 'PIN added';
+
+  @override
+  String get profileRemovePinTitle => 'Remove PIN?';
+
+  @override
+  String get profileRemovePinMessage =>
+      'Anyone on this device will be able to access your profile without a PIN.';
+
+  @override
+  String get profileRemovePinButton => 'Remove PIN';
+
+  @override
+  String get profilePinRemovedSnackbar => 'PIN removed';
+
+  @override
+  String get profileChangePinSubtitle => 'Update your current PIN';
+
+  @override
+  String get profileAddPinSubtitle => 'Add a PIN to protect this profile';
+
+  @override
+  String get profileNoPin => 'No PIN needed to access this profile';
+
+  @override
+  String get profileAccountLabel => 'Account';
+
+  @override
+  String get profileSwitchProfileTitle => 'Switch Profile';
+
+  @override
+  String get profileSwitchProfileSubtitle => 'Go back to the profile picker';
+
+  @override
+  String get profileDeleteTitle => 'Delete Profile?';
+
+  @override
+  String get profileDeleteMessage =>
+      'This will permanently delete your profile and all your personal files stored on this device.';
+
+  @override
+  String get profileDeleteWarning => 'This cannot be undone.';
+
+  @override
+  String get profileDeleteButton => 'Delete Profile';
+
+  @override
+  String get profileDeleteListTitle => 'Delete Profile';
+
+  @override
+  String get profileDeleteListSubtitle => 'Permanently remove this profile';
+
+  @override
+  String get folderRenameTitle => 'Rename';
+
+  @override
+  String get folderRenameHint => 'New name';
+
+  @override
+  String get folderRenameButton => 'Rename';
+
+  @override
+  String get folderDeleteTitle => 'Delete';
+
+  @override
+  String folderMovedToTrash(String name) {
+    return '$name moved to Trash';
+  }
+
+  @override
+  String folderDeleteFailed(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get folderUploadFileTitle => 'Upload File';
+
+  @override
+  String get folderUploadFileSubtitle => 'Choose from your phone';
+
+  @override
+  String get folderNewFolderTitle => 'New Folder';
+
+  @override
+  String get folderNewFolderSubtitle => 'Create a new directory';
+
+  @override
+  String get folderNewFolderHint => 'Folder name';
+
+  @override
+  String get folderCreateButton => 'Create';
+
+  @override
+  String folderUploadedSnackbar(String name) {
+    return '✅ $name uploaded';
+  }
+
+  @override
+  String folderUploadFailed(String error) {
+    return 'Upload failed: $error';
+  }
+
+  @override
+  String folderSortedToPhotos(String name) {
+    return '📸 $name sorted to Photos';
+  }
+
+  @override
+  String folderSortedToVideos(String name) {
+    return '🎬 $name sorted to Videos';
+  }
+
+  @override
+  String folderSortedToDocuments(String name) {
+    return '📄 $name sorted to Documents';
+  }
+
+  @override
+  String get folderGoBackTooltip => 'Go back';
+
+  @override
+  String get folderAddTooltip => 'Add file or folder';
+
+  @override
+  String get folderEmptyTitle => 'This folder is empty';
+
+  @override
+  String get folderEmptySubtitle =>
+      'Upload files or create a folder to get started';
 }

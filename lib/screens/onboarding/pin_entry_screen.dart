@@ -289,7 +289,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Welcome to\nAiHomeCloud",
+                'Welcome to\nAiHomeCloud',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.sora(
                   color: Colors.white,

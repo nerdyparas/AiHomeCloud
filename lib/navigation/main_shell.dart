@@ -94,11 +94,9 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     // Debounce disconnect banner â€” only show after 12 continuous seconds
     if (connection == ConnectionStatus.disconnected) {
-      if (_disconnectTimer == null) {
-        _disconnectTimer = Timer(const Duration(seconds: 12), () {
-          if (mounted) setState(() => _showDisconnected = true);
-        });
-      }
+      _disconnectTimer ??= Timer(const Duration(seconds: 12), () {
+        if (mounted) setState(() => _showDisconnected = true);
+      });
     } else {
       _disconnectTimer?.cancel();
       _disconnectTimer = null;
@@ -317,7 +315,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(
+                const Text(
                   'AiHomeCloud hasn\u2019t been reachable for a while. You may be outside your home network.',
                   style: TextStyle(
                     fontSize: 14,
@@ -328,7 +326,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Expanded(
+                    const Expanded(
                       child: Text(
                         'Notify me when I\u2019m back',
                         style: TextStyle(

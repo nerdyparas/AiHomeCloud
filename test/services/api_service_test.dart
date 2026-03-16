@@ -84,8 +84,8 @@ void main() {
     });
 
     test('page and pageSize are stored on the response', () {
-      final response = FileListResponse(
-        items: const [],
+      const response = FileListResponse(
+        items: [],
         totalCount: 100,
         page: 2,
         pageSize: 20,
@@ -119,7 +119,7 @@ void main() {
     });
 
     test('usedPercent clamps to 1.0 when over-full', () {
-      final stats = StorageStats(totalGB: 100, usedGB: 110);
+      const stats = StorageStats(totalGB: 100, usedGB: 110);
       expect(stats.usedPercent, 1.0);
     });
   });

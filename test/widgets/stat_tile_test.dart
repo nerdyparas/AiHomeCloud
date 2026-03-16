@@ -10,7 +10,7 @@ void main() {
       const testValue = '45';
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: testLabel,
@@ -34,13 +34,13 @@ void main() {
     testWidgets('renders icon badge with correct styling',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: 'Memory',
               value: '2.5',
               icon: Icons.memory,
-              accentColor: const Color(0xFF4CE88A),
+              accentColor: Color(0xFF4CE88A),
             ),
           ),
         ),
@@ -60,7 +60,7 @@ void main() {
       const testUnit = 'Â°C';
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: testLabel,
@@ -87,7 +87,7 @@ void main() {
       const testHelper = 'days';
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: testLabel,
@@ -108,7 +108,7 @@ void main() {
     testWidgets('renders Card container with border and rounded corners',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: 'Test',
@@ -129,7 +129,7 @@ void main() {
 
     testWidgets('uses vertical column layout', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: 'CPU',
@@ -156,7 +156,7 @@ void main() {
       const customColor = Color(0xFFE84CA8);
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: 'Custom',
@@ -179,14 +179,14 @@ void main() {
     testWidgets('renders correctly with all optional parameters',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: StatTile(
               label: 'Complete',
               value: '99',
               unit: '%',
               icon: Icons.check,
-              accentColor: const Color(0xFF4CE88A),
+              accentColor: Color(0xFF4CE88A),
               helperText: 'System healthy',
               helperColor: Colors.green,
             ),

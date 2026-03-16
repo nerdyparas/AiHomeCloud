@@ -91,11 +91,11 @@ void main() {
       ip: '192.168.1.100',
       firmwareVersion: '2.0.0',
     );
-    final mockStats = SystemStats(
+    const mockStats = SystemStats(
       cpuPercent: 15.0,
       ramPercent: 40.0,
       tempCelsius: 42.0,
-      uptime: const Duration(hours: 5, minutes: 30),
+      uptime: Duration(hours: 5, minutes: 30),
       networkUpMbps: 1.5,
       networkDownMbps: 5.0,
       storage: StorageStats(totalGB: 500, usedGB: 120),
