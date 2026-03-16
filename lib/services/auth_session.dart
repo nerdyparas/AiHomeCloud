@@ -76,18 +76,29 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
 
     state = next;
 
-    await _prefs.setString(AppConstants.prefDeviceIp, host);
-    await _prefs.setInt(AppConstants.prefDevicePort, port);
-    await _prefs.setString(AppConstants.prefAuthToken, token);
+    // Persist to disk in parallel — SharedPreferences updates its in-memory
+    // cache synchronously, so values are readable immediately.  Disk commits
+    // happen in the background without blocking navigation.
+    _persistLogin(host, port, token, refreshToken, username, isAdmin, iconEmoji);
+  }
+
+  void _persistLogin(String host, int port, String token,
+      String? refreshToken, String username, bool isAdmin, String iconEmoji) {
+    final writes = <Future<bool>>[
+      _prefs.setString(AppConstants.prefDeviceIp, host),
+      _prefs.setInt(AppConstants.prefDevicePort, port),
+      _prefs.setString(AppConstants.prefAuthToken, token),
+      _prefs.setString(AppConstants.prefUserName, username),
+      _prefs.setBool(AppConstants.prefIsAdmin, isAdmin),
+      _prefs.setBool(AppConstants.prefIsSetupDone, true),
+      _prefs.setString('icon_emoji', iconEmoji),
+    ];
     if (refreshToken != null && refreshToken.isNotEmpty) {
-      await _prefs.setString(AppConstants.prefRefreshToken, refreshToken);
+      writes.add(_prefs.setString(AppConstants.prefRefreshToken, refreshToken));
     } else {
-      await _prefs.remove(AppConstants.prefRefreshToken);
+      writes.add(_prefs.remove(AppConstants.prefRefreshToken));
     }
-    await _prefs.setString(AppConstants.prefUserName, username);
-    await _prefs.setBool(AppConstants.prefIsAdmin, isAdmin);
-    await _prefs.setBool(AppConstants.prefIsSetupDone, true);
-    await _prefs.setString('icon_emoji', iconEmoji);
+    Future.wait(writes);
   }
 
   Future<void> logout() async {

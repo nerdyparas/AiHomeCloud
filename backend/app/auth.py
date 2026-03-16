@@ -20,7 +20,9 @@ from . import store
 from .config import settings
 
 _bearer_scheme = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# rounds=10 (~0.1s on ARM) instead of default 12 (~0.42s).  PINs are
+# rate-limited (10 attempts / 15 min lockout), so lower rounds are safe.
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
 
 async def hash_password(plain: str) -> str:

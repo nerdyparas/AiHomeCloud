@@ -55,7 +55,6 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen> {
     try {
       final pin = _pinCtrl.text.trim();
 
-      // createUser auto-logs in and returns tokens — no second request needed.
       final result = await ref.read(apiServiceProvider).createUser(
             name,
             pin.isNotEmpty ? pin : null,
@@ -63,20 +62,23 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen> {
             iconEmoji: _selectedEmoji,
           );
 
-      await ref.read(authSessionProvider.notifier).login(
-            host: widget.deviceIp,
-            port: AppConstants.apiPort,
-            token: result['accessToken'] as String,
-            refreshToken: result['refreshToken'] as String?,
-            username: name,
-            isAdmin: result['isAdmin'] as bool? ?? false,
-          );
-
       if (!mounted) return;
 
       if (widget.isAddingUser) {
+        // Admin added a family member — don't switch sessions, just refresh.
         context.pop(true);
       } else {
+        // First-time setup — log in as the new user and go to dashboard.
+        await ref.read(authSessionProvider.notifier).login(
+              host: widget.deviceIp,
+              port: AppConstants.apiPort,
+              token: result['accessToken'] as String,
+              refreshToken: result['refreshToken'] as String?,
+              username: name,
+              isAdmin: result['isAdmin'] as bool? ?? false,
+            );
+
+        if (!mounted) return;
         context.go('/dashboard');
       }
     } catch (e) {

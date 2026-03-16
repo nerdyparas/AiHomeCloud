@@ -38,6 +38,7 @@ from ..auth import (
     require_admin,
     hash_password,
     verify_password,
+    pwd_context,
 )
 from ..config import settings, get_local_ip
 from ..models import (
@@ -79,6 +80,16 @@ async def _bg_wipe_stale_nas_dirs() -> None:
         await asyncio.get_event_loop().run_in_executor(None, _wipe_stale_nas_dirs)
     except Exception as e:
         logger.warning("Background NAS dir wipe failed: %s", e)
+
+
+async def _rehash_pin(user_id: str, plain_pin: str) -> None:
+    """Background task: re-hash a PIN with the current bcrypt rounds."""
+    try:
+        new_hash = await hash_password(plain_pin)
+        await store.update_user_pin(user_id, new_hash)
+        logger.info("Auto-upgraded bcrypt rounds for user %s", user_id)
+    except Exception as e:
+        logger.warning("Failed to auto-upgrade PIN hash: %s", e)
 
 
 @router.get("/pair/qr")
@@ -315,6 +326,10 @@ async def login(request: Request, body: LoginRequest):
         if not ok:
             _record_failure(client_ip)
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+        # Auto-upgrade bcrypt rounds if configuration changed (e.g. 12 → 10).
+        if pwd_context.needs_update(stored_pin):
+            import asyncio as _aio
+            _aio.get_event_loop().create_task(_rehash_pin(found["id"], body.pin))
     else:
         logger.warning("Non-bcrypt PIN found for user %s â€” rejecting", body.name)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
