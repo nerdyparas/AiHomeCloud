@@ -324,7 +324,7 @@ Already covered in Phase 1.
 4. Run `mypy --strict` on modified files (may need `mypy.ini` config)
 **Test:** `mypy backend/app/store.py backend/app/auth.py` → 0 errors.
 
-### TASK-PQ2: Cleanup Repository Root
+### TASK-PQ2: Cleanup Repository Root ✅ DONE
 **Files:** 15 stale files in project root
 **Problem:** Stale session artifacts cluttering the repo.
 **Requirements:**
