@@ -37,6 +37,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       // Already authenticated — warm providers so dashboard never shows blank.
       ref.read(deviceInfoProvider);
       ref.read(storageDevicesProvider);
+      await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
       context.go('/dashboard');
       return;

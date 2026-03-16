@@ -273,7 +273,6 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   void _showAwaySheet() {
     if (!mounted) return;
-    setState(() => _awaySheetDismissed = true);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
@@ -356,7 +355,10 @@ class _MainShellState extends ConsumerState<MainShell> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
+                    onPressed: () {
+                      setState(() => _awaySheetDismissed = true);
+                      Navigator.of(ctx).pop();
+                    },
                     child: const Text('Dismiss'),
                   ),
                 ),
@@ -371,6 +373,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   void _startPingTimer() {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(minutes: 1), (timer) async {
+      if (!mounted) { timer.cancel(); return; }
       final host = ref.read(apiServiceProvider).host;
       if (host == null) return;
       final alive = await _ping(host);

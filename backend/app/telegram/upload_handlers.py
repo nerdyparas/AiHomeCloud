@@ -247,7 +247,7 @@ async def _process_upload_choice(
     except DuplicateFileError as dup:
         # Keep temp file on disk so /keep can proceed without re-downloading
         _pending_duplicates[chat_id] = {
-            "md5": dup.md5,
+            "sha256": dup.sha256,
             "existing": dup.existing,
             "temp_path": dup.temp_path,
             "choice": choice,
@@ -332,7 +332,7 @@ async def _handle_keep(update, context) -> None:  # type: ignore[type-arg]
     try:
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(temp_path), str(dest_path))
-        await _record_file_hash(dup["md5"], dest_path.name, str(dest_path))
+        await _record_file_hash(dup["sha256"], dest_path.name, str(dest_path))
         await _record_recent_file(chat_id, dest_path.name, str(dest_path), dup.get("file_size", 0))
         await update.message.reply_text(
             f"✅ <b>Saved</b> <code>{dest_path.name}</code>", parse_mode="HTML"

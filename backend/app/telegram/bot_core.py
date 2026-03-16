@@ -115,8 +115,8 @@ def _is_rate_limited(chat_id: int) -> bool:
 class DuplicateFileError(Exception):
     """Raised when an uploaded file matches an existing SHA-256 hash."""
 
-    def __init__(self, md5: str, existing: dict, temp_path: Path) -> None:
-        self.md5 = md5
+    def __init__(self, sha256: str, existing: dict, temp_path: Path) -> None:
+        self.sha256 = sha256
         self.existing = existing
         self.temp_path = temp_path
 
@@ -136,10 +136,11 @@ async def _get_linked_ids() -> set[int]:
 
 async def _add_linked_id(chat_id: int) -> None:
     """Persistently link a new chat_id."""
-    ids = await _store.get_value("telegram_linked_ids", default=[])
-    if chat_id not in ids:
-        ids.append(chat_id)
-        await _store.set_value("telegram_linked_ids", ids)
+    def _add(ids):
+        if chat_id not in ids:
+            ids.append(chat_id)
+        return ids
+    await _store.atomic_update("telegram_linked_ids", _add, default=[])
 
 
 # ---------------------------------------------------------------------------
@@ -153,22 +154,25 @@ async def _get_pending_approvals() -> list[dict]:
 
 async def _add_pending_approval(chat_id: int, username: str, first_name: str) -> None:
     """Add a chat_id to the pending-approval list."""
-    items = await _store.get_value("telegram_pending_approvals", default=[])
-    if not any(p["chat_id"] == chat_id for p in items):
-        items.append({
-            "chat_id": chat_id,
-            "username": username,
-            "first_name": first_name,
-            "requested_at": datetime.now().isoformat(),
-        })
-        await _store.set_value("telegram_pending_approvals", items)
+    def _add(items):
+        if not any(p["chat_id"] == chat_id for p in items):
+            items.append({
+                "chat_id": chat_id,
+                "username": username,
+                "first_name": first_name,
+                "requested_at": datetime.now().isoformat(),
+            })
+        return items
+    await _store.atomic_update("telegram_pending_approvals", _add, default=[])
 
 
 async def _remove_pending_approval(chat_id: int) -> None:
     """Remove a chat_id from the pending-approval list."""
-    items = await _store.get_value("telegram_pending_approvals", default=[])
-    items = [p for p in items if p["chat_id"] != chat_id]
-    await _store.set_value("telegram_pending_approvals", items)
+    await _store.atomic_update(
+        "telegram_pending_approvals",
+        lambda items: [p for p in items if p["chat_id"] != chat_id],
+        default=[],
+    )
 
 
 async def _get_admin_chat_ids() -> set[int]:
@@ -328,38 +332,46 @@ def _compute_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-async def _check_duplicate(path: Path) -> Optional[dict]:
-    """Return existing file-hash record if SHA-256 matches, else None."""
+async def _check_duplicate(path: Path) -> tuple[str, Optional[dict]]:
+    """Return (sha256_hex, record_or_None) for the given file."""
     sha = _compute_sha256(path)
     hashes = await _store.get_value("telegram_file_hashes", default={})
     record = hashes.get(sha)
     if record:
-        return {**record, "sha256": sha}
-    return None
+        return sha, {**record, "sha256": sha}
+    return sha, None
 
 
 async def _record_file_hash(sha256: str, filename: str, path: str) -> None:
     """Persist a SHA-256 → file mapping in the KV store."""
-    hashes = await _store.get_value("telegram_file_hashes", default={})
-    hashes[sha256] = {
-        "filename": filename,
-        "path": path,
-        "saved_at": datetime.now().isoformat(),
-    }
-    await _store.set_value("telegram_file_hashes", hashes)
+    _MAX_HASHES = 10_000
+
+    def _add(hashes):
+        hashes[sha256] = {
+            "filename": filename,
+            "path": path,
+            "saved_at": datetime.now().isoformat(),
+        }
+        if len(hashes) > _MAX_HASHES:
+            oldest = sorted(hashes, key=lambda k: hashes[k].get("saved_at", ""))
+            for k in oldest[: len(hashes) - _MAX_HASHES]:
+                del hashes[k]
+        return hashes
+    await _store.atomic_update("telegram_file_hashes", _add, default={})
 
 
 async def _record_recent_file(chat_id: int, filename: str, path: str, size: int) -> None:
     """Prepend an entry to the recent-files list (max 5 entries)."""
-    recent = await _store.get_value("telegram_recent_files", default=[])
-    recent.insert(0, {
-        "filename": filename,
-        "path": path,
-        "size": size,
-        "chat_id": chat_id,
-        "saved_at": datetime.now().isoformat(),
-    })
-    await _store.set_value("telegram_recent_files", recent[:5])
+    def _add(recent):
+        recent.insert(0, {
+            "filename": filename,
+            "path": path,
+            "size": size,
+            "chat_id": chat_id,
+            "saved_at": datetime.now().isoformat(),
+        })
+        return recent[:5]
+    await _store.atomic_update("telegram_recent_files", _add, default=[])
 
 
 async def _store_private_or_shared_file(bot, pending: PendingUpload, base_dir: Path, added_by: str) -> Path:
@@ -381,9 +393,9 @@ async def _store_private_or_shared_file(bot, pending: PendingUpload, base_dir: P
         raise
 
     # Duplicate detection: compare SHA-256 against known-file index
-    existing = await _check_duplicate(temp_path)
+    file_sha, existing = await _check_duplicate(temp_path)
     if existing:
-        raise DuplicateFileError(md5=existing.get("sha256", ""), existing=existing, temp_path=temp_path)
+        raise DuplicateFileError(sha256=existing.get("sha256", ""), existing=existing, temp_path=temp_path)
 
     dest = _sort_file(temp_path, base_dir, check_age=False)
     if dest is None:
@@ -392,8 +404,8 @@ async def _store_private_or_shared_file(bot, pending: PendingUpload, base_dir: P
     if dest.parent.name == "Documents":
         await _docidx.index_document(str(dest), dest.name, added_by)
 
-    # Record hash (SHA-256 of final file) and return
-    await _record_file_hash(_compute_sha256(dest), dest.name, str(dest))
+    # Record hash — reuse the SHA-256 computed during duplicate check
+    await _record_file_hash(file_sha, dest.name, str(dest))
     return dest
 
 
@@ -416,11 +428,15 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
         raise
 
     # Duplicate detection
-    existing = await _check_duplicate(dest_path)
+    file_sha, existing = await _check_duplicate(dest_path)
     if existing:
-        raise DuplicateFileError(md5=existing.get("sha256", ""), existing=existing, temp_path=dest_path)
+        try:
+            dest_path.unlink()
+        except OSError:
+            pass
+        raise DuplicateFileError(sha256=existing.get("sha256", ""), existing=existing, temp_path=dest_path)
 
-    await _record_file_hash(_compute_sha256(dest_path), dest_path.name, str(dest_path))
+    await _record_file_hash(file_sha, dest_path.name, str(dest_path))
     return dest_path
 
 

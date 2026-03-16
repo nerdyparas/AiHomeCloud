@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-16 — Codebase Audit Fixes
+
+**Critical:**
+- `main.py`: Added `import asyncio` at module level — app was crashing at startup when Telegram bot was configured (BUG-C1)
+
+**Bugs:**
+- `bot_core.py`: Delete entertainment file from disk before raising `DuplicateFileError` — was leaking duplicate files (BUG-B1)
+- `store.py`: Added `atomic_update()` helper for race-safe read-modify-write on kv.json; refactored 5 bot_core.py functions (`_add_linked_id`, `_add_pending_approval`, `_remove_pending_approval`, `_record_file_hash`, `_record_recent_file`) to use it (BUG-B2)
+- `main_shell.dart`: Moved `_awaySheetDismissed = true` from sheet show to Dismiss button's onPressed — flag was being set before sheet actually appeared (BUG-B3)
+- `bot_core.py` + `upload_handlers.py`: Renamed `DuplicateFileError.md5` field to `.sha256` — field was misnamed after SHA-256 migration (BUG-B4)
+
+**Optimizations:**
+- `bot_core.py`: `_check_duplicate()` now returns `(sha256, record)` tuple; both `_store_private_or_shared_file` and `_store_entertainment_file` reuse the hash — eliminates double SHA-256 computation per upload (OPT-1)
+- `bot_core.py`: `_record_file_hash()` caps hash dict at 10,000 entries, evicting oldest by `saved_at` (OPT-2)
+- `main_shell.dart`: Added `mounted` guard at top of ping timer callback to prevent Riverpod state errors after widget disposal (OPT-4)
+- `splash_screen.dart`: Added 400ms warmup delay before navigating to dashboard — lets first LAN response arrive before shimmer shows (OPT-5)
+
+**Config/Docs:**
+- `copilot-instructions.md`: Fixed env prefix `CUBIE_` → `AHC_` (CFG-2)
+- `deploy.sh`: Updated comment "Cubie device" → "AiHomeCloud device" (CFG-4)
+
+**Skipped (already resolved or incorrect):**
+- CFG-1 (port standardisation): All files already use port 8443 consistently
+- CFG-3 (service vs install.sh): install.sh already deploys to `/opt/aihomecloud` with `venv/`
+- OPT-3 (flutter_blue_plus unused): Actually used in `discovery_service.dart` for BLE fallback
+
+**Tests:** 260 passed, 47 skipped, 0 failed
+
+---
+
 ## 2026-03-17 — TASK-L1 through L5: Low-Priority Sprint
 
 **Flutter:**

@@ -23,7 +23,7 @@
 | Layer | Path | Purpose |
 |---|---|---|
 | Entry point | `backend/app/main.py` | FastAPI app, CORS, 13 router registrations, lifespan hook |
-| Config | `backend/app/config.py` | `Settings` via pydantic-settings, env prefix `CUBIE_` |
+| Config | `backend/app/config.py` | `Settings` via pydantic-settings, env prefix `AHC_` |
 | Auth | `backend/app/auth.py` | JWT create/decode, bcrypt hash/verify via `run_in_executor`, `get_current_user` / `require_admin` dependencies |
 | Persistence | `backend/app/store.py` | JSON-file storage with `asyncio.Lock`, TTL cache, atomic writes |
 | Models | `backend/app/models.py` | Pydantic v2 models with `Field(alias="camelCase")` |

@@ -4,7 +4,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # AiHomeCloud deploy script
 #
-# Pushes backend code to the Cubie device, installs ARM64-pinned dependencies,
+# Pushes backend code to the AiHomeCloud device, installs ARM64-pinned dependencies,
 # restarts the systemd service, and verifies via health check.
 #
 # Required env vars:

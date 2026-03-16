@@ -3,6 +3,7 @@ AiHomeCloud Backend â€” FastAPI application.
 Run with: python -m app.main (auto-configures TLS)
 """
 
+import asyncio
 import logging
 import ssl
 from contextlib import asynccontextmanager, suppress

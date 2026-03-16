@@ -514,6 +514,23 @@ async def set_value(key: str, value: Any) -> None:
         _write_json(settings.data_dir / "kv.json", data)
 
 
+async def atomic_update(key: str, fn, default=None) -> Any:
+    """Read-modify-write a kv.json key under a single lock acquisition.
+
+    ``fn`` receives the current value and must return the new value.
+    Returns the new value after writing.
+    """
+    _set_cached(f"kv:{key}", None)
+    async with _store_lock:
+        data: Dict[str, Any] = _read_json(settings.data_dir / "kv.json", {})
+        current = data.get(key, default)
+        updated = fn(current)
+        data[key] = updated
+        _write_json(settings.data_dir / "kv.json", data)
+        _set_cached(f"kv:{key}", updated)
+        return updated
+
+
 # ---------------------------------------------------------------------------
 # Trash metadata (trash.json)
 # ---------------------------------------------------------------------------
