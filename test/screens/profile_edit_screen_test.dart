@@ -42,7 +42,8 @@ void main() {
 
   testWidgets('pre-populates name from auth session',
       (WidgetTester tester) async {
-    const session = AuthSession(
+    final notifier = AuthSessionNotifier(prefs);
+    await notifier.login(
       host: '192.168.1.100',
       port: 8443,
       token: 'test-token',
@@ -53,9 +54,7 @@ void main() {
     );
 
     final overrides = [
-      authSessionProvider.overrideWith((ref) {
-        return AuthSessionNotifier(prefs)..login(session);
-      }),
+      authSessionProvider.overrideWith((ref) => notifier),
     ];
     await tester.pumpWidget(buildSubject(overrides));
     await tester.pump();
