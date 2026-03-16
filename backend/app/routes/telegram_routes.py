@@ -96,7 +96,7 @@ async def save_config(body: TelegramConfigIn, user: dict = Depends(require_admin
 
     if not token:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "bot_token must not be empty",
         )
 

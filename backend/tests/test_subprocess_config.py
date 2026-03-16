@@ -2,6 +2,7 @@
 Additional tests for subprocess_runner.py and config helpers.
 """
 
+import sys
 import pytest
 from unittest.mock import patch, AsyncMock
 
@@ -41,14 +42,14 @@ class TestSubprocessRunner:
     @pytest.mark.asyncio
     async def test_successful_command(self):
         from app.subprocess_runner import run_command
-        rc, out, err = await run_command(["python", "-c", "print('hello')"])
+        rc, out, err = await run_command([sys.executable, "-c", "print('hello')"])
         assert rc == 0
         assert "hello" in out
 
     @pytest.mark.asyncio
     async def test_nonzero_exit(self):
         from app.subprocess_runner import run_command
-        rc, out, err = await run_command(["python", "-c", "raise SystemExit(1)"])
+        rc, out, err = await run_command([sys.executable, "-c", "raise SystemExit(1)"])
         assert rc == 1
 
 
