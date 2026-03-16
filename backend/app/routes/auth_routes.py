@@ -56,6 +56,22 @@ from ..audit import audit_log
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 
 
+def _wipe_stale_nas_dirs() -> None:
+    """Remove app-managed top-level dirs from NAS root on first-time setup.
+    Wipes stale data from previous installations so the new user starts fresh.
+    Runs in an executor — never blocks the event loop.
+    """
+    import shutil
+    for dirname in ("personal", "family", "entertainment"):
+        d = settings.nas_root / dirname
+        if d.exists():
+            try:
+                shutil.rmtree(d)
+                logger.info("First-time setup: wiped stale NAS dir %s", d)
+            except Exception as e:
+                logger.warning("Could not wipe stale NAS dir %s: %s", d, e)
+
+
 @router.get("/pair/qr")
 async def get_pairing_qr():
     """
@@ -222,6 +238,12 @@ async def create_user(
             await require_admin(caller)
 
         is_admin = is_first_user
+
+        # First-time setup: wipe any stale app folder structure from a previous
+        # installation so the new user starts with a clean NAS file hierarchy.
+        if is_first_user:
+            import asyncio as _asyncio
+            await _asyncio.get_event_loop().run_in_executor(None, _wipe_stale_nas_dirs)
 
         user = await store.add_user(
             body.name,

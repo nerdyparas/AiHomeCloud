@@ -60,9 +60,14 @@ String friendlyError(Object error) {
     return 'Another drive is already active. Safely remove it first.';
   }
 
-  // ── Storage server failure (HTTP 500) ────────────────────────────────────
-  if (msg.contains('Internal Server Error')) {
+  // ── Storage activation failure (HTTP 500 from storage_routes) ──────────
+  if (msg.contains('Could not activate drive')) {
     return 'Could not activate drive. Check the USB connection and try again.';
+  }
+
+  // ── Generic server error (unhandled HTTP 500) ─────────────────────────
+  if (msg.contains('Internal Server Error')) {
+    return 'Something went wrong on the device. Please try again.';
   }
 
   // ── HTTP 401 Unauthorized ──────────────────────────────────────────────

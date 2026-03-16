@@ -166,6 +166,14 @@ async def find_user(user_id: str) -> Optional[dict]:
     return next((u for u in users if u["id"] == user_id), None)
 
 
+def _create_personal_dirs(personal: Path) -> None:
+    """Synchronously create the user's personal directory hierarchy.
+    Runs in a thread executor so it never blocks the event loop."""
+    personal.mkdir(parents=True, exist_ok=True)
+    for sub in ("Photos", "Videos", "Documents", "Others", ".inbox"):
+        (personal / sub).mkdir(exist_ok=True)
+
+
 async def add_user(
     name: str,
     pin: Optional[str] = None,
@@ -183,13 +191,16 @@ async def add_user(
     users.append(user)
     await save_users(users)
 
-    # Create personal folder â€” sanitize name to prevent path traversal
+    # Best-effort: create personal folder hierarchy in a thread executor so we
+    # never block the event loop on USB I/O and never fail user creation due to
+    # storage errors (folders are created on demand when user first uploads).
     safe_name = Path(name).name  # strips any directory components like ../
     personal = settings.personal_path / safe_name
-    personal.mkdir(parents=True, exist_ok=True)
-    # Pre-create the 5 standard sub-folders (including .inbox/ for auto-sorting)
-    for _sub in ("Photos", "Videos", "Documents", "Others", ".inbox"):
-        (personal / _sub).mkdir(exist_ok=True)
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _create_personal_dirs, personal)
+    except Exception as _e:
+        logger.warning("Could not pre-create personal dirs for %s: %s", name, _e)
 
     return user
 
