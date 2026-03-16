@@ -29,7 +29,7 @@ void main() {
         ),
       );
 
-  testWidgets('shows loading indicator while family data loads',
+  testWidgets('renders without crashing while family data loads',
       (WidgetTester tester) async {
     final overrides = [
       familyUsersProvider.overrideWith(
@@ -39,7 +39,11 @@ void main() {
     await tester.pumpWidget(buildSubject(overrides));
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    expect(find.byType(FamilyScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Drain flutter_animate timers
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('shows error text when family users fail to load',

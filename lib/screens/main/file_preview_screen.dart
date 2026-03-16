@@ -35,11 +35,19 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
   @override
   void initState() {
     super.initState();
-    final api = ref.read(apiServiceProvider);
-    _downloadUrl = api.getDownloadUrl(widget.file.path);
-    _authHeaders = api.authHeaders;
+    try {
+      final api = ref.read(apiServiceProvider);
+      _downloadUrl = api.getDownloadUrl(widget.file.path);
+      _authHeaders = api.authHeaders;
+    } catch (e) {
+      _downloadUrl = '';
+      _authHeaders = {};
+      _error = friendlyError(e);
+    }
 
-    if (_isText) {
+    if (_error != null) {
+      _loading = false;
+    } else if (_isText) {
       _loadTextContent();
     } else {
       _loading = false;

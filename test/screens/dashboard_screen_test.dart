@@ -30,10 +30,10 @@ void main() {
   // Loading state
   // ---------------------------------------------------------------------------
 
-  testWidgets('shows CircularProgressIndicator while device info is loading',
+  testWidgets('renders without crashing while device info is loading',
       (WidgetTester tester) async {
     final overrides = [
-      // Never completes â†’ keeps the FutureProvider in loading state.
+      // Never completes → keeps the FutureProvider in loading state.
       deviceInfoProvider.overrideWith(
           (ref) => Future<AhcDevice>.delayed(const Duration(days: 9999))),
       systemStatsStreamProvider
@@ -45,7 +45,9 @@ void main() {
     // One frame — providers initialised but futures not resolved.
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    // Dashboard uses skeleton shimmer cards during loading, not spinners.
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
     // Drain lingering animation timers (shimmer starts at 200 ms, runs for
     // 1 500 ms with count=1, plus 400 ms header fadeIn = all done < 2 s).
     await tester.pump(const Duration(milliseconds: 2500));

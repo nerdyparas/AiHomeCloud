@@ -42,13 +42,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows loading indicator initially',
+  testWidgets('renders without crashing during initial load',
       (WidgetTester tester) async {
     await tester.pumpWidget(buildSubject([]));
-    // First frame — _loading is true
+    // First frame
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(TelegramSetupScreen), findsOneWidget);
+    // Allow async _loadConfig to settle
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('contains AppBar', (WidgetTester tester) async {

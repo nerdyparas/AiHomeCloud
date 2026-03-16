@@ -197,6 +197,9 @@ settings = Settings()
 if not os.getenv("AHC_JWT_SECRET") and settings.jwt_secret == "change-me-in-production":
     try:
         settings.jwt_secret = generate_jwt_secret()
+    except PermissionError:
+        # CI / test environment — can't write to disk, use in-memory secret
+        settings.jwt_secret = secrets.token_hex(32)
     except Exception:
         import logging as _logging
         _logging.getLogger("aihomecloud.config").critical(

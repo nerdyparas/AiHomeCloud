@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:aihomecloud/l10n/app_localizations.dart';
 import 'package:aihomecloud/providers/core_providers.dart';
 import 'package:aihomecloud/screens/main/files_screen.dart';
 
@@ -19,16 +20,21 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           ...overrides,
         ],
-        child: const MaterialApp(home: FilesScreen()),
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: FilesScreen(),
+        ),
       );
 
   group('FilesScreen', () {
-    testWidgets('renders Files title at the top', (WidgetTester tester) async {
+    testWidgets('renders My Files title at the top', (WidgetTester tester) async {
       await tester.pumpWidget(buildSubject([]));
       await tester.pump();
 
       expect(find.byType(FilesScreen), findsOneWidget);
-      expect(find.text('Files'), findsOneWidget);
+      // Title + personal folder card both show 'My Files' when no session
+      expect(find.text('My Files'), findsWidgets);
     });
 
     testWidgets('displays three primary folder cards in root view',
@@ -81,6 +87,8 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
+      // Drain animation timers from FolderView transition
+      await tester.pump(const Duration(seconds: 2));
     });
   });
 }

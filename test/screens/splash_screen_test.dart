@@ -24,6 +24,14 @@ void main() {
 
   testWidgets('renders splash screen without crashing',
       (WidgetTester tester) async {
+    // Set a phone-sized viewport to avoid layout overflow.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     // No session — stays on splash, won't navigate away
     await tester.pumpWidget(buildSubject([]));
     await tester.pump();
@@ -32,15 +40,22 @@ void main() {
     expect(find.byType(Scaffold), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    // Pump past animations to avoid hanging timers
-    await tester.pump(const Duration(seconds: 3));
+    // Pump past animations + network scan timers (scan starts at ~2.4s)
+    await tester.pump(const Duration(seconds: 10));
   });
 
   testWidgets('shows app name', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(buildSubject([]));
     await tester.pump();
 
     expect(find.text('AiHomeCloud'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 10));
   });
 }

@@ -50,6 +50,6 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.byType(AppBar), findsOneWidget);
-    expect(find.byType(BackButton), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
   });
 }
