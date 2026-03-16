@@ -8,6 +8,8 @@ and path length validation in file routes.
 import sys
 
 import pytest
+
+pytestmark = pytest.mark.security
 from httpx import AsyncClient
 from pathlib import Path
 from fastapi import HTTPException

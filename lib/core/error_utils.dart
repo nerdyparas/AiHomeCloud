@@ -70,6 +70,15 @@ String friendlyError(Object error) {
     return 'Please sign in again.';
   }
 
+  // ── HTTP 429 Too Many Requests ─────────────────────────────────────────
+  if (msg.contains('429') ||
+      msg.contains('Too many requests') ||
+      msg.contains('too many requests') ||
+      msg.contains('rate limit') ||
+      msg.contains('Rate limit')) {
+    return 'Too many requests. Please wait a moment.';
+  }
+
   // ── Generic Exception wrapper — strip "Exception: " prefix ─────────────
   if (msg.startsWith('Exception: ')) {
     final inner = msg.substring(11);

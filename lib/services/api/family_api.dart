@@ -69,4 +69,19 @@ extension FamilyApi on ApiService {
     );
     _check(res);
   }
+
+  /// PUT /api/v1/users/family/<id>/role  body: {isAdmin: bool}
+  Future<void> setUserRole(String userId, {required bool isAdmin}) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .put(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/users/family/$userId/role'),
+            headers: _headers,
+            body: jsonEncode({'isAdmin': isAdmin}),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
 }

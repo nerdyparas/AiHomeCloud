@@ -6,7 +6,7 @@
 
 ## Your role
 
-You are a senior engineer doing a full audit of this repository.
+You are a principal engineer doing a full audit of this repository.
 Your ONLY permitted action is creating files inside `docs/audit/`.
 You must NOT edit any source file, test file, config file, or workflow file.
 You must NOT fix anything. You must NOT suggest "quick fixes" inline.
@@ -195,8 +195,9 @@ Check for:
 Read `.github/workflows/backend-tests.yml` and `.github/workflows/flutter-analyze.yml`.
 
 Check for:
-- **Python version**: CI and the Radxa Cubie both run Python 3.12.10.
-  Confirm no Python 3.13-only syntax is used. Note any
+- **Python version mismatch**: CI uses Python 3.12. The Radxa Cubie runs
+  Python 3.11 (as established in previous sessions). Does this matter for
+  any f-string, match statement, or type hint syntax used? Note any
   Python 3.12-only syntax found in backend code.
 - **Missing path triggers**: `flutter-analyze.yml` only triggers on
   `lib/**`, `test/**`, `pubspec.yaml`. It does NOT trigger on changes to

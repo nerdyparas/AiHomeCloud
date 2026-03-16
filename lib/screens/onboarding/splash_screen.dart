@@ -23,6 +23,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _contentShifted = false;
   List<DiscoveredHost> _hosts = [];
   String? _error;
+  bool _isConnecting = false;
 
   @override
   void initState() {
@@ -88,6 +89,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _selectDevice(DiscoveredHost host) async {
+    setState(() => _isConnecting = true);
     try {
       final api = ref.read(apiServiceProvider);
       final entries = await api.fetchUserEntries(host.ip);
@@ -99,7 +101,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       }
     } catch (_) {
       if (!mounted) return;
+      // Go to user picker anyway, it will show a connection error.
       context.go('/user-picker', extra: host.ip);
+    } finally {
+      if (mounted) {
+        setState(() => _isConnecting = false);
+      }
     }
   }
 
@@ -110,23 +117,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
+          child: Stack(
             children: [
-              Expanded(
-                flex: 2,
-                child: AnimatedAlign(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOut,
-                  alignment: _contentShifted
-                      ? const Alignment(0, -0.8)
-                      : Alignment.center,
-                  child: _heroContent(),
-                ),
+              Column(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: AnimatedAlign(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut,
+                      alignment: _contentShifted
+                          ? const Alignment(0, -0.8)
+                          : Alignment.center,
+                      child: _heroContent(),
+                    ),
+                  ),
+                  if (_contentShifted)
+                    Expanded(
+                      flex: 3,
+                      child: _scanContent(),
+                    ),
+                ],
               ),
-              if (_contentShifted)
-                Expanded(
-                  flex: 3,
-                  child: _scanContent(),
+              if (_isConnecting)
+                Container(
+                  color: AppColors.background.withValues(alpha: 0.5),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
                 ),
             ],
           ),
@@ -206,7 +224,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   children: _hosts
                       .map((h) => _DeviceTile(
                             host: h,
-                            onTap: () => _selectDevice(h),
+                            onTap: _isConnecting ? null : () => _selectDevice(h),
                           )
                               .animate()
                               .fadeIn(duration: 300.ms)

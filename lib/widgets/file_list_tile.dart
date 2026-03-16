@@ -30,7 +30,12 @@ class FileListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return Semantics(
+      label: file.isDirectory
+          ? '${file.name}, folder'
+          : '${file.name}, ${file.formattedSize}',
+      button: onTap != null,
+      child: Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -90,6 +95,7 @@ class FileListTile extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

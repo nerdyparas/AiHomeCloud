@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/constants.dart';
 import '../core/theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/models.dart';
 import '../providers.dart';
 import '../widgets/notification_listener.dart';
@@ -111,21 +112,25 @@ class _MainShellState extends ConsumerState<MainShell> {
         body: Column(
           children: [
             if (connection == ConnectionStatus.reconnecting)
-              Container(
+              Semantics(
+                label: 'Reconnecting to AiHomeCloud',
+                liveRegion: true,
+                child: Container(
                 width: double.infinity,
                 color: AppColors.primary.withValues(alpha: 0.18),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: const Row(
+                child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 12,
                       height: 12,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    SizedBox(width: 8),
-                    Text('Reconnectingâ€¦'),
+                    const SizedBox(width: 8),
+                    Text(AppLocalizations.of(context)!.shellReconnecting),
                   ],
                 ),
+              ),
               ),
             if (upload.active)
               Container(
@@ -141,7 +146,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Uploading ${upload.done} of ${upload.total} file(s)â€¦',
+                      AppLocalizations.of(context)!.shellUploadingProgress(upload.done, upload.total),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -158,7 +163,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                         size: 14, color: Colors.green),
                     const SizedBox(width: 8),
                     Text(
-                      '${upload.done} of ${upload.total} file(s) saved to AiHomeCloud',
+                      AppLocalizations.of(context)!.shellUploadComplete(upload.done, upload.total),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -179,18 +184,18 @@ class _MainShellState extends ConsumerState<MainShell> {
                         child: Icon(Icons.cloud_off_rounded, size: 14, color: AppColors.error),
                       ),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'AiHomeCloud is not reachable.',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              AppLocalizations.of(context)!.shellNotReachable,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                             Text(
-                              'Check your Wi-Fi and make sure the device is powered on.',
-                              style: TextStyle(fontSize: 11),
+                              AppLocalizations.of(context)!.shellCheckWifi,
+                              style: const TextStyle(fontSize: 11),
                             ),
                           ],
                         ),
@@ -199,7 +204,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                       TextButton.icon(
                         onPressed: () => context.go('/scan-network'),
                         icon: const Icon(Icons.wifi_find_rounded, size: 14),
-                        label: const Text('Reconnect', style: TextStyle(fontSize: 12)),
+                        label: Text(AppLocalizations.of(context)!.shellReconnect, style: const TextStyle(fontSize: 12)),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -239,11 +244,12 @@ class _MainShellState extends ConsumerState<MainShell> {
             }
           },
           destinations: [
-            _dest(Icons.home_outlined, Icons.home_rounded, 'Home', idx == 0),
-            _dest(Icons.folder_outlined, Icons.folder_rounded, 'Files',
-                idx == 1),
-            _dest(Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More',
-                idx == 2),
+            _dest(Icons.home_outlined, Icons.home_rounded,
+                AppLocalizations.of(context)!.navHome, idx == 0),
+            _dest(Icons.folder_outlined, Icons.folder_rounded,
+                AppLocalizations.of(context)!.navMyFiles, idx == 1),
+            _dest(Icons.more_horiz_rounded, Icons.more_horiz_rounded,
+                AppLocalizations.of(context)!.navMore, idx == 2),
           ],
         ),
       ),
@@ -256,9 +262,12 @@ class _MainShellState extends ConsumerState<MainShell> {
     return NavigationDestination(
       icon: Icon(icon,
           color: active ? AppColors.primary : AppColors.textMuted,
-          size: 22),
-      selectedIcon: Icon(activeIcon, color: AppColors.primary, size: 22),
+          size: 22,
+          semanticLabel: label),
+      selectedIcon: Icon(activeIcon, color: AppColors.primary, size: 22,
+          semanticLabel: label),
       label: label,
+      tooltip: label,
     );
   }
 
@@ -331,7 +340,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                     Switch(
                       value: _notifyWhenBack,
-                      activeColor: AppColors.primary,
+                      activeTrackColor: AppColors.primary,
                       onChanged: (value) {
                         setSheetState(() {});
                         setState(() => _notifyWhenBack = value);

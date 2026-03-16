@@ -8,6 +8,7 @@ import secrets
 import socket
 import stat
 from pathlib import Path
+from typing import Any
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
@@ -112,6 +113,7 @@ class Settings(BaseSettings):
     telegram_api_hash: str = ""       # from my.telegram.org â€” needed for local server
     telegram_local_api_enabled: bool = False   # True when local server is running
     telegram_local_api_url: str = "http://127.0.0.1:8081"  # local server address
+    telegram_download_timeout: int = 600  # AHC_TELEGRAM_DOWNLOAD_TIMEOUT — seconds for file transfers
 
     # â”€â”€ SQLite file index (feature-flagged â€” off by default) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     enable_sqlite: bool = False   # AHC_ENABLE_SQLITE â€” creates file_index + ai_jobs tables when True
@@ -176,7 +178,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value):
+    def parse_cors_origins(cls, value: Any) -> list[str]:
         """Accept comma-separated env var values for CORS origins."""
         if value is None:
             return DEFAULT_CORS_ORIGINS.copy()

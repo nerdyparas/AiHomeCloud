@@ -16,14 +16,17 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from ..auth import get_current_user
+from ..audit import audit_log
 from ..config import settings
 from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest, TrashItem
 from .. import store
 from ..file_sorter import _destination_folder
 from ..events import file_event_bus, FileEvent
+from ..limiter import limiter
 from .event_routes import emit_upload_complete
 
 # Larger write buffer for uploads â€” 2 MB (fewer syscalls on ARM)
@@ -31,7 +34,19 @@ _UPLOAD_WRITE_BUF = 2 * 1024 * 1024
 
 # Lock to prevent concurrent trash purge operations
 _trash_purge_lock = asyncio.Lock()
+# Short-lived scandir result cache.  Key: "<resolved_dir>|<sort_by>|<sort_dir>|<page>|<page_size>"
+# Value: (result_tuple, expires_at_monotonic)
+import time as _time
+_scan_cache: dict[str, tuple] = {}
+_SCAN_TTL = 7.0  # seconds
 
+
+def _invalidate_scan_cache(dir_path: str) -> None:
+    """Remove every cache entry for the given directory."""
+    prefix = dir_path + "|"
+    to_del = [k for k in _scan_cache if k.startswith(prefix)]
+    for k in to_del:
+        _scan_cache.pop(k, None)
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
 # Executables and dangerous file types that must never be uploaded to the NAS.
@@ -181,7 +196,9 @@ def _scandir_list(resolved: Path, nas_root_str: str, sort_key: str, reverse: boo
 
 
 @router.get("/list", response_model=FileListResponse)
+@limiter.limit("60/minute")
 async def list_files(
+    request: Request,
     path: str = Query("/srv/nas/family/"),
     page: int = Query(0, ge=0),
     page_size: int = Query(50, ge=1, le=500, alias="page_size"),
@@ -201,12 +218,19 @@ async def list_files(
 
     loop = asyncio.get_running_loop()
     nas_root_str = str(settings.nas_root.resolve())
-    paged, total_count = await loop.run_in_executor(
-        None,
-        partial(_scandir_list, resolved, nas_root_str,
-                sort_by.lower(), sort_dir.lower() == "desc",
-                page, page_size),
-    )
+    cache_key = f"{str(resolved)}|{sort_by}|{sort_dir}|{page}|{page_size}"
+    now = _time.monotonic()
+    cached = _scan_cache.get(cache_key)
+    if cached and now < cached[1]:
+        paged, total_count = cached[0]
+    else:
+        paged, total_count = await loop.run_in_executor(
+            None,
+            partial(_scandir_list, resolved, nas_root_str,
+                    sort_by.lower(), sort_dir.lower() == "desc",
+                    page, page_size),
+        )
+        _scan_cache[cache_key] = ((paged, total_count), now + _SCAN_TTL)
 
     return FileListResponse(
         items=[FileItem(**i) for i in paged],
@@ -217,18 +241,22 @@ async def list_files(
 
 
 @router.post("/mkdir", status_code=status.HTTP_201_CREATED)
-async def create_folder(body: CreateFolderRequest, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def create_folder(request: Request, body: CreateFolderRequest, user: dict = Depends(get_current_user)):
     """Create a new directory."""
     _require_external_storage()
     resolved = _safe_resolve(body.path)
     if resolved.exists():
         raise HTTPException(status.HTTP_409_CONFLICT, "Folder already exists")
     resolved.mkdir(parents=True, exist_ok=True)
+    _invalidate_scan_cache(str(resolved.parent))
     return {"path": body.path}
 
 
 @router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 async def delete_file(
+    request: Request,
     path: str = Query(...),
     user: dict = Depends(get_current_user),
 ):
@@ -260,15 +288,6 @@ async def delete_file(
     else:
         size_bytes = sum(f.stat().st_size for f in resolved.rglob("*") if f.is_file())
 
-    shutil.move(str(resolved), str(trash_path))
-
-    # Keep document index in sync with soft-delete operations.
-    from ..document_index import remove_document, remove_documents_by_prefix
-    if resolved.is_file() and _is_documents_scoped(resolved):
-        await remove_document(path)
-    elif resolved.is_dir() and _is_documents_scoped(resolved):
-        await remove_documents_by_prefix(path)
-
     item = {
         "id": str(uuid.uuid4()),
         "originalPath": path,
@@ -279,9 +298,29 @@ async def delete_file(
         "deletedBy": user_id,
     }
 
+    # Write metadata FIRST — if the move fails we can roll it back cleanly.
     items = await store.get_trash_items()
     items.append(item)
     await store.save_trash_items(items)
+
+    try:
+        shutil.move(str(resolved), str(trash_path))
+    except Exception:
+        # Rollback: remove the item we just appended and re-save.
+        items = [i for i in items if i["id"] != item["id"]]
+        await store.save_trash_items(items)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to move file to trash")
+
+    _invalidate_scan_cache(str(resolved.parent))
+
+    # Keep document index in sync with soft-delete operations.
+    from ..document_index import remove_document, remove_documents_by_prefix
+    if resolved.is_file() and _is_documents_scoped(resolved):
+        await remove_document(path)
+    elif resolved.is_dir() and _is_documents_scoped(resolved):
+        await remove_documents_by_prefix(path)
+
+    audit_log("file_deleted", actor_id=user_id, path=path, file_name=filename, size_bytes=size_bytes)
 
     # Publish file-event for downstream consumers (AI features, audit log)
     await file_event_bus.publish(FileEvent(
@@ -474,7 +513,8 @@ async def set_trash_prefs(body: _TrashPrefsBody, user: dict = Depends(get_curren
 
 
 @router.put("/rename", status_code=status.HTTP_204_NO_CONTENT)
-async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def rename_file(request: Request, body: RenameRequest, user: dict = Depends(get_current_user)):
     """Rename a file or directory."""
     _require_external_storage()
     if not body.new_name.strip():
@@ -512,6 +552,7 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
     was_file = resolved.is_file()
     was_dir = resolved.is_dir()
     resolved.rename(new_path)
+    _invalidate_scan_cache(str(resolved.parent))
 
     # Keep index paths aligned after rename/move.
     from ..document_index import (
@@ -532,7 +573,9 @@ async def rename_file(body: RenameRequest, user: dict = Depends(get_current_user
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
 async def upload_file(
+    request: Request,
     path: str = Query("", description="Destination directory (NAS-absolute). If empty, falls back to user's .inbox/ for auto-sorting."),
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
@@ -589,25 +632,36 @@ async def upload_file(
     max_bytes = settings.max_upload_bytes
     loop = asyncio.get_running_loop()
 
+    # Write to .uploading temp path so the file sorter skips in-progress uploads.
+    uploading_dest = resolved_dest.with_name(resolved_dest.name + ".uploading")
+
     # Use buffered I/O and write in the thread pool to avoid blocking the event loop.
-    fd = open(resolved_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
+    fd = open(uploading_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
     try:
         while chunk := await file.read(settings.upload_chunk_size):
             total += len(chunk)
             if max_bytes and total > max_bytes:
                 fd.close()
-                resolved_dest.unlink(missing_ok=True)
+                uploading_dest.unlink(missing_ok=True)
                 raise HTTPException(
                     status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     f"File exceeds maximum upload size of {max_bytes // (1024*1024)} MB",
                 )
             await loop.run_in_executor(None, fd.write, chunk)
+    except Exception:
+        fd.close()
+        uploading_dest.unlink(missing_ok=True)
+        raise
     finally:
         fd.close()
+
+    # Rename from .uploading to final path atomically
+    uploading_dest.rename(resolved_dest)
 
     # Fire-and-forget notifications so the upload response returns immediately.
     user_name = user.get("sub", "unknown")
     asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
+    _invalidate_scan_cache(str(dest_dir))
 
     # Direct uploads to Documents bypass .inbox; index them immediately.
     if not use_inbox and _is_document_file(resolved_dest):
@@ -643,7 +697,9 @@ async def _post_upload_notify(safe_name: str, user_name: str, resolved_path: str
 
 
 @router.get("/download")
+@limiter.limit("120/minute")
 async def download_file(
+    request: Request,
     path: str = Query(..., description="NAS path to the file to download"),
     user: dict = Depends(get_current_user),
 ):

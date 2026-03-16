@@ -24,12 +24,16 @@ async def device_info(request: Request, user: dict = Depends(get_current_user)):
     state = await store.get_device_state()
     board = getattr(request.app.state, "board", None)
     board_model = board.model_name if board else "unknown"
+
+    from ..document_index import ocr_pdftotext_available, ocr_tesseract_available
+
     return AhcDevice(
         serial=settings.device_serial,
         name=state.get("name", settings.device_name),
         ip=get_local_ip(),
         firmwareVersion=settings.firmware_version,
         boardModel=board_model,
+        ocrAvailable=ocr_pdftotext_available and ocr_tesseract_available,
     )
 
 
@@ -45,14 +49,13 @@ async def check_firmware(user: dict = Depends(get_current_user)):
     )
 
 
-@router.post("/update", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/update", status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def trigger_update(user: dict = Depends(require_admin)):
     """
     Trigger an OTA firmware update.
-    In production this would kick off an async update process.
+    Not yet implemented — returns 501.
     """
-    # TODO: Implement real OTA update logic
-    return {"status": "update_started"}
+    raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "OTA updates not yet available")
 
 
 @router.put("/name", status_code=status.HTTP_204_NO_CONTENT)

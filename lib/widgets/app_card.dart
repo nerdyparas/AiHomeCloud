@@ -9,6 +9,8 @@ class AppCard extends StatelessWidget {
   final EdgeInsets? padding;
   final bool glowing;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final String? semanticLabel;
 
   const AppCard({
     super.key,
@@ -16,12 +18,18 @@ class AppCard extends StatelessWidget {
     this.padding,
     this.glowing = false,
     this.onTap,
+    this.onLongPress,
+    this.semanticLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Semantics(
+      label: semanticLabel,
+      button: onTap != null || onLongPress != null,
+      child: GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         padding: padding ?? const EdgeInsets.all(16),
@@ -46,6 +54,7 @@ class AppCard extends StatelessWidget {
         ),
         child: child,
       ),
+    ),
     );
   }
 }

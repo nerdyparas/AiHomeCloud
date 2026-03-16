@@ -51,6 +51,7 @@ from ..models import (
     UpdateProfileRequest,
 )
 from .. import store
+from ..audit import audit_log
 
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 
@@ -103,9 +104,9 @@ async def pair_device(request: Request, body: PairRequest):
     Pair with the Cubie by providing its serial + pairing key.
     Returns a JWT on success.
     """
-    if body.serial != settings.device_serial:
+    if not hmac.compare_digest(body.serial, settings.device_serial):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Unknown serial")
-    if body.key != settings.pairing_key:
+    if not hmac.compare_digest(body.key, settings.pairing_key):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid pairing key")
 
     token = create_token(subject=body.serial, extra={"type": "device"})
@@ -119,14 +120,13 @@ async def pair_complete(request: Request, body: PairCompleteRequest):
     Complete pairing by validating serial, pairing key, and OTP.
     On success, clears stored OTP and returns a device JWT.
     """
-    if body.serial != settings.device_serial:
+    if not hmac.compare_digest(body.serial, settings.device_serial):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Unknown serial")
-    if body.key != settings.pairing_key:
+    if not hmac.compare_digest(body.key, settings.pairing_key):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid pairing key")
 
     # Validate OTP
     import hashlib
-    import hmac
     from datetime import datetime, timezone
 
     otp_rec = await store.get_otp()
@@ -205,24 +205,30 @@ async def create_user(
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
 
-    existing = await store.get_users()
-    is_first_user = len(existing) == 0
-
-    if not is_first_user:
-        # Require admin auth once the first user has been created
-        if caller is None:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
-        await require_admin(caller)
-
-    is_admin = is_first_user
-
+    # Hash the PIN before entering the creation lock so we don't hold it during bcrypt.
     hashed_pin = await hash_password(body.pin) if body.pin else None
-    user = await store.add_user(
-        body.name,
-        hashed_pin,
-        is_admin=is_admin,
-        icon_emoji=body.icon_emoji.strip(),
-    )
+
+    # Acquire the dedicated creation lock so the read → check → write sequence is
+    # atomic.  We cannot reuse store._store_lock here because add_user() also
+    # acquires it (via save_users), which would deadlock.
+    async with store._user_creation_lock:
+        existing = await store.get_users()
+        is_first_user = len(existing) == 0
+
+        if not is_first_user:
+            # Require admin auth once the first user has been created
+            if caller is None:
+                raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
+            await require_admin(caller)
+
+        is_admin = is_first_user
+
+        user = await store.add_user(
+            body.name,
+            hashed_pin,
+            is_admin=is_admin,
+            icon_emoji=body.icon_emoji.strip(),
+        )
 
     # Auto-login: return tokens immediately so the client needs only one request.
     access_token = create_token(
@@ -444,6 +450,8 @@ async def delete_my_profile(user: dict = Depends(get_current_user)):
     removed = await store.remove_user(user_id)
     if not removed:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    audit_log("user_deleted_self", actor_id=user_id, user_name=found["name"])
 
     # Delete personal folder (best-effort, non-blocking)
     safe_name = Path(found["name"]).name

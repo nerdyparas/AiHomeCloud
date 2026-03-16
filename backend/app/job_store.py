@@ -23,6 +23,7 @@ class Job:
     id: str
     status: JobStatus
     started_at: datetime
+    user_id: str = ""
     result: Any = None
     error: str | None = None
 
@@ -53,12 +54,13 @@ def _purge_old_jobs() -> None:
             del _jobs[jid]
 
 
-def create_job() -> Job:
+def create_job(user_id: str = "") -> Job:
     _purge_old_jobs()
     job = Job(
         id=uuid4().hex,
         status=JobStatus.pending,
         started_at=datetime.now(timezone.utc),
+        user_id=user_id,
     )
     _jobs[job.id] = job
     return job

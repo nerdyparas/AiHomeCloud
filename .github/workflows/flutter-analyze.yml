@@ -39,3 +39,6 @@ jobs:
 
       - name: Run Flutter Tests
         run: flutter test --exclude-tags golden
+
+      - name: Verify Android APK builds
+        run: flutter build apk --debug

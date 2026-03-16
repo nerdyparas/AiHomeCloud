@@ -19,6 +19,7 @@ import '../screens/onboarding/pin_entry_screen.dart';
 import '../screens/onboarding/profile_creation_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
 import '../providers.dart';
+import '../providers/discovery_providers.dart';
 import '../services/auth_session.dart';
 import 'main_shell.dart';
 
@@ -53,6 +54,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/';
       }
 
+      // /profile-creation requires discovery to have completed first.
+      // If navigated to directly without going through QR/mDNS flow, redirect
+      // to the scan screen. Exempt authenticated users adding a new family member.
+      if (loc == '/profile-creation' && authSession == null) {
+        final discovery = ref.read(discoveryNotifierProvider);
+        if (discovery.status != DiscoveryStatus.found) {
+          return '/scan-network';
+        }
+      }
+
       // Allow /scan-network when authenticated (for reconnection).
       // Splash handles session-exists → user-picker redirect itself.
       return null;
@@ -78,7 +89,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile-creation',
         builder: (_, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra;
+          if (extra is! Map<String, dynamic>) {
+            // Guard: extra is missing when navigation bypassed the onboarding
+            // flow. Redirect to splash so the router can handle it properly.
+            return const SplashScreen();
+          }
           return ProfileCreationScreen(
             deviceIp: extra['ip'] as String,
             isAddingUser: extra['isAddingUser'] as bool? ?? false,

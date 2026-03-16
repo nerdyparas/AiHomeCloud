@@ -2,6 +2,7 @@
 library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/error_utils.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import 'core_providers.dart';
@@ -48,7 +49,7 @@ class ServicesNotifier
       await _api.toggleService(serviceId, enabled);
     } catch (e) {
       state = previous; // rollback
-      onError(e.toString());
+      onError(friendlyError(e));
     }
   }
 }

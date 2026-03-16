@@ -36,9 +36,9 @@
 | Telegram bot | `backend/app/telegram_bot.py` | Telegram bot with auth linking, file receive, trash warnings |
 | Document index | `backend/app/document_index.py` | FTS5 document search indexing |
 | File sorter | `backend/app/file_sorter.py` | Auto file organization by type |
-| Auto AP | `backend/app/auto_ap.py` | Auto access-point fallback when no network |
+| WiFi manager | `backend/app/wifi_manager.py` | Auto-disable WiFi when Ethernet active |
 
-**Route files (14):**
+**Route files (14+1 helper):**
 
 | File | Prefix | Endpoints | Purpose |
 |---|---|---|---|
@@ -46,11 +46,12 @@
 | `system_routes.py` | `/api/v1/system` | 6 | Info, firmware, OTA update, rename, shutdown, reboot |
 | `monitor_routes.py` | `/ws` | 1 WS | Real-time system stats stream (`/ws/monitor`) |
 | `file_routes.py` | `/api/v1/files` | 14 | List, mkdir, delete, trash CRUD, rename, upload, download, search, sort, roots |
-| `family_routes.py` | `/api/v1/users/family` | 3 | List, add, remove family members |
+| `family_routes.py` | `/api/v1/users/family` | 4 | List, add, remove, set role |
 | `service_routes.py` | `/api/v1/services` | 2 | List services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | 9 | Devices, scan, SMART, usage, format, mount, unmount, eject, stats |
+| `storage_helpers.py` | (internal) | 0 | Helper functions for storage_routes |
 | `network_routes.py` | `/api/v1/network` | 3 | Status, Wi-Fi get/set |
-| `telegram_routes.py` | `/api/v1/telegram` | 3 | Config get/set, unlink |
+| `telegram_routes.py` | `/api/v1/telegram` | 6 | Config get/set, unlink, pending list/approve/deny |
 | `telegram_upload_routes.py` | `/telegram-upload` | 2 | HTML upload form (GET), file upload (POST) — token auth |
 | `jobs_routes.py` | `/api/v1/jobs` | 1 | Job status polling |
 | `event_routes.py` | `/ws` | 1 WS | Real-time event stream (`/ws/events`) |

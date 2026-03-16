@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
 import '../core/error_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../models/models.dart';
 import '../providers.dart';
 import 'app_card.dart';
@@ -49,6 +50,9 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   /// Active upload subscriptions keyed by task ID — used for cancellation.
   final Map<String, StreamSubscription<int>> _uploadSubscriptions = {};
+
+  /// Guard to prevent multiple file pickers opening simultaneously.
+  bool _isPickerOpen = false;
 
   @override
   void initState() {
@@ -189,7 +193,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               ListTile(
                 leading: const Icon(Icons.edit_rounded,
                     color: AppColors.textSecondary),
-                title: Text('Rename',
+                title: Text(AppLocalizations.of(context)!.folderRenameTitle,
                     style: GoogleFonts.dmSans(color: AppColors.textPrimary)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -199,7 +203,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               ListTile(
                 leading:
                     const Icon(Icons.delete_rounded, color: AppColors.error),
-                title: Text('Delete',
+                title: Text(AppLocalizations.of(context)!.folderDeleteTitle,
                     style: GoogleFonts.dmSans(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -215,20 +219,21 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   void _renameFile(FileItem file) {
     final ctrl = TextEditingController(text: file.name);
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Rename', style: GoogleFonts.sora()),
+        title: Text(l10n.folderRenameTitle, style: GoogleFonts.sora()),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'New name'),
+          decoration: InputDecoration(hintText: l10n.folderRenameHint),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style:
                     GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
@@ -250,7 +255,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                 }
               }
             },
-            child: Text('Rename',
+            child: Text(l10n.folderRenameButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -274,9 +279,9 @@ class _FolderViewState extends ConsumerState<FolderView> {
     ScaffoldMessenger.of(context)
         .showSnackBar(
           SnackBar(
-            content: Text('${file.name} moved to Trash'),
+            content: Text(AppLocalizations.of(context)!.folderMovedToTrash(file.name)),
             duration: const Duration(seconds: 30),
-            action: SnackBarAction(label: 'Undo', onPressed: () {}),
+            action: SnackBarAction(label: AppLocalizations.of(context)!.buttonUndo, onPressed: () {}),
           ),
         )
         .closed
@@ -300,7 +305,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
               _totalCount += 1;
             });
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Delete failed: ${friendlyError(e)}')),
+              SnackBar(content: Text(AppLocalizations.of(context)!.folderDeleteFailed(friendlyError(e)))),
             );
           }
         });
@@ -335,11 +340,11 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   child: const Icon(Icons.upload_file_rounded,
                       color: AppColors.primary),
                 ),
-                title: Text('Upload File',
+                title: Text(AppLocalizations.of(context)!.folderUploadFileTitle,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500)),
-                subtitle: Text('Choose from your phone',
+                subtitle: Text(AppLocalizations.of(context)!.folderUploadFileSubtitle,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary, fontSize: 12)),
                 onTap: () {
@@ -358,11 +363,11 @@ class _FolderViewState extends ConsumerState<FolderView> {
                   child: const Icon(Icons.create_new_folder_rounded,
                       color: AppColors.secondary),
                 ),
-                title: Text('New Folder',
+                title: Text(AppLocalizations.of(context)!.folderNewFolderTitle,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500)),
-                subtitle: Text('Create a new directory',
+                subtitle: Text(AppLocalizations.of(context)!.folderNewFolderSubtitle,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary, fontSize: 12)),
                 onTap: () {
@@ -379,20 +384,21 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   void _createFolder() {
     final ctrl = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('New Folder', style: GoogleFonts.sora()),
+        title: Text(l10n.folderNewFolderTitle, style: GoogleFonts.sora()),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Folder name'),
+          decoration: InputDecoration(hintText: l10n.folderNewFolderHint),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style:
                     GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
@@ -414,7 +420,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                 }
               }
             },
-            child: Text('Create',
+            child: Text(l10n.folderCreateButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -480,7 +486,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
         // 2. Show immediate snackbar — don't wait for sortedTo
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ ${task.fileName} uploaded')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.folderUploadedSnackbar(task.fileName))),
           );
         }
 
@@ -505,10 +511,30 @@ class _FolderViewState extends ConsumerState<FolderView> {
       onError: (e) {
         _uploadSubscriptions.remove(task.id);
         if (mounted) {
+          final errorMsg = friendlyError(e);
           ref.read(uploadTasksProvider.notifier).updateTask(
             task.id,
             status: UploadStatus.failed,
-            error: friendlyError(e),
+            error: errorMsg,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.folderUploadFailed(errorMsg)),
+              action: SnackBarAction(
+                label: AppLocalizations.of(context)!.buttonRetryAction,
+                onPressed: () {
+                  ref.read(uploadTasksProvider.notifier).removeTask(task.id);
+                  final retryTask = UploadTask(
+                    id: 'retry_${DateTime.now().millisecondsSinceEpoch}_${task.fileName.hashCode}',
+                    fileName: task.fileName,
+                    totalBytes: task.totalBytes,
+                    filePath: task.filePath,
+                    destinationPath: task.destinationPath,
+                  );
+                  _startUpload(retryTask);
+                },
+              ),
+            ),
           );
         }
       },
@@ -519,19 +545,33 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   /// Pick one or more files from the device and upload them to the Cubie.
   void _uploadFile() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result == null || result.files.isEmpty) return;
+    if (_isPickerOpen) return;
+    if (ref.read(connectionProvider) != ConnectionStatus.connected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError('Connection lost'))),
+        );
+      }
+      return;
+    }
+    _isPickerOpen = true;
+    try {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (result == null || result.files.isEmpty) return;
 
-    for (final pickedFile in result.files) {
-      if (pickedFile.path == null) continue;
-      final task = UploadTask(
-        id: 'upload_${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name.hashCode}',
-        fileName: pickedFile.name,
-        totalBytes: pickedFile.size,
-        filePath: pickedFile.path,
-        destinationPath: _currentPath,
-      );
-      _startUpload(task);
+      for (final pickedFile in result.files) {
+        if (pickedFile.path == null) continue;
+        final task = UploadTask(
+          id: 'upload_${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name.hashCode}',
+          fileName: pickedFile.name,
+          totalBytes: pickedFile.size,
+          filePath: pickedFile.path,
+          destinationPath: _currentPath,
+        );
+        _startUpload(task);
+      }
+    } finally {
+      _isPickerOpen = false;
     }
   }
 
@@ -539,11 +579,12 @@ class _FolderViewState extends ConsumerState<FolderView> {
 
   /// Map the backend sortedTo folder name to a friendly snackbar message.
   String _uploadSnackMessage(String fileName, String? sortedTo) {
+    final l10n = AppLocalizations.of(context)!;
     return switch (sortedTo) {
-      'Photos' => '📸 $fileName sorted to Photos',
-      'Videos' => '🎬 $fileName sorted to Videos',
-      'Documents' => '📄 $fileName sorted to Documents',
-      _ => '✅ $fileName uploaded',
+      'Photos' => l10n.folderSortedToPhotos(fileName),
+      'Videos' => l10n.folderSortedToVideos(fileName),
+      'Documents' => l10n.folderSortedToDocuments(fileName),
+      _ => l10n.folderUploadedSnackbar(fileName),
     };
   }
 
@@ -565,6 +606,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
   }
 
   Widget _buildNoStorageMessage() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -574,14 +616,14 @@ class _FolderViewState extends ConsumerState<FolderView> {
             const Icon(Icons.usb_off_rounded,
                 size: 64, color: AppColors.textMuted),
             const SizedBox(height: 16),
-            Text('No Storage Connected',
+            Text(l10n.filesNoStorageTitle,
                 style: GoogleFonts.sora(
                     color: AppColors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text(
-              'Connect a USB drive or NVMe to your Cubie to use shared storage.',
+              l10n.filesNoStorageMessage,
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 14),
@@ -590,7 +632,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             OutlinedButton.icon(
               onPressed: _refresh,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Check Again'),
+              label: Text(l10n.filesCheckAgainButton),
             ),
           ],
         ),
@@ -630,6 +672,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                     IconButton(
                       icon: const Icon(Icons.arrow_back_rounded,
                           size: 20, color: AppColors.textSecondary),
+                      tooltip: AppLocalizations.of(context)!.folderGoBackTooltip,
                       onPressed: _navigateBack,
                     ),
                     Expanded(
@@ -688,7 +731,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
                           style: GoogleFonts.dmSans(color: AppColors.error)),
                       const SizedBox(height: 12),
                       OutlinedButton(
-                          onPressed: _refresh, child: const Text('Retry')),
+                          onPressed: _refresh, child: Text(AppLocalizations.of(context)!.buttonRetry)),
                     ],
                   ),
                 )
@@ -704,6 +747,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             bottom: 20,
             child: FloatingActionButton(
               heroTag: 'folder_fab_${widget.folderPath}',
+              tooltip: AppLocalizations.of(context)!.folderAddTooltip,
               onPressed: _showAddMenu,
               child:
                   const Icon(Icons.add_rounded, color: AppColors.background),
@@ -722,12 +766,12 @@ class _FolderViewState extends ConsumerState<FolderView> {
             const Icon(Icons.folder_open_rounded,
                 size: 64, color: AppColors.textMuted),
             const SizedBox(height: 16),
-            Text('This folder is empty',
+            Text(AppLocalizations.of(context)!.folderEmptyTitle,
                 style: GoogleFonts.dmSans(
                     color: AppColors.textSecondary, fontSize: 15)),
             if (!widget.readOnly) ...[
               const SizedBox(height: 8),
-              Text('Upload files or create a folder to get started',
+              Text(AppLocalizations.of(context)!.folderEmptySubtitle,
                   style: GoogleFonts.dmSans(
                       color: AppColors.textMuted, fontSize: 13)),
             ],
@@ -747,22 +791,31 @@ class _FolderViewState extends ConsumerState<FolderView> {
         itemCount: sorted.length + 1,
         itemBuilder: (_, i) {
           if (i == sorted.length) {
+            // Show a small spinner while fetching the next page, so the layout
+            // doesn't shift (24 px matches the task requirement).
+            if (_loadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.primary),
+                  ),
+                ),
+              );
+            }
             final canLoadMore = sorted.length < _totalCount;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: canLoadMore && !_loadingMore ? _loadMore : null,
-                  child: _loadingMore
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(canLoadMore
-                          ? 'Load more (${sorted.length}/$_totalCount)'
-                          : 'All items loaded ($_totalCount)'),
+                  onPressed: canLoadMore ? _loadMore : null,
+                  child: Text(canLoadMore
+                      ? 'Load more (${sorted.length}/$_totalCount)'
+                      : 'All items loaded ($_totalCount)'),
                 ),
               ),
             );

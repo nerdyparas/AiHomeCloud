@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/emoji_picker_grid.dart';
@@ -21,6 +22,7 @@ class ProfileEditScreen extends ConsumerStatefulWidget {
 class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   late TextEditingController _nameCtrl;
   String _selectedEmoji = '';
+  bool _userChangedEmoji = false;
   bool _saving = false;
   bool _loadingProfile = true;
   String? _error;
@@ -52,7 +54,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       setState(() {
         // Accept server values in case session data is stale
         _nameCtrl.text = profile['name'] as String? ?? _nameCtrl.text;
-        _selectedEmoji = profile['icon_emoji'] as String? ?? _selectedEmoji;
+        if (!_userChangedEmoji) {
+          _selectedEmoji = profile['icon_emoji'] as String? ?? _selectedEmoji;
+        }
         _hasPin = profile['has_pin'] as bool? ?? false;
       });
     } catch (_) {
@@ -63,7 +67,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   Future<void> _saveProfile() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Name cannot be empty.');
+      setState(() => _error = AppLocalizations.of(context)!.profileNameEmptyError);
       return;
     }
 
@@ -86,7 +90,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.profileUpdatedSnackbar)),
       );
       context.pop();
     } catch (e) {
@@ -103,13 +107,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final oldCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         title: Text(
-          _hasPin ? 'Change PIN' : 'Add PIN',
+          _hasPin ? l10n.profileChangePinTitle : l10n.profileAddPinTitle,
           style: GoogleFonts.sora(color: AppColors.textPrimary),
         ),
         content: Column(
@@ -122,7 +127,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-                decoration: const InputDecoration(hintText: 'Current PIN'),
+                decoration: InputDecoration(hintText: l10n.profileCurrentPinHint),
               ),
               const SizedBox(height: 12),
             ],
@@ -133,8 +138,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               maxLength: 8,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'New PIN (4–8 digits)',
+              decoration: InputDecoration(
+                hintText: l10n.profileNewPinHint,
                 counterText: '',
               ),
             ),
@@ -146,8 +151,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               maxLength: 8,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Confirm new PIN',
+              decoration: InputDecoration(
+                hintText: l10n.profileConfirmPinHint,
                 counterText: '',
               ),
             ),
@@ -157,7 +162,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
-              'Cancel',
+              l10n.buttonCancel,
               style: GoogleFonts.dmSans(color: AppColors.textSecondary),
             ),
           ),
@@ -168,14 +173,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
               if (newPin.length < 4) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('PIN must be at least 4 digits')),
+                  SnackBar(
+                      content: Text(l10n.profilePinMinLengthError)),
                 );
                 return;
               }
               if (newPin != confirmPin) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PINs do not match')),
+                  SnackBar(content: Text(l10n.profilePinsDoNotMatchError)),
                 );
                 return;
               }
@@ -192,7 +197,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content:
-                            Text(wasHasPin ? 'PIN updated' : 'PIN added')),
+                            Text(wasHasPin ? l10n.profilePinUpdatedSnackbar : l10n.profilePinAddedSnackbar)),
                   );
                 }
               } catch (e) {
@@ -204,7 +209,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               }
             },
             child: Text(
-              'Save',
+              l10n.buttonSave,
               style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
             ),
           ),
@@ -214,23 +219,24 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   void _confirmRemovePin() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         title: Text(
-          'Remove PIN?',
+          l10n.profileRemovePinTitle,
           style: GoogleFonts.sora(color: AppColors.textPrimary),
         ),
         content: Text(
-          'Anyone on this device will be able to access your profile without a PIN.',
+          l10n.profileRemovePinMessage,
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
-              'Cancel',
+              l10n.buttonCancel,
               style: GoogleFonts.dmSans(color: AppColors.textSecondary),
             ),
           ),
@@ -244,7 +250,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 if (mounted) {
                   setState(() => _hasPin = false);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('PIN removed')),
+                    SnackBar(content: Text(l10n.profilePinRemovedSnackbar)),
                   );
                 }
               } catch (e) {
@@ -256,7 +262,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               }
             },
             child: Text(
-              'Remove PIN',
+              l10n.profileRemovePinButton,
               style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
             ),
           ),
@@ -275,12 +281,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   void _confirmDeleteProfile() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         title: Text(
-          'Delete Profile?',
+          l10n.profileDeleteTitle,
           style: GoogleFonts.sora(color: AppColors.textPrimary),
         ),
         content: Column(
@@ -288,7 +295,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This will permanently delete your profile and all your personal files stored on this device.',
+              l10n.profileDeleteMessage,
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 14, height: 1.5),
             ),
@@ -308,7 +315,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This cannot be undone.',
+                      l10n.profileDeleteWarning,
                       style: GoogleFonts.dmSans(
                           color: AppColors.error,
                           fontSize: 13,
@@ -324,7 +331,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
-              'Cancel',
+              l10n.buttonCancel,
               style: GoogleFonts.dmSans(color: AppColors.textSecondary),
             ),
           ),
@@ -336,7 +343,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               await _deleteProfile();
             },
             child: Text(
-              'Delete Profile',
+              l10n.profileDeleteButton,
               style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
             ),
           ),
@@ -425,13 +432,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
-          'Edit Profile',
+          l10n.profileEditTitle,
           style: GoogleFonts.sora(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -486,7 +494,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   const SizedBox(height: 28),
 
                   // ── Section: Name ────────────────────────────────────────
-                  _sectionLabel('Display Name'),
+                  _sectionLabel(l10n.profileDisplayNameLabel),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _nameCtrl,
@@ -494,17 +502,20 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                     onChanged: (_) => setState(() {}),
                     style: GoogleFonts.dmSans(
                         color: AppColors.textPrimary, fontSize: 15),
-                    decoration: _inputDecoration('Your name'),
+                    decoration: _inputDecoration(l10n.profileDisplayNameHint),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // ── Section: Icon ────────────────────────────────────────
-                  _sectionLabel('Icon'),
+                  // ── Section: Icon ────────────────────────────────────────────────
+                  _sectionLabel(l10n.profileIconLabel),
                   const SizedBox(height: 12),
                   EmojiPickerGrid(
                     selectedEmoji: _selectedEmoji,
-                    onSelected: (e) => setState(() => _selectedEmoji = e),
+                    onSelected: (e) => setState(() {
+                      _selectedEmoji = e;
+                      _userChangedEmoji = true;
+                    }),
                   ),
 
                   const SizedBox(height: 24),
@@ -538,7 +549,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                                   color: Colors.white, strokeWidth: 2),
                             )
                           : Text(
-                              'Save Changes',
+                              l10n.profileSaveChangesButton,
                               style: GoogleFonts.dmSans(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
@@ -552,7 +563,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   const SizedBox(height: 32),
 
                   // ── Section: PIN ─────────────────────────────────────────
-                  _sectionLabel('PIN'),
+                  _sectionLabel(l10n.profilePinLabel),
                   const SizedBox(height: 12),
 
                   AppCard(
@@ -563,7 +574,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                           leading: _iconBox(
                               Icons.lock_rounded, AppColors.textSecondary),
                           title: Text(
-                            _hasPin ? 'Change PIN' : 'Add PIN',
+                            _hasPin ? l10n.profileChangePinTitle : l10n.profileAddPinTitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textPrimary,
                                 fontSize: 14,
@@ -571,8 +582,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                           ),
                           subtitle: Text(
                             _hasPin
-                                ? 'Update your current PIN'
-                                : 'Add a PIN to protect this profile',
+                                ? l10n.profileChangePinSubtitle
+                                : l10n.profileAddPinSubtitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary, fontSize: 12),
                           ),
@@ -590,14 +601,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                             leading: _iconBox(
                                 Icons.lock_open_rounded, AppColors.error),
                             title: Text(
-                              'Remove PIN',
+                              l10n.profileRemovePinButton,
                               style: GoogleFonts.dmSans(
                                   color: AppColors.error,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500),
                             ),
                             subtitle: Text(
-                              'No PIN needed to access this profile',
+                              l10n.profileNoPin,
                               style: GoogleFonts.dmSans(
                                   color: AppColors.textSecondary,
                                   fontSize: 12),
@@ -614,7 +625,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   const SizedBox(height: 32),
 
                   // ── Section: Account ─────────────────────────────────────
-                  _sectionLabel('Account'),
+                  _sectionLabel(l10n.profileAccountLabel),
                   const SizedBox(height: 12),
 
                   AppCard(
@@ -625,14 +636,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                           leading: _iconBox(
                               Icons.switch_account_rounded, AppColors.primary),
                           title: Text(
-                            'Switch Profile',
+                            l10n.profileSwitchProfileTitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(
-                            'Go back to the profile picker',
+                            l10n.profileSwitchProfileSubtitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary, fontSize: 12),
                           ),
@@ -649,14 +660,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                           leading: _iconBox(
                               Icons.person_remove_rounded, AppColors.error),
                           title: Text(
-                            'Delete Profile',
+                            l10n.profileDeleteListTitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.error,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(
-                            'Permanently remove this profile',
+                            l10n.profileDeleteListSubtitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary, fontSize: 12),
                           ),

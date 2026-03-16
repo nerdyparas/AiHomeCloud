@@ -2,6 +2,82 @@
 
 ---
 
+## 2026-03-17 — TASK-L1 through L5: Low-Priority Sprint
+
+**Flutter:**
+- `app_router.dart`: Added redirect guard for `/profile-creation` → `/scan-network` when `discoveryNotifierProvider.status != DiscoveryStatus.found`; fixed null-safety in `/profile-creation` builder `extra` cast (L1)
+- `file_list_tile.dart`, `app_card.dart`, `main_shell.dart`, `folder_view.dart`: Added `Semantics` wrappers, `semanticLabel`/`tooltip` on all nav icons, `liveRegion: true` on reconnecting banner (L2)
+- `lib/l10n/app_en.arb`: Added 30+ new keys (`navMore`, `shellReconnecting`, `shellUploadingProgress`, `moreScreenTitle`, `moreSectionSharing`, plus 25 more); `flutter gen-l10n` re-run; `AppLocalizations` wired in `main_shell.dart` (nav labels, banners) and `more_screen.dart` (all visible strings) (L3)
+
+**Backend:**
+- `backend/app/audit.py` (new): `audit_log(event, **kwargs)` emits `WARNING` to `aihomecloud.audit` logger with `"audit": True` in structured JSON output (L4)
+- Audit calls wired in: `auth_routes.py` (`user_deleted_self`), `family_routes.py` (`family_member_removed`, `user_role_changed`), `file_routes.py` (`file_deleted`), `storage_routes.py` (`storage_formatted`) (L4)
+- `file_routes.py`: `_scan_cache` dict with 7 s TTL; `_invalidate_scan_cache(dir_path)` called after delete, rename, create_folder, upload; `list_files` checks cache before running thread-pool scandir (L5)
+
+**Tests:** 260 passed, 47 skipped, 0 failed
+
+---
+
+## 2026-03-16 — TASK-M1 through M10: Medium Sprint
+
+**Flutter:**
+- `folder_view.dart`: Pagination sentinel item now shows a standalone 24 px `CircularProgressIndicator` while `_loadingMore` is true, instead of a disabled button (M1)
+- `system_api.dart`: `monitorSystemStats()` rewritten as `async*` generator; reconnects up to 30 times with 2–30 s exponential back-off; emits `ConnectionStatus.disconnected` after exhaustion and closes the stream (M3)
+- `file_providers.dart` + `files_screen.dart`: Removed deferred `trashAutoDeleteProvider` and the 60-line auto-delete toggle UI card from `_TrashScreen` (M9)
+
+**Backend:**
+- `storage_routes.py`: `format_device` validates label with `re.match(r'^[a-zA-Z0-9_-]{1,16}$')`, raises HTTP 400 on invalid input (M5)
+- `document_index.py`: Each `index_document()` call in `index_documents_under_path` is now wrapped in `asyncio.wait_for(..., timeout=120)`; logs warning and skips hung files (M6)
+- `telegram_bot.py`: Duplicate-detection hash replaced MD5 → SHA-256 (`_compute_sha256`); existing cache naturally invalidates (M7). Both download paths now wrap `_download_to_path` in try/except and unlink partial temp files on failure with `logger.warning` (M8)
+- `family_routes.py`: `_folder_size_gb_sync` now accepts `max_depth=5` and prunes `os.walk` below that level; `_folder_size_gb` wraps executor call in `asyncio.wait_for(timeout=10)` returning -1.0 on timeout; `logging` module added (M10)
+
+**Already verified done (no code change needed):** M2 (`_DocSearchResults` had empty-state icon + text), M4 (`_startUpload` already had `onError` cleanup handler)
+
+**Tests:** 260 passed, 2 skipped (unchanged)
+
+---
+
+## 2026-03-16 — TASK-C3 + TASK-C4: Race condition guard + CORS hardening
+
+**Backend:**
+- `store.py`: Added `_user_creation_lock = asyncio.Lock()` (separate from `_store_lock` to avoid deadlock; bcrypt completes before acquiring so hold time is minimal)
+- `routes/auth_routes.py`: `create_user` hashes PIN before acquiring lock, then re-reads user list inside `_user_creation_lock` to guarantee atomic check-then-create for the first-user admin assignment
+- `main.py`: CORS middleware now uses explicit `allow_methods=["GET","POST","PUT","DELETE","OPTIONS"]` and `allow_headers=["Authorization","Content-Type","X-Request-ID"]` instead of `["*"]`
+- `tests/test_auth.py`: Added `test_concurrent_first_user_exactly_one_admin` — fires two simultaneous unauthenticated POST /users calls and asserts exactly one 201 (admin) and one 401
+
+**Tests:** 260 passing, 2 skipped (hardware integration, up from 259)
+
+---
+
+## 2026-03-16 — TASK-C1 + TASK-C2: Admin promotion/demotion
+
+**Backend:**
+- `store.py`: Added `update_user_role(user_id, is_admin)` function
+- `models.py`: Added `SetUserRoleRequest` Pydantic model with `isAdmin` alias
+- `family_routes.py`: Added `PUT /api/v1/users/family/{user_id}/role` endpoint (admin-only; blocks demotion of last admin)
+- `tests/test_auth.py`: 5 new tests — promote, demote, block-last-admin, 403 for non-admin, 404 for unknown
+
+**Flutter:**
+- `family_api.dart`: Added `setUserRole(userId, {required bool isAdmin})` method
+- `app_card.dart`: Added `onLongPress` callback parameter to `AppCard`
+- `family_screen.dart`: Long-press on member card opens bottom sheet with "Make Admin"/"Remove Admin" option; confirmation dialog before committing; admin-only visibility; full error handling via `friendlyError()`
+
+---
+
+## 2026-03-16 — Full Production Audit + Critical Fixes
+
+**Audit:** Complete read-through of all backend (32 files) and Flutter (56 files) code.
+
+**Fixed directly:**
+- `auth_routes.py`: Pairing key/serial comparisons now use `hmac.compare_digest()` (timing attack prevention)
+- `data_providers.dart`: `ServicesNotifier.toggle()` error callback now uses `friendlyError(e)` instead of raw `e.toString()`
+- `family_screen.dart`: Add/remove member dialogs now have try/catch with `friendlyError()` snackbars
+- `store.py`: `purge_expired_tokens()` now also removes revoked tokens (prevents unbounded file growth)
+
+**Created:** Comprehensive `TASKS.md` with 25 prioritised tasks (4 critical, 8 high, 10 medium, 5 low) for other agents to work through.
+
+---
+
 ## 2026-03-15 — Fix: infinite recursion in `friendlyError` causing spinner deadlock
 
 **Bug:** After any failed login (wrong PIN) or failed profile creation, the spinner never cleared — buttons were stuck in loading state indefinitely.

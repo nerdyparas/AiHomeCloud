@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
@@ -77,10 +78,11 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Storage',
+        title: Text(l10n.storageExplorerTitle,
             style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -95,7 +97,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.primary))
                 : const Icon(Icons.refresh_rounded, color: AppColors.primary),
-            tooltip: 'Scan for drives',
+            tooltip: l10n.storageExplorerScanTooltip,
             onPressed: _scanning ? null : _scan,
           ),
         ],
@@ -113,14 +115,14 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             const Icon(Icons.error_outline_rounded,
                 color: AppColors.error, size: 48),
             const SizedBox(height: 12),
-            Text('Could not load drives',
+            Text(l10n.storageCouldNotLoadDrives,
                 style: GoogleFonts.dmSans(
                     color: AppColors.textSecondary, fontSize: 14)),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _scan,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Retry'),
+              label: Text(l10n.buttonRetry),
             ),
           ],
         ),
@@ -181,20 +183,20 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
                 color: AppColors.primary, size: 48),
           ),
           const SizedBox(height: 20),
-          Text('Connect a USB or hard drive',
+          Text(l10n.storageEmptyBannerTitle,
               style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text('Plug in a USB drive or NVMe to your AiHomeCloud',
+          Text(l10n.storageEmptyBannerMessage,
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 14)),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: _scanning ? null : _scan,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: Text(_scanning ? 'Scanning…' : 'Scan Again'),
+            label: Text(_scanning ? l10n.storageExplorerScanning : l10n.storageExplorerScanAgain),
           ),
         ],
       ).animate().fadeIn(duration: 400.ms),
@@ -214,7 +216,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         case 'already_active':
           await _loadDevices();
         case 'mounted':
-          _showSnack('Storage activated!');
+          _showSnack(AppLocalizations.of(context)!.storageActivatedSnackbar);
           await _loadDevices();
         case 'formatting':
           final jobId = result['jobId'] as String?;
@@ -246,7 +248,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
       await ref
           .read(apiServiceProvider)
           .unmountDevice(force: blockers.isNotEmpty);
-      _showSnack('${dev.displayName} stopped. Safe to remove.');
+      _showSnack(AppLocalizations.of(context)!.storageStoppedSnackbar(dev.displayName));
       await _loadDevices();
     } catch (e) {
       _showSnack(friendlyError(e), isError: true);
@@ -270,7 +272,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
     setState(() => _busyDevice = dev.path);
     try {
       await ref.read(apiServiceProvider).ejectDevice(dev.path);
-      _showSnack('${dev.displayName} is safe to unplug');
+      _showSnack(AppLocalizations.of(context)!.storageSafeToUnplugSnackbar(dev.displayName));
       await _loadDevices();
     } catch (e) {
       _showSnack(friendlyError(e), isError: true);
@@ -280,6 +282,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
   }
 
   void _showPrepareDialog(StorageDevice dev) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -288,7 +291,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           children: [
             const Icon(Icons.warning_rounded, color: AppColors.error, size: 24),
             const SizedBox(width: 8),
-            const Expanded(child: Text('Prepare this drive?')),
+            Expanded(child: Text(l10n.storagePrepareDialogTitle)),
           ],
         ),
         titleTextStyle: GoogleFonts.sora(
@@ -296,22 +299,21 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             fontSize: 17,
             fontWeight: FontWeight.w600),
         content: Text(
-          'This will erase all files on ${dev.displayName} and set it up '
-          'for AiHomeCloud. This cannot be undone.',
+          l10n.storagePrepareDialogMessage(dev.displayName),
           style: GoogleFonts.dmSans(
               color: AppColors.textSecondary, fontSize: 14, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Prepare',
+            child: Text(l10n.storagePrepareButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -349,8 +351,8 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           await _loadDevices();
           final active = _devices?.where((d) => d.isNasActive).firstOrNull;
           final msg = active != null
-              ? 'Storage is ready! ${active.sizeDisplay} available'
-              : 'Storage is ready!';
+              ? AppLocalizations.of(context)!.storageReadySnackbar(active.sizeDisplay)
+              : AppLocalizations.of(context)!.storageReadySimpleSnackbar;
           _showSnack(msg);
           return;
         }
@@ -360,7 +362,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           _elapsedTimer?.cancel();
           setState(() => _activateJobId = null);
           _showSnack(
-              'Could not activate drive. Check the USB connection and try again.',
+              AppLocalizations.of(context)!.storageActivateFailedSnackbar,
               isError: true);
         }
       } catch (e) {
@@ -382,7 +384,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Preparing your storage drive…',
+            AppLocalizations.of(context)!.storagePreparingTitle,
             style: GoogleFonts.sora(
               color: AppColors.textPrimary,
               fontSize: 14,
@@ -391,7 +393,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'This takes about 2 minutes. Please keep the app open.',
+            AppLocalizations.of(context)!.storagePreparingSubtitle,
             style: GoogleFonts.dmSans(
                 color: AppColors.textSecondary, fontSize: 12),
           ),
@@ -418,7 +420,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
             const Icon(Icons.warning_amber_rounded,
                 color: AppColors.primary, size: 24),
             const SizedBox(width: 8),
-            Text('Files In Use', style: GoogleFonts.sora(fontSize: 16)),
+            Text(AppLocalizations.of(context)!.storageBlockerDialogTitle, style: GoogleFonts.sora(fontSize: 16)),
           ],
         ),
         content: Column(
@@ -426,7 +428,7 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${blockers.length} app(s) are still using this storage:',
+              AppLocalizations.of(context)!.storageBlockerDialogMessage(blockers.length),
               style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary, fontSize: 13),
             ),
@@ -463,14 +465,14 @@ class _StorageExplorerScreenState extends ConsumerState<StorageExplorerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
+            child: Text(AppLocalizations.of(context)!.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Remove Anyway',
+            child: Text(AppLocalizations.of(context)!.storageRemoveAnywayButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -547,7 +549,7 @@ class _DriveCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _statusBadge(),
+              _statusBadge(context),
             ],
           ),
 
@@ -568,13 +570,13 @@ class _DriveCard extends StatelessWidget {
               ),
             )
           else
-            _actionRow(),
+            _actionRow(context),
         ],
       ),
     );
   }
 
-  Widget _actionRow() {
+  Widget _actionRow(BuildContext context) {
     if (device.isNasActive) {
       return SizedBox(
         width: double.infinity,
@@ -586,7 +588,7 @@ class _DriveCard extends StatelessWidget {
           ),
           onPressed: onSafelyRemove,
           icon: const Icon(Icons.eject_rounded, size: 16),
-          label: Text('Safely Remove',
+          label: Text(AppLocalizations.of(context)!.storageSafelyRemoveButton,
               style: GoogleFonts.dmSans(
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ),
@@ -604,7 +606,7 @@ class _DriveCard extends StatelessWidget {
           ),
           onPressed: onActivate,
           icon: const Icon(Icons.play_arrow_rounded, size: 18),
-          label: Text('Activate',
+          label: Text(AppLocalizations.of(context)!.storageActivateButton,
               style: GoogleFonts.dmSans(
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ),
@@ -620,25 +622,25 @@ class _DriveCard extends StatelessWidget {
         ),
         onPressed: onPrepare,
         icon: const Icon(Icons.drive_eta_rounded, size: 18),
-        label: Text('Prepare as Storage',
+        label: Text(AppLocalizations.of(context)!.storagePrepareAsStorageButton,
             style:
                 GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600)),
       ),
     );
   }
 
-  Widget _statusBadge() {
+  Widget _statusBadge(BuildContext context) {
     final String text;
     final Color color;
 
     if (device.isNasActive) {
-      text = 'âœ“ Active Storage';
+      text = AppLocalizations.of(context)!.storageActiveStatusBadge;
       color = AppColors.success;
     } else if (device.fstype == 'ext4') {
-      text = 'Ready';
+      text = AppLocalizations.of(context)!.storageReadyStatusBadge;
       color = AppColors.secondary;
     } else {
-      text = 'Not ready yet';
+      text = AppLocalizations.of(context)!.storageNotReadyStatusBadge;
       color = AppColors.primary;
     }
 
@@ -695,31 +697,29 @@ class _SafeRemoveSheet extends StatelessWidget {
                 color: AppColors.error, size: 32),
           ),
           const SizedBox(height: 16),
-          Text('Remove safely',
+          Text(AppLocalizations.of(context)!.storageSafeRemoveSheetTitle,
               style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
-            'We will stop sharing, disconnect '
-            '${device.displayName}, and make it safe to unplug.\n\n'
-            'Make sure all transfers are complete first.',
+            AppLocalizations.of(context)!.storageSafeRemoveSheetBody(device.displayName),
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
                 color: AppColors.textSecondary, fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 24),
-          _step(Icons.stop_circle_outlined, 'Stop sharing'),
-          _step(Icons.sync_rounded, 'Finish pending transfers'),
-          _step(Icons.usb_off_rounded, 'Make it safe to unplug'),
+          _step(Icons.stop_circle_outlined, AppLocalizations.of(context)!.storageSafeRemoveStepStopSharing),
+          _step(Icons.sync_rounded, AppLocalizations.of(context)!.storageSafeRemoveStepFinishTransfers),
+          _step(Icons.usb_off_rounded, AppLocalizations.of(context)!.storageSafeRemoveStepSafeToUnplug),
           const SizedBox(height: 24),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text('Cancel',
+                  child: Text(AppLocalizations.of(context)!.buttonCancel,
                       style: GoogleFonts.dmSans(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w600)),
@@ -731,7 +731,7 @@ class _SafeRemoveSheet extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error),
                   onPressed: () => Navigator.pop(context, true),
-                  child: Text('Remove safely',
+                  child: Text(AppLocalizations.of(context)!.storageSafeRemoveSheetTitle,
                       style:
                           GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
                 ),

@@ -27,6 +27,7 @@ async def test_upload_file_basic(authenticated_client: AsyncClient, tmp_path: Pa
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_upload_filename_traversal_blocked(authenticated_client: AsyncClient):
     """Upload with ../etc/evil filename should be sanitized to just 'evil'."""
     content = b"malicious"
@@ -44,6 +45,7 @@ async def test_upload_filename_traversal_blocked(authenticated_client: AsyncClie
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_upload_filename_with_slashes_sanitized(authenticated_client: AsyncClient):
     """Upload with path separators in filename should be stripped to just the filename."""
     content = b"test content"
@@ -181,6 +183,7 @@ async def test_download_directory_returns_400(authenticated_client: AsyncClient)
     "app.apk", "module.so", "kernel.ko",
     "package.deb", "package.rpm",
 ])
+@pytest.mark.security
 async def test_blocked_executable_upload_returns_415(
     authenticated_client: AsyncClient, filename: str
 ):
@@ -195,6 +198,7 @@ async def test_blocked_executable_upload_returns_415(
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_blocked_extension_case_insensitive(authenticated_client: AsyncClient):
     """Extension check must be case-insensitive (e.g. .SH, .EXE)."""
     for filename in ("EVIL.SH", "VIRUS.EXE", "HACK.PY"):

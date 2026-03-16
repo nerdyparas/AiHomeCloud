@@ -41,11 +41,14 @@ _REAL_DATA_DIR = Path("/var/lib/aihomecloud")
 # Skip all tests in this module when not running on real hardware.
 # Using pytestmark (not module-level pytest.skip) to avoid INTERNALERROR
 # with the session-scoped event_loop fixture on Windows/CI environments.
-pytestmark = pytest.mark.skipif(
-    not _REAL_DATA_DIR.joinpath("users.json").exists(),
-    reason="Hardware integration tests require /var/lib/aihomecloud/users.json â€” "
-           "skipping on non-hardware environments.",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not _REAL_DATA_DIR.joinpath("users.json").exists(),
+        reason="Hardware integration tests require /var/lib/aihomecloud/users.json — "
+               "skipping on non-hardware environments.",
+    ),
+]
 
 
 def _make_admin_token() -> str:

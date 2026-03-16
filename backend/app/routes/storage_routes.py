@@ -8,6 +8,7 @@ are in storage_helpers.py.
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from shutil import disk_usage
@@ -27,6 +28,7 @@ from ..models import (
 )
 from ..job_store import JobStatus, create_job, update_job
 from .. import store
+from ..audit import audit_log
 from ..subprocess_runner import run_command
 from .event_routes import emit_device_mounted, emit_device_ejected
 from .storage_helpers import (
@@ -217,7 +219,7 @@ async def smart_activate(
         return {"action": "mounted", "display_name": display}
 
     # â”€â”€ State B/C: needs formatting â€” start async job â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    job = create_job()
+    job = create_job(user_id=user.get("sub", ""))
     update_job(job.id, status=JobStatus.running)
     asyncio.create_task(_smart_format_and_mount(job.id, disk_name, display))
     return {"action": "formatting", "display_name": display, "jobId": job.id}
@@ -273,7 +275,14 @@ async def format_device(
     if req.confirm_device != req.device:
         raise HTTPException(
             400,
-            "Device confirmation does not match Ã¢â‚¬â€ please confirm the device path.",
+            "Device confirmation does not match — please confirm the device path.",
+        )
+
+    # Validate label: ext4 requires ≤16 chars, alphanumeric/hyphens/underscores only.
+    if not re.match(r'^[a-zA-Z0-9_-]{1,16}$', req.label):
+        raise HTTPException(
+            400,
+            "Label must be 1–16 characters and contain only letters, digits, hyphens, or underscores.",
         )
 
     target = await find_partition(req.device)
@@ -285,7 +294,7 @@ async def format_device(
     if target.get("mountpoint"):
         raise HTTPException(409, "Device is currently mounted Ã¢â‚¬â€ unmount first")
 
-    job = create_job()
+    job = create_job(user_id=user.get("sub", ""))
     update_job(job.id, status=JobStatus.running)
 
     async def _run_format_job() -> None:
@@ -310,6 +319,7 @@ async def format_device(
                     "label": req.label,
                 },
             )
+            audit_log("storage_formatted", actor_id=user.get("sub", ""), device=req.device, label=req.label)
             logger.info("Formatted %s successfully", req.device)
         except Exception as e:
             update_job(job.id, status=JobStatus.failed, error=str(e))

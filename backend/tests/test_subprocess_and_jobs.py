@@ -36,6 +36,7 @@ async def test_run_command_rejects_empty():
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_run_command_rejects_shell_metacharacters():
     """Shell metacharacters in command tokens are rejected."""
     from app.subprocess_runner import run_command

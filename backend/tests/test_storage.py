@@ -8,6 +8,8 @@ OS partition protection, and graceful error handling.
 import pytest
 from httpx import AsyncClient
 from pathlib import Path
+
+pytestmark = pytest.mark.integration
 from unittest.mock import AsyncMock, patch
 
 

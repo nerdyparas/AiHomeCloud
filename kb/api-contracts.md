@@ -107,9 +107,11 @@
 | GET | `/family` | User | List all family members with folder sizes |
 | POST | `/family` | Admin | Add family member (body: `{ name }`) |
 | DELETE | `/family/{user_id}` | Admin | Remove family member |
+| PUT | `/family/{user_id}/role` | Admin | Promote/demote user (body: `{ isAdmin: bool }`) |
 
 **Key models:**
 - `FamilyUser`: `{ id, name, isAdmin, folderSizeGB, avatarColor, iconEmoji }`
+- `SetUserRoleRequest`: `{ isAdmin: bool }`
 
 ---
 

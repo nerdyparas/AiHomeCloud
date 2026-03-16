@@ -17,7 +17,7 @@ logger = logging.getLogger("aihomecloud.services")
 
 router = APIRouter(prefix="/api/v1/services", tags=["services"])
 
-# Map our service IDs â†’ systemd unit names
+# Map our service IDs → systemd unit names
 _SERVICE_UNITS: dict[str, list[str]] = {
     "samba": ["smbd", "nmbd"],
     "nfs": ["nfs-kernel-server"],
@@ -25,6 +25,8 @@ _SERVICE_UNITS: dict[str, list[str]] = {
     "dlna": ["minidlna", "minidlnad"],
     "media": ["minidlna", "minidlnad", "smbd", "nmbd"],
 }
+
+ALLOWED_SERVICES: frozenset[str] = frozenset(_SERVICE_UNITS.keys())
 
 
 async def _systemctl(action: str, unit: str) -> tuple[bool, str]:
@@ -46,6 +48,9 @@ async def toggle(
     user: dict = Depends(require_admin),
 ):
     """Enable or disable a NAS service (persists + runs systemctl)."""
+    if service_id not in ALLOWED_SERVICES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Unknown service: {service_id}")
+
     if not await store.toggle_service(service_id, body.enabled):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Service not found")
 

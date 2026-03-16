@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
 
@@ -101,7 +102,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${friendlyError(e)}')),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     }
@@ -114,16 +115,17 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${friendlyError(e)}')),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     }
   }
 
   List<Widget> _buildPendingSection() {
+    final l10n = AppLocalizations.of(context)!;
     return [
       Text(
-        'PENDING REQUESTS',
+        l10n.telegramPendingRequestsLabel,
         style: GoogleFonts.dmSans(
             color: AppColors.textSecondary,
             fontSize: 11,
@@ -204,7 +206,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                                 minimumSize: const Size(0, 32),
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10)),
-                            child: Text('Deny',
+                            child: Text(l10n.telegramDenyButton,
                                 style: GoogleFonts.dmSans(fontSize: 12)),
                           ),
                           const SizedBox(width: 4),
@@ -218,7 +220,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: Text('Approve',
+                            child: Text(l10n.telegramApproveButton,
                                 style: GoogleFonts.dmSans(
                                     color: Colors.white,
                                     fontSize: 12,
@@ -235,11 +237,12 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   }
 
   Future<void> _save() async {
+    final l10n = AppLocalizations.of(context)!;
     final token = _tokenCtrl.text.trim();
 
     if (token.isEmpty && !_configured) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bot Token is required.')),
+        SnackBar(content: Text(l10n.telegramBotTokenRequiredError)),
       );
       return;
     }
@@ -249,9 +252,9 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
 
     if (_localApiEnabled && (apiId == 0 || apiHash.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content:
-              Text('API ID and API Hash are required for large file mode.'),
+              Text(l10n.telegramLargeFileModeRequiredError),
         ),
       );
       return;
@@ -273,8 +276,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
         _tokenCtrl.clear();
         _apiHashCtrl.clear();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Telegram Bot configured!'),
+          SnackBar(
+            content: Text(l10n.telegramConfiguredSnackbar),
           ),
         );
         await _loadConfig();
@@ -296,13 +299,14 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        title: Text('Telegram Bot',
+        title: Text(l10n.moreTelegramBot,
             style: GoogleFonts.sora(
                 color: AppColors.textPrimary,
                 fontSize: 18,
@@ -323,25 +327,25 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Setup in 3 steps',
+                      Text(l10n.telegramSetupStepsTitle,
                           style: GoogleFonts.sora(
                               color: AppColors.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
                       _stepText('1',
-                          'Open Telegram and search @BotFather'),
+                          l10n.telegramSetupStep1),
                       _stepText('2',
-                          'Send /newbot — follow the steps and copy the token'),
+                          l10n.telegramSetupStep2),
                       _stepText('3',
-                          'Paste the token below and tap Save. Then open your bot and send /auth to link your account.'),
+                          l10n.telegramSetupStep3),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
                 // Token input
-                Text('Bot Token',
+                Text(l10n.telegramBotTokenLabel,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -355,8 +359,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                       color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: _configured
-                        ? 'Enter new token to replace existing'
-                        : '1234567890:ABCdefGHIjklMNOpqrSTUvwxyz',
+                        ? l10n.telegramTokenHintConfigured
+                        : l10n.telegramTokenHintExample,
                     hintStyle: GoogleFonts.dmSans(
                         color: AppColors.textMuted, fontSize: 13),
                     filled: true,
@@ -416,7 +420,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : Text('Save & Activate',
+                        : Text(l10n.telegramSaveActivateButton,
                             style: GoogleFonts.dmSans(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -452,15 +456,15 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                             children: [
                               Text(
                                 _linkedCount == 0
-                                    ? 'No accounts linked yet'
-                                    : '$_linkedCount account${_linkedCount == 1 ? '' : 's'} linked',
+                                    ? l10n.telegramNoAccountsLinked
+                                    : l10n.telegramAccountsLinked(_linkedCount),
                                 style: GoogleFonts.dmSans(
                                     color: AppColors.textPrimary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600),
                               ),
                               if (_linkedCount == 0)
-                                Text('Open your bot and send /auth',
+                                Text(l10n.telegramOpenBotSendAuth,
                                     style: GoogleFonts.dmSans(
                                         color: AppColors.textSecondary,
                                         fontSize: 12)),
@@ -497,15 +501,15 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('File upload limit: $_maxFileMb MB',
+                            Text(l10n.telegramFileLimitLabel(_maxFileMb),
                                 style: GoogleFonts.dmSans(
                                     color: AppColors.textPrimary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600)),
                             Text(
                               _localApiEnabled
-                                  ? 'Large file mode active — up to 2 GB'
-                                  : 'Enable large file mode below to upload up to 2 GB',
+                                  ? l10n.telegramLargeFileModeActive
+                                  : l10n.telegramLargeFileModeInactive,
                               style: GoogleFonts.dmSans(
                                   color: AppColors.textSecondary,
                                   fontSize: 12),
@@ -528,13 +532,13 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                         onChanged: (v) =>
                             setState(() => _localApiEnabled = v),
                         activeColor: AppColors.primary,
-                        title: Text('Large file mode (up to 2 GB)',
+                        activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                        title: Text(l10n.telegramLargeFileModeTitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.w600)),
                         subtitle: Text(
-                          'Requires Telegram API credentials and the local server '
-                          'setup script to be run on your device.',
+                          l10n.telegramLargeFileModeSubtitle,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textSecondary,
                               fontSize: 12),
@@ -544,8 +548,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                         const Divider(
                             color: AppColors.cardBorder, height: 24),
                         Text(
-                          'Get API ID and Hash at my.telegram.org → '
-                          'API development tools',
+                          l10n.telegramApiCredentialsHint,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textSecondary,
                               fontSize: 12),
@@ -557,7 +560,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
-                            labelText: 'API ID',
+                            labelText: l10n.telegramApiIdLabel,
                             labelStyle: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary),
                             filled: true,
@@ -588,7 +591,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
-                            labelText: 'API Hash',
+                            labelText: l10n.telegramApiHashLabel,
                             labelStyle: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary),
                             filled: true,
@@ -624,8 +627,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Run scripts/setup-telegram-local-api.sh on your '
-                          'device before enabling this.',
+                          l10n.telegramScriptHint,
                           style: GoogleFonts.dmSans(
                               color: AppColors.primary, fontSize: 11),
                         ),
@@ -679,6 +681,7 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final color = running
         ? AppColors.success
         : configured
@@ -690,10 +693,10 @@ class _StatusCard extends StatelessWidget {
             ? Icons.warning_amber_rounded
             : Icons.smart_toy_outlined;
     final label = running
-        ? 'Bot is active and polling'
+        ? l10n.telegramBotActiveStatus
         : configured
-            ? 'Configured but not running'
-            : 'Not configured';
+            ? l10n.telegramBotConfiguredStatus
+            : l10n.telegramBotNotConfiguredStatus;
 
     return AppCard(
       child: Row(
@@ -711,7 +714,7 @@ class _StatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Telegram Bot',
+                Text(l10n.moreTelegramBot,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textPrimary,
                         fontSize: 14,

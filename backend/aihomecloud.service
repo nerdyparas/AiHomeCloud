@@ -19,6 +19,12 @@ ProtectHome=yes
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 SystemCallFilter=@system-service
 
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=1G
+CPUQuota=80%
+TasksMax=256
+
 # Environment overrides (edit as needed)
 # NOTE: Do NOT hardcode `AHC_JWT_SECRET` here. Use one of the following safer options:
 # - Provide `AHC_JWT_SECRET` as an environment variable from a secure system-wide secret manager.

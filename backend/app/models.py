@@ -20,6 +20,7 @@ class AhcDevice(BaseModel):
     ip: str
     firmware_version: str = Field(alias="firmwareVersion")
     board_model: str = Field(default="unknown", alias="boardModel")
+    ocr_available: bool = Field(default=False, alias="ocrAvailable")
 
     model_config = {"populate_by_name": True}
 
@@ -235,6 +236,12 @@ class ToggleServiceRequest(BaseModel):
 
 class AddFamilyUserRequest(BaseModel):
     name: str
+
+
+class SetUserRoleRequest(BaseModel):
+    is_admin: bool = Field(alias="isAdmin")
+
+    model_config = {"populate_by_name": True}
 
 
 class FirmwareInfo(BaseModel):

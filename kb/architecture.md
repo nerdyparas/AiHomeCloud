@@ -1,6 +1,6 @@
 # Architecture Map — AiHomeCloud
 
-> Verified against source code as of 2026-03-13.
+> Verified against source code as of 2026-03-16.
 > See also `kb/api-contracts.md` for the full endpoint reference.
 
 ---
@@ -9,7 +9,7 @@
 
 AiHomeCloud is a personal home NAS appliance built on the **Radxa Cubie A7Z** (ARM Rockchip, 8 GB RAM). It consists of two halves:
 
-- **FastAPI backend** (`backend/`) — Python server running on the Cubie hardware, providing REST + WebSocket APIs for file management, system monitoring, user auth, storage management, and service control. Persists state as JSON files in `/var/lib/cubie/`. Serves files from `/srv/nas/`.
+- **FastAPI backend** (`backend/`) — Python server running on the Cubie hardware, providing REST + WebSocket APIs for file management, system monitoring, user auth, storage management, and service control. Persists state as JSON files in `/var/lib/aihomecloud/`. Serves files from `/srv/nas/`.
 - **Flutter app** (`lib/`) — Android mobile client that discovers the Cubie via mDNS/BLE, pairs via QR code, authenticates via JWT, and provides the UI for all NAS operations. Uses Riverpod for state, GoRouter for navigation, and a dark theme with `AppColors`/`CubieRadii`/`AppTheme`.
 
 Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 8443, plus two WebSocket channels for real-time monitoring and notifications.
@@ -24,16 +24,17 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `system_routes.py` | `/api/v1/system` | User/Admin | 6 endpoints: info, firmware, OTA update, rename, shutdown, reboot |
 | `monitor_routes.py` | `/ws` | Token | 1 WS: real-time CPU/RAM/temp/network/storage stats (~2s) |
 | `file_routes.py` | `/api/v1/files` | User | 14 endpoints: list, mkdir, delete, trash CRUD, rename, upload, download, search, sort, roots |
-| `family_routes.py` | `/api/v1/users/family` | User/Admin | 3 endpoints: list, add, remove family members |
+| `family_routes.py` | `/api/v1/users/family` | User/Admin | 4 endpoints: list, add, remove, set role |
 | `service_routes.py` | `/api/v1/services` | User/Admin | 2 endpoints: list services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | User/Admin | 9 endpoints: devices, scan, smart-activate, check-usage, format, mount, unmount, eject, stats |
 | `network_routes.py` | `/api/v1` | User | 3 endpoints: network status, Wi-Fi get/set |
-| `telegram_routes.py` | `/api/v1/telegram` | Admin | 3 endpoints: config get/set, unlink chat |
+| `telegram_routes.py` | `/api/v1/telegram` | Admin | 6 endpoints: config get/set, unlink, pending list/approve/deny |
 | `telegram_upload_routes.py` | `/telegram-upload` | Token URL | 2 endpoints: browser upload form + POST |
 | `jobs_routes.py` | `/api/v1/jobs` | User | 1 endpoint: poll long-running job status |
 | `event_routes.py` | `/ws` | Token | 1 WS: real-time notification stream |
+| `storage_helpers.py` | (internal) | — | Helper functions for storage_routes (lsblk parsing, device detection) |
 
-**Total: 61 endpoints across 13 files.**
+**Total: 63 endpoints across 13 route files + 1 helper.**
 
 ---
 
@@ -100,7 +101,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 |----------|------|---------|
 | `familyUsersProvider` | `FutureProvider<List<FamilyUser>>` | Family member list from API |
 | `networkStatusProvider` | `FutureProvider<NetworkStatus>` | Network connectivity info |
-| `servicesProvider` | `FutureProvider<List<ServiceInfo>>` | Managed services list |
+| `servicesProvider` | `StateNotifierProvider<ServicesNotifier, List<ServiceInfo>>` | Managed services list (optimistic toggle + rollback) |
 | `notificationStreamProvider` | `StreamProvider<AppNotification>` | Real-time notification stream (WS) |
 | `notificationHistoryProvider` | `StateNotifierProvider` | Last 50 notifications |
 
@@ -122,7 +123,6 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `uploadTasksProvider` | `StateNotifierProvider` | Upload task tracking (progress, status) |
 | `docSearchResultsProvider` | `FutureProvider.family<List<SearchResult>, String>` | FTS5 document search |
 | `trashItemsProvider` | `FutureProvider<List<TrashItem>>` | Trash bin contents |
-| `trashAutoDeleteProvider` | `FutureProvider<bool>` | 30-day auto-delete toggle |
 
 ### Discovery (`discovery_providers.dart`)
 
@@ -135,12 +135,12 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 
 ## API Service Structure
 
-The API client is a singleton (`ApiService`) defined in `lib/services/api_service.dart` (~316 lines) with TLS pinning and a 10-second timeout. It uses Dart's `part`/`part of` mechanism to split endpoints across 6 extension files:
+The API client is a singleton (`ApiService`) defined in `lib/services/api_service.dart` (~266 lines) with TLS pinning and a 10-second timeout. It uses Dart's `part`/`part of` mechanism to split endpoints across 6 extension files:
 
 | File | Domain | Key methods |
 |------|--------|-------------|
 | `api/auth_api.dart` | Auth | `pair()`, `login()`, `logout()`, `refresh()`, `createUser()`, `updateProfile()`, PIN ops |
-| `api/family_api.dart` | Family | `getFamilyUsers()`, `addFamilyUser()`, `removeFamilyUser()` |
+| `api/family_api.dart` | Family | `getFamilyUsers()`, `addFamilyUser()`, `removeFamilyUser()`, `setUserRole()` |
 | `api/files_api.dart` | Files | `listFiles()`, `mkdir()`, `delete()`, `rename()`, `upload()`, `download()`, `search()`, trash ops |
 | `api/system_api.dart` | System | `getDeviceInfo()`, `getFirmware()`, `rename()`, `shutdown()`, `reboot()` |
 | `api/storage_api.dart` | Storage | `getDevices()`, `scan()`, `smartActivate()`, `format()`, `mount()`, `unmount()`, `eject()` |

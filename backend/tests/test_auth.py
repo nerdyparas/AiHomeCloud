@@ -5,6 +5,7 @@ Test cases for authentication, authorization, token lifecycle,
 and rate limiting on auth endpoints.
 """
 
+import asyncio
 import pytest
 from httpx import AsyncClient
 from datetime import datetime, timedelta, timezone
@@ -83,6 +84,7 @@ async def test_login_without_pin_allowed_for_pinless_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_login_rate_limiting_429_on_rapid_calls(client: AsyncClient, admin_token: str):
     """
     7C.4: POST /api/v1/auth/login with 6 rapid calls → 6th returns 429
@@ -110,6 +112,7 @@ async def test_login_rate_limiting_429_on_rapid_calls(client: AsyncClient, admin
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_member_cannot_access_admin_endpoint_403(client: AsyncClient, admin_token: str):
     """
     7C.5: Member JWT cannot call GET /api/v1/family (admin-only) → 403
@@ -144,6 +147,7 @@ async def test_member_cannot_access_admin_endpoint_403(client: AsyncClient, admi
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_expired_jwt_returns_401(client: AsyncClient):
     """
     7C.6: Expired JWT (use timedelta(seconds=-1)) → 401
@@ -179,6 +183,7 @@ async def test_expired_jwt_returns_401(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_refresh_with_revoked_jti_returns_401(client: AsyncClient, admin_token: str):
     """
     7C.7: POST /api/v1/auth/refresh with revoked jti → 401
@@ -211,6 +216,7 @@ async def test_refresh_with_revoked_jti_returns_401(client: AsyncClient, admin_t
 
 
 @pytest.mark.asyncio
+@pytest.mark.security
 async def test_logout_then_refresh_returns_401(client: AsyncClient, admin_token: str):
     """
     7C.8: POST /api/v1/auth/logout then try refresh → 401
@@ -562,3 +568,157 @@ async def test_list_user_names_response_format(client: AsyncClient):
         assert "pin" not in entry, "PIN hash must never be returned"
         assert "id" not in entry, "Internal user ID must never be returned"
         assert "is_admin" not in entry, "Admin flag must never be returned"
+
+
+# ── TASK-C1: Admin role promotion / demotion tests ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_admin_can_promote_user_to_admin(client: AsyncClient, admin_token: str):
+    """Admin can promote a regular user to admin via PUT /api/v1/users/family/{id}/role."""
+    # Create a second (non-admin) user
+    r = await client.post(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"name": "member", "pin": "1111"},
+    )
+    assert r.status_code == 201, r.text
+    member_id = r.json()["id"]
+
+    # Promote to admin
+    r = await client.put(
+        f"/api/v1/users/family/{member_id}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"isAdmin": True},
+    )
+    assert r.status_code == 204, r.text
+
+    # Verify via family list
+    r = await client.get(
+        "/api/v1/users/family",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    users = r.json()
+    member = next((u for u in users if u["id"] == member_id), None)
+    assert member is not None
+    assert member["isAdmin"] is True
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_user_exactly_one_admin(
+    client: AsyncClient,
+) -> None:
+    """Two simultaneous POST /users calls on an empty store must produce exactly one admin."""
+    payload1 = {"name": "Alice", "iconEmoji": "\U0001f600", "pin": "1111"}
+    payload2 = {"name": "Bob", "iconEmoji": "\U0001f601", "pin": "2222"}
+
+    r1, r2 = await asyncio.gather(
+        client.post("/api/v1/users", json=payload1),
+        client.post("/api/v1/users", json=payload2),
+    )
+
+    statuses = {r1.status_code, r2.status_code}
+    # One of the two must succeed as admin (201); the other must fail because the
+    # store is no longer empty and no auth header was provided (401).
+    assert 201 in statuses, f"Expected one 201, got {r1.status_code} and {r2.status_code}"
+    assert 401 in statuses, f"Expected one 401, got {r1.status_code} and {r2.status_code}"
+
+    admin_resp = r1 if r1.status_code == 201 else r2
+    assert admin_resp.json()["isAdmin"] is True, "First user must be admin"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_demote_other_admin(client: AsyncClient, admin_token: str):
+    """Admin can demote another admin when there are at least two admins."""
+    # Create second user and promote them
+    r = await client.post(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"name": "second_admin", "pin": "2222"},
+    )
+    assert r.status_code == 201
+    second_id = r.json()["id"]
+
+    r = await client.put(
+        f"/api/v1/users/family/{second_id}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"isAdmin": True},
+    )
+    assert r.status_code == 204
+
+    # Now demote them back
+    r = await client.put(
+        f"/api/v1/users/family/{second_id}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"isAdmin": False},
+    )
+    assert r.status_code == 204, r.text
+
+    # Confirm no longer admin
+    r = await client.get(
+        "/api/v1/users/family",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    users = r.json()
+    second = next((u for u in users if u["id"] == second_id), None)
+    assert second["isAdmin"] is False
+
+
+@pytest.mark.asyncio
+async def test_cannot_demote_last_admin(client: AsyncClient, admin_token: str):
+    """Demoting the only admin must return 400."""
+    # Get the admin user's ID
+    r = await client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    admin_id = r.json()["id"]
+
+    # Attempt to demote the only admin
+    r = await client.put(
+        f"/api/v1/users/family/{admin_id}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"isAdmin": False},
+    )
+    assert r.status_code == 400, f"Expected 400, got {r.status_code}: {r.text}"
+    assert "only admin" in r.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_change_role(client: AsyncClient, admin_token: str):
+    """Non-admin users must get 403 when trying to change roles."""
+    # Create a second non-admin user and log in as them
+    r = await client.post(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"name": "regular_user", "pin": "3333"},
+    )
+    assert r.status_code == 201
+    member_id = r.json()["id"]
+
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"name": "regular_user", "pin": "3333"},
+    )
+    assert r.status_code == 200
+    member_token = r.json()["accessToken"]
+
+    # Try to promote themselves — must be denied
+    r = await client.put(
+        f"/api/v1/users/family/{member_id}/role",
+        headers={"Authorization": f"Bearer {member_token}"},
+        json={"isAdmin": True},
+    )
+    assert r.status_code == 403, f"Expected 403, got {r.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_role_endpoint_404_for_unknown_user(client: AsyncClient, admin_token: str):
+    """PUT /role with a non-existent user_id returns 404."""
+    r = await client.put(
+        "/api/v1/users/family/nonexistent_id/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"isAdmin": True},
+    )
+    assert r.status_code == 404, f"Expected 404, got {r.status_code}: {r.text}"

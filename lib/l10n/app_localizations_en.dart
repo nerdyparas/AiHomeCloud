@@ -593,4 +593,115 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get folderEmptyHint =>
       'Upload files or create a folder to get started';
+
+  @override
+  String get navMore => 'More';
+
+  @override
+  String get shellReconnecting => 'Reconnecting…';
+
+  @override
+  String shellUploadingProgress(int done, int total) {
+    return 'Uploading $done of $total file(s)…';
+  }
+
+  @override
+  String shellUploadComplete(int done, int total) {
+    return '$done of $total file(s) saved to AiHomeCloud';
+  }
+
+  @override
+  String get shellNotReachable => 'AiHomeCloud is not reachable.';
+
+  @override
+  String get shellCheckWifi =>
+      'Check your Wi-Fi and make sure the device is powered on.';
+
+  @override
+  String get shellReconnect => 'Reconnect';
+
+  @override
+  String get moreScreenTitle => 'More';
+
+  @override
+  String get moreSectionSharing => 'Sharing';
+
+  @override
+  String get moreSectionPrivacySecurity => 'Privacy & Security';
+
+  @override
+  String get moreSectionFamilyStorage => 'Family & Storage';
+
+  @override
+  String get moreServiceTvComputer => 'TV & Computer Sharing';
+
+  @override
+  String get moreServiceTvSubtitleActive => 'DLNA + SMB active';
+
+  @override
+  String get moreServiceTvSubtitleInactive => 'Stream to TVs and computers';
+
+  @override
+  String get moreServiceNotAvailable => 'Not available';
+
+  @override
+  String get moreTelegramBot => 'Telegram Bot';
+
+  @override
+  String get moreTelegramSubtitle => 'Send files from anywhere';
+
+  @override
+  String get moreCertTitle => 'Server Certificate';
+
+  @override
+  String get moreCertPinned => '· pinned';
+
+  @override
+  String get moreCertNotPinned => '· not pinned';
+
+  @override
+  String get moreFamilyMembers => 'Family Members';
+
+  @override
+  String get moreFamilyMembersSubtitle => 'Manage users and storage';
+
+  @override
+  String get moreStorageDrive => 'Storage Drive';
+
+  @override
+  String get moreStorageDriveSubtitle => 'Manage drives and storage';
+
+  @override
+  String get moreDeviceTitle => 'Device';
+
+  @override
+  String get moreDeviceSubtitle => 'Device info and name';
+
+  @override
+  String get moreAppVersion => 'AiHomeCloud v1.0.0';
+
+  @override
+  String get moreTagline => 'Your personal home cloud';
+
+  @override
+  String get moreLogOut => 'Log Out';
+
+  @override
+  String get moreRestart => 'Restart';
+
+  @override
+  String get moreShutDown => 'Shut Down';
+
+  @override
+  String fileSearchEmpty(String query) {
+    return 'No files found for ‘$query’';
+  }
+
+  @override
+  String get storageValidationLabelMaxLength =>
+      'Label must be 16 characters or fewer';
+
+  @override
+  String get storageValidationLabelChars =>
+      'Label may only contain letters, numbers, hyphens, and underscores';
 }

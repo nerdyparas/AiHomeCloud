@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
   bool _loggingIn = false;
   bool _loadingUsers = true;
   late final AnimationController _bgController;
+  Timer? _refreshDebounce;
 
   @override
   void initState() {
@@ -88,17 +90,24 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
             .toList()),
       );
       if (!mounted) return;
-      setState(() {
-        _users = entries;
-        _loadingUsers = false;
-        // Preserve current selection if user still exists in the refreshed list
-        if (_selectedUser != null) {
-          final stillExists = entries.any((u) => u.name == _selectedUser!.name);
-          if (!stillExists) {
-            _selectedUser = null;
-            _showPin = false;
+      // Debounce: delay the background setState by 300 ms to avoid clobbering
+      // the UI while the user is actively typing their PIN.
+      _refreshDebounce?.cancel();
+      _refreshDebounce = Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        setState(() {
+          _users = entries;
+          _loadingUsers = false;
+          // Preserve current selection if user still exists in the refreshed list
+          if (_selectedUser != null) {
+            final stillExists = entries.any((u) => u.name == _selectedUser!.name);
+            if (!stillExists) {
+              _selectedUser = null;
+              _pinController.clear();
+              _showPin = false;
+            }
           }
-        }
+        });
       });
     } catch (e) {
       if (!mounted) return;
@@ -112,6 +121,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
 
   @override
   void dispose() {
+    _refreshDebounce?.cancel();
     _bgController.dispose();
     _pinController.dispose();
     super.dispose();

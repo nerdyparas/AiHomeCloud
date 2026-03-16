@@ -49,8 +49,9 @@ ENTERTAINMENT_SORT_RULES: dict[str, str] = {
     ".ogg": "Music", ".m4a": "Music",
 }
 
-_MIN_AGE_SECONDS = 5           # file must be at least this old (not still uploading)
-_DOC_PHOTO_MAX_BYTES = 800 * 1024   # < 800 KB image â†’ likely a scanned document
+_MIN_AGE_SECONDS = 30          # file must be at least this old (not still uploading)
+_DOC_PHOTO_MAX_BYTES = 800 * 1024   # < 800 KB image â†' likely a scanned document
+_SKIP_SUFFIXES = frozenset({".uploading", ".part", ".tmp"})
 
 
 def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
@@ -109,6 +110,9 @@ def _sort_file(file_path: Path, base_dir: Path, *, check_age: bool = True) -> Op
     """
     try:
         if check_age:
+            # Skip files with upload-in-progress suffixes
+            if any(file_path.name.endswith(s) for s in _SKIP_SUFFIXES):
+                return None
             age = time.time() - file_path.stat().st_mtime
             if age < _MIN_AGE_SECONDS:
                 return None  # file still being written; skip this pass

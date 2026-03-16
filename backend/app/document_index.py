@@ -14,6 +14,7 @@ is indexed with an empty ocr_text â€” never fails permanently.
 
 import asyncio
 import logging
+import shutil
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,21 @@ from .config import settings
 from .subprocess_runner import run_command
 
 logger = logging.getLogger("aihomecloud.document_index")
+
+# OCR tool availability flags — set at startup
+ocr_pdftotext_available: bool = False
+ocr_tesseract_available: bool = False
+
+
+def check_ocr_tools() -> None:
+    """Check for OCR tools at startup and set availability flags."""
+    global ocr_pdftotext_available, ocr_tesseract_available
+    ocr_pdftotext_available = shutil.which("pdftotext") is not None
+    ocr_tesseract_available = shutil.which("tesseract") is not None
+    if not ocr_pdftotext_available:
+        logger.warning("pdftotext not found — PDF text extraction disabled. Install: sudo apt install poppler-utils")
+    if not ocr_tesseract_available:
+        logger.warning("tesseract not found — image OCR disabled. Install: sudo apt install tesseract-ocr")
 
 
 _INDEXABLE_EXTENSIONS: frozenset[str] = frozenset({
@@ -66,6 +82,7 @@ def _init_db_sync() -> None:
 
 async def init_db() -> None:
     """Initialise the FTS5 database. Call once from main.py lifespan."""
+    check_ocr_tools()
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _init_db_sync)
 
@@ -392,7 +409,13 @@ async def index_documents_under_path(root_path: str, added_by: str) -> int:
 
     for p in root.rglob("*"):
         if is_indexable_document_path(p):
-            await index_document(str(p), p.name, added_by)
+            try:
+                await asyncio.wait_for(
+                    index_document(str(p), p.name, added_by),
+                    timeout=120,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("index_timeout path=%s — skipping", p)
             indexed += 1
     return indexed
 

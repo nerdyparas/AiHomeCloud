@@ -5,7 +5,7 @@ Run with: python -m app.main (auto-configures TLS)
 
 import logging
 import ssl
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from uuid import uuid4
 
@@ -22,6 +22,7 @@ import os  # noqa: E402 â€” used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .board import detect_board
+from .events import file_event_bus, FileEvent
 from .routes import (
     auth_routes,
     system_routes,
@@ -38,6 +39,47 @@ from .routes import (
 )
 
 logger = logging.getLogger("aihomecloud.main")
+
+_BOT_BACKOFF_SCHEDULE = [5, 10, 30, 60, 60]  # seconds between restart attempts
+_BOT_MAX_RESTARTS = 5
+
+
+async def _supervise_telegram_bot() -> None:
+    """Watch the Telegram bot task and restart on crash with exponential backoff."""
+    from .telegram_bot import start_bot as _start_bot, stop_bot as _stop_bot
+    from .config import settings as _settings
+
+    if not _settings.telegram_bot_token:
+        return  # bot not configured, nothing to supervise
+
+    attempt = 0
+    while attempt < _BOT_MAX_RESTARTS:
+        # Wait for crash signal (bot sets this event when it stops unexpectedly)
+        await asyncio.sleep(_BOT_BACKOFF_SCHEDULE[min(attempt, len(_BOT_BACKOFF_SCHEDULE) - 1)])
+
+        # Check if bot is still running
+        from . import telegram_bot as _tb_mod
+        if _tb_mod._application is not None:
+            # Bot is running — reset counter and keep watching
+            attempt = 0
+            continue
+
+        # Bot is down — attempt restart
+        attempt += 1
+        delay = _BOT_BACKOFF_SCHEDULE[min(attempt - 1, len(_BOT_BACKOFF_SCHEDULE) - 1)]
+        logger.warning("Telegram bot down — restart attempt %d/%d (waited %ds)",
+                       attempt, _BOT_MAX_RESTARTS, delay)
+        try:
+            await _start_bot()
+            if _tb_mod._application is not None:
+                logger.info("Telegram bot recovered after %d attempt(s)", attempt)
+                attempt = 0  # reset on successful recovery
+        except Exception as exc:
+            logger.error("Telegram bot restart failed: %s", exc)
+
+    if attempt >= _BOT_MAX_RESTARTS:
+        logger.error("Telegram bot supervisor giving up after %d restart attempts",
+                     _BOT_MAX_RESTARTS)
 
 
 @asynccontextmanager
@@ -220,6 +262,11 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("Telegram bot startup failed: %s", e)
 
+    # Launch Telegram bot supervisor (restarts on crash with exponential backoff)
+    app.state.bot_supervisor_task = asyncio.create_task(
+        _supervise_telegram_bot(), name="telegram_bot_supervisor"
+    )
+
     # Auto-disable WiFi if Ethernet is active
     try:
         from .wifi_manager import auto_disable_wifi_if_ethernet
@@ -228,6 +275,13 @@ async def lifespan(app: FastAPI):
         logger.warning("WiFi auto-disable check failed: %s", e)
 
     yield
+
+    # Cancel bot supervisor
+    sup = getattr(app.state, "bot_supervisor_task", None)
+    if sup and not sup.done():
+        sup.cancel()
+        with suppress(asyncio.CancelledError):
+            await sup
 
     # Stop Telegram bot
     try:
@@ -267,10 +321,23 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
+# Security response headers middleware
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "0"
+    if settings.tls_enabled:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Prevent caching of auth responses
+    if request.url.path.startswith("/api/v1/auth") or request.url.path.startswith("/api/v1/login"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 # Paths called very frequently â€” skip per-request logging to reduce overhead.
 _QUIET_PATHS = frozenset({

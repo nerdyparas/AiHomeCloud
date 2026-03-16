@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/error_utils.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
@@ -27,6 +28,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     final userName = session?.username ?? 'User';
     final fingerprint = ref.watch(certFingerprintProvider);
     final servicesAsync = ref.watch(servicesProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,7 +39,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 16),
 
             // â”€â”€ Screen title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Text('More',
+            Text(l10n.moreScreenTitle,
                     style: GoogleFonts.sora(
                         color: AppColors.textPrimary,
                         fontSize: 22,
@@ -55,7 +57,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             ).animate().fadeIn(delay: 50.ms),
 
             const SizedBox(height: 8),
-            _sectionLabel('Sharing'),
+            _sectionLabel(l10n.moreSectionSharing),
             const SizedBox(height: 8),
 
             // â”€â”€ 2. SHARING CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -75,12 +77,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                         return ListTile(
                           leading: _iconBox(
                               Icons.tv_rounded, AppColors.secondary),
-                          title: Text('TV & Computer Sharing',
+                          title: Text(l10n.moreServiceTvComputer,
                               style: GoogleFonts.dmSans(
                                   color: AppColors.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500)),
-                          subtitle: Text('Not available',
+                          subtitle: Text(l10n.moreServiceNotAvailable,
                               style: GoogleFonts.dmSans(
                                   color: AppColors.textMuted, fontSize: 12)),
                           trailing: const Icon(Icons.info_outline_rounded,
@@ -91,15 +93,15 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                       return ListTile(
                         leading:
                             _iconBox(Icons.tv_rounded, AppColors.secondary),
-                        title: Text('TV & Computer Sharing',
+                        title: Text(l10n.moreServiceTvComputer,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500)),
                         subtitle: Text(
                             media.isEnabled
-                                ? 'DLNA + SMB active'
-                                : 'Stream to TVs and computers',
+                                ? l10n.moreServiceTvSubtitleActive
+                                : l10n.moreServiceTvSubtitleInactive,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary, fontSize: 12)),
                         trailing: Switch(
@@ -126,7 +128,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     loading: () => ListTile(
                       leading:
                           _iconBox(Icons.tv_rounded, AppColors.secondary),
-                      title: Text('TV & Computer Sharing',
+                      title: Text(l10n.moreServiceTvComputer,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary, fontSize: 14)),
                       trailing: const SizedBox(
@@ -139,7 +141,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     error: (e, _) => ListTile(
                       leading: _iconBox(
                           Icons.tv_rounded, AppColors.textSecondary),
-                      title: Text('TV & Computer Sharing',
+                      title: Text(l10n.moreServiceTvComputer,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary, fontSize: 14)),
                       subtitle: Text(friendlyError(e),
@@ -165,12 +167,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     ListTile(
                       leading:
                           _iconBox(Icons.send_rounded, AppColors.primary),
-                      title: Text('Telegram Bot',
+                      title: Text(l10n.moreTelegramBot,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w500)),
-                      subtitle: Text('Send files from anywhere',
+                      subtitle: Text(l10n.moreTelegramSubtitle,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textSecondary, fontSize: 12)),
                       trailing: const Icon(Icons.chevron_right_rounded,
@@ -183,7 +185,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             ).animate().fadeIn(delay: 80.ms),
 
             const SizedBox(height: 8),
-            _sectionLabel('Privacy & Security'),
+            _sectionLabel(l10n.moreSectionPrivacySecurity),
             const SizedBox(height: 8),
 
             // â”€â”€ 3. PRIVACY & SECURITY CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -214,7 +216,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                                   : AppColors.textMuted),
                           const SizedBox(width: 6),
                           Text(
-                            'Server Certificate',
+                            l10n.moreCertTitle,
                             style: GoogleFonts.dmSans(
                                 color: fingerprint != null
                                     ? AppColors.textSecondary
@@ -226,7 +228,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            fingerprint != null ? '· pinned' : '· not pinned',
+                            fingerprint != null ? l10n.moreCertPinned : l10n.moreCertNotPinned,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textMuted, fontSize: 11),
                           ),
@@ -239,7 +241,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             ).animate().fadeIn(delay: 120.ms),
 
             const SizedBox(height: 8),
-            _sectionLabel('Family & Storage'),
+            _sectionLabel(l10n.moreSectionFamilyStorage),
             const SizedBox(height: 8),
 
             // â”€â”€ 4. FAMILY & STORAGE CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -252,8 +254,8 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   _navTile(
                     icon: Icons.people_rounded,
                     color: const Color(0xFFE8A84C),
-                    title: 'Family Members',
-                    subtitle: 'Manage users and storage',
+                    title: l10n.moreFamilyMembers,
+                    subtitle: l10n.moreFamilyMembersSubtitle,
                     onTap: () => context.go('/family'),
                   ),
 
@@ -263,8 +265,8 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                   _navTile(
                     icon: Icons.storage_rounded,
                     color: AppColors.secondary,
-                    title: 'Storage Drive',
-                    subtitle: 'Manage drives and storage',
+                    title: l10n.moreStorageDrive,
+                    subtitle: l10n.moreStorageDriveSubtitle,
                     onTap: () => context.push('/storage-explorer'),
                   ),
 
@@ -274,8 +276,8 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     _navTile(
                       icon: Icons.developer_board_rounded,
                       color: AppColors.textSecondary,
-                      title: 'Device',
-                      subtitle: 'Device info and name',
+                      title: l10n.moreDeviceTitle,
+                      subtitle: l10n.moreDeviceSubtitle,
                       onTap: () => context.push('/settings/device'),
                     ),
                   ],
@@ -288,7 +290,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
             Center(
               child: Text(
-                'AiHomeCloud v1.0.0',
+                l10n.moreAppVersion,
                 style: GoogleFonts.dmSans(
                     color: AppColors.textMuted, fontSize: 12),
               ),
@@ -296,7 +298,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             const SizedBox(height: 4),
             Center(
               child: Text(
-                'Your personal home cloud',
+                l10n.moreTagline,
                 style: GoogleFonts.dmSans(
                     color: AppColors.textMuted, fontSize: 11),
               ),
@@ -314,7 +316,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     const Icon(Icons.logout_rounded,
                         color: AppColors.error, size: 16),
                     const SizedBox(width: 6),
-                    Text('Log Out',
+                    Text(l10n.moreLogOut,
                         style: GoogleFonts.dmSans(
                             color: AppColors.error,
                             fontSize: 14,
@@ -334,7 +336,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     onPressed: _confirmReboot,
                     icon: const Icon(Icons.restart_alt_rounded,
                         color: AppColors.primary, size: 16),
-                    label: Text('Restart',
+                    label: Text(l10n.moreRestart,
                         style: GoogleFonts.dmSans(
                             color: AppColors.primary,
                             fontSize: 13,
@@ -345,7 +347,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     onPressed: _confirmShutdown,
                     icon: const Icon(Icons.power_settings_new_rounded,
                         color: AppColors.error, size: 16),
-                    label: Text('Shut Down',
+                    label: Text(l10n.moreShutDown,
                         style: GoogleFonts.dmSans(
                             color: AppColors.error,
                             fontSize: 13,
@@ -410,19 +412,20 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
   void _showCertDialog() {
     final stored = ref.read(certFingerprintProvider);
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Server Certificate', style: GoogleFonts.sora()),
+        title: Text(l10n.moreCertTitle, style: GoogleFonts.sora()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Pinned fingerprint:',
+            Text(l10n.moreCertFingerprintLabel,
                 style: GoogleFonts.dmSans(fontSize: 12)),
             const SizedBox(height: 4),
             SelectableText(
-              stored?.toUpperCase() ?? 'Not pinned yet',
+              stored?.toUpperCase() ?? l10n.moreCertNotPinnedYet,
               style: GoogleFonts.dmSans(
                   color: stored != null
                       ? AppColors.textSecondary
@@ -432,7 +435,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
             if (stored != null) ...[  
               const SizedBox(height: 10),
               Text(
-                'This fingerprint is pinned to your device and used to verify the connection.',
+                l10n.moreCertFingerprintDescription,
                 style: GoogleFonts.dmSans(
                     color: AppColors.textMuted, fontSize: 11),
               ),
@@ -442,7 +445,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Close', style: GoogleFonts.dmSans()),
+            child: Text(l10n.buttonClose, style: GoogleFonts.dmSans()),
           ),
         ],
       ),
@@ -452,10 +455,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   void _changePin() {
     final oldCtrl = TextEditingController();
     final newCtrl = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Change my PIN', style: GoogleFonts.sora()),
+        title: Text(l10n.moreProfileChangePinTitle, style: GoogleFonts.sora()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -464,9 +468,9 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               obscureText: true,
               keyboardType: TextInputType.number,
               style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Current PIN',
-                prefixIcon:
+              decoration: InputDecoration(
+                hintText: l10n.settingsCurrentPinHint,
+                prefixIcon: const
                     Icon(Icons.lock_open_rounded, color: AppColors.textMuted),
               ),
             ),
@@ -477,9 +481,9 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               style: GoogleFonts.dmSans(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'New PIN',
-                prefixIcon:
+              decoration: InputDecoration(
+                hintText: l10n.settingsNewPinHint,
+                prefixIcon: const
                     Icon(Icons.lock_rounded, color: AppColors.textMuted),
               ),
             ),
@@ -488,7 +492,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
@@ -500,7 +504,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('PIN changed successfully')));
+                      SnackBar(content: Text(l10n.settingsPinChangedSuccess)));
                 }
               } catch (e) {
                 if (mounted) {
@@ -509,7 +513,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 }
               }
             },
-            child: Text('Change',
+            child: Text(l10n.buttonChange,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -518,18 +522,19 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   }
 
   void _confirmReboot() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Restart AiHomeCloud?', style: GoogleFonts.sora()),
+        title: Text(l10n.moreRestartDialogTitle, style: GoogleFonts.sora()),
         content: Text(
-          'The device will restart and come back online in about a minute.',
+          l10n.moreRestartDialogMessage,
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
@@ -538,7 +543,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               Navigator.pop(ctx);
               _performReboot();
             },
-            child: Text('Restart',
+            child: Text(l10n.moreRestartButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -548,40 +553,40 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
   Future<void> _performReboot() async {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Restarting AiHomeCloudâ€¦')),
+      SnackBar(content: Text(l10n.moreRestartingSnackbar)),
     );
     try {
       await ref.read(apiServiceProvider).rebootDevice();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AiHomeCloud is restarting.')),
+          SnackBar(content: Text(l10n.moreRestartStartedSnackbar)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restart failed: ${friendlyError(e)}')),
+          SnackBar(content: Text(l10n.moreRestartFailedSnackbar(friendlyError(e)))),
         );
       }
     }
   }
 
   void _confirmShutdown() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Shut Down AiHomeCloud?', style: GoogleFonts.sora()),
+        title: Text(l10n.moreShutdownDialogTitle, style: GoogleFonts.sora()),
         content: Text(
-          'This will stop all active services, cancel file transfers, '
-          'and safely power off the device. You will need physical access '
-          'to turn it back on.',
+          l10n.moreShutdownDialogMessage,
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
@@ -590,7 +595,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               Navigator.pop(ctx);
               _performShutdown();
             },
-            child: Text('Shut Down',
+            child: Text(l10n.moreShutdownButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -600,38 +605,40 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
   Future<void> _performShutdown() async {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Shutting down AiHomeCloudâ€¦')),
+      SnackBar(content: Text(l10n.moreShutdownStartedSnackbar)),
     );
     try {
       await ref.read(apiServiceProvider).shutdownDevice();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AiHomeCloud is powering off.')),
+          SnackBar(content: Text(l10n.moreShutdownCompleteSnackbar)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Shutdown failed: ${friendlyError(e)}')),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     }
   }
 
   void _confirmLogout() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Log Out?', style: GoogleFonts.sora()),
+        title: Text(l10n.settingsLogoutDialogTitle, style: GoogleFonts.sora()),
         content: Text(
-          'You will need to pair your device again to use the app.',
+          l10n.settingsLogoutWarning,
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
@@ -644,7 +651,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) context.go('/');
             },
-            child: Text('Log Out',
+            child: Text(l10n.moreLogOut,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -680,6 +687,7 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AppCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -721,7 +729,7 @@ class _ProfileCard extends StatelessWidget {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
-                        Text('Edit name, icon and PIN',
+                        Text(l10n.moreProfileEditSubtitle,
                             style: GoogleFonts.dmSans(
                                 color: AppColors.textMuted, fontSize: 12)),
                       ],
@@ -749,7 +757,7 @@ class _ProfileCard extends StatelessWidget {
               child: const Icon(Icons.lock_rounded,
                   color: AppColors.textSecondary, size: 18),
             ),
-            title: Text('Change PIN',
+            title: Text(l10n.settingsChangePin,
                 style: GoogleFonts.dmSans(
                     color: AppColors.textPrimary,
                     fontSize: 14,
@@ -777,25 +785,25 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
   bool _clearing = false;
 
   Future<void> _emptyTrash(List<TrashItem> items) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Empty Trash?', style: GoogleFonts.sora()),
+        title: Text(l10n.moreEmptyTrashDialogTitle, style: GoogleFonts.sora()),
         content: Text(
-          'This will permanently delete ${items.length} '
-          'item${items.length == 1 ? '' : 's'}. This cannot be undone.',
+          l10n.moreEmptyTrashDialogMessage(items.length),
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Empty Trash',
+            child: Text(l10n.moreEmptyTrashButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -810,10 +818,10 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
         await api.permanentDeleteTrashItem(item.id);
       }
       ref.invalidate(trashItemsProvider);
-      messenger.showSnackBar(const SnackBar(content: Text('Trash emptied.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.moreTrashEmptiedSnackbar)));
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text('Failed: ${friendlyError(e)}')));
+          SnackBar(content: Text(friendlyError(e))));
     } finally {
       if (mounted) setState(() => _clearing = false);
     }
@@ -821,6 +829,7 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final trashAsync = ref.watch(trashItemsProvider);
     final items = trashAsync.valueOrNull ?? [];
     final totalMB =
@@ -837,15 +846,15 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
         child: const Icon(Icons.delete_outline_rounded,
             color: AppColors.error, size: 18),
       ),
-      title: Text('Trash',
+      title: Text(l10n.moreTrashTitle,
           style: GoogleFonts.dmSans(
               color: AppColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w500)),
       subtitle: Text(
           items.isEmpty
-              ? 'Empty'
-              : '${items.length} item${items.length > 1 ? 's' : ''} Â· $totalMB MB',
+              ? l10n.moreTrashEmpty
+              : l10n.moreTrashItemCount(items.length, totalMB),
           style: GoogleFonts.dmSans(
               color: AppColors.textSecondary, fontSize: 12)),
       trailing: items.isEmpty
@@ -859,7 +868,7 @@ class _TrashCardState extends ConsumerState<_TrashCard> {
                 )
               : TextButton(
                   onPressed: () => _emptyTrash(items),
-                  child: Text('Empty',
+                  child: Text(l10n.moreTrashEmptyButton,
                       style: GoogleFonts.dmSans(
                           color: AppColors.error,
                           fontSize: 13,

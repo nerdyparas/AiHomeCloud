@@ -1137,6 +1137,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload files or create a folder to get started'**
   String get folderEmptyHint;
+
+  /// No description provided for @navMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get navMore;
+
+  /// No description provided for @shellReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting…'**
+  String get shellReconnecting;
+
+  /// No description provided for @shellUploadingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading {done} of {total} file(s)…'**
+  String shellUploadingProgress(int done, int total);
+
+  /// No description provided for @shellUploadComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} file(s) saved to AiHomeCloud'**
+  String shellUploadComplete(int done, int total);
+
+  /// No description provided for @shellNotReachable.
+  ///
+  /// In en, this message translates to:
+  /// **'AiHomeCloud is not reachable.'**
+  String get shellNotReachable;
+
+  /// No description provided for @shellCheckWifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your Wi-Fi and make sure the device is powered on.'**
+  String get shellCheckWifi;
+
+  /// No description provided for @shellReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect'**
+  String get shellReconnect;
+
+  /// No description provided for @moreScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreScreenTitle;
+
+  /// No description provided for @moreSectionSharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing'**
+  String get moreSectionSharing;
+
+  /// No description provided for @moreSectionPrivacySecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Security'**
+  String get moreSectionPrivacySecurity;
+
+  /// No description provided for @moreSectionFamilyStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Family & Storage'**
+  String get moreSectionFamilyStorage;
+
+  /// No description provided for @moreServiceTvComputer.
+  ///
+  /// In en, this message translates to:
+  /// **'TV & Computer Sharing'**
+  String get moreServiceTvComputer;
+
+  /// No description provided for @moreServiceTvSubtitleActive.
+  ///
+  /// In en, this message translates to:
+  /// **'DLNA + SMB active'**
+  String get moreServiceTvSubtitleActive;
+
+  /// No description provided for @moreServiceTvSubtitleInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Stream to TVs and computers'**
+  String get moreServiceTvSubtitleInactive;
+
+  /// No description provided for @moreServiceNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get moreServiceNotAvailable;
+
+  /// No description provided for @moreTelegramBot.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Bot'**
+  String get moreTelegramBot;
+
+  /// No description provided for @moreTelegramSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send files from anywhere'**
+  String get moreTelegramSubtitle;
+
+  /// No description provided for @moreCertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Certificate'**
+  String get moreCertTitle;
+
+  /// No description provided for @moreCertPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'· pinned'**
+  String get moreCertPinned;
+
+  /// No description provided for @moreCertNotPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'· not pinned'**
+  String get moreCertNotPinned;
+
+  /// No description provided for @moreFamilyMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Family Members'**
+  String get moreFamilyMembers;
+
+  /// No description provided for @moreFamilyMembersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage users and storage'**
+  String get moreFamilyMembersSubtitle;
+
+  /// No description provided for @moreStorageDrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage Drive'**
+  String get moreStorageDrive;
+
+  /// No description provided for @moreStorageDriveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage drives and storage'**
+  String get moreStorageDriveSubtitle;
+
+  /// No description provided for @moreDeviceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get moreDeviceTitle;
+
+  /// No description provided for @moreDeviceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device info and name'**
+  String get moreDeviceSubtitle;
+
+  /// No description provided for @moreAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'AiHomeCloud v1.0.0'**
+  String get moreAppVersion;
+
+  /// No description provided for @moreTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Your personal home cloud'**
+  String get moreTagline;
+
+  /// No description provided for @moreLogOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Out'**
+  String get moreLogOut;
+
+  /// No description provided for @moreRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart'**
+  String get moreRestart;
+
+  /// No description provided for @moreShutDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Shut Down'**
+  String get moreShutDown;
+
+  /// No description provided for @fileSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No files found for ‘{query}’'**
+  String fileSearchEmpty(String query);
+
+  /// No description provided for @storageValidationLabelMaxLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Label must be 16 characters or fewer'**
+  String get storageValidationLabelMaxLength;
+
+  /// No description provided for @storageValidationLabelChars.
+  ///
+  /// In en, this message translates to:
+  /// **'Label may only contain letters, numbers, hyphens, and underscores'**
+  String get storageValidationLabelChars;
 }
 
 class _AppLocalizationsDelegate

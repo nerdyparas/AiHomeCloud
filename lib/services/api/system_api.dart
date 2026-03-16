@@ -22,8 +22,14 @@ extension SystemApi on ApiService {
     );
   }
 
-  /// WebSocket /ws/monitor Ã¢â‚¬â€ streams SystemStats every 2 s.
-  Stream<SystemStats> monitorSystemStats() {
+  /// WebSocket /ws/monitor — streams SystemStats every 2 s.
+  ///
+  /// Reconnects automatically on transient errors up to [maxRetries] attempts
+  /// (~5 minutes at 30 attempts with exponential back-off capped at 30 s).
+  /// After that the stream closes so the caller (e.g. a StreamProvider) can
+  /// show a "disconnected" state; the user can trigger a manual reconnect by
+  /// invalidating the provider.
+  Stream<SystemStats> monitorSystemStats({int maxRetries = 30}) async* {
     final host = _session?.host;
     final port = _session?.port ?? AppConstants.apiPort;
     final token = _session?.token;
@@ -31,51 +37,49 @@ extension SystemApi on ApiService {
       throw StateError('Host is not configured in auth session');
     }
     final uri = Uri.parse(
-      'wss://$host:$port/ws/monitor${token != null ? '?token=$token' : ''}',
-    );
-    final channel = IOWebSocketChannel.connect(
-      uri,
-      customClient: _createPinnedHttpClient(),
+      'wss://$host:$port/ws/monitor${token != null ? "?token=$token" : ""}',
     );
 
-    _connectionStatusCallback?.call(ConnectionStatus.connected);
-    int missedBeats = 0;
-    final ctrl = StreamController<SystemStats>();
-    channel.stream.listen(
-      (raw) {
-        missedBeats = 0;
+    int attempts = 0;
+    while (attempts <= maxRetries) {
+      try {
+        final channel = IOWebSocketChannel.connect(
+          uri,
+          customClient: _createPinnedHttpClient(),
+        );
         _connectionStatusCallback?.call(ConnectionStatus.connected);
-        final data = jsonDecode(raw as String);
-        ctrl.add(SystemStats(
-          cpuPercent: (data['cpuPercent'] as num).toDouble(),
-          ramPercent: (data['ramPercent'] as num).toDouble(),
-          tempCelsius: (data['tempCelsius'] as num).toDouble(),
-          uptime: Duration(seconds: data['uptimeSeconds'] as int),
-          networkUpMbps: (data['networkUpMbps'] as num).toDouble(),
-          networkDownMbps: (data['networkDownMbps'] as num).toDouble(),
-          storage: StorageStats(
-            totalGB: (data['storage']['totalGB'] as num).toDouble(),
-            usedGB: (data['storage']['usedGB'] as num).toDouble(),
-          ),
-        ));
-      },
-      onError: (e, st) {
-        missedBeats++;
-        if (missedBeats >= 2) {
-          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+
+        await for (final raw in channel.stream) {
+          attempts = 0; // reset back-off on successful message
+          _connectionStatusCallback?.call(ConnectionStatus.connected);
+          final data = jsonDecode(raw as String);
+          yield SystemStats(
+            cpuPercent: (data['cpuPercent'] as num).toDouble(),
+            ramPercent: (data['ramPercent'] as num).toDouble(),
+            tempCelsius: (data['tempCelsius'] as num).toDouble(),
+            uptime: Duration(seconds: data['uptimeSeconds'] as int),
+            networkUpMbps: (data['networkUpMbps'] as num).toDouble(),
+            networkDownMbps: (data['networkDownMbps'] as num).toDouble(),
+            storage: StorageStats(
+              totalGB: (data['storage']['totalGB'] as num).toDouble(),
+              usedGB: (data['storage']['usedGB'] as num).toDouble(),
+            ),
+          );
         }
-        ctrl.addError(e, st);
-      },
-      onDone: () {
-        missedBeats++;
-        if (missedBeats >= 2) {
-          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        // Channel closed cleanly — no reconnect needed.
+        return;
+      } catch (_) {
+        attempts++;
+        if (attempts > maxRetries) {
+          _connectionStatusCallback?.call(ConnectionStatus.disconnected);
+          return; // stream ends — UI shows disconnected state
         }
-        ctrl.close();
-      },
-      cancelOnError: false,
-    );
-    return ctrl.stream;
+        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        // Exponential back-off capped at 30 s.
+        final backoff = Duration(seconds: (attempts * 2).clamp(2, 30));
+        await Future.delayed(backoff);
+      }
+    }
   }
 
   /// WebSocket /ws/events Ã¢â‚¬â€ real-time notification stream from the backend.

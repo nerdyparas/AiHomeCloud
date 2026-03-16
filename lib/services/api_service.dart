@@ -158,6 +158,9 @@ class ApiService {
   /// Throws on non-2xx responses with the server error detail.
   void _check(http.Response res) {
     if (res.statusCode >= 200 && res.statusCode < 300) return;
+    if (res.statusCode == 429) {
+      throw Exception('Too many requests. Please wait a moment.');
+    }
     String msg;
     try {
       final body = jsonDecode(res.body);

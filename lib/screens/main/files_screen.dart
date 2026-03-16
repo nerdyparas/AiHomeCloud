@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
 import '../../core/error_utils.dart';
 import '../../core/theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/models.dart';
 import '../../providers.dart';
 import '../../widgets/app_card.dart';
@@ -69,6 +70,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     // Trash screen
     if (_trashOpen) {
       return _TrashScreen(onBack: _goBack);
@@ -105,7 +108,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text('Files',
+              child: Text(l10n.myFilesTitle,
                 style: GoogleFonts.sora(
                   color: AppColors.textPrimary,
                   fontSize: 22,
@@ -131,31 +134,31 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                       name: username,
                       icon: Icons.person_rounded,
                       color: AppColors.primary,
-                      subtitle: 'Your private files',
+                      subtitle: l10n.filesFolderSubtitlePersonal,
                       onTap: () => _openFolder(personalPath, username),
                     ),
                     const SizedBox(height: 12),
                     _FolderCard(
-                      name: 'Family',
+                      name: l10n.familyTitle,
                       icon: Icons.people_rounded,
                       color: const Color(0xFF4CE88A),
-                      subtitle: 'Shared with everyone',
-                      onTap: () => _openFolder(familyPath, 'Family'),
+                      subtitle: l10n.filesFolderSubtitleFamily,
+                      onTap: () => _openFolder(familyPath, l10n.familyTitle),
                     ),
                     const SizedBox(height: 12),
                     _FolderCard(
                       name: 'Entertainment',
                       icon: Icons.movie_rounded,
                       color: const Color(0xFFE84CA8),
-                      subtitle: 'Movies, series, music',
+                      subtitle: l10n.filesFolderSubtitleEntertainment,
                       onTap: () => _openFolder(entertainmentPath, 'Entertainment'),
                     ),
                     const SizedBox(height: 12),
                     _FolderCard(
-                      name: 'Trash',
+                      name: l10n.moreTrashTitle,
                       icon: Icons.delete_outline_rounded,
                       color: AppColors.error,
-                      subtitle: 'Recently deleted files',
+                      subtitle: l10n.filesFolderSubtitleTrash,
                       onTap: () => setState(() => _trashOpen = true),
                     ),
                   ],
@@ -290,7 +293,7 @@ class _DocSearchResults extends ConsumerWidget {
                       color: AppColors.textMuted, size: 48),
                   const SizedBox(height: 12),
                   Text(
-                    'No documents found for "$query"',
+                    l10n.filesSearchNoResults(query),
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary, fontSize: 14),
                     textAlign: TextAlign.center,
@@ -400,33 +403,34 @@ class _TrashScreen extends ConsumerWidget {
       await ref.read(apiServiceProvider).restoreTrashItem(item.id);
       ref.invalidate(trashItemsProvider);
       messenger.showSnackBar(
-          SnackBar(content: Text('Restored: ${item.filename}')));
+          SnackBar(content: Text(l10n.trashRestoredSnackbar(item.filename))));
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text('Restore failed: ${friendlyError(e)}')));
+          SnackBar(content: Text(friendlyError(e))));
     }
   }
 
   Future<void> _delete(
       BuildContext context, WidgetRef ref, TrashItem item) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Delete permanently?', style: GoogleFonts.sora()),
+        title: Text(l10n.trashDeletePermanentlyTitle, style: GoogleFonts.sora()),
         content: Text(
-          '${item.filename} will be permanently deleted. This cannot be undone.',
+          l10n.trashDeletePermanentlyMessage(item.filename),
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete',
+            child: Text(l10n.trashDeleteButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -439,31 +443,31 @@ class _TrashScreen extends ConsumerWidget {
       ref.invalidate(trashItemsProvider);
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text('Delete failed: ${friendlyError(e)}')));
+          SnackBar(content: Text(friendlyError(e))));
     }
   }
 
   Future<void> _emptyTrash(
       BuildContext context, WidgetRef ref, List<TrashItem> items) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Empty Trash?', style: GoogleFonts.sora()),
+        title: Text(l10n.moreEmptyTrashDialogTitle, style: GoogleFonts.sora()),
         content: Text(
-          'This will permanently delete ${items.length} '
-          'item${items.length == 1 ? '' : 's'}. This cannot be undone.',
+          l10n.moreEmptyTrashDialogMessage(items.length),
           style: GoogleFonts.dmSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
+            child: Text(l10n.buttonCancel,
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Empty Trash',
+            child: Text(l10n.moreEmptyTrashButton,
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -477,17 +481,17 @@ class _TrashScreen extends ConsumerWidget {
         await api.permanentDeleteTrashItem(item.id);
       }
       ref.invalidate(trashItemsProvider);
-      messenger.showSnackBar(const SnackBar(content: Text('Trash emptied.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.moreTrashEmptiedSnackbar)));
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text('Failed: ${friendlyError(e)}')));
+          SnackBar(content: Text(friendlyError(e))));
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final trashAsync = ref.watch(trashItemsProvider);
-    final autoDeleteAsync = ref.watch(trashAutoDeleteProvider);
 
     return PopScope(
       canPop: false,
@@ -510,7 +514,7 @@ class _TrashScreen extends ConsumerWidget {
                       onPressed: onBack,
                     ),
                     Text(
-                      'Trash',
+                      l10n.trashScreenTitle,
                       style: GoogleFonts.sora(
                         color: AppColors.textPrimary,
                         fontSize: 22,
@@ -518,65 +522,6 @@ class _TrashScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
-                ),
-              ),
-              // Auto-delete toggle
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: AppCard(
-                  padding: EdgeInsets.zero,
-                  child: autoDeleteAsync.when(
-                    data: (enabled) => SwitchListTile(
-                      value: enabled,
-                      activeColor: AppColors.primary,
-                      onChanged: (val) async {
-                        try {
-                          await ref
-                              .read(apiServiceProvider)
-                              .setTrashAutoDelete(val);
-                          ref.invalidate(trashAutoDeleteProvider);
-                        } catch (e) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(
-                                'Could not save: ${friendlyError(e)}'),
-                          ));
-                        }
-                      },
-                      title: Text(
-                        'Auto-delete after 30 days',
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(
-                        enabled
-                            ? 'Items older than 30 days are permanently deleted'
-                            : 'Files stay in trash until manually deleted',
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: LinearProgressIndicator(),
-                    ),
-                    error: (_, __) => ListTile(
-                      title: Text('Auto-delete after 30 days',
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textPrimary, fontSize: 14)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.refresh_rounded,
-                            color: AppColors.primary),
-                        onPressed: () => ref.invalidate(trashAutoDeleteProvider),
-                      ),
-                    ),
-                  ),
                 ),
               ),
               // Items list
@@ -591,7 +536,7 @@ class _TrashScreen extends ConsumerWidget {
                             const Icon(Icons.delete_outline_rounded,
                                 color: AppColors.textMuted, size: 56),
                             const SizedBox(height: 12),
-                            Text('Trash is empty',
+                            Text(l10n.trashEmptyState,
                                 style: GoogleFonts.dmSans(
                                     color: AppColors.textMuted, fontSize: 15)),
                           ],
@@ -620,7 +565,7 @@ class _TrashScreen extends ConsumerWidget {
                                     foregroundColor: AppColors.error),
                                 onPressed: () =>
                                     _emptyTrash(context, ref, items),
-                                child: Text('Empty All',
+                                child: Text(l10n.trashEmptyAllButton,
                                     style: GoogleFonts.dmSans(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600)),

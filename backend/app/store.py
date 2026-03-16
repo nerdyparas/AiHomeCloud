@@ -22,6 +22,12 @@ logger = logging.getLogger("aihomecloud.store")
 # Async lock to protect concurrent access to JSON files from async handlers
 _store_lock = asyncio.Lock()
 
+# Separate lock serialising the first-user check + create sequence to prevent
+# a race where two simultaneous requests both observe 0 users and both try to
+# create the admin account.  Must be distinct from _store_lock (which is also
+# acquired inside add_user → save_users) to avoid re-entrant deadlocks.
+_user_creation_lock = asyncio.Lock()
+
 _CACHE_TTL = 5.0  # seconds â€” longer TTL reduces JSON re-reads during browsing
 _cache: dict[str, tuple[Any, float]] = {}
 
@@ -54,40 +60,79 @@ def _read_json(path: Path, default: Any = _UNSET) -> Any:
     try:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, ValueError):
-        logger.error("corrupt_json path=%s â€” returning default", path)
+        logger.error("corrupt_json path=%s — attempting recovery", path)
+        fallback = {} if default is _UNSET else default
+
         # Rename corrupt file for forensic inspection
+        corrupt_name = path.with_suffix(".json.corrupt")
         try:
-            corrupt_name = path.with_suffix(".json.corrupt")
             path.rename(corrupt_name)
         except Exception:
             pass
-        return {} if default is _UNSET else default
+
+        # Attempt recovery from the .corrupt backup (may be the previous good copy)
+        recovered = False
+        try:
+            if corrupt_name.exists():
+                data = json.loads(corrupt_name.read_text())
+                logger.info("corrupt_json_recovered path=%s from backup", path)
+                # Restore the recovered data back to the original path
+                _atomic_write(path, data)
+                recovered = True
+                fallback = data
+        except (json.JSONDecodeError, ValueError, OSError):
+            logger.error("corrupt_json_recovery_failed path=%s — data lost", path)
+
+        # Emit data_corruption event for UI notification
+        try:
+            from .events import file_event_bus, FileEvent
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(file_event_bus.publish(FileEvent(
+                    path=str(path),
+                    action="data_corruption" if not recovered else "data_corruption_recovered",
+                    user="system",
+                )))
+        except Exception:
+            pass  # event bus may not be ready during early startup
+
+        return fallback
 
 
 def _atomic_write(path: Path, data: Any) -> None:
     """Write JSON to `path` atomically by writing to a temp file then moving it.
 
     This prevents partially-written JSON files on crash/power-loss.
+    If fsync fails (e.g. disk full), the temp file is cleaned up and the
+    original file is left untouched.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
     # Use the same directory to ensure os.replace is atomic on the same filesystem.
     fd, tmp_path = tempfile.mkstemp(prefix=path.name, dir=str(path.parent))
+    fsync_ok = False
     try:
         # Write bytes to fd, flush and fsync to ensure durability.
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(json.dumps(data, indent=2))
             f.flush()
             os.fsync(f.fileno())
+        fsync_ok = True
 
-        # Atomically replace target
+        # Atomically replace target — only reached if fsync succeeded.
         os.replace(tmp_path, str(path))
-    except Exception:
-        # Best-effort cleanup on error
+    except Exception as exc:
+        # Clean up temp file — original file is untouched.
         try:
             os.unlink(tmp_path)
         except Exception:
             pass
+        if not fsync_ok:
+            logger.error(
+                "atomic_write_fsync_failed path=%s error=%s — temp file cleaned up, original file preserved",
+                path, exc,
+            )
         raise
 
 
@@ -194,6 +239,18 @@ async def remove_pin(user_id: str) -> bool:
     for u in users:
         if u["id"] == user_id:
             u["pin"] = None
+            await save_users(users)
+            _set_cached("users", None)
+            return True
+    return False
+
+
+async def update_user_role(user_id: str, is_admin: bool) -> bool:
+    """Set or unset admin flag for a user. Returns False if user not found."""
+    users = await get_users()
+    for u in users:
+        if u["id"] == user_id:
+            u["is_admin"] = is_admin
             await save_users(users)
             _set_cached("users", None)
             return True
@@ -335,7 +392,7 @@ async def clear_storage_state() -> None:
 
 # â”€â”€â”€ Tokens (refresh tokens) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-async def get_tokens() -> list:
+async def get_tokens() -> List[dict]:
     """Return list of refresh token records."""
     cached = _get_cached("tokens")
     if cached is not None:
@@ -347,7 +404,7 @@ async def get_tokens() -> list:
         return tokens
 
 
-async def save_tokens(tokens: list) -> None:
+async def save_tokens(tokens: List[dict]) -> None:
     """Persist tokens list to disk."""
     _set_cached("tokens", None)
     async with _store_lock:
@@ -378,11 +435,14 @@ async def revoke_token(jti: str) -> bool:
 
 
 async def purge_expired_tokens(older_than_ts: int) -> int:
-    """Remove tokens whose `expiresAt` is older than `older_than_ts`.
-    Returns number removed.
+    """Remove tokens whose `expiresAt` is older than `older_than_ts`
+    or that have been revoked.  Returns number removed.
     """
     tokens = await get_tokens()
-    kept = [t for t in tokens if t.get("expiresAt", 0) >= older_than_ts]
+    kept = [
+        t for t in tokens
+        if t.get("expiresAt", 0) >= older_than_ts and not t.get("revoked", False)
+    ]
     removed = len(tokens) - len(kept)
     if removed > 0:
         await save_tokens(kept)
