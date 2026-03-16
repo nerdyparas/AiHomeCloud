@@ -115,8 +115,6 @@ class Settings(BaseSettings):
     telegram_local_api_url: str = "http://127.0.0.1:8081"  # local server address
     telegram_download_timeout: int = 600  # AHC_TELEGRAM_DOWNLOAD_TIMEOUT — seconds for file transfers
 
-    # â”€â”€ SQLite file index (feature-flagged â€” off by default) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    enable_sqlite: bool = False   # AHC_ENABLE_SQLITE â€” creates file_index + ai_jobs tables when True
 
     # â”€â”€ Data (JSON-file-based persistence for users, services, etc.) â”€â”€â”€â”€â”€â”€â”€â”€â”€
     data_dir: Path = Path("/var/lib/aihomecloud")

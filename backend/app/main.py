@@ -219,13 +219,6 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.warning("Startup hygiene cleanup failed: %s", e)
 
-    # Initialise SQLite file index (feature-flagged, off by default)
-    try:
-        from .db_stub import init_db as _init_sqlite_db
-        await _init_sqlite_db()
-    except (OSError, RuntimeError, ValueError, ImportError) as e:
-        logger.warning("SQLite file index init skipped: %s", e)
-
     # Start InboxWatcher for auto-sorting uploaded files
     try:
         from .file_sorter import get_watcher as _get_watcher

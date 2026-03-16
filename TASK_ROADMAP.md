@@ -339,7 +339,7 @@ Already covered in Phase 1.
 4. Update `.gitignore` if needed
 **Test:** Root directory contains only: README.md, TASKS.md, LICENSE, PROJECT_AUDIT.md, BUG_REPORT.md, TASK_ROADMAP.md, pubspec.yaml, analysis_options.yaml, config files.
 
-### TASK-PQ3: Remove Dead Code
+### TASK-PQ3: Remove Dead Code ✅ DONE
 **Files:** `backend/app/db_stub.py`, `lib/services/mock_api_service.dart`
 **Problem:** Unused code.
 **Requirements:**
