@@ -72,6 +72,15 @@ def _wipe_stale_nas_dirs() -> None:
                 logger.warning("Could not wipe stale NAS dir %s: %s", d, e)
 
 
+async def _bg_wipe_stale_nas_dirs() -> None:
+    """Background wrapper — runs _wipe_stale_nas_dirs in a thread executor."""
+    import asyncio
+    try:
+        await asyncio.get_event_loop().run_in_executor(None, _wipe_stale_nas_dirs)
+    except Exception as e:
+        logger.warning("Background NAS dir wipe failed: %s", e)
+
+
 @router.get("/pair/qr")
 async def get_pairing_qr():
     """
@@ -239,11 +248,12 @@ async def create_user(
 
         is_admin = is_first_user
 
-        # First-time setup: wipe any stale app folder structure from a previous
-        # installation so the new user starts with a clean NAS file hierarchy.
+        # First-time setup: schedule cleanup of stale app folders from a
+        # previous installation.  Runs as a background task so user creation
+        # returns instantly — the wipe can take minutes on large USB dirs.
         if is_first_user:
             import asyncio as _asyncio
-            await _asyncio.get_event_loop().run_in_executor(None, _wipe_stale_nas_dirs)
+            _asyncio.get_event_loop().create_task(_bg_wipe_stale_nas_dirs())
 
         user = await store.add_user(
             body.name,

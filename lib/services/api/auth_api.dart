@@ -111,34 +111,63 @@ extension AuthApi on ApiService {
 
   /// POST /api/v1/auth/login  body: {name, pin}
   /// Returns the full login response map (accessToken, refreshToken, user).
+  /// Retries once on connection failure (handles backend mid-restart).
   Future<Map<String, dynamic>> loginWithPin(String host, String name, String pin) async {
     final base = 'https://$host:${AppConstants.apiPort}';
-    final res = await _client
-        .post(
-          Uri.parse('$base${AppConstants.apiVersion}/auth/login'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'name': name, 'pin': pin}),
-        )
-        .timeout(ApiService._timeout);
-    _check(res);
-    return jsonDecode(res.body) as Map<String, dynamic>;
+    final uri = Uri.parse('$base${AppConstants.apiVersion}/auth/login');
+    final body = jsonEncode({'name': name, 'pin': pin});
+    const headers = {'Content-Type': 'application/json'};
+
+    try {
+      final res = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(ApiService._timeout);
+      _check(res);
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    } on SocketException {
+      // Single retry after a short delay — covers backend mid-restart
+      await Future.delayed(const Duration(milliseconds: 800));
+      final res = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(ApiService._timeout);
+      _check(res);
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    } on HandshakeException {
+      await Future.delayed(const Duration(milliseconds: 800));
+      final res = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(ApiService._timeout);
+      _check(res);
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
   }
 
-  /// GET /api/v1/auth/users/names — fetch available user names (no auth).
   /// GET /api/v1/auth/users/names — fetch user names + PIN status for the login picker (no auth).
+  /// Retries once on connection failure to handle backend mid-restart.
   Future<List<UserPickerEntry>> fetchUserEntries(String host) async {
     final base = 'https://$host:${AppConstants.apiPort}';
-    final res = await _client
-        .get(Uri.parse('$base${AppConstants.apiVersion}/auth/users/names'))
-        .timeout(ApiService._timeout);
-    _check(res);
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final list = data['users'] as List<dynamic>;
-    return list.map((e) => UserPickerEntry(
-      name: e['name'] as String,
-      hasPin: e['has_pin'] as bool? ?? false,
-      iconEmoji: e['icon_emoji'] as String? ?? '',
-    )).toList();
+    final uri = Uri.parse('$base${AppConstants.apiVersion}/auth/users/names');
+
+    List<UserPickerEntry> _parse(http.Response res) {
+      _check(res);
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final list = data['users'] as List<dynamic>;
+      return list.map((e) => UserPickerEntry(
+        name: e['name'] as String,
+        hasPin: e['has_pin'] as bool? ?? false,
+        iconEmoji: e['icon_emoji'] as String? ?? '',
+      )).toList();
+    }
+
+    try {
+      return _parse(await _client.get(uri).timeout(ApiService._timeout));
+    } on SocketException {
+      await Future.delayed(const Duration(milliseconds: 800));
+      return _parse(await _client.get(uri).timeout(ApiService._timeout));
+    } on HandshakeException {
+      await Future.delayed(const Duration(milliseconds: 800));
+      return _parse(await _client.get(uri).timeout(ApiService._timeout));
+    }
   }
 
   /// GET /api/v1/users/me

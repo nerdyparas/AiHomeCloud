@@ -8,6 +8,7 @@ Type=simple
 User=aihomecloud
 Group=aihomecloud
 WorkingDirectory=/opt/aihomecloud/backend
+ExecStartPre=/bin/sh -c 'fuser -k 8443/tcp 2>/dev/null || true'
 ExecStart=/opt/aihomecloud/backend/venv/bin/python -m app.main
 Restart=always
 RestartSec=5

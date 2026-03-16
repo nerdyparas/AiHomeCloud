@@ -338,7 +338,7 @@ async def test_list_block_devices_success():
     })
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_cmd.return_value = (0, lsblk_output, "")
-        result = await list_block_devices()
+        result = await list_block_devices(skip_cache=True)
         assert len(result) == 1
         assert result[0]["name"] == "sda"
 
@@ -347,7 +347,7 @@ async def test_list_block_devices_success():
 async def test_list_block_devices_failure():
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_cmd.return_value = (1, "", "error")
-        result = await list_block_devices()
+        result = await list_block_devices(skip_cache=True)
         assert result == []
 
 
@@ -355,7 +355,7 @@ async def test_list_block_devices_failure():
 async def test_list_block_devices_invalid_json():
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_cmd.return_value = (0, "not json", "")
-        result = await list_block_devices()
+        result = await list_block_devices(skip_cache=True)
         assert result == []
 
 
@@ -363,7 +363,7 @@ async def test_list_block_devices_invalid_json():
 async def test_list_block_devices_exception():
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_cmd.side_effect = OSError("boom")
-        result = await list_block_devices()
+        result = await list_block_devices(skip_cache=True)
         assert result == []
 
 
@@ -388,6 +388,10 @@ async def test_find_partition_found():
     })
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_cmd.return_value = (0, lsblk_output, "")
+        # Clear lsblk cache so the mock is actually called
+        import app.routes.storage_helpers as sh
+        sh._lsblk_cache = []
+        sh._lsblk_cache_ts = 0.0
         result = await find_partition("/dev/sda1")
         assert result is not None
         assert result["name"] == "sda1"
@@ -399,6 +403,9 @@ async def test_find_partition_not_found():
     lsblk_output = json.dumps({"blockdevices": []})
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_cmd.return_value = (0, lsblk_output, "")
+        import app.routes.storage_helpers as sh
+        sh._lsblk_cache = []
+        sh._lsblk_cache_ts = 0.0
         result = await find_partition("/dev/sdb1")
         assert result is None
 
