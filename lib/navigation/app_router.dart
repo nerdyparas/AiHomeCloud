@@ -54,12 +54,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // /profile-creation requires discovery to have completed first.
-      // If navigated to directly without going through QR/mDNS flow, redirect
-      // to the scan screen. Exempt authenticated users adding a new family member.
+      // Only redirect to scan-network if there is no extra data (i.e. a bare
+      // navigation with no IP — deep-link or back-stack reconstruction).
+      // When extra is present the caller already knows the device IP (e.g.
+      // PinEntryScreen "Add User" / first-boot onboarding), so let it through.
       if (loc == '/profile-creation' && authSession == null) {
-        final discovery = ref.read(discoveryNotifierProvider);
-        if (discovery.status != DiscoveryStatus.found) {
-          return '/scan-network';
+        final extra = state.extra;
+        if (extra is! Map<String, dynamic> || (extra['ip'] as String?)?.isEmpty != false) {
+          final discovery = ref.read(discoveryNotifierProvider);
+          if (discovery.status != DiscoveryStatus.found) {
+            return '/scan-network';
+          }
         }
       }
 
