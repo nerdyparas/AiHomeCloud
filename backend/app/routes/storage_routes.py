@@ -72,7 +72,7 @@ async def scan_devices(user: dict = Depends(get_current_user)):
         logger.warning("udevadm not available: %s", e)
 
     # Return fresh device list (reuse existing logic)
-    raw_devices = await list_block_devices()
+    raw_devices = await list_block_devices(skip_cache=True)
     return build_device_list(raw_devices)
 
 

@@ -7,6 +7,7 @@ Used internally by storage_routes.py endpoint handlers.
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -20,6 +21,12 @@ from ..subprocess_runner import run_command
 logger = logging.getLogger("aihomecloud.storage")
 
 _DLNA_SERVICE_CANDIDATES: tuple[str, ...] = ("minidlna", "minidlnad")
+
+# Short TTL cache for lsblk results — avoids repeated subprocess calls
+# when the screen loads devices then immediately activates.
+_lsblk_cache: List[dict] = []
+_lsblk_cache_ts: float = 0.0
+_LSBLK_CACHE_TTL: float = 3.0  # seconds
 
 # â”€â”€ Size helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -106,8 +113,17 @@ def is_os_partition(device: dict) -> bool:
 
 # â”€â”€ lsblk helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-async def list_block_devices() -> List[dict]:
-    """Run lsblk -J -b and return the raw JSON device list."""
+async def list_block_devices(skip_cache: bool = False) -> List[dict]:
+    """Run lsblk -J -b and return the raw JSON device list.
+
+    Results are cached for _LSBLK_CACHE_TTL seconds to avoid redundant
+    subprocess calls when the frontend loads devices then immediately
+    activates.  Pass skip_cache=True after a mutation (mount/format).
+    """
+    global _lsblk_cache, _lsblk_cache_ts  # noqa: PLW0603
+    now = time.monotonic()
+    if not skip_cache and _lsblk_cache and (now - _lsblk_cache_ts) < _LSBLK_CACHE_TTL:
+        return _lsblk_cache
     try:
         rc, out, err = await run_command([
             "lsblk", "-J", "-b",
@@ -117,7 +133,10 @@ async def list_block_devices() -> List[dict]:
             logger.error("lsblk failed: %s", err)
             return []
         data = json.loads(out or "{}")
-        return data.get("blockdevices", [])
+        devices = data.get("blockdevices", [])
+        _lsblk_cache = devices
+        _lsblk_cache_ts = now
+        return devices
     except ValueError:
         logger.warning("lsblk validation failed")
         return []

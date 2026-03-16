@@ -241,6 +241,24 @@ else
     log "  Polkit rule already exists."
 fi
 
+# -- Step 8b: Sudoers for passwordless storage/service management ---------------
+SUDOERS_FILE="/etc/sudoers.d/aihomecloud"
+if [[ ! -f "$SUDOERS_FILE" ]]; then
+    log "[8b] Creating sudoers rules for passwordless storage management..."
+    cat > "$SUDOERS_FILE" << EOF
+$APP_USER ALL=(ALL) NOPASSWD: /usr/bin/mount, /usr/bin/umount, /usr/bin/udevadm, /usr/sbin/sgdisk, /usr/sbin/mkfs.ext4, /usr/bin/udisksctl, /usr/bin/nmcli, /usr/bin/lsof, /usr/bin/fuser, /usr/bin/systemctl start smbd, /usr/bin/systemctl stop smbd, /usr/bin/systemctl start nmbd, /usr/bin/systemctl stop nmbd, /usr/bin/systemctl start nfs-kernel-server, /usr/bin/systemctl stop nfs-kernel-server, /usr/bin/systemctl start minidlna, /usr/bin/systemctl stop minidlna, /usr/bin/systemctl start minidlnad, /usr/bin/systemctl stop minidlnad, /usr/bin/sync
+EOF
+    chmod 440 "$SUDOERS_FILE"
+    if visudo -c -f "$SUDOERS_FILE" >/dev/null 2>&1; then
+        log "  Sudoers rules installed: $SUDOERS_FILE"
+    else
+        warn "  Sudoers validation failed -- removing to avoid lockout."
+        rm -f "$SUDOERS_FILE"
+    fi
+else
+    log "  Sudoers rules already exist."
+fi
+
 # â”€â”€ Step 9: Start the service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 log "[9/9] Starting '$SERVICE_NAME'..."
 
