@@ -14,11 +14,14 @@ is indexed with an empty ocr_text â€” never fails permanently.
 
 import asyncio
 import logging
+import queue
 import shutil
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from fnmatch import fnmatch
+from typing import Generator
 
 from .config import settings
 from .subprocess_runner import run_command
@@ -55,15 +58,47 @@ def _db_path() -> Path:
     return settings.data_dir / "docs.db"
 
 
-def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_db_path()))
+# ---------------------------------------------------------------------------
+# Connection pool â€" reuse up to _POOL_SIZE SQLite connections for reads/writes.
+# ---------------------------------------------------------------------------
+
+_POOL_SIZE = 3
+_pool: queue.Queue[sqlite3.Connection] = queue.Queue(maxsize=_POOL_SIZE)
+
+
+def _new_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(str(_db_path()), timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def _init_db_sync() -> None:
-    conn = _connect()
+@contextmanager
+def _get_conn() -> Generator[sqlite3.Connection, None, None]:
+    """Borrow a connection from the pool; return it when done."""
     try:
+        conn = _pool.get_nowait()
+    except queue.Empty:
+        conn = _new_conn()
+    try:
+        yield conn
+    finally:
+        try:
+            _pool.put_nowait(conn)
+        except queue.Full:
+            conn.close()
+
+
+def _close_pool() -> None:
+    """Drain and close all pooled connections. Called on shutdown."""
+    while not _pool.empty():
+        try:
+            _pool.get_nowait().close()
+        except queue.Empty:
+            break
+
+
+def _init_db_sync() -> None:
+    with _get_conn() as conn:
         conn.execute(
             """
             CREATE VIRTUAL TABLE IF NOT EXISTS doc_index USING fts5(
@@ -76,15 +111,21 @@ def _init_db_sync() -> None:
             """
         )
         conn.commit()
-    finally:
-        conn.close()
 
 
 async def init_db() -> None:
     """Initialise the FTS5 database. Call once from main.py lifespan."""
     check_ocr_tools()
     loop = asyncio.get_event_loop()
+    # Drain stale pooled connections (e.g. if data_dir changed between calls)
+    await loop.run_in_executor(None, _close_pool)
     await loop.run_in_executor(None, _init_db_sync)
+
+
+async def close_db() -> None:
+    """Close all pooled connections. Call from main.py lifespan shutdown."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _close_pool)
 
 
 # ---------------------------------------------------------------------------
@@ -195,8 +236,7 @@ def _normalize_query(raw: str) -> str:
 
 def _upsert_sync(nas_path: str, filename: str, ocr_text: str, added_by: str) -> None:
     added_at = datetime.now(timezone.utc).isoformat()
-    conn = _connect()
-    try:
+    with _get_conn() as conn:
         # Replace any existing entry (path is the unique key)
         conn.execute("DELETE FROM doc_index WHERE path = ?", (nas_path,))
         conn.execute(
@@ -205,14 +245,11 @@ def _upsert_sync(nas_path: str, filename: str, ocr_text: str, added_by: str) -> 
             (nas_path, filename, ocr_text, added_by, added_at),
         )
         conn.commit()
-    finally:
-        conn.close()
 
 
 def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[dict]:
     fts_query = _normalize_query(query)
-    conn = _connect()
-    try:
+    with _get_conn() as conn:
         if user_role == "admin":
             rows = conn.execute(
                 """
@@ -242,40 +279,33 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
                 (fts_query, own_prefix, shared_prefix, limit),
             ).fetchall()
         return [dict(row) for row in rows]
-    finally:
-        conn.close()
 
 
 def _remove_sync(nas_path: str) -> None:
-    conn = _connect()
-    try:
-        conn.execute("DELETE FROM doc_index WHERE path = ?", (nas_path,))
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass  # table not yet created — nothing to remove
-    finally:
-        conn.close()
+    with _get_conn() as conn:
+        try:
+            conn.execute("DELETE FROM doc_index WHERE path = ?", (nas_path,))
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # table not yet created — nothing to remove
 
 
 def _remove_prefix_sync(nas_prefix: str) -> int:
     """Delete all indexed docs whose path starts with *nas_prefix*."""
-    conn = _connect()
-    try:
-        cur = conn.execute("DELETE FROM doc_index WHERE path LIKE ?", (f"{nas_prefix}%",))
-        conn.commit()
-        return cur.rowcount or 0
-    except sqlite3.OperationalError:
-        return 0  # table not yet created — nothing to remove
-    finally:
-        conn.close()
+    with _get_conn() as conn:
+        try:
+            cur = conn.execute("DELETE FROM doc_index WHERE path LIKE ?", (f"{nas_prefix}%",))
+            conn.commit()
+            return cur.rowcount or 0
+        except sqlite3.OperationalError:
+            return 0  # table not yet created — nothing to remove
 
 
 def _remove_by_filename_patterns_sync(patterns: list[str]) -> int:
     """Delete indexed docs matching any shell-style filename pattern."""
     if not patterns:
         return 0
-    conn = _connect()
-    try:
+    with _get_conn() as conn:
         rows = conn.execute("SELECT path, filename FROM doc_index").fetchall()
         to_remove = [r["path"] for r in rows if any(fnmatch(r["filename"], p) for p in patterns)]
         if not to_remove:
@@ -283,15 +313,12 @@ def _remove_by_filename_patterns_sync(patterns: list[str]) -> int:
         conn.executemany("DELETE FROM doc_index WHERE path = ?", [(p,) for p in to_remove])
         conn.commit()
         return len(to_remove)
-    finally:
-        conn.close()
 
 
 def _remove_missing_sync() -> int:
     """Delete indexed entries whose filesystem paths no longer exist."""
-    conn = _connect()
-    removed = 0
-    try:
+    with _get_conn() as conn:
+        removed = 0
         rows = conn.execute("SELECT path FROM doc_index").fetchall()
         for row in rows:
             nas_path = row["path"]
@@ -302,8 +329,6 @@ def _remove_missing_sync() -> int:
         if removed:
             conn.commit()
         return removed
-    finally:
-        conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -421,8 +446,7 @@ async def index_documents_under_path(root_path: str, added_by: str) -> int:
 
 
 def _list_recent_sync(limit: int) -> list[dict]:
-    conn = _connect()
-    try:
+    with _get_conn() as conn:
         rows = conn.execute(
             """
             SELECT path, filename, added_by, added_at
@@ -433,8 +457,6 @@ def _list_recent_sync(limit: int) -> list[dict]:
             (limit,),
         ).fetchall()
         return [dict(row) for row in rows]
-    finally:
-        conn.close()
 
 
 async def list_recent_documents(limit: int = 10) -> list[dict]:

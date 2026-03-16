@@ -93,7 +93,7 @@ def test_sort_file_moves_to_correct_folder(tmp_path: Path):
     inbox.mkdir()
     f = inbox / "movie.mp4"
     f.write_bytes(b"video")
-    os.utime(f, (time.time() - 10, time.time() - 10))  # make it old enough
+    os.utime(f, (time.time() - 60, time.time() - 60))  # older than _MIN_AGE_SECONDS
 
     dest = _sort_file(f, tmp_path)
     assert dest is not None
@@ -128,7 +128,7 @@ def test_sort_file_duplicate_renamed(tmp_path: Path):
     # Inbox file
     f = inbox / "photo.jpg"
     f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (900 * 1024))
-    os.utime(f, (time.time() - 10, time.time() - 10))
+    os.utime(f, (time.time() - 60, time.time() - 60))
 
     dest = _sort_file(f, tmp_path)
     assert dest is not None
@@ -166,7 +166,7 @@ async def test_run_sort_pass_sorts_old_files(tmp_path: Path):
         # Old file → should be sorted
         old_file = inbox / "doc.pdf"
         old_file.write_bytes(b"%PDF-1.4")
-        os.utime(old_file, (time.time() - 10, time.time() - 10))
+        os.utime(old_file, (time.time() - 60, time.time() - 60))
 
         # New file → should stay
         new_file = inbox / "fresh.mp4"

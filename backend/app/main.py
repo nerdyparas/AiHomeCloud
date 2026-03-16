@@ -297,6 +297,13 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError):
         logger.debug("DocumentIndexWatcher shutdown skipped")
 
+    # Close document index connection pool
+    try:
+        from .document_index import close_db as _close_doc_db
+        await _close_doc_db()
+    except (OSError, RuntimeError, ValueError):
+        logger.debug("Document index pool close skipped")
+
 
 app = FastAPI(
     title="AiHomeCloud API",

@@ -348,7 +348,7 @@ Already covered in Phase 1.
 3. For `mock_api_service.dart`: Either complete the 20 TODO stubs or document it as test-only fixture
 **Test:** Backend starts without db_stub.py. Flutter tests still pass.
 
-### TASK-PQ4: Connection Pool for FTS5
+### TASK-PQ4: Connection Pool for FTS5 ✅ DONE
 **Files:** `backend/app/document_index.py`
 **Problem:** New SQLite connection per query.
 **Requirements:**

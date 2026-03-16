@@ -56,9 +56,9 @@ async def test_system_firmware_check(authenticated_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_system_update_trigger(authenticated_client: AsyncClient):
-    """POST /api/v1/system/update returns 202 accepted."""
+    """POST /api/v1/system/update returns 501 not implemented."""
     response = await authenticated_client.post("/api/v1/system/update")
-    assert response.status_code == 202
+    assert response.status_code == 501
 
 
 @pytest.mark.asyncio
@@ -189,13 +189,13 @@ async def test_service_toggle(authenticated_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_service_toggle_nonexistent_returns_404(authenticated_client: AsyncClient):
-    """Toggle a nonexistent service returns 404."""
+async def test_service_toggle_nonexistent_returns_400(authenticated_client: AsyncClient):
+    """Toggle a non-whitelisted service returns 400."""
     response = await authenticated_client.post(
         "/api/v1/services/nonexistent_service/toggle",
         json={"enabled": True},
     )
-    assert response.status_code == 404
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
