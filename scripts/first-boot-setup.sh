@@ -1,31 +1,31 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # =============================================================================
-# AiHomeCloud â€” First Boot Setup Script
+# AiHomeCloud — First Boot Setup Script
 # Target: Ubuntu 24 ARM64 (Radxa Cubie A7Z or compatible SBC)
 #
 # Usage:
 #   sudo bash scripts/first-boot-setup.sh
 #
-# This script is IDEMPOTENT â€” safe to run multiple times.
+# This script is IDEMPOTENT — safe to run multiple times.
 # It will not overwrite existing config, secrets, or user data.
 # =============================================================================
 
 set -euo pipefail
 
-# â”€â”€ Colour helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Colour helpers ────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 log()  { echo -e "${GREEN}[AiHomeCloud]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 die()  { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
-# â”€â”€ Must run as root â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Must run as root ──────────────────────────────────────────────────────────
 [[ $EUID -eq 0 ]] || die "Run this script with sudo: sudo bash $0"
 
-# â”€â”€ Repo root (script lives in scripts/ one level below) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Repo root (script lives in scripts/ one level below) ─────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# â”€â”€ Configurable paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Configurable paths ────────────────────────────────────────────────────────
 APP_USER="${APP_USER:-aihomecloud}"
 APP_HOME="/opt/aihomecloud"
 BACKEND_SRC="$APP_HOME/backend"
@@ -45,7 +45,7 @@ log "App user  : $APP_USER"
 log "Backend   : $BACKEND_SRC"
 log ""
 
-# â”€â”€ Step 1: Install system packages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 1: Install system packages ──────────────────────────────────────────
 log "[1/9] Installing system packages..."
 
 apt-get update -qq
@@ -82,7 +82,7 @@ else
     log "  All packages already installed."
 fi
 
-# â”€â”€ Step 2: Verify Python version â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 2: Verify Python version ────────────────────────────────────────────
 log "[2/9] Checking Python version..."
 
 PYTHON_BIN="$(command -v python3)"
@@ -92,9 +92,9 @@ PYTHON_VER="$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sy
 if [[ "$(printf '%s\n' "$MIN_PYTHON_VER" "$PYTHON_VER" | sort -V | head -1)" != "$MIN_PYTHON_VER" ]]; then
     die "Python $MIN_PYTHON_VER+ required. Found: $PYTHON_VER"
 fi
-log "  Python $PYTHON_VER â€” OK"
+log "  Python $PYTHON_VER — OK"
 
-# â”€â”€ Step 3: Create system user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 3: Create system user ────────────────────────────────────────────────
 log "[3/9] Ensuring system user '$APP_USER' exists..."
 
 if id "$APP_USER" &>/dev/null; then
@@ -104,7 +104,7 @@ else
     log "  Created user '$APP_USER'."
 fi
 
-# â”€â”€ Step 4: Create required directories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 4: Create required directories ──────────────────────────────────────
 log "[4/9] Creating directories..."
 
 DIRS=(
@@ -131,28 +131,28 @@ for d in "${DIRS[@]}"; do
 done
 
 chown -R "$APP_USER:$APP_USER" "$NAS_ROOT" "$DATA_DIR" "$APP_HOME"
-chmod 750 "$DATA_DIR"   # restrict data dir â€” service user + root only
+chmod 750 "$DATA_DIR"   # restrict data dir — service user + root only
 
-# â”€â”€ Step 5: Deploy backend code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 5: Deploy backend code ───────────────────────────────────────────────
 log "[5/9] Deploying backend code..."
 
 if [[ -d "$REPO_ROOT/backend" ]]; then
-    # Running from the cloned repo â€” symlink instead of copying so git pull updates it
+    # Running from the cloned repo — symlink instead of copying so git pull updates it
     if [[ -L "$BACKEND_SRC" ]]; then
-        log "  Symlink already exists: $BACKEND_SRC â†’ $(readlink "$BACKEND_SRC")"
+        log "  Symlink already exists: $BACKEND_SRC → $(readlink "$BACKEND_SRC")"
     elif [[ ! -e "$BACKEND_SRC" ]]; then
         rm -rf "$BACKEND_SRC"
         ln -s "$REPO_ROOT/backend" "$BACKEND_SRC"
-        log "  Created symlink: $BACKEND_SRC â†’ $REPO_ROOT/backend"
+        log "  Created symlink: $BACKEND_SRC → $REPO_ROOT/backend"
     else
-        warn "  $BACKEND_SRC exists and is not a symlink. Skipping â€” manage manually."
+        warn "  $BACKEND_SRC exists and is not a symlink. Skipping — manage manually."
     fi
 else
     warn "  Backend source not found at $REPO_ROOT/backend"
     warn "  Clone the repo to /opt/aihomecloud/AiHomeCloud or run from the repo root."
 fi
 
-# â”€â”€ Step 6: Create Python virtual environment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 6: Create Python virtual environment ─────────────────────────────────
 log "[6/9] Setting up Python venv at $VENV_DIR..."
 
 if [[ ! -f "$VENV_DIR/bin/activate" ]]; then
@@ -172,10 +172,10 @@ if [[ -f "$REQUIREMENTS" ]]; then
     sudo -u "$APP_USER" "$VENV_PIP" install --quiet -r "$REQUIREMENTS"
     log "  Dependencies installed."
 else
-    warn "  requirements.txt not found at $REQUIREMENTS â€” skipping pip install."
+    warn "  requirements.txt not found at $REQUIREMENTS — skipping pip install."
 fi
 
-# â”€â”€ Step 7: Install + enable systemd service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 7: Install + enable systemd service ──────────────────────────────────
 log "[7/9] Configuring systemd service '$SERVICE_NAME'..."
 
 SERVICE_SRC="$REPO_ROOT/backend/aihomecloud.service"
@@ -208,7 +208,7 @@ if [[ ! -f "$SERVICE_DST" ]]; then
         log "  Auto-generated pairing key (stored in $SERVICE_DST)."
     fi
 else
-    log "  Service file already exists â€” skipping copy to preserve your edits."
+    log "  Service file already exists — skipping copy to preserve your edits."
     log "  To reset: sudo rm $SERVICE_DST && sudo bash $0"
 fi
 
@@ -221,7 +221,7 @@ else
     log "  Service enabled."
 fi
 
-# â”€â”€ Step 8: Configure polkit for NetworkManager â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 8: Configure polkit for NetworkManager ───────────────────────────────
 log "[8/9] Configuring polkit for NetworkManager..."
 
 mkdir -p "$POLKIT_DIR"
@@ -237,7 +237,7 @@ ResultActive=yes
 EOF
     chmod 644 "$POLKIT_FILE"
     log "  Polkit rule created: $POLKIT_FILE"
-    systemctl restart polkit 2>/dev/null || warn "  polkit not running â€” skipping restart."
+    systemctl restart polkit 2>/dev/null || warn "  polkit not running — skipping restart."
 else
     log "  Polkit rule already exists."
 fi
@@ -260,7 +260,7 @@ else
     log "  Sudoers rules already exist."
 fi
 
-# â”€â”€ Step 9: Start the service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Step 9: Start the service ─────────────────────────────────────────────────
 log "[9/9] Starting '$SERVICE_NAME'..."
 
 if systemctl is-active --quiet "$SERVICE_NAME"; then
@@ -274,12 +274,12 @@ fi
 # Give it a moment to come up, then do a quick health check
 sleep 3
 if curl -sk --max-time 5 https://localhost:8443/api/health | grep -q '"ok"' 2>/dev/null; then
-    log "  Health check PASSED âœ“"
+    log "  Health check PASSED ✓"
 else
-    warn "  Health check did not return OK yet â€” check: sudo journalctl -u $SERVICE_NAME -n 30"
+    warn "  Health check did not return OK yet — check: sudo journalctl -u $SERVICE_NAME -n 30"
 fi
 
-# â”€â”€ Configure minidlna â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Configure minidlna ────────────────────────────────────────────────────────
 MINIDLNA_CONF="/etc/minidlna.conf"
 if command -v minidlnad &>/dev/null && [[ ! -f "${MINIDLNA_CONF}.ahc_configured" ]]; then
     log "Configuring minidlna for NAS media directories..."
