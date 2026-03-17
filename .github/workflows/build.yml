@@ -106,6 +106,7 @@ jobs:
           apt-get update -qq
           apt-get install -y \
             cmake make gperf \
+            g++ \
             gcc-${{ matrix.cross_triple }} \
             g++-${{ matrix.cross_triple }} \
             libssl-dev:${{ matrix.pkg_arch }} \
@@ -117,7 +118,20 @@ jobs:
           git clone --depth 1 --recurse-submodules --shallow-submodules \
             https://github.com/tdlib/telegram-bot-api.git /tmp/tg-src
           echo "Upstream commit: $(git -C /tmp/tg-src rev-parse --short HEAD)"
-
+      # ── Pre-generate auto files for cross-compilation ──────────────────────
+      # TDLib contains C++ code generators that must be compiled and run on the
+      # HOST before the cross-compilation build. When CMAKE_CROSSCOMPILING=TRUE,
+      # TDLib skips adding build rules for these generators (since a cross-
+      # compiled binary can't run on x86_64), causing "No rule to make target"
+      # for auto-generated files like mime_type_to_extension.cpp.
+      # Solution: configure TDLib natively first, build prepare_cross_compiling,
+      # then pass TD_GENERATED_BINARIES_DIR to the cross-compile configure.
+      - name: Prepare auto-generated files (native TDLib tools)
+        if: ${{ matrix.cross }}
+        run: |
+          cmake -S /tmp/tg-src/td -B /tmp/td-native \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/td-native --target prepare_cross_compiling
       # ── CMake configure ────────────────────────────────────────────────────
       - name: Configure CMake (native amd64)
         if: ${{ !matrix.cross }}
@@ -130,6 +144,7 @@ jobs:
         run: |
           cmake -S /tmp/tg-src -B /tmp/tg-build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DTD_GENERATED_BINARIES_DIR=/tmp/td-native \
             -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE}/scripts/cmake/toolchain-${{ matrix.target }}.cmake"
 
       # ── Compile ────────────────────────────────────────────────────────────
