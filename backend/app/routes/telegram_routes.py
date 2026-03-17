@@ -10,6 +10,7 @@ DELETE /api/v1/telegram/linked/{id}          -- unlink a Telegram account
 import asyncio
 import logging
 import os
+import platform
 import re
 import shutil
 from pathlib import Path
@@ -195,6 +196,80 @@ _BUILD_DEPS = ["cmake", "g++", "libssl-dev", "zlib1g-dev", "gperf"]
 # Prevents two concurrent invocations from clobbering the shared _BUILD_DIR.
 _build_lock = asyncio.Lock()
 
+# Pre-built binaries published as GitHub Release assets.
+# The setup job tries downloading before falling back to source compilation.
+_GITHUB_RELEASES_BASE = (
+    "https://github.com/nerdyparas/AiHomeCloud/releases/latest/download"
+)
+
+
+def _arch_to_release_target() -> str | None:
+    """Map the current machine architecture to the release artifact suffix.
+    Returns None for unsupported architectures (caller falls back to source build).
+    """
+    arch = platform.machine().lower()
+    mapping = {
+        "x86_64": "linux-amd64",
+        "aarch64": "linux-arm64",
+        "arm64": "linux-arm64",    # macOS/some ARM64 kernels report 'arm64'
+        "armv7l": "linux-armv7",
+        "armv7": "linux-armv7",
+    }
+    return mapping.get(arch)
+
+
+async def _try_download_prebuilt() -> bool:
+    """Attempt to download a pre-built telegram-bot-api binary from GitHub Releases.
+
+    Returns True and installs the binary to _BINARY_PATH on success.
+    Returns False if no suitable binary is available or the download fails,
+    so the caller can fall back to source compilation.
+    """
+    target = _arch_to_release_target()
+    if target is None:
+        logger.info("prebuilt_skip arch=%s (no release binary)", platform.machine())
+        return False
+
+    url = f"{_GITHUB_RELEASES_BASE}/telegram-bot-api-{target}"
+    tmp_path = f"/tmp/telegram-bot-api-download-{target}"  # nosec B108
+
+    rc, _, err = await run_command(
+        [
+            "curl", "-fsSL",
+            "--max-time", "120",
+            "--retry", "3",
+            "--retry-delay", "2",
+            "-o", tmp_path,
+            url,
+        ],
+        timeout=150,
+    )
+    if rc != 0:
+        logger.info("prebuilt_download_failed url=%s err=%s", url, err[:200])
+        return False
+
+    # Sanity check: must be an ELF binary, not an HTML error page.
+    rc_file, file_out, _ = await run_command(["file", tmp_path], timeout=10)
+    if rc_file != 0 or "ELF" not in file_out:
+        logger.warning(
+            "prebuilt_not_elf url=%s file_output=%s", url, file_out[:200]
+        )
+        Path(tmp_path).unlink(missing_ok=True)
+        return False
+
+    # Install: copy to final path and make executable.
+    rc, _, err = await run_command(
+        ["sudo", "cp", tmp_path, _BINARY_PATH], timeout=30
+    )
+    Path(tmp_path).unlink(missing_ok=True)
+    if rc != 0:
+        logger.warning("prebuilt_install_failed err=%s", err[:300])
+        return False
+
+    rc, _, _ = await run_command(["sudo", "chmod", "755", _BINARY_PATH], timeout=10)
+    logger.info("prebuilt_installed target=%s path=%s", target, _BINARY_PATH)
+    return True
+
 
 def _cleanup_build() -> None:
     """Remove build directory."""
@@ -234,6 +309,14 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
 
         # Step 2 — Check if binary already exists (previous build).
         binary_exists = Path(_BINARY_PATH).exists()
+
+        if not binary_exists:
+            # 2-pre — Try downloading a pre-built binary from GitHub Releases.
+            # This takes seconds and avoids a 20-40 min on-device compilation.
+            _progress("Checking for pre-built binary\u2026")
+            if await _try_download_prebuilt():
+                binary_exists = True
+                _progress("Pre-built binary downloaded — skipping compilation\u2026")
 
         if not binary_exists:
             # 2a — Verify build dependencies are installed.

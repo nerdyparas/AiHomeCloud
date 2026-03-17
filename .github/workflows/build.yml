@@ -1,0 +1,217 @@
+name: Build telegram-bot-api Binaries
+
+# Triggers:
+#   - Manually via "Run workflow" button with a release tag
+#   - Automatically when a tag matching tgapi-v* is pushed
+#
+# Produces binaries for linux-amd64, linux-arm64, linux-armv7 using
+# cross-compilation on x86_64 GitHub Actions runners (free tier).
+# All three builds run in parallel; total wall-clock time ~15 minutes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to create (e.g. tgapi-v1.0.0)'
+        required: true
+        default: 'tgapi-v1.0.0'
+  push:
+    tags:
+      - 'tgapi-v*'
+
+permissions:
+  contents: write   # required to create a GitHub Release
+
+jobs:
+  # ── Build stage ─────────────────────────────────────────────────────────────
+  # Runs three parallel jobs; the cross-compilation jobs install the foreign-arch
+  # toolchain via Ubuntu multiarch (dpkg --add-architecture) so no ARM runner
+  # is needed.
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Native x86_64 build
+          - target: linux-amd64
+            cross: false
+
+          # Cross-compile for 64-bit ARM (Raspberry Pi 4+, Radxa Cubie A7Z, …)
+          - target: linux-arm64
+            cross: true
+            cross_triple: aarch64-linux-gnu
+            pkg_arch: arm64
+
+          # Cross-compile for 32-bit ARMv7 (Raspberry Pi 2/3 with 32-bit OS, …)
+          - target: linux-armv7
+            cross: true
+            cross_triple: arm-linux-gnueabihf
+            pkg_arch: armhf
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Native amd64 dependencies ──────────────────────────────────────────
+      - name: Install build dependencies (native amd64)
+        if: ${{ !matrix.cross }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake g++ libssl-dev zlib1g-dev gperf git
+
+      # ── Cross-compilation toolchain setup ──────────────────────────────────
+      # Strategy: enable Ubuntu multiarch so we can install foreign-arch
+      # dev packages (libssl-dev:arm64, zlib1g-dev:arm64) alongside the
+      # cross-compiler binaries (gcc-aarch64-linux-gnu).
+      - name: Install cross-compilation toolchain (${{ matrix.pkg_arch }})
+        if: ${{ matrix.cross }}
+        run: |
+          # Register the foreign architecture with dpkg
+          sudo dpkg --add-architecture ${{ matrix.pkg_arch }}
+
+          # Restrict current sources to amd64 only to avoid conflicts
+          sudo sed -i 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+          # Fix double-tagging if sed matched an already-tagged line
+          sudo sed -i 's/\[arch=amd64\] \[arch=amd64\]/[arch=amd64]/g' /etc/apt/sources.list
+
+          # Add Ubuntu ports mirror for the foreign architecture
+          CODENAME=$(lsb_release -cs)
+          sudo tee /etc/apt/sources.list.d/cross-${{ matrix.pkg_arch }}.list > /dev/null << EOF
+          deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted universe
+          deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted universe
+          deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main restricted universe
+          EOF
+
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake gperf git \
+            gcc-${{ matrix.cross_triple }} \
+            g++-${{ matrix.cross_triple }} \
+            libssl-dev:${{ matrix.pkg_arch }} \
+            zlib1g-dev:${{ matrix.pkg_arch }}
+
+      # ── Source checkout ────────────────────────────────────────────────────
+      - name: Clone telegram-bot-api source
+        run: |
+          git clone --depth 1 --recurse-submodules --shallow-submodules \
+            https://github.com/tdlib/telegram-bot-api.git /tmp/tg-src
+          echo "Upstream commit: $(git -C /tmp/tg-src rev-parse --short HEAD)"
+
+      # ── CMake configure ────────────────────────────────────────────────────
+      - name: Configure CMake (native amd64)
+        if: ${{ !matrix.cross }}
+        run: |
+          cmake -S /tmp/tg-src -B /tmp/tg-build \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake (cross-compilation)
+        if: ${{ matrix.cross }}
+        run: |
+          cmake -S /tmp/tg-src -B /tmp/tg-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/scripts/cmake/toolchain-${{ matrix.target }}.cmake"
+
+      # ── Compile ────────────────────────────────────────────────────────────
+      - name: Build
+        run: |
+          cmake --build /tmp/tg-build \
+            --target telegram-bot-api \
+            --parallel "$(nproc)"
+
+      # ── Strip and rename ───────────────────────────────────────────────────
+      - name: Strip debug symbols and stage binary
+        run: |
+          SRC=/tmp/tg-build/telegram-bot-api
+          DST=/tmp/telegram-bot-api-${{ matrix.target }}
+
+          if [[ "${{ matrix.cross }}" == "true" ]]; then
+            ${{ matrix.cross_triple }}-strip "$SRC" -o "$DST"
+          else
+            strip "$SRC" -o "$DST"
+          fi
+
+          echo "--- Binary info ---"
+          file "$DST"
+          ls -lh "$DST"
+
+      # ── Upload artifact ────────────────────────────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-bot-api-${{ matrix.target }}
+          path: /tmp/telegram-bot-api-${{ matrix.target }}
+          retention-days: 30
+
+  # ── Release stage ────────────────────────────────────────────────────────────
+  # Waits for all three builds to succeed, then publishes a GitHub Release
+  # with all three binaries attached.
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/release-artifacts
+          merge-multiple: true
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG"
+
+      - name: List release artifacts
+        run: ls -lh /tmp/release-artifacts/
+
+      - name: Write release notes
+        env:
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          cat > /tmp/release-notes.md << 'ENDNOTES'
+          ## Pre-built telegram-bot-api binaries
+
+          Built from [tdlib/telegram-bot-api](https://github.com/tdlib/telegram-bot-api).
+          Cross-compiled on x86_64 GitHub Actions runners — no ARM hardware required.
+
+          | Binary | Architecture | Target devices |
+          |--------|-------------|----------------|
+          | `telegram-bot-api-linux-amd64` | x86_64 | Servers, PCs |
+          | `telegram-bot-api-linux-arm64` | aarch64 | Raspberry Pi 4+, Radxa Cubie A7Z, Orange Pi 5 |
+          | `telegram-bot-api-linux-armv7` | armv7l | Raspberry Pi 2/3 (32-bit OS), older SBCs |
+
+          ### AiHomeCloud automatic install
+
+          When you enable **2 GB Telegram mode** in AiHomeCloud, the app automatically
+          downloads the correct binary for your device — no manual installation needed.
+
+          ### Manual install
+
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install.sh | sudo bash
+          ```
+          ENDNOTES
+          # Replace the $REPO placeholder (heredoc prevents shell expansion)
+          sed -i "s|\$REPO|${REPO}|g" /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            --title "telegram-bot-api binaries ${TAG}" \
+            --notes-file /tmp/release-notes.md \
+            /tmp/release-artifacts/*
