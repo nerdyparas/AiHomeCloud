@@ -1,4 +1,4 @@
-﻿"""
+"""
 System, Family, Service, Network, Health, and Job route tests.
 Covers endpoints not yet tested by existing test files.
 """
@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 
 
-# â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Health ──────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_health_endpoint_returns_ok(client: AsyncClient):
@@ -29,7 +29,7 @@ async def test_root_endpoint_returns_device_info(client: AsyncClient):
     assert "serial" in data
 
 
-# â”€â”€â”€ System â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── System ──────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_system_info_returns_device(authenticated_client: AsyncClient):
@@ -92,7 +92,7 @@ async def test_system_info_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# â”€â”€â”€ Family / Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Family / Users ─────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_family_list_returns_users(authenticated_client: AsyncClient):
@@ -156,7 +156,7 @@ async def test_remove_nonexistent_family_returns_404(authenticated_client: Async
     assert response.status_code == 404
 
 
-# â”€â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Services ────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_services_list(authenticated_client: AsyncClient):
@@ -205,7 +205,7 @@ async def test_services_list_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# â”€â”€â”€ Jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Jobs ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_job_nonexistent_returns_404(authenticated_client: AsyncClient):
@@ -221,7 +221,7 @@ async def test_job_requires_auth(client: AsyncClient):
     assert response.status_code in (401, 403)
 
 
-# â”€â”€â”€ Backward compatibility redirect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Backward compatibility redirect ────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_api_redirect_preserves_path(client: AsyncClient):
@@ -230,7 +230,7 @@ async def test_api_redirect_preserves_path(client: AsyncClient):
     assert response.status_code == 200
 
 
-# â”€â”€â”€ Cert fingerprint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Cert fingerprint ───────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_cert_fingerprint_endpoint(client: AsyncClient):
@@ -242,7 +242,7 @@ async def test_cert_fingerprint_endpoint(client: AsyncClient):
     assert data["algorithm"] == "sha256"
 
 
-# â”€â”€â”€ QR Pairing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── QR Pairing ─────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_qr_pairing_endpoint(client: AsyncClient):

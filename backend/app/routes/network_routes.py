@@ -1,5 +1,5 @@
-﻿"""
-Network routes â€” WiFi status, user toggle, and LAN network status.
+"""
+Network routes — WiFi status, user toggle, and LAN network status.
 """
 
 import logging

@@ -1,4 +1,4 @@
-﻿"""Telegram bot handlers — upload handlers."""
+"""Telegram bot handlers — upload handlers."""
 
 import asyncio
 import logging
@@ -94,7 +94,7 @@ async def _handle_media_message(update, context) -> None:  # type: ignore[type-a
 
     if pending is None:
         await update.message.reply_text(
-            "âš ï¸ <i>Unsupported file type.</i>\n\nSend a document, photo, video, or audio.",
+            "⚠️ <i>Unsupported file type.</i>\n\nSend a document, photo, video, or audio.",
             parse_mode="HTML",
         )
         return
@@ -146,7 +146,7 @@ async def _handle_destination_callback(update, context) -> None:  # type: ignore
     pending = _pending_uploads.get(chat_id)
     if pending is None:
         await query.edit_message_text(
-            "âš ï¸ <i>No pending upload found. Please resend the file.</i>",
+            "⚠️ <i>No pending upload found. Please resend the file.</i>",
             parse_mode="HTML",
         )
         return

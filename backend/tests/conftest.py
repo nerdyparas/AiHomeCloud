@@ -1,10 +1,10 @@
-﻿import pytest
+import pytest
 
 # Ensure asyncio fixtures have HTTP client
 from httpx import AsyncClient, ASGITransport
 
 # Set environment variable before importing the app so Settings picks it up
-# Note: event_loop fixture removed â€” pytest-asyncio 0.23.x auto-provides per-function event loops.
+# Note: event_loop fixture removed — pytest-asyncio 0.23.x auto-provides per-function event loops.
 
 @pytest.fixture
 async def client(tmp_path, monkeypatch):

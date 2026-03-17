@@ -1,5 +1,5 @@
-﻿"""
-Service management routes â€” list and toggle NAS services.
+"""
+Service management routes — list and toggle NAS services.
 Uses real systemctl calls to start/stop systemd units on the Cubie.
 """
 
@@ -71,7 +71,7 @@ async def toggle(
             "Service %s toggled to %s but systemctl errors: %s",
             service_id, body.enabled, "; ".join(errors),
         )
-        # Don't fail the request â€” the store state is updated.
+        # Don't fail the request — the store state is updated.
         # The service might not be installed yet.
 
     # Notify connected clients

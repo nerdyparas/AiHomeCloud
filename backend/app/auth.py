@@ -1,4 +1,4 @@
-﻿"""
+"""
 JWT authentication utilities.
 """
 
@@ -108,7 +108,7 @@ def decode_token(token: str) -> dict:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
 ) -> dict:
-    """FastAPI dependency â€” extracts & validates the Bearer token."""
+    """FastAPI dependency — extracts & validates the Bearer token."""
     return decode_token(credentials.credentials)
 
 
@@ -118,14 +118,14 @@ _optional_bearer = HTTPBearer(auto_error=False)
 async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_optional_bearer),
 ) -> Optional[dict]:
-    """FastAPI dependency â€” returns decoded token or None if no auth header."""
+    """FastAPI dependency — returns decoded token or None if no auth header."""
     if credentials is None:
         return None
     return decode_token(credentials.credentials)
 
 
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
-    """FastAPI dependency â€” ensures the user has admin privileges.
+    """FastAPI dependency — ensures the user has admin privileges.
     Works by looking up the user in the store by subject (serial/user_id).
     Device-type tokens (from pairing) are always treated as admin.
     """

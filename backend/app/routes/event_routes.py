@@ -1,4 +1,4 @@
-﻿"""
+"""
 In-app event bus for AiHomeCloud.
 Broadcasts events to all connected WebSocket clients (Flutter apps).
 """
@@ -18,7 +18,7 @@ logger = logging.getLogger("aihomecloud.events")
 router = APIRouter(tags=["events"])
 
 
-# â”€â”€â”€ Event types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Event types ─────────────────────────────────────────────────────────────
 
 class EventSeverity(str, Enum):
     info = "info"
@@ -40,7 +40,7 @@ class AppEvent:
         return json.dumps(asdict(self))
 
 
-# â”€â”€â”€ Global event bus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Global event bus ────────────────────────────────────────────────────────
 
 class EventBus:
     """Simple pub-sub for broadcasting events to WebSocket clients."""
@@ -84,7 +84,7 @@ class EventBus:
 event_bus = EventBus()
 
 
-# â”€â”€â”€ Convenience emitters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Convenience emitters ───────────────────────────────────────────────────
 
 async def emit_upload_complete(file_name: str, user_name: str):
     await event_bus.publish(AppEvent(
@@ -152,7 +152,7 @@ async def emit_device_ejected(device: str):
     ))
 
 
-# â”€â”€â”€ WebSocket endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── WebSocket endpoint ─────────────────────────────────────────────────────
 
 @router.websocket("/ws/events")
 async def events_ws(ws: WebSocket, token: str = Query(default=None)):

@@ -1,4 +1,4 @@
-﻿"""Startup hygiene utilities for keeping user NAS storage clean."""
+"""Startup hygiene utilities for keeping user NAS storage clean."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
-﻿"""
-Store module tests â€” JSON persistence, atomic writes, caching,
+"""
+Store module tests — JSON persistence, atomic writes, caching,
 token purge, OTP lifecycle, and corrupt file recovery.
 """
 
@@ -222,7 +222,7 @@ async def test_store_otp_lifecycle(tmp_path, monkeypatch):
     await store.clear_otp()
     store._cache.clear()  # force re-read from disk
     otp = await store.get_otp()
-    # After clear, file contains {} which is falsy â€” get_otp returns None
+    # After clear, file contains {} which is falsy — get_otp returns None
     assert otp is None
 
     store._cache.clear()

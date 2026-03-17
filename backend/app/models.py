@@ -1,5 +1,5 @@
-﻿"""
-Pydantic models â€” mirror the Flutter models exactly so JSON serialization
+"""
+Pydantic models — mirror the Flutter models exactly so JSON serialization
 matches what the app expects.
 """
 
@@ -12,7 +12,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# â”€â”€â”€ AhcDevice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── AhcDevice ─────────────────────────────────────────────────────────────
 
 class AhcDevice(BaseModel):
     serial: str
@@ -25,7 +25,7 @@ class AhcDevice(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ StorageStats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── StorageStats ────────────────────────────────────────────────────────────
 
 class StorageStats(BaseModel):
     total_gb: float = Field(alias="totalGB")
@@ -42,7 +42,7 @@ class StorageStats(BaseModel):
         return min(max(self.used_gb / self.total_gb, 0.0), 1.0)
 
 
-# â”€â”€â”€ SystemStats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── SystemStats ─────────────────────────────────────────────────────────────
 
 class SystemStats(BaseModel):
     cpu_percent: float = Field(alias="cpuPercent")
@@ -56,7 +56,7 @@ class SystemStats(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ FileItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── FileItem ────────────────────────────────────────────────────────────────
 
 class FileItem(BaseModel):
     name: str
@@ -78,7 +78,7 @@ class FileListResponse(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ FamilyUser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── FamilyUser ──────────────────────────────────────────────────────────────
 
 class FamilyUser(BaseModel):
     id: str
@@ -91,7 +91,7 @@ class FamilyUser(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ ServiceInfo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── ServiceInfo ─────────────────────────────────────────────────────────────
 
 class ServiceInfo(BaseModel):
     id: str
@@ -102,7 +102,7 @@ class ServiceInfo(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ StorageDevice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── StorageDevice ───────────────────────────────────────────────────────────
 
 class StorageDevice(BaseModel):
     """A physical drive detected on the system (one entry per disk, not per partition)."""
@@ -118,13 +118,13 @@ class StorageDevice(BaseModel):
     mount_point: Optional[str] = Field(None, alias="mountPoint")
     is_nas_active: bool = Field(False, alias="isNasActive")
     is_os_disk: bool = Field(False, alias="isOsDisk")       # True for SD card OS
-    display_name: str = Field(alias="displayName")          # "Samsung T7 (500 GB)" â€” no /dev/ paths
+    display_name: str = Field(alias="displayName")          # "Samsung T7 (500 GB)" — no /dev/ paths
     best_partition: Optional[str] = Field(None, alias="bestPartition")  # "/dev/sda1" or None
 
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ Storage Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Storage Requests ────────────────────────────────────────────────────────
 
 class FormatRequest(BaseModel):
     """Format a block device. confirmDevice must match device for safety."""
@@ -150,7 +150,7 @@ class SmartActivateRequest(BaseModel):
     device: str                                         # "/dev/sda" (disk, not partition)
 
 
-# â”€â”€â”€ Request / Response helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Request / Response helpers ──────────────────────────────────────────────
 
 class PairRequest(BaseModel):
     serial: str
@@ -252,9 +252,9 @@ class FirmwareInfo(BaseModel):
     size_mb: float
 
 
-# â”€â”€â”€ Network â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Network ─────────────────────────────────────────────────────────────────
 
-# â”€â”€â”€ TrashItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── TrashItem ───────────────────────────────────────────────────────────────
 
 class TrashItem(BaseModel):
     """Metadata for a soft-deleted file stored in the trash."""
@@ -269,7 +269,7 @@ class TrashItem(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# â”€â”€â”€ Network â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Network ─────────────────────────────────────────────────────────────────
 
 class NetworkStatus(BaseModel):
     """Aggregated network state for the Cubie device."""
@@ -294,7 +294,7 @@ class ToggleRequest(BaseModel):
     enabled: bool
 
 
-# â”€â”€â”€ WiFi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── WiFi ─────────────────────────────────────────────────────────────────────
 
 class WifiNetwork(BaseModel):
     """A single Wi-Fi network visible during scan."""
@@ -321,7 +321,7 @@ class WifiConnectionResult(BaseModel):
 
 
 class WifiSetupRequest(BaseModel):
-    """Initial onboarding Wi-Fi setup â€” sent from app via hotspot."""
+    """Initial onboarding Wi-Fi setup — sent from app via hotspot."""
     ssid: str
     password: str = ""
 

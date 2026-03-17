@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 One-shot script: sort files in admin's personal folder and OCR-index documents.
 Uses the backend's file_sorter and document_index modules directly.
@@ -36,13 +36,13 @@ async def main() -> None:
     print()
 
     # Initialize the FTS5 database
-    print("Initializing document index DB â€¦")
+    print("Initializing document index DB …")
     await init_db()
     print("DB ready.")
     print()
 
     # Sort files and OCR-index documents
-    print("Sorting files in admin folder â€¦")
+    print("Sorting files in admin folder …")
     stats = await sort_folder_now(admin_folder, added_by="admin")
     print()
     print("=== Sort Results ===")

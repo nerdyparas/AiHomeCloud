@@ -1,4 +1,4 @@
-﻿"""
+"""
 TLS certificate management for AiHomeCloud.
 Auto-generates a self-signed certificate on first boot.
 """
@@ -38,7 +38,7 @@ async def ensure_tls_cert() -> tuple[Path, Path]:
         logger.info("TLS cert already exists at %s", cert_path)
         return cert_path, key_path
 
-    logger.info("Generating self-signed TLS certificateâ€¦")
+    logger.info("Generating self-signed TLS certificate…")
     cert_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Build SAN entries for local IPs + hostname

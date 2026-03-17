@@ -1,4 +1,4 @@
-﻿# AiHomeCloud Backend
+# AiHomeCloud Backend
 
 FastAPI backend for the AiHomeCloud home NAS, designed to run on the **Radxa Cubie A7A** (ARM, 8 GB RAM).
 
@@ -67,35 +67,35 @@ sudo systemctl status aihomecloud
 ## API Endpoints
 
 ### Auth
-- `POST /api/pair` â€” Pair device (serial + key â†’ JWT)
-- `POST /api/users` â€” Create user
-- `POST /api/auth/logout` â€” Logout
-- `PUT  /api/users/pin` â€” Change PIN
+- `POST /api/pair` — Pair device (serial + key → JWT)
+- `POST /api/users` — Create user
+- `POST /api/auth/logout` — Logout
+- `PUT  /api/users/pin` — Change PIN
 
 ### System
-- `GET  /api/system/info` â€” Device info
-- `GET  /api/system/firmware` â€” Check firmware update
-- `POST /api/system/update` â€” Trigger OTA update
-- `PUT  /api/system/name` â€” Rename device
+- `GET  /api/system/info` — Device info
+- `GET  /api/system/firmware` — Check firmware update
+- `POST /api/system/update` — Trigger OTA update
+- `PUT  /api/system/name` — Rename device
 
 ### Monitor
-- `WS   /ws/monitor` â€” Live system stats (CPU, RAM, temp, network, storage)
+- `WS   /ws/monitor` — Live system stats (CPU, RAM, temp, network, storage)
 
 ### Files
-- `GET    /api/files/list?path=...` â€” List directory
-- `POST   /api/files/mkdir` â€” Create folder
-- `DELETE /api/files/delete?path=...` â€” Delete file/folder
-- `PUT    /api/files/rename` â€” Rename file/folder
-- `POST   /api/files/upload?path=...` â€” Upload file (multipart)
+- `GET    /api/files/list?path=...` — List directory
+- `POST   /api/files/mkdir` — Create folder
+- `DELETE /api/files/delete?path=...` — Delete file/folder
+- `PUT    /api/files/rename` — Rename file/folder
+- `POST   /api/files/upload?path=...` — Upload file (multipart)
 
 ### Storage
-- `GET /api/storage/stats` â€” Disk usage
+- `GET /api/storage/stats` — Disk usage
 
 ### Family
-- `GET    /api/users/family` â€” List family members
-- `POST   /api/users/family` â€” Add family member
-- `DELETE /api/users/family/{id}` â€” Remove family member
+- `GET    /api/users/family` — List family members
+- `POST   /api/users/family` — Add family member
+- `DELETE /api/users/family/{id}` — Remove family member
 
 ### Services
-- `GET  /api/services` â€” List NAS services
-- `POST /api/services/{id}/toggle` â€” Enable/disable service
+- `GET  /api/services` — List NAS services
+- `POST /api/services/{id}/toggle` — Enable/disable service

@@ -1,4 +1,4 @@
-﻿"""Continuous watcher to keep document_index in sync with NAS file changes."""
+"""Continuous watcher to keep document_index in sync with NAS file changes."""
 
 from __future__ import annotations
 

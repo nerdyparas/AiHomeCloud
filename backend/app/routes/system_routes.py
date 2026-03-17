@@ -1,5 +1,5 @@
-﻿"""
-System routes â€” device info, firmware, device name, power management.
+"""
+System routes — device info, firmware, device name, power management.
 """
 
 import asyncio

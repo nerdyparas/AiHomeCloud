@@ -1,5 +1,5 @@
-﻿"""
-Storage helper functions â€” device classification, lsblk parsing, mount/unmount logic.
+"""
+Storage helper functions — device classification, lsblk parsing, mount/unmount logic.
 
 Split from storage_routes.py for better RAG chunking and code navigation.
 Used internally by storage_routes.py endpoint handlers.
@@ -28,7 +28,7 @@ _lsblk_cache: List[dict] = []
 _lsblk_cache_ts: float = 0.0
 _LSBLK_CACHE_TTL: float = 3.0  # seconds
 
-# â”€â”€ Size helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Size helpers ─────────────────────────────────────────────────────────────
 
 _SIZE_SUFFIXES = ["B", "KB", "MB", "GB", "TB"]
 
@@ -43,7 +43,7 @@ def _human_size(n: int) -> str:
     return f"{val:.1f} PB"
 
 
-# â”€â”€ Device classification helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Device classification helpers ────────────────────────────────────────────
 
 def classify_transport(device: dict) -> str:
     """Classify a block device into 'usb', 'nvme', or 'sd'."""
@@ -66,8 +66,8 @@ def classify_transport(device: dict) -> str:
 _OS_NAME_PREFIXES = (
     "mmcblk",   # SD card / eMMC (Cubie A7A OS disk)
     "mtdblock", # SPI/NAND flash (firmware / bootloader storage)
-    "zram",     # Compressed RAM â€” never a real block device to format
-    "loop",     # Loop devices â€” not real hardware
+    "zram",     # Compressed RAM — never a real block device to format
+    "loop",     # Loop devices — not real hardware
 )
 
 # Mount points that indicate a partition is part of the OS.
@@ -91,7 +91,7 @@ def is_os_partition(device: dict) -> bool:
     Blocks:
     - Internal non-hot-pluggable storage by device name prefix (mmcblk, mtd, zram, loop)
     - Any partition mounted at a system path (/, /boot, /boot/efi, /config, ...)
-    - OS-partition detection is size-agnostic â€” external USB/NVMe of any size is formattable
+    - OS-partition detection is size-agnostic — external USB/NVMe of any size is formattable
       provided it is not mounted at a system path.
     """
     name = (device.get("name") or "").lower()
@@ -111,7 +111,7 @@ def is_os_partition(device: dict) -> bool:
     return False
 
 
-# â”€â”€ lsblk helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── lsblk helpers ────────────────────────────────────────────────────────────
 
 async def list_block_devices(skip_cache: bool = False) -> List[dict]:
     """Run lsblk -J -b and return the raw JSON device list.
@@ -184,9 +184,9 @@ async def find_partition(device_path: str) -> Optional[dict]:
 def _partition_path(disk_name: str) -> str:
     """Derive the first partition device path from a disk name.
 
-    sda     â†’ /dev/sda1       (traditional SCSI/SATA disk)
-    nvme0n1 â†’ /dev/nvme0n1p1  (NVMe â€” name ends with a digit)
-    mmcblk0 â†’ /dev/mmcblk0p1  (eMMC â€” same rule)
+    sda     → /dev/sda1       (traditional SCSI/SATA disk)
+    nvme0n1 → /dev/nvme0n1p1  (NVMe — name ends with a digit)
+    mmcblk0 → /dev/mmcblk0p1  (eMMC — same rule)
     """
     if disk_name and disk_name[-1].isdigit():
         return f"/dev/{disk_name}p1"
@@ -216,7 +216,7 @@ def _find_best_partition(children: list) -> Optional[dict]:
     usable = [p for p in children if not is_os_partition(p)]
     if not usable:
         return None
-    # Prefer ext4 â€” ready to mount without formatting
+    # Prefer ext4 — ready to mount without formatting
     ext4_parts = [p for p in usable if (p.get("fstype") or "") == "ext4"]
     if ext4_parts:
         return max(ext4_parts, key=lambda p: int(p.get("size") or 0))
@@ -229,7 +229,7 @@ def build_device_list(raw_devices: list) -> list[StorageDevice]:
 
     Returns ONE entry per physical disk (not per partition).
     OS disks and unsupported transports are filtered out.
-    Call with the output of list_block_devices() directly â€” no need to
+    Call with the output of list_block_devices() directly — no need to
     flatten first.  flatten_devices() is still available for other uses
     (e.g. find_partition).
     """
@@ -241,7 +241,7 @@ def build_device_list(raw_devices: list) -> list[StorageDevice]:
         if dev_type != "disk":
             continue
 
-        # Filter by transport â€” only external hot-plug storage
+        # Filter by transport — only external hot-plug storage
         transport = classify_transport(disk)
         if transport not in ("usb", "nvme"):
             continue
@@ -294,7 +294,7 @@ def build_device_list(raw_devices: list) -> list[StorageDevice]:
     return result
 
 
-# â”€â”€ NAS service helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── NAS service helpers ──────────────────────────────────────────────────────
 
 async def stop_nas_services():
     """Best-effort stop of NAS-related services before unmount."""
@@ -357,7 +357,7 @@ async def ensure_dlna_started_and_enabled() -> bool:
     return True
 
 
-# â”€â”€ Open file handle check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Open file handle check ───────────────────────────────────────────────────
 
 async def check_open_handles() -> list[dict]:
     """
@@ -403,7 +403,7 @@ async def check_open_handles() -> list[dict]:
     return blockers
 
 
-# â”€â”€ Core unmount logic (shared by unmount + eject) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Core unmount logic (shared by unmount + eject) ───────────────────────────
 
 async def do_unmount(force: bool = False) -> str:
     """

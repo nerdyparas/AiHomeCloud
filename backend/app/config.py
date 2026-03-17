@@ -1,4 +1,4 @@
-﻿"""
+"""
 AiHomeCloud backend configuration.
 All settings can be overridden via environment variables prefixed with AHC_.
 """
@@ -70,30 +70,30 @@ def get_local_ip() -> str:
 class Settings(BaseSettings):
     model_config = {"env_prefix": "AHC_"}
 
-    # â”€â”€ Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Server ────────────────────────────────────────────────────────────────
     # Intentional for appliance-style LAN service exposure.
     host: str = "0.0.0.0"  # nosec B104
     port: int = 8443
     log_level: str = "INFO"
     cors_origins: list[str] = DEFAULT_CORS_ORIGINS.copy()
 
-    # â”€â”€ TLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── TLS ────────────────────────────────────────────────────────────────────
     tls_enabled: bool = True
     tls_cert_file: str = ""  # auto-resolved to cert_dir/cert.pem if empty
     tls_key_file: str = ""   # auto-resolved to cert_dir/key.pem if empty
 
-    # â”€â”€ JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── JWT ────────────────────────────────────────────────────────────────────
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expire_hours: int = 1  # 1 hour â€” use refresh tokens for longer sessions
+    jwt_expire_hours: int = 1  # 1 hour — use refresh tokens for longer sessions
 
-    # â”€â”€ Device â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Device ────────────────────────────────────────────────────────────────
     device_serial: str = ""  # auto-generated from MAC address if empty
     device_name: str = "My AiHomeCloud"
     firmware_version: str = "2.1.4"
     pairing_key: str = ""  # auto-generated and persisted if empty
 
-    # â”€â”€ Storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Storage ───────────────────────────────────────────────────────────────
     nas_root: Path = Path("/srv/nas")
     personal_base: str = "personal"
     shared_dir: str = "shared"
@@ -102,21 +102,21 @@ class Settings(BaseSettings):
     total_storage_gb: float = 500.0
     skip_mount_check: bool = False  # set True in tests to bypass is_mount()
 
-    # â”€â”€ Upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB â€” fewer async cycles on ARM
+    # ── Upload ────────────────────────────────────────────────────────────────
+    upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB — fewer async cycles on ARM
     max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
 
-    # â”€â”€ Telegram Bot (optional â€” disabled if token is empty) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Telegram Bot (optional — disabled if token is empty) ─────────────────
     telegram_bot_token: str = ""   # AHC_TELEGRAM_BOT_TOKEN
-    telegram_allowed_ids: str = ""  # AHC_TELEGRAM_ALLOWED_IDS â€” comma-sep chat IDs; empty = no restriction
-    telegram_api_id: int = 0          # from my.telegram.org â€” needed for local server
-    telegram_api_hash: str = ""       # from my.telegram.org â€” needed for local server
+    telegram_allowed_ids: str = ""  # AHC_TELEGRAM_ALLOWED_IDS — comma-sep chat IDs; empty = no restriction
+    telegram_api_id: int = 0          # from my.telegram.org — needed for local server
+    telegram_api_hash: str = ""       # from my.telegram.org — needed for local server
     telegram_local_api_enabled: bool = False   # True when local server is running
     telegram_local_api_url: str = "http://127.0.0.1:8081"  # local server address
     telegram_download_timeout: int = 600  # AHC_TELEGRAM_DOWNLOAD_TIMEOUT — seconds for file transfers
 
 
-    # â”€â”€ Data (JSON-file-based persistence for users, services, etc.) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Data (JSON-file-based persistence for users, services, etc.) ─────────
     data_dir: Path = Path("/var/lib/aihomecloud")
 
     @property
@@ -133,7 +133,7 @@ class Settings(BaseSettings):
 
     @property
     def shared_path(self) -> Path:
-        # Alias for family_path â€” use family_path in new code
+        # Alias for family_path — use family_path in new code
         return self.nas_root / self.family_dir
 
     @property

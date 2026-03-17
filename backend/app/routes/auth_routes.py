@@ -1,5 +1,5 @@
-﻿"""
-Auth routes â€” pairing, user creation, logout, PIN management, QR generation.
+"""
+Auth routes — pairing, user creation, logout, PIN management, QR generation.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from ..limiter import limiter
 
 logger = logging.getLogger("aihomecloud.auth")
 
-# In-memory account lockout: IP â†’ (fail_count, lockout_until_timestamp)
+# In-memory account lockout: IP → (fail_count, lockout_until_timestamp)
 _failed_logins: Dict[str, Tuple[int, float]] = {}
 _MAX_FAILURES = 10
 _LOCKOUT_SECONDS = 900  # 15 minutes
@@ -178,7 +178,7 @@ async def pair_complete(request: Request, body: PairCompleteRequest):
     if not hmac.compare_digest(provided_hash, otp_rec.get("otp_hash")):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid OTP")
 
-    # OTP valid â€” clear it and issue device token
+    # OTP valid — clear it and issue device token
     await store.clear_otp()
     token = create_token(subject=body.serial, extra={"type": "device"})
     return TokenResponse(token=token)
@@ -214,7 +214,7 @@ async def list_user_names():
     """
     Return user names and PIN status for the login picker.
     has_pin is True when the account has a PIN set, False when no PIN required.
-    No auth required â€” this is public so the picker can show before login.
+    No auth required — this is public so the picker can show before login.
     The actual PIN hash is never returned.
     """
     users = await store.get_users()
@@ -308,7 +308,7 @@ async def login(request: Request, body: LoginRequest):
                 f"Too many failed attempts. Try again in {minutes} minute(s).",
             )
         if lockout_until > 0:
-            # Lockout expired â€” reset counter
+            # Lockout expired — reset counter
             _failed_logins.pop(client_ip, None)
 
     users = await store.get_users()
@@ -319,7 +319,7 @@ async def login(request: Request, body: LoginRequest):
 
     stored_pin = found.get("pin")
     if not stored_pin:
-        # User has no PIN set â€” allow login with any input (including empty string)
+        # User has no PIN set — allow login with any input (including empty string)
         pass
     elif str(stored_pin).startswith("$2"):
         ok = await verify_password(body.pin, stored_pin)
@@ -331,10 +331,10 @@ async def login(request: Request, body: LoginRequest):
             import asyncio as _aio
             _aio.get_event_loop().create_task(_rehash_pin(found["id"], body.pin))
     else:
-        logger.warning("Non-bcrypt PIN found for user %s â€” rejecting", body.name)
+        logger.warning("Non-bcrypt PIN found for user %s — rejecting", body.name)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
-    # Success â€” clear lockout counter
+    # Success — clear lockout counter
     _failed_logins.pop(client_ip, None)
 
     access_token = create_token(
@@ -358,7 +358,7 @@ async def login(request: Request, body: LoginRequest):
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(body: RefreshRequest | None = None, user: dict = Depends(get_current_user)):
-    """Logout â€” revoke provided refresh token (if any)."""
+    """Logout — revoke provided refresh token (if any)."""
     if body and getattr(body, "refresh_token", None):
         try:
             payload = decode_refresh_token(body.refresh_token)

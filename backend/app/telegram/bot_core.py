@@ -89,7 +89,7 @@ def _cleanup_pending_uploads() -> None:
 _pending_duplicates: dict[int, dict] = {}
 
 # ---------------------------------------------------------------------------
-# Per-chat rate limiting â€" sliding window (30 commands / 60 seconds)
+# Per-chat rate limiting — sliding window (30 commands / 60 seconds)
 # ---------------------------------------------------------------------------
 _RATE_LIMIT_WINDOW = 60  # seconds
 _RATE_LIMIT_MAX = 30     # max commands per window

@@ -59,7 +59,7 @@ def _db_path() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Connection pool â€" reuse up to _POOL_SIZE SQLite connections for reads/writes.
+# Connection pool — reuse up to _POOL_SIZE SQLite connections for reads/writes.
 # ---------------------------------------------------------------------------
 
 _POOL_SIZE = 3

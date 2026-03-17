@@ -1,6 +1,6 @@
-﻿"""
+"""
 JSON-file-based persistence for users, services config, and device state.
-Designed for simplicity on a single-device NAS â€” no database needed.
+Designed for simplicity on a single-device NAS — no database needed.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ _store_lock = asyncio.Lock()
 # acquired inside add_user → save_users) to avoid re-entrant deadlocks.
 _user_creation_lock = asyncio.Lock()
 
-_CACHE_TTL = 5.0  # seconds â€” longer TTL reduces JSON re-reads during browsing
+_CACHE_TTL = 5.0  # seconds — longer TTL reduces JSON re-reads during browsing
 _cache: dict[str, tuple[Any, float]] = {}
 
 # Sentinel for distinguishing "no default passed" from "default=None"
@@ -140,7 +140,7 @@ def _write_json(path: Path, data: Any) -> None:
     _atomic_write(path, data)
 
 
-# â”€â”€â”€ Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Users ────────────────────────────────────────────────────────────────────
 
 async def get_users() -> List[dict]:
     """Return the list of users, protected by the store lock."""
@@ -268,7 +268,7 @@ async def update_user_role(user_id: str, is_admin: bool) -> bool:
     return False
 
 
-# â”€â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Services ─────────────────────────────────────────────────────────────────
 
 _DEFAULT_SERVICES = [
     {
@@ -345,7 +345,7 @@ async def toggle_service(service_id: str, enabled: bool) -> bool:
     return False
 
 
-# â”€â”€â”€ Device state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Device state ─────────────────────────────────────────────────────────────
 
 
 async def get_device_state() -> dict:
@@ -373,7 +373,7 @@ async def update_device_name(name: str) -> None:
         _write_json(dev_file, state)
 
 
-# â”€â”€â”€ Storage state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Storage state ────────────────────────────────────────────────────────────
 
 async def get_storage_state() -> dict:
     """Read persisted storage mount info (activeDevice, mountedAt, etc.)."""
@@ -401,7 +401,7 @@ async def clear_storage_state() -> None:
         _write_json(settings.storage_file, {})
 
 
-# â”€â”€â”€ Tokens (refresh tokens) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Tokens (refresh tokens) ─────────────────────────────────────────────────
 
 async def get_tokens() -> List[dict]:
     """Return list of refresh token records."""
@@ -462,7 +462,7 @@ async def purge_expired_tokens(older_than_ts: int) -> int:
     return removed
 
 
-# â”€â”€â”€ Pairing / OTP persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Pairing / OTP persistence ───────────────────────────────────────────────
 
 
 
@@ -502,7 +502,7 @@ async def clear_otp() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Generic key-value store (kv.json) â€” for simple config blobs
+# Generic key-value store (kv.json) — for simple config blobs
 # ---------------------------------------------------------------------------
 
 async def get_value(key: str, default: Any = None) -> Any:

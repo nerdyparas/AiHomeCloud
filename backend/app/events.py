@@ -1,4 +1,4 @@
-﻿"""
+"""
 Internal file-event bus for AiHomeCloud.
 
 publish/subscribe async bus with in-memory circular buffer (last 1000 events).
@@ -59,7 +59,7 @@ class FileEventBus:
         self._buffer: deque[FileEvent] = deque(maxlen=maxlen)
         self._queues: list[asyncio.Queue[FileEvent]] = []
 
-    # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Public API ────────────────────────────────────────────────────────────
 
     async def publish(self, event: FileEvent) -> None:
         """Store the event in the buffer and deliver to all subscribers."""

@@ -1,5 +1,5 @@
-﻿"""
-Storage routes Ã¢â‚¬â€ endpoint handlers for device listing, scan, format, mount,
+"""
+Storage routes — endpoint handlers for device listing, scan, format, mount,
 unmount, eject, stats, and auto-remount.
 
 Helper functions (lsblk parsing, device classification, mount/unmount logic)
@@ -57,7 +57,7 @@ async def list_devices(user: dict = Depends(get_current_user)):
     return build_device_list(raw_devices)
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.2  Scan Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.2  Scan ───────────────────────────────────────────────────────────────
 
 @router.get("/scan", response_model=List[StorageDevice])
 async def scan_devices(user: dict = Depends(get_current_user)):
@@ -76,7 +76,7 @@ async def scan_devices(user: dict = Depends(get_current_user)):
     return build_device_list(raw_devices)
 
 
-# â”€â”€ Smart-activate helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Smart-activate helpers ───────────────────────────────────────────────────
 
 async def _post_mount_setup(partition_path: str, disk: dict, display_name: str) -> None:
     """After a successful mount: create dirs, persist storage state, start services."""
@@ -96,10 +96,10 @@ async def _post_mount_setup(partition_path: str, disk: dict, display_name: str) 
 
 
 async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str) -> None:
-    """Async job: wipe disk â†’ GPT partition â†’ mkfs.ext4 â†’ mount â†’ post-setup.
+    """Async job: wipe disk → GPT partition → mkfs.ext4 → mount → post-setup.
 
-    Uses run_command() â€” never shell=True.
-    Uses settings.nas_root â€” never a hardcoded path.
+    Uses run_command() — never shell=True.
+    Uses settings.nas_root — never a hardcoded path.
     """
     disk_path = f"/dev/{disk_name}"
     partition_path = _partition_path(disk_name)
@@ -159,7 +159,7 @@ async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str
         logger.exception("SMART-ACTIVATE job failed: %s", e)
 
 
-# â”€â”€ Smart-activate endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Smart-activate endpoint ──────────────────────────────────────────────────
 
 @router.post("/smart-activate")
 async def smart_activate(
@@ -170,13 +170,13 @@ async def smart_activate(
 
     Accepts a whole-disk path (e.g. /dev/sda). Detects the drive state
     and does the right thing automatically:
-      A  Has ext4 partition  â†’ mount it, return action=mounted
-      B/C No ext4 / bare disk â†’ start format job, return action=formatting + jobId
-      D  Already active       â†’ return action=already_active (idempotent)
+      A  Has ext4 partition  → mount it, return action=mounted
+      B/C No ext4 / bare disk → start format job, return action=formatting + jobId
+      D  Already active       → return action=already_active (idempotent)
 
     Response always includes display_name (no /dev/ paths or tech jargon).
     """
-    # â”€â”€ State D: already active â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── State D: already active ──────────────────────────────────────────────
     storage_state = await store.get_storage_state()
     active_device = storage_state.get("activeDevice", "")
     if active_device and active_device.startswith(req.device):
@@ -189,13 +189,13 @@ async def smart_activate(
         )
         return {"action": "already_active", "display_name": display}
 
-    # â”€â”€ Find disk in lsblk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Find disk in lsblk ───────────────────────────────────────────────────
     raw = await list_block_devices()
     disk = next((d for d in raw if f"/dev/{d['name']}" == req.device), None)
     if disk is None:
         raise HTTPException(404, f"Drive not found: {req.device}")
 
-    # â”€â”€ Security: never touch OS storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Security: never touch OS storage ─────────────────────────────────────
     if is_os_partition(disk):
         raise HTTPException(403, "Cannot use system storage as a data drive")
 
@@ -203,7 +203,7 @@ async def smart_activate(
     disk_name = disk["name"]
     children = disk.get("children", [])
 
-    # â”€â”€ State A: has an ext4 partition ready to mount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── State A: has an ext4 partition ready to mount ─────────────────────────
     best = _find_best_partition(children)
     if best and (best.get("fstype") or "") == "ext4":
         partition_dev = f"/dev/{best['name']}"
@@ -218,14 +218,14 @@ async def smart_activate(
         await emit_device_mounted(partition_dev, nas_root)
         return {"action": "mounted", "display_name": display}
 
-    # â”€â”€ State B/C: needs formatting â€” start async job â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── State B/C: needs formatting — start async job ─────────────────────────
     job = create_job(user_id=user.get("sub", ""))
     update_job(job.id, status=JobStatus.running)
     asyncio.create_task(_smart_format_and_mount(job.id, disk_name, display))
     return {"action": "formatting", "display_name": display, "jobId": job.id}
 
 
-# â”€â”€ 2B.2  Pre-unmount check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── 2B.2  Pre-unmount check ──────────────────────────────────────────────────
 
 @router.get("/check-usage")
 async def check_usage(user: dict = Depends(get_current_user)):
@@ -261,7 +261,7 @@ async def check_usage(user: dict = Depends(get_current_user)):
     }
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.3  Format Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.3  Format ─────────────────────────────────────────────────────────────
 
 @router.post("/format")
 async def format_device(
@@ -292,7 +292,7 @@ async def format_device(
     if is_os_partition(target):
         raise HTTPException(403, "Cannot format an OS partition")
     if target.get("mountpoint"):
-        raise HTTPException(409, "Device is currently mounted Ã¢â‚¬â€ unmount first")
+        raise HTTPException(409, "Device is currently mounted — unmount first")
 
     job = create_job(user_id=user.get("sub", ""))
     update_job(job.id, status=JobStatus.running)
@@ -334,7 +334,7 @@ async def format_device(
     return {"jobId": job.id}
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.4  Mount Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.4  Mount ──────────────────────────────────────────────────────────────
 
 @router.post("/mount")
 async def mount_device(
@@ -359,7 +359,7 @@ async def mount_device(
     if is_os_partition(target):
         raise HTTPException(403, "Cannot mount an OS partition as NAS storage")
     if not target.get("fstype"):
-        raise HTTPException(400, "Device has no filesystem Ã¢â‚¬â€ format it first")
+        raise HTTPException(400, "Device has no filesystem — format it first")
 
     # Ensure mount point exists
     settings.nas_root.mkdir(parents=True, exist_ok=True)
@@ -393,7 +393,7 @@ async def mount_device(
     return {"status": "mounted", "device": req.device, "mountPoint": nas_root}
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.5  Unmount Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.5  Unmount ────────────────────────────────────────────────────────────
 
 @router.post("/unmount")
 async def unmount_device(
@@ -401,14 +401,14 @@ async def unmount_device(
     user: dict = Depends(require_admin),
 ):
     """
-    Safely unmount the NAS storage (stop services Ã¢â€ â€™ sync Ã¢â€ â€™ umount).
+    Safely unmount the NAS storage (stop services → sync → umount).
     Set force=true to skip the open-file-handle check.
     """
     device_path = await do_unmount(force=force)
     return {"status": "unmounted", "device": device_path}
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.6  Eject Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.6  Eject ──────────────────────────────────────────────────────────────
 
 @router.post("/eject")
 async def eject_device(
@@ -416,7 +416,7 @@ async def eject_device(
     user: dict = Depends(require_admin),
 ):
     """
-    Safely eject a USB device: unmount Ã¢â€ â€™ power off USB port.
+    Safely eject a USB device: unmount → power off USB port.
     Only works for USB-connected storage.
     """
     storage_state = await store.get_storage_state()
@@ -426,7 +426,7 @@ async def eject_device(
     if active_device == req.device:
         await do_unmount(force=True)
 
-    # Extract parent disk name  (e.g. "/dev/sda1" Ã¢â€ â€™ "sda")
+    # Extract parent disk name  (e.g. "/dev/sda1" → "sda")
     dev_name = req.device.split("/")[-1]          # "sda1"
     disk_name = dev_name.rstrip("0123456789")     # "sda"
 
@@ -444,7 +444,7 @@ async def eject_device(
                     logger.info("Ejected USB device %s via udisksctl", disk_name)
                 else:
                     logger.warning(
-                        "Could not power off %s Ã¢â‚¬â€ device may need manual removal: %s",
+                        "Could not power off %s — device may need manual removal: %s",
                         disk_name, stderr,
                     )
         else:
@@ -454,7 +454,7 @@ async def eject_device(
                 logger.info("Ejected USB device %s via udisksctl", disk_name)
             else:
                 logger.warning(
-                    "Could not power off %s Ã¢â‚¬â€ device may need manual removal: %s",
+                    "Could not power off %s — device may need manual removal: %s",
                     disk_name, stderr,
                 )
     except Exception as e:
@@ -464,7 +464,7 @@ async def eject_device(
     return {"status": "ejected", "device": req.device}
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.7  Stats Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.7  Stats ──────────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=StorageStats)
 async def storage_stats(user: dict = Depends(get_current_user)):
@@ -484,7 +484,7 @@ async def storage_stats(user: dict = Depends(get_current_user)):
     return StorageStats(totalGB=total_gb, usedGB=used_gb)
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ 2A.10  Auto-remount (called from main.py lifespan) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── 2A.10  Auto-remount (called from main.py lifespan) ───────────────────────
 
 async def try_auto_remount():
     """
@@ -495,7 +495,7 @@ async def try_auto_remount():
     device_path = state.get("activeDevice")
 
     if not device_path:
-        logger.info("No saved storage mount Ã¢â‚¬â€ skipping auto-remount")
+        logger.info("No saved storage mount — skipping auto-remount")
         return
 
     logger.info("Auto-remount: checking saved device %s", device_path)
@@ -504,7 +504,7 @@ async def try_auto_remount():
     dev_node = Path(device_path)
     if not dev_node.exists():
         logger.warning(
-            "Auto-remount: device %s not found Ã¢â‚¬â€ was it removed?", device_path
+            "Auto-remount: device %s not found — was it removed?", device_path
         )
         await store.clear_storage_state()
         return
@@ -538,6 +538,6 @@ async def try_auto_remount():
         await start_nas_services()
     else:
         logger.error(
-            "Auto-remount: failed to mount %s Ã¢â‚¬â€ %s", device_path, stderr
+            "Auto-remount: failed to mount %s — %s", device_path, stderr
         )
         await store.clear_storage_state()
