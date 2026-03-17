@@ -142,9 +142,12 @@ jobs:
       - name: Configure CMake (cross-compilation)
         if: ${{ matrix.cross }}
         run: |
+          # No TD_GENERATED_BINARIES_DIR needed: prepare_cross_compiling writes
+          # auto files directly into the source tree, so CMake finds them via
+          # normal source paths. Setting that var would change include paths
+          # and break non-generated headers like td/db/KeyValueSyncInterface.h.
           cmake -S /tmp/tg-src -B /tmp/tg-build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DTD_GENERATED_BINARIES_DIR=/tmp/td-native \
             -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE}/scripts/cmake/toolchain-${{ matrix.target }}.cmake"
 
       # ── Compile ────────────────────────────────────────────────────────────
