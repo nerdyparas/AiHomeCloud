@@ -3,13 +3,16 @@ Telegram Bot configuration endpoints -- admin only.
 
 GET    /api/v1/telegram/config               -- return current config (token masked) + bot status
 POST   /api/v1/telegram/config               -- save token, restart bot
-POST   /api/v1/telegram/setup-local-api      -- background job: install Docker local server + activate 2 GB mode
+POST   /api/v1/telegram/setup-local-api      -- background job: build local server from source + activate 2 GB mode
 DELETE /api/v1/telegram/linked/{id}          -- unlink a Telegram account
 """
 
 import asyncio
 import logging
+import os
 import re
+import shutil
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -144,7 +147,7 @@ async def save_config(body: TelegramConfigIn, user: dict = Depends(require_admin
 
 @router.post("/setup-local-api", status_code=status.HTTP_202_ACCEPTED)
 async def setup_local_api(body: SetupLocalApiIn, user: dict = Depends(require_admin)):
-    """Start a background job that installs the Docker-based local Bot API server
+    """Start a background job that builds the local Bot API server from source
     and activates 2 GB file transfer mode.  Returns {job_id} for polling."""
     if body.api_id <= 0:
         raise HTTPException(
@@ -180,102 +183,205 @@ async def setup_local_api(body: SetupLocalApiIn, user: dict = Depends(require_ad
 
 
 # ---------------------------------------------------------------------------
-# Background job -- local API server setup
+# Background job -- local API server (build from source)
 # ---------------------------------------------------------------------------
 
+_BUILD_DIR = "/tmp/telegram-bot-api-build"
+_BINARY_PATH = "/usr/local/bin/telegram-bot-api"
+_SERVICE_NAME = "telegram-bot-api"
+_SERVICE_PORT = 8081
+_BUILD_DEPS = ["cmake", "g++", "libssl-dev", "zlib1g-dev", "gperf"]
+
+
+def _cleanup_build() -> None:
+    """Remove build directory."""
+    try:
+        build = Path(_BUILD_DIR)
+        if build.exists():
+            shutil.rmtree(build)
+    except Exception:
+        pass
+
+
 async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
-    """Pull aiogram/telegram-bot-api Docker image and start it as a managed container."""
+    """Build telegram-bot-api from source and activate 2 GB file mode."""
 
     def _progress(msg: str) -> None:
         update_job(job_id, status=_JobStatus.running, result={"message": msg})
 
     try:
-        _progress("Checking Docker\u2026")
-
-        # Step 1 -- Docker must be installed.
-        rc, _, _ = await run_command(["which", "docker"], timeout=10)
-        if rc != 0:
-            update_job(job_id, status=_JobStatus.failed, error=(
-                "Docker is not installed on this device.\n\n"
-                "Install it with:\n"
-                "  sudo apt-get install -y docker.io\n"
-                "  sudo systemctl enable --now docker\n\n"
-                "Then try again."
-            ))
-            return
-
-        # Step 2 -- Check sudo permission for docker.
-        rc2, _, derr = await run_command(
-            ["sudo", "docker", "version", "--format", "{{.Server.Version}}"],
-            timeout=15,
-        )
-        if rc2 != 0 and ("not allowed" in derr.lower() or "sudoers" in derr.lower()):
-            update_job(job_id, status=_JobStatus.failed, error=(
-                "The app user lacks permission to run Docker.\n\n"
-                "Re-run the AiHomeCloud installer to update permissions:\n"
-                "  sudo ./install.sh"
-            ))
-            return
-
-        # Step 3 -- Skip pull if container is already healthy.
-        _progress("Checking if local API server is already running\u2026")
+        # Step 1 — Check if service is already running.
+        _progress("Checking for existing installation\u2026")
         rc, out, _ = await run_command(
-            ["sudo", "docker", "ps",
-             "--filter", "name=telegram-bot-api",
-             "--filter", "status=running",
-             "--format", "{{.Names}}"],
-            timeout=15,
+            ["systemctl", "is-active", _SERVICE_NAME], timeout=10,
         )
-        if "telegram-bot-api" in out:
-            _progress("Server already running -- activating 2 GB mode\u2026")
+        if out.strip() == "active":
+            _progress("Server already running — activating 2 GB mode\u2026")
             await _activate_local_api(api_id, api_hash)
+            await _send_2gb_confirmation()
             update_job(job_id, status=_JobStatus.completed,
                        result={"message": "2 GB mode activated!"})
             return
 
-        # Step 4 -- Pull image (may take a few minutes on first run).
-        _progress("Pulling Docker image -- first time may take a few minutes\u2026")
-        rc, _, err = await run_command(
-            ["sudo", "docker", "pull", "aiogram/telegram-bot-api:latest"],
-            timeout=600,
-        )
-        if rc != 0:
-            update_job(job_id, status=_JobStatus.failed,
-                       error=f"Docker image pull failed.\n{err[:400]}")
-            return
+        # Step 2 — Check if binary already exists (previous build).
+        binary_exists = Path(_BINARY_PATH).exists()
 
-        # Step 5 -- Remove any old stopped container, start a fresh one.
-        _progress("Starting local API server\u2026")
-        await run_command(["sudo", "docker", "rm", "-f", "telegram-bot-api"], timeout=20)
+        if not binary_exists:
+            # 2a — Verify build dependencies are installed.
+            _progress("Checking build tools\u2026")
+            missing = []
+            for pkg in _BUILD_DEPS:
+                rc, _, _ = await run_command(["dpkg", "-s", pkg], timeout=10)
+                if rc != 0:
+                    missing.append(pkg)
 
+            if missing:
+                _progress(f"Installing build tools: {', '.join(missing)}\u2026")
+                rc, _, err = await run_command(
+                    ["sudo", "apt-get", "install", "-y", "--no-install-recommends"]
+                    + missing,
+                    timeout=300,
+                )
+                if rc != 0:
+                    update_job(job_id, status=_JobStatus.failed, error=(
+                        f"Could not install build tools ({', '.join(missing)}).\n\n"
+                        "Run the installer to fix permissions:\n"
+                        "  sudo ./install.sh\n\n"
+                        f"{err[:300]}"
+                    ))
+                    return
+
+            # 2b — Clone source code.
+            _progress("Downloading source code\u2026")
+            _cleanup_build()
+
+            rc, _, err = await run_command(
+                ["git", "clone", "--recursive",
+                 "https://github.com/tdlib/telegram-bot-api.git", _BUILD_DIR],
+                timeout=600,
+            )
+            if rc != 0:
+                update_job(job_id, status=_JobStatus.failed,
+                           error=f"Failed to download source code.\n{err[:400]}")
+                return
+
+            # 2c — Configure CMake.
+            _progress("Configuring build\u2026")
+            build_dir = f"{_BUILD_DIR}/build"
+            Path(build_dir).mkdir(parents=True, exist_ok=True)
+
+            rc, _, err = await run_command(
+                ["cmake", "-S", _BUILD_DIR, "-B", build_dir,
+                 "-DCMAKE_BUILD_TYPE=Release"],
+                timeout=120,
+            )
+            if rc != 0:
+                update_job(job_id, status=_JobStatus.failed,
+                           error=f"Build configuration failed.\n{err[:400]}")
+                _cleanup_build()
+                return
+
+            # 2d — Compile (the long step — 5-15 min on ARM).
+            _progress("Compiling \u2014 this takes 5\u201315 minutes on your device\u2026")
+            rc, _, err = await run_command(
+                ["cmake", "--build", build_dir,
+                 "--target", "telegram-bot-api", "-j2"],
+                timeout=1200,
+            )
+            if rc != 0:
+                update_job(job_id, status=_JobStatus.failed,
+                           error=f"Compilation failed.\n{err[:400]}")
+                _cleanup_build()
+                return
+
+            # 2e — Install binary.
+            _progress("Installing\u2026")
+            built_binary = f"{build_dir}/telegram-bot-api"
+            if not Path(built_binary).exists():
+                update_job(job_id, status=_JobStatus.failed,
+                           error="Build succeeded but binary not found.")
+                _cleanup_build()
+                return
+
+            rc, _, err = await run_command(
+                ["sudo", "cp", built_binary, _BINARY_PATH],
+                timeout=30,
+            )
+            if rc != 0:
+                update_job(job_id, status=_JobStatus.failed,
+                           error=f"Failed to install binary.\n{err[:300]}")
+                _cleanup_build()
+                return
+
+            _cleanup_build()
+
+        # Step 3 — Create data directory and systemd service.
+        _progress("Setting up system service\u2026")
         data_dir = str(settings.data_dir / "telegram-bot-api")
-        rc, _, err = await run_command(
-            [
-                "sudo", "docker", "run",
-                "--detach",
-                "--name", "telegram-bot-api",
-                "--restart", "unless-stopped",
-                "-p", "8081:8081",
-                "-v", f"{data_dir}:/var/lib/telegram-bot-api",
-                "-e", f"TELEGRAM_API_ID={api_id}",
-                "-e", f"TELEGRAM_API_HASH={api_hash}",
-                "aiogram/telegram-bot-api:latest",
-                "--local",
-            ],
-            timeout=60,
+        Path(data_dir).mkdir(parents=True, exist_ok=True)
+
+        service_user = os.getenv("USER", "aihomecloud")
+        service_content = (
+            "[Unit]\n"
+            "Description=Telegram Local Bot API Server\n"
+            "After=network.target\n"
+            "\n"
+            "[Service]\n"
+            f"User={service_user}\n"
+            "Restart=always\n"
+            "RestartSec=5\n"
+            f"ExecStart={_BINARY_PATH}"
+            f" --api-id={api_id}"
+            f" --api-hash={api_hash}"
+            f" --http-port={_SERVICE_PORT}"
+            f" --dir={data_dir}"
+            " --local\n"
+            f"Environment=HOME={data_dir}\n"
+            "\n"
+            "[Install]\n"
+            "WantedBy=multi-user.target\n"
         )
+
+        tmp_service = Path("/tmp/telegram-bot-api.service")
+        tmp_service.write_text(service_content)
+
+        rc, _, err = await run_command(
+            ["sudo", "cp", str(tmp_service),
+             f"/etc/systemd/system/{_SERVICE_NAME}.service"],
+            timeout=30,
+        )
+        tmp_service.unlink(missing_ok=True)
         if rc != 0:
             update_job(job_id, status=_JobStatus.failed,
-                       error=f"Failed to start container.\n{err[:400]}")
+                       error=f"Failed to create system service.\n{err[:300]}")
             return
 
-        # Step 6 -- Health check: up to 2 minutes for server to respond.
-        _progress("Waiting for server to start\u2026")
+        # Step 4 — Enable and start service.
+        _progress("Starting local API server\u2026")
+        await run_command(["sudo", "systemctl", "daemon-reload"], timeout=30)
+        rc, _, err = await run_command(
+            ["sudo", "systemctl", "enable", "--now", _SERVICE_NAME],
+            timeout=30,
+        )
+        if rc != 0:
+            # Fallback: try just starting if enable fails (sudoers might lack enable).
+            rc, _, err = await run_command(
+                ["sudo", "systemctl", "start", _SERVICE_NAME],
+                timeout=30,
+            )
+            if rc != 0:
+                update_job(job_id, status=_JobStatus.failed,
+                           error=f"Failed to start local API server.\n{err[:300]}")
+                return
+
+        # Step 5 — Health check: up to 2 minutes for server to respond.
+        _progress("Waiting for server to respond\u2026")
         healthy = False
         for _ in range(12):
             await asyncio.sleep(10)
             hc_rc, _, _ = await run_command(
-                ["curl", "-sf", "--max-time", "5", "http://127.0.0.1:8081/"],
+                ["curl", "-sf", "--max-time", "5",
+                 f"http://127.0.0.1:{_SERVICE_PORT}/"],
                 timeout=15,
             )
             if hc_rc == 0:
@@ -285,20 +391,49 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
         if not healthy:
             update_job(job_id, status=_JobStatus.failed, error=(
                 "Local API server did not respond after 2 minutes.\n\n"
-                "Check logs with:\n  sudo docker logs telegram-bot-api"
+                f"Check: sudo systemctl status {_SERVICE_NAME}"
             ))
             return
 
-        # Step 7 -- Persist config and restart bot in local mode.
+        # Step 6 — Persist config and restart bot in local mode.
         _progress("Activating 2 GB mode\u2026")
         await _activate_local_api(api_id, api_hash)
+
+        # Step 7 — Send confirmation message through the local API.
+        await _send_2gb_confirmation()
+
         update_job(job_id, status=_JobStatus.completed,
                    result={"message": "2 GB mode activated!"})
-        logger.info("local_api_setup_completed api_id=%s", api_id)
+        logger.info("local_api_setup_completed api_id=%s method=source_build", api_id)
 
     except Exception as exc:
         logger.error("local_api_setup_failed: %s", exc)
         update_job(job_id, status=_JobStatus.failed, error=str(exc)[:500])
+        _cleanup_build()
+
+
+async def _send_2gb_confirmation() -> None:
+    """Send a confirmation message to all linked Telegram users via the local API."""
+    try:
+        from .. import telegram_bot as _tb
+        if _tb._application is None:
+            return
+        linked_ids = await _tb._get_linked_ids()
+        for chat_id in linked_ids:
+            try:
+                await _tb._application.bot.send_message(
+                    chat_id=int(chat_id),
+                    text=(
+                        "\u2705 *2 GB file mode is now active!*\n\n"
+                        "You can now send and receive files up to 2 GB "
+                        "through this bot."
+                    ),
+                    parse_mode="Markdown",
+                )
+            except Exception as exc:
+                logger.warning("2GB confirmation to %s failed: %s", chat_id, exc)
+    except Exception as exc:
+        logger.warning("Could not send 2GB confirmation: %s", exc)
 
 
 async def _activate_local_api(api_id: int, api_hash: str) -> None:

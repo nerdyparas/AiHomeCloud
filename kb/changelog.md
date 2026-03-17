@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-03-17 — Telegram Local API: Source Build (replaces Docker)
+
+- Replaced Docker-based `setup-local-api` flow with source build from `tdlib/telegram-bot-api`
+- Background job: installs build deps → clones → compiles (`-j2`) → installs binary → creates systemd service → health check → activates 2GB mode
+- Sends Telegram confirmation message ("✅ 2 GB file mode is now active!") to all linked users on success
+- Flutter: added confirmation dialog before build ("5-15 min") with Start Build / Cancel
+- `install.sh`: added `cmake g++ libssl-dev zlib1g-dev gperf` to system packages; added sudoers entries for `cp`, `systemctl daemon-reload`, `systemctl enable`
+- Added 8 tests for the setup-local-api endpoint (validation, auth, job creation, skip-when-active, dep-failure, confirmation message)
+- 524 backend tests pass
+
+## 2026-03-17 — Emoji Mojibake Fix + OCR Activation
+
+- Fixed broken emoji in 6 telegram bot files (`bot_core.py`, `search_handlers.py`, `auth_handlers.py`, `telegram_upload_routes.py`, `telegram_bot.py`, `document_index.py`) — 4-byte emoji were double-encoded (UTF-8→cp1252→UTF-8 twice), producing garbled output like `ðŸ" No documents found` instead of `🔍 No documents found`
+- Installed `tesseract-ocr`, `tesseract-ocr-eng`, `tesseract-ocr-hin` — OCR was completely non-functional (binary not present)
+- Force re-indexed all 31 existing documents — now 30/31 have OCR text extracted; `search_documents('bapu')` returns correct results
+- Added tesseract language packs to `install.sh` for future clean installs
+- 516 backend tests pass — commit `aa40fbd`
+
 ## 2026-03-16 — Codebase Audit Fixes
 
 **Critical:**

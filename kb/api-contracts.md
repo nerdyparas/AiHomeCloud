@@ -169,10 +169,15 @@
 |--------|------|------|-------------|
 | GET | `/config` | Admin | Bot configuration and status |
 | POST | `/config` | Admin | Set bot token and local API config |
+| POST | `/setup-local-api` | Admin | Background job: build local bot API server from source + activate 2GB mode |
 | DELETE | `/linked/{chat_id}` | Admin | Unlink a Telegram chat |
 
 **Request `POST /config`:** `{ bot_token, api_id?, api_hash?, local_api_enabled? }`
 **Response `GET /config`:** `{ configured, token_preview, linked_count, bot_running, local_api_enabled, api_id, max_file_mb }`
+
+**Request `POST /setup-local-api`:** `{ api_id: int, api_hash: str, bot_token?: str }`
+**Response `POST /setup-local-api`:** `202 { job_id: str }` — poll via `GET /api/v1/jobs/{job_id}`
+Builds `tdlib/telegram-bot-api` from source (~5-15 min on ARM), creates systemd service, activates local API mode. Sends Telegram confirmation to all linked users on success.
 
 ---
 

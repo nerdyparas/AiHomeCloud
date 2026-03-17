@@ -728,3 +728,154 @@ async def test_upload_post_private_sorts_file(client, tmp_path):
     body = resp.json()
     assert "private" in body["message"].lower()
     assert "doc.pdf" in body["message"]
+
+
+# ===========================================================================
+# setup-local-api endpoint tests (source build flow)
+# ===========================================================================
+
+class TestSetupLocalApi:
+    """Tests for POST /api/v1/telegram/setup-local-api."""
+
+    @pytest.fixture
+    async def auth_headers(self, client):
+        """Create admin and return auth headers."""
+        await client.post("/api/v1/users", json={"name": "admin", "pin": "0000"})
+        resp = await client.post("/api/v1/auth/login", json={"name": "admin", "pin": "0000"})
+        token = resp.json()["accessToken"]
+        return {"Authorization": f"Bearer {token}"}
+
+    async def test_rejects_bad_api_id(self, client, auth_headers):
+        resp = await client.post(
+            "/api/v1/telegram/setup-local-api",
+            json={"api_id": 0, "api_hash": "abcdef1234567890"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+
+    async def test_rejects_bad_api_hash(self, client, auth_headers):
+        resp = await client.post(
+            "/api/v1/telegram/setup-local-api",
+            json={"api_id": 12345, "api_hash": "not-hex!"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+
+    async def test_rejects_unauthenticated(self, client):
+        resp = await client.post(
+            "/api/v1/telegram/setup-local-api",
+            json={"api_id": 12345, "api_hash": "abcdef1234567890"},
+        )
+        assert resp.status_code in (401, 403)
+
+    async def test_returns_job_id(self, client, auth_headers):
+        """Successful call returns 202 with a job_id."""
+        with patch("app.routes.telegram_routes._run_local_api_setup", new=AsyncMock()):
+            resp = await client.post(
+                "/api/v1/telegram/setup-local-api",
+                json={"api_id": 12345, "api_hash": "abcdef1234567890"},
+                headers=auth_headers,
+            )
+        assert resp.status_code == 202
+        body = resp.json()
+        assert "job_id" in body
+        assert isinstance(body["job_id"], str)
+
+    async def test_persists_credentials(self, client, auth_headers, tmp_path):
+        """Credentials are saved to store even if background job is mocked out."""
+        from app import store as _store
+        with patch("app.routes.telegram_routes._run_local_api_setup", new=AsyncMock()):
+            await client.post(
+                "/api/v1/telegram/setup-local-api",
+                json={"api_id": 99999, "api_hash": "aabbccdd11223344"},
+                headers=auth_headers,
+            )
+        saved = await _store.get_value("telegram_config", default={})
+        assert saved.get("api_id") == 99999
+        assert saved.get("api_hash") == "aabbccdd11223344"
+
+    async def test_setup_skips_build_when_service_active(self, client, auth_headers):
+        """When service is already active, skip build and jump to activation."""
+        from app.job_store import get_job
+
+        calls = []
+
+        async def fake_run_command(cmd, timeout=30):
+            cmd_str = " ".join(str(c) for c in cmd)
+            calls.append(cmd_str)
+            if "systemctl is-active" in cmd_str:
+                return (0, "active\n", "")
+            return (0, "", "")
+
+        with patch("app.routes.telegram_routes.run_command", side_effect=fake_run_command), \
+             patch("app.routes.telegram_routes._activate_local_api", new=AsyncMock()), \
+             patch("app.routes.telegram_routes._send_2gb_confirmation", new=AsyncMock()):
+
+            resp = await client.post(
+                "/api/v1/telegram/setup-local-api",
+                json={"api_id": 12345, "api_hash": "abcdef1234567890"},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 202
+            job_id = resp.json()["job_id"]
+
+            # Let background task complete
+            await asyncio.sleep(0.2)
+
+            job = get_job(job_id)
+            assert job is not None
+            assert job.status == "completed"
+            # Should not have attempted a build
+            assert not any("cmake" in c for c in calls)
+            assert not any("git clone" in c for c in calls)
+
+    async def test_setup_build_dep_install_failure(self, client, auth_headers):
+        """When deps install fails, job reports failure."""
+        from app.job_store import get_job
+
+        step = {"count": 0}
+
+        async def fake_run_command(cmd, timeout=30):
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "systemctl is-active" in cmd_str:
+                return (3, "inactive\n", "")
+            if "dpkg -s" in cmd_str:
+                return (1, "", "not installed")
+            if "apt-get install" in cmd_str:
+                return (1, "", "E: Unable to locate package")
+            return (0, "", "")
+
+        with patch("app.routes.telegram_routes.run_command", side_effect=fake_run_command), \
+             patch("app.routes.telegram_routes.Path.exists", return_value=False):
+
+            resp = await client.post(
+                "/api/v1/telegram/setup-local-api",
+                json={"api_id": 12345, "api_hash": "abcdef1234567890"},
+                headers=auth_headers,
+            )
+            job_id = resp.json()["job_id"]
+            await asyncio.sleep(0.3)
+
+            job = get_job(job_id)
+            assert job is not None
+            assert job.status == "failed"
+            assert "build tools" in (job.error or "").lower()
+
+    async def test_send_2gb_confirmation_sends_to_linked(self):
+        """_send_2gb_confirmation sends messages to all linked chat IDs."""
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock()
+
+        mock_app = MagicMock()
+        mock_app.bot = mock_bot
+
+        with patch("app.telegram_bot._application", mock_app), \
+             patch("app.telegram_bot._get_linked_ids", AsyncMock(return_value=["111", "222"])):
+
+            from app.routes.telegram_routes import _send_2gb_confirmation
+            await _send_2gb_confirmation()
+
+            assert mock_bot.send_message.call_count == 2
+            # Check messages mention 2 GB
+            for call in mock_bot.send_message.call_args_list:
+                assert "2 GB" in call.kwargs.get("text", call.args[0] if call.args else "")

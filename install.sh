@@ -162,6 +162,7 @@ install_packages() {
         tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin poppler-utils
         minidlna
         smartmontools
+        cmake g++ libssl-dev zlib1g-dev gperf
     )
 
     if [[ "$NEED_PYTHON" == true ]]; then
@@ -337,23 +338,40 @@ install_service() {
 
 configure_sudoers() {
     log "[9/10] Configuring sudoers whitelist..."
+
+    local SUDOERS_VER="2"  # Bump when adding new entries
+
+    local need_write=false
     if [[ ! -f "$SUDOERS_FILE" ]]; then
+        need_write=true
+    elif ! grep -q "^# AHC_SUDOERS_VERSION=${SUDOERS_VER}$" "$SUDOERS_FILE"; then
+        log "  Sudoers file outdated — regenerating..."
+        need_write=true
+    fi
+
+    if [[ "$need_write" == true ]]; then
         cat > "$SUDOERS_FILE" << EOF
 # AiHomeCloud — limited sudo for service user
 # Only commands required by the backend are allowed.
+# AHC_SUDOERS_VERSION=${SUDOERS_VER}
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start *, /usr/bin/systemctl stop *, /usr/bin/systemctl restart *, /usr/bin/systemctl status *
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/shutdown, /usr/sbin/reboot
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/mkfs.ext4, /usr/bin/mount, /usr/bin/umount
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/smartctl
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/lsblk, /usr/bin/blkid, /usr/bin/findmnt
-${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/docker *
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y *
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api /usr/local/bin/telegram-bot-api
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api-build/build/telegram-bot-api /usr/local/bin/telegram-bot-api
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api.service /etc/systemd/system/telegram-bot-api.service
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable *
 EOF
         _CREATED_FILES+=("$SUDOERS_FILE")
         chmod 440 "$SUDOERS_FILE"
         visudo -cf "$SUDOERS_FILE" || die "Invalid sudoers syntax — aborting."
-        log "  Sudoers whitelist installed."
+        log "  Sudoers whitelist installed (v${SUDOERS_VER})."
     else
-        log "  Sudoers whitelist already exists."
+        log "  Sudoers whitelist is up to date (v${SUDOERS_VER})."
     fi
 }
 

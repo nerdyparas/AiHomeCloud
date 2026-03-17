@@ -173,6 +173,45 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
       return;
     }
 
+    // Show confirmation dialog before starting the long build.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          l10n.telegram2GbSetupTitle,
+          style: GoogleFonts.sora(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          l10n.telegram2GbBuildConfirmation,
+          style: GoogleFonts.dmSans(
+              color: AppColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.buttonCancel,
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textMuted)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary),
+            child: Text(l10n.telegram2GbStartBuildButton,
+                style: GoogleFonts.dmSans(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     setState(() {
       _setup2gbRunning = true;
       _setup2gbMessage = 'Starting\u2026';
