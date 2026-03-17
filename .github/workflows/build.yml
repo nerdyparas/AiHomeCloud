@@ -105,7 +105,7 @@ jobs:
 
           apt-get update -qq
           apt-get install -y \
-            cmake gperf \
+            cmake make gperf \
             gcc-${{ matrix.cross_triple }} \
             g++-${{ matrix.cross_triple }} \
             libssl-dev:${{ matrix.pkg_arch }} \
@@ -130,7 +130,7 @@ jobs:
         run: |
           cmake -S /tmp/tg-src -B /tmp/tg-build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/scripts/cmake/toolchain-${{ matrix.target }}.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE}/scripts/cmake/toolchain-${{ matrix.target }}.cmake"
 
       # ── Compile ────────────────────────────────────────────────────────────
       - name: Build
