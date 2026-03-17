@@ -346,6 +346,7 @@ ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/shutdown, /usr/sbin/reboot
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/mkfs.ext4, /usr/bin/mount, /usr/bin/umount
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/smartctl
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/lsblk, /usr/bin/blkid, /usr/bin/findmnt
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/docker *
 EOF
         _CREATED_FILES+=("$SUDOERS_FILE")
         chmod 440 "$SUDOERS_FILE"

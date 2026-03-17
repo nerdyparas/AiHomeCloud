@@ -190,19 +190,11 @@ extension ServicesNetworkApi on ApiService {
     return (jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  /// POST /api/v1/telegram/config  body: {bot_token, api_id, api_hash, local_api_enabled}
-  Future<void> saveTelegramConfig(
-    String botToken, {
-    int apiId = 0,
-    String apiHash = '',
-    bool localApiEnabled = false,
-  }) async {
-    final body = <String, dynamic>{
-      'local_api_enabled': localApiEnabled,
-    };
+  /// POST /api/v1/telegram/config  body: {bot_token}
+  /// Only sends the token — preserves all other existing config server-side.
+  Future<void> saveTelegramConfig(String botToken) async {
+    final body = <String, dynamic>{};
     if (botToken.isNotEmpty) body['bot_token'] = botToken;
-    if (apiId > 0) body['api_id'] = apiId;
-    if (apiHash.isNotEmpty) body['api_hash'] = apiHash;
 
     final res = await _withAutoRefresh(
       () => _client
@@ -214,6 +206,34 @@ extension ServicesNetworkApi on ApiService {
           .timeout(ApiService._timeout),
     );
     _check(res);
+  }
+
+  /// POST /api/v1/telegram/setup-local-api  body: {api_id, api_hash, bot_token?}
+  /// Starts a background job to install Docker local API server.
+  /// Returns the job_id to poll via getJobStatus().
+  Future<String> setupTelegramLocalApi({
+    required int apiId,
+    required String apiHash,
+    String botToken = '',
+  }) async {
+    final body = <String, dynamic>{
+      'api_id': apiId,
+      'api_hash': apiHash,
+    };
+    if (botToken.isNotEmpty) body['bot_token'] = botToken;
+
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse(
+                '$_baseUrl${AppConstants.apiVersion}/telegram/setup-local-api'),
+            headers: _headers,
+            body: jsonEncode(body),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return (jsonDecode(res.body) as Map<String, dynamic>)['job_id'] as String;
   }
 
   /// GET /api/v1/telegram/pending

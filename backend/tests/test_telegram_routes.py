@@ -66,6 +66,7 @@ class TestSaveTelegramConfig:
     async def test_save_config_with_token(self, authenticated_client):
         with patch("app.routes.telegram_routes._store") as mock_store, \
              patch("app.routes.telegram_routes.settings") as mock_settings:
+            mock_store.get_value = AsyncMock(return_value={})
             mock_store.set_value = AsyncMock()
             mock_settings.telegram_bot_token = ""
 

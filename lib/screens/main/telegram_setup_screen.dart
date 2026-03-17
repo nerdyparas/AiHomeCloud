@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,19 +24,26 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   final _tokenCtrl = TextEditingController();
   final _apiIdCtrl = TextEditingController();
   final _apiHashCtrl = TextEditingController();
+
   bool _obscureToken = true;
   bool _obscureApiHash = true;
   bool _loading = true;
-  bool _saving = false;
+  bool _savingToken = false;
   bool _botRunning = false;
   bool _configured = false;
-  bool _localApiEnabled = false;
   int _linkedCount = 0;
   int _maxFileMb = 20;
   int _apiId = 0;
   String? _errorMsg;
   List<Map<String, dynamic>> _pendingApprovals = [];
   bool _pendingLoading = false;
+
+  // 2 GB setup job state
+  String? _setup2gbJobId;
+  bool _setup2gbRunning = false;
+  String _setup2gbMessage = '';
+  String? _setup2gbError;
+  Timer? _setup2gbPollTimer;
 
   @override
   void initState() {
@@ -44,6 +53,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
 
   @override
   void dispose() {
+    _setup2gbPollTimer?.cancel();
     _tokenCtrl.dispose();
     _apiIdCtrl.dispose();
     _apiHashCtrl.dispose();
@@ -56,20 +66,17 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
       _errorMsg = null;
     });
     try {
-      final cfg =
-          await ref.read(apiServiceProvider).getTelegramConfig();
+      final cfg = await ref.read(apiServiceProvider).getTelegramConfig();
       if (mounted) {
         setState(() {
           _configured = cfg['configured'] as bool? ?? false;
           _botRunning = cfg['bot_running'] as bool? ?? false;
-          _localApiEnabled = cfg['local_api_enabled'] as bool? ?? false;
-          _linkedCount = cfg['linked_count'] as int? ?? 0;
           _maxFileMb = cfg['max_file_mb'] as int? ?? 20;
+          _linkedCount = cfg['linked_count'] as int? ?? 0;
           _apiId = cfg['api_id'] as int? ?? 0;
           if (_apiId > 0) _apiIdCtrl.text = _apiId.toString();
           _loading = false;
         });
-        // Load pending approvals (admin only)
         _loadPending();
       }
     } catch (e) {
@@ -101,9 +108,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
       await _loadConfig();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     }
   }
@@ -114,12 +120,128 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
       await _loadPending();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     }
   }
+
+  // ── Save bot token only ──────────────────────────────────────────────────
+
+  Future<void> _save() async {
+    final l10n = AppLocalizations.of(context)!;
+    final token = _tokenCtrl.text.trim();
+    if (token.isEmpty && !_configured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.telegramBotTokenRequiredError)),
+      );
+      return;
+    }
+    setState(() {
+      _savingToken = true;
+      _errorMsg = null;
+    });
+    try {
+      await ref
+          .read(apiServiceProvider)
+          .saveTelegramConfig(token.isNotEmpty ? token : '');
+      if (mounted) {
+        _tokenCtrl.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.telegramConfiguredSnackbar)),
+        );
+        await _loadConfig();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _errorMsg = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _savingToken = false);
+    }
+  }
+
+  // ── Enable 2 GB Mode ────────────────────────────────────────────────────
+
+  Future<void> _enable2GbMode() async {
+    final l10n = AppLocalizations.of(context)!;
+    final apiId = int.tryParse(_apiIdCtrl.text.trim()) ?? 0;
+    final apiHash = _apiHashCtrl.text.trim();
+
+    if (apiId <= 0 || apiHash.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.telegramLargeFileModeRequiredError)),
+      );
+      return;
+    }
+
+    setState(() {
+      _setup2gbRunning = true;
+      _setup2gbMessage = 'Starting\u2026';
+      _setup2gbError = null;
+    });
+
+    try {
+      final jobId = await ref.read(apiServiceProvider).setupTelegramLocalApi(
+            apiId: apiId,
+            apiHash: apiHash,
+            botToken: _tokenCtrl.text.trim(),
+          );
+      _setup2gbJobId = jobId;
+      _startSetupPolling();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _setup2gbRunning = false;
+          _setup2gbError = friendlyError(e);
+        });
+      }
+    }
+  }
+
+  void _startSetupPolling() {
+    _setup2gbPollTimer?.cancel();
+    _setup2gbPollTimer =
+        Timer.periodic(const Duration(seconds: 3), (_) async {
+      final jobId = _setup2gbJobId;
+      if (jobId == null) return;
+      try {
+        final job =
+            await ref.read(apiServiceProvider).getJobStatus(jobId);
+        if (!mounted) return;
+        final msg =
+            (job.result?['message'] as String?) ?? _setup2gbMessage;
+        setState(() => _setup2gbMessage = msg);
+        if (job.isTerminal) {
+          _setup2gbPollTimer?.cancel();
+          if (job.status == 'completed') {
+            setState(() {
+              _setup2gbRunning = false;
+              _setup2gbError = null;
+              _setup2gbJobId = null;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        AppLocalizations.of(context)!
+                            .telegram2GbActivatedSnackbar)),
+              );
+            }
+            await _loadConfig();
+          } else {
+            setState(() {
+              _setup2gbRunning = false;
+              _setup2gbError = job.error ?? 'Setup failed.';
+              _setup2gbJobId = null;
+            });
+          }
+        }
+      } catch (_) {
+        // keep polling on transient errors
+      }
+    });
+  }
+
+  // ── Pending approvals section ────────────────────────────────────────────
 
   List<Widget> _buildPendingSection() {
     final l10n = AppLocalizations.of(context)!;
@@ -139,11 +261,10 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Center(
                   child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.primary),
-                  ),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.primary)),
                 ),
               )
             : Column(
@@ -151,12 +272,14 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   final i = e.key;
                   final p = e.value;
                   final chatId = p['chat_id'] as int;
-                  final firstName = p['first_name'] as String? ?? 'Unknown';
+                  final firstName =
+                      p['first_name'] as String? ?? 'Unknown';
                   final username = p['username'] as String? ?? '';
                   return Column(
                     children: [
                       if (i > 0)
-                        const Divider(color: AppColors.cardBorder, height: 16),
+                        const Divider(
+                            color: AppColors.cardBorder, height: 16),
                       Row(
                         children: [
                           Container(
@@ -181,7 +304,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 Text(firstName,
                                     style: GoogleFonts.dmSans(
@@ -190,7 +314,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                                         fontWeight: FontWeight.w600)),
                                 Text(
                                   username.isNotEmpty
-                                      ? '@$username · ID: $chatId'
+                                      ? '@$username \u00b7 ID: $chatId'
                                       : 'ID: $chatId',
                                   style: GoogleFonts.dmSans(
                                       color: AppColors.textSecondary,
@@ -218,7 +342,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                                  borderRadius:
+                                      BorderRadius.circular(8)),
                             ),
                             child: Text(l10n.telegramApproveButton,
                                 style: GoogleFonts.dmSans(
@@ -236,66 +361,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
     ];
   }
 
-  Future<void> _save() async {
-    final l10n = AppLocalizations.of(context)!;
-    final token = _tokenCtrl.text.trim();
-
-    if (token.isEmpty && !_configured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.telegramBotTokenRequiredError)),
-      );
-      return;
-    }
-
-    final apiId = int.tryParse(_apiIdCtrl.text.trim()) ?? 0;
-    final apiHash = _apiHashCtrl.text.trim();
-
-    if (_localApiEnabled && (apiId == 0 || apiHash.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(l10n.telegramLargeFileModeRequiredError),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _saving = true;
-      _errorMsg = null;
-    });
-
-    try {
-      await ref.read(apiServiceProvider).saveTelegramConfig(
-            token.isNotEmpty ? token : '',
-            apiId: apiId,
-            apiHash: apiHash,
-            localApiEnabled: _localApiEnabled,
-          );
-      if (mounted) {
-        _tokenCtrl.clear();
-        _apiHashCtrl.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.telegramConfiguredSnackbar),
-          ),
-        );
-        await _loadConfig();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMsg = friendlyError(e);
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
-    }
-  }
+  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -318,11 +384,11 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // Status card
+                // ── Status card ────────────────────────────────────
                 _StatusCard(configured: _configured, running: _botRunning),
                 const SizedBox(height: 24),
 
-                // Instructions
+                // ── Setup steps ────────────────────────────────────
                 AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,18 +399,15 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
-                      _stepText('1',
-                          l10n.telegramSetupStep1),
-                      _stepText('2',
-                          l10n.telegramSetupStep2),
-                      _stepText('3',
-                          l10n.telegramSetupStep3),
+                      _stepText('1', l10n.telegramSetupStep1),
+                      _stepText('2', l10n.telegramSetupStep2),
+                      _stepText('3', l10n.telegramSetupStep3),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // Token input
+                // ── Bot token field ─────────────────────────────────
                 Text(l10n.telegramBotTokenLabel,
                     style: GoogleFonts.dmSans(
                         color: AppColors.textSecondary,
@@ -367,15 +430,18 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                     fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                      borderSide:
+                          const BorderSide(color: AppColors.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                      borderSide:
+                          const BorderSide(color: AppColors.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -391,35 +457,32 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                         horizontal: 14, vertical: 12),
                   ),
                 ),
-                const SizedBox(height: 20),
 
-                // Error message
                 if (_errorMsg != null) ...[
                   const SizedBox(height: 8),
                   Text(_errorMsg!,
                       style: GoogleFonts.dmSans(
                           color: AppColors.error, fontSize: 13)),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // Save button
+                // ── Save & Connect button ───────────────────────────
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: _saving ? null : _save,
+                    onPressed: _savingToken ? null : _save,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: _saving
+                    child: _savingToken
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
+                                strokeWidth: 2, color: Colors.white))
                         : Text(l10n.telegramSaveActivateButton,
                             style: GoogleFonts.dmSans(
                                 color: Colors.white,
@@ -429,7 +492,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Linked accounts status
+                // ── Linked accounts ─────────────────────────────────
                 if (_configured) ...[
                   AppCard(
                     child: Row(
@@ -457,7 +520,8 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                               Text(
                                 _linkedCount == 0
                                     ? l10n.telegramNoAccountsLinked
-                                    : l10n.telegramAccountsLinked(_linkedCount),
+                                    : l10n.telegramAccountsLinked(
+                                        _linkedCount),
                                 style: GoogleFonts.dmSans(
                                     color: AppColors.textPrimary,
                                     fontSize: 13,
@@ -476,14 +540,14 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Pending approval requests (shown when there are any)
+                  // ── Pending approvals ───────────────────────────
                   if (_pendingApprovals.isNotEmpty || _pendingLoading) ...[
                     ..._buildPendingSection(),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                   ],
                 ],
 
-                // File limit info card
+                // ── File limit banner ───────────────────────────────
                 AppCard(
                   child: Row(
                     children: [
@@ -507,7 +571,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600)),
                             Text(
-                              _localApiEnabled
+                              _maxFileMb >= 2000
                                   ? l10n.telegramLargeFileModeActive
                                   : l10n.telegramLargeFileModeInactive,
                               style: GoogleFonts.dmSans(
@@ -522,41 +586,91 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Large file mode toggle + api_id/api_hash fields
-                AppCard(
-                  child: Column(
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _localApiEnabled,
-                        onChanged: (v) =>
-                            setState(() => _localApiEnabled = v),
-                        activeThumbColor: AppColors.primary,
-                        activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-                        title: Text(l10n.telegramLargeFileModeTitle,
-                            style: GoogleFonts.dmSans(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w600)),
-                        subtitle: Text(
-                          l10n.telegramLargeFileModeSubtitle,
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textSecondary,
-                              fontSize: 12),
+                // ── 2 GB Mode section ───────────────────────────────
+                if (_maxFileMb >= 2000)
+                  // Already active badge
+                  AppCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withAlpha(30),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                              Icons.rocket_launch_rounded,
+                              color: AppColors.success,
+                              size: 18),
                         ),
-                      ),
-                      if (_localApiEnabled) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(l10n.telegram2GbModeActive,
+                                  style: GoogleFonts.dmSans(
+                                      color: AppColors.success,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700)),
+                              Text(l10n.telegramLargeFileModeActive,
+                                  style: GoogleFonts.dmSans(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  // Setup card
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header row
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withAlpha(30),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                  Icons.rocket_launch_rounded,
+                                  color: AppColors.primary,
+                                  size: 18),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(l10n.telegram2GbSetupTitle,
+                                      style: GoogleFonts.dmSans(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600)),
+                                  Text(l10n.telegram2GbSetupSubtitle,
+                                      style: GoogleFonts.dmSans(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         const Divider(
                             color: AppColors.cardBorder, height: 24),
-                        Text(
-                          l10n.telegramApiCredentialsHint,
-                          style: GoogleFonts.dmSans(
-                              color: AppColors.textSecondary,
-                              fontSize: 12),
-                        ),
-                        const SizedBox(height: 12),
+
+                        // API ID field
                         TextField(
                           controller: _apiIdCtrl,
                           keyboardType: TextInputType.number,
+                          enabled: !_setup2gbRunning,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
@@ -566,28 +680,29 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                             filled: true,
                             fillColor: AppColors.surface,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.cardBorder),
-                            ),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder)),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.cardBorder),
-                            ),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder)),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.primary, width: 1.5),
-                            ),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary,
+                                    width: 1.5)),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 12),
                           ),
                         ),
                         const SizedBox(height: 12),
+
+                        // API Hash field
                         TextField(
                           controller: _apiHashCtrl,
                           obscureText: _obscureApiHash,
+                          enabled: !_setup2gbRunning,
                           style: GoogleFonts.dmSans(
                               color: AppColors.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
@@ -597,20 +712,18 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                             filled: true,
                             fillColor: AppColors.surface,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.cardBorder),
-                            ),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder)),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.cardBorder),
-                            ),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder)),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.primary, width: 1.5),
-                            ),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary,
+                                    width: 1.5)),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 12),
                             suffixIcon: IconButton(
@@ -620,8 +733,10 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                                       : Icons.visibility_rounded,
                                   color: AppColors.textMuted,
                                   size: 18),
-                              onPressed: () => setState(
-                                  () => _obscureApiHash = !_obscureApiHash),
+                              onPressed: _setup2gbRunning
+                                  ? null
+                                  : () => setState(() =>
+                                      _obscureApiHash = !_obscureApiHash),
                             ),
                           ),
                         ),
@@ -631,10 +746,79 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                           style: GoogleFonts.dmSans(
                               color: AppColors.primary, fontSize: 11),
                         ),
+                        const SizedBox(height: 16),
+
+                        // Progress row
+                        if (_setup2gbRunning) ...[
+                          Row(
+                            children: [
+                              const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(_setup2gbMessage,
+                                    style: GoogleFonts.dmSans(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Error box
+                        if (_setup2gbError != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withAlpha(20),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(_setup2gbError!,
+                                style: GoogleFonts.dmSans(
+                                    color: AppColors.error,
+                                    fontSize: 12)),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Enable button
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _setup2gbRunning
+                                ? null
+                                : _enable2GbMode,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(12)),
+                            ),
+                            child: _setup2gbRunning
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white))
+                                : Text(l10n.telegramEnable2GbButton,
+                                    style: GoogleFonts.dmSans(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600)),
+                          ),
+                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+
                 const SizedBox(height: 32),
               ],
             ),
@@ -721,8 +905,7 @@ class _StatusCard extends StatelessWidget {
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(label,
-                    style: GoogleFonts.dmSans(
-                        color: color, fontSize: 12)),
+                    style: GoogleFonts.dmSans(color: color, fontSize: 12)),
               ],
             ),
           ),
