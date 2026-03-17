@@ -29,9 +29,11 @@ jobs:
   # is needed.
   build:
     name: Build (${{ matrix.target }})
-    # ubuntu-20.04 ships glibc 2.31 — compatible with a wider range of devices
-    # (Armbian Buster/Focal, Raspberry Pi OS Buster, etc.) than ubuntu-22.04's 2.35.
-    runs-on: ubuntu-20.04
+    # ubuntu-22.04 runner + ubuntu:20.04 Docker container gives us glibc 2.31
+    # (compatible with Armbian Buster/Focal, Raspberry Pi OS Buster, etc.)
+    # without relying on the now-removed ubuntu-20.04 GitHub-hosted runner.
+    runs-on: ubuntu-22.04
+    container: ubuntu:20.04
     strategy:
       fail-fast: false
       matrix:
@@ -53,15 +55,29 @@ jobs:
             pkg_arch: armhf
 
     steps:
+      # ── Container bootstrap ────────────────────────────────────────────────
+      # ubuntu:20.04 is a minimal image — install git + lsb-release first so
+      # actions/checkout and lsb_release -cs work. Running as root in the
+      # container so no sudo is used anywhere in this job.
+      - name: Bootstrap container
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: UTC
+        run: |
+          apt-get update -qq
+          apt-get install -y git lsb-release ca-certificates
+
       - name: Checkout
         uses: actions/checkout@v4
 
       # ── Native amd64 dependencies ──────────────────────────────────────────
       - name: Install build dependencies (native amd64)
         if: ${{ !matrix.cross }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y cmake g++ libssl-dev zlib1g-dev gperf git
+          apt-get update -qq
+          apt-get install -y cmake g++ libssl-dev zlib1g-dev gperf
 
       # ── Cross-compilation toolchain setup ──────────────────────────────────
       # Strategy: enable Ubuntu multiarch so we can install foreign-arch
@@ -69,26 +85,27 @@ jobs:
       # cross-compiler binaries (gcc-aarch64-linux-gnu).
       - name: Install cross-compilation toolchain (${{ matrix.pkg_arch }})
         if: ${{ matrix.cross }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           # Register the foreign architecture with dpkg
-          sudo dpkg --add-architecture ${{ matrix.pkg_arch }}
+          dpkg --add-architecture ${{ matrix.pkg_arch }}
 
           # Restrict current sources to amd64 only to avoid conflicts
-          sudo sed -i 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
-          # Fix double-tagging if sed matched an already-tagged line
-          sudo sed -i 's/\[arch=amd64\] \[arch=amd64\]/[arch=amd64]/g' /etc/apt/sources.list
+          sed -i 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+          sed -i 's/\[arch=amd64\] \[arch=amd64\]/[arch=amd64]/g' /etc/apt/sources.list
 
           # Add Ubuntu ports mirror for the foreign architecture
           CODENAME=$(lsb_release -cs)
-          sudo tee /etc/apt/sources.list.d/cross-${{ matrix.pkg_arch }}.list > /dev/null << EOF
+          tee /etc/apt/sources.list.d/cross-${{ matrix.pkg_arch }}.list > /dev/null << EOF
           deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted universe
           deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted universe
           deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main restricted universe
           EOF
 
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            cmake gperf git \
+          apt-get update -qq
+          apt-get install -y \
+            cmake gperf \
             gcc-${{ matrix.cross_triple }} \
             g++-${{ matrix.cross_triple }} \
             libssl-dev:${{ matrix.pkg_arch }} \
