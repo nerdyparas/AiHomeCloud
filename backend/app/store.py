@@ -197,7 +197,7 @@ async def add_user(
     safe_name = Path(name).name  # strips any directory components like ../
     personal = settings.personal_path / safe_name
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()  # always returns the currently-running loop
         await loop.run_in_executor(None, _create_personal_dirs, personal)
     except Exception as _e:
         logger.warning("Could not pre-create personal dirs for %s: %s", name, _e)

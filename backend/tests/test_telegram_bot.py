@@ -879,3 +879,73 @@ class TestSetupLocalApi:
             # Check messages mention 2 GB
             for call in mock_bot.send_message.call_args_list:
                 assert "2 GB" in call.kwargs.get("text", call.args[0] if call.args else "")
+
+    async def test_setup_full_build_happy_path(self, client, auth_headers):
+        """Full happy path: all deps present, binary absent, full build succeeds,
+        service started, health-check passes, 2GB mode activated."""
+        from app.job_store import get_job
+        from app.routes.telegram_routes import _BINARY_PATH
+
+        commands_called: list[str] = []
+
+        async def fake_run_command(cmd, timeout=30):
+            cmd_str = " ".join(str(c) for c in cmd)
+            commands_called.append(cmd_str)
+            if "systemctl is-active" in cmd_str:
+                return (3, "inactive\n", "")
+            if "dpkg -s" in cmd_str:
+                return (0, "Status: install ok installed", "")
+            if "git clone" in cmd_str:
+                return (0, "", "")
+            if "cmake" in cmd_str:
+                return (0, "", "")
+            if "sudo cp" in cmd_str:
+                return (0, "", "")
+            if "daemon-reload" in cmd_str:
+                return (0, "", "")
+            if "systemctl enable" in cmd_str:
+                return (0, "", "")
+            if "curl" in cmd_str:
+                return (0, "OK", "")
+            return (0, "", "")
+
+        original_exists = Path.exists
+
+        def fake_path_exists(self_path):
+            path_str = str(self_path)
+            if path_str == _BINARY_PATH:
+                return False  # binary not yet installed
+            if "telegram-bot-api-build/build/telegram-bot-api" in path_str:
+                return True  # built binary exists
+            return original_exists(self_path)
+
+        real_sleep = asyncio.sleep
+
+        async def mock_sleep(t):
+            await real_sleep(0)  # just yield control, don't actually wait
+
+        with patch("app.routes.telegram_routes.run_command", side_effect=fake_run_command), \
+             patch.object(Path, "exists", fake_path_exists), \
+             patch("asyncio.sleep", new=mock_sleep), \
+             patch("app.routes.telegram_routes._cleanup_build"), \
+             patch("app.routes.telegram_routes._activate_local_api", new=AsyncMock()), \
+             patch("app.routes.telegram_routes._send_2gb_confirmation", new=AsyncMock()):
+
+            resp = await client.post(
+                "/api/v1/telegram/setup-local-api",
+                json={"api_id": 12345, "api_hash": "abcdef1234567890"},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 202
+            job_id = resp.json()["job_id"]
+
+            # Wait for background task — mock_sleep yields immediately so it
+            # completes quickly once we hand back control.
+            await real_sleep(0.5)
+
+        job = get_job(job_id)
+        assert job is not None, "Job not found"
+        assert job.status == "completed", f"Expected completed, got {job.status}: {job.error}"
+        assert any("git clone" in c for c in commands_called)
+        assert any("cmake" in c for c in commands_called)
+        assert any("curl" in c for c in commands_called)
