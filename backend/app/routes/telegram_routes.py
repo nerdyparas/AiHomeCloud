@@ -291,12 +291,12 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                 _cleanup_build()
                 return
 
-            # 2d — Compile (the long step — 5-15 min on ARM).
-            _progress("Compiling \u2014 this takes 5\u201315 minutes on your device\u2026")
+            # 2d — Compile (the long step — 20–40 min on ARM).
+            _progress("Compiling \u2014 this takes 20\u201340 minutes on your device\u2026")
             rc, _, err = await run_command(
                 ["cmake", "--build", build_dir,
                  "--target", "telegram-bot-api", "--parallel", "2"],
-                timeout=1200,
+                timeout=3600,  # 60 min -- ARM builds of tdlib take 20-40 min
             )
             if rc != 0:
                 update_job(job_id, status=_JobStatus.failed,

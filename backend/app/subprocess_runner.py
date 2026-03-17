@@ -45,6 +45,7 @@ async def run_command(cmd: List[str], timeout: int = 30) -> Tuple[int, str, str]
                 proc.kill()
             except Exception:
                 pass
+            logger.warning("cmd_timeout", extra={"cmd": cmd, "timeout": timeout})
             return -1, "", "timeout"
 
         rc = proc.returncode

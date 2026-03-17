@@ -333,7 +333,7 @@
   "telegram2GbSetupSubtitle": "Send files up to 2 GB through Telegram",
   "telegram2GbActivatedSnackbar": "2 GB mode activated!",
   "telegram2GbModeActive": "2 GB mode active",
-  "telegram2GbBuildConfirmation": "This will build the Telegram local server from source. It generally takes 5 to 15 minutes.\n\nOnce the build is complete and configured, you will receive a confirmation message on the Telegram bot.",
+  "telegram2GbBuildConfirmation": "This will build the Telegram local server from source. It generally takes 20 to 40 minutes on this device.\n\nOnce the build is complete and configured, you will receive a confirmation message on the Telegram bot.",
   "telegram2GbStartBuildButton": "Start Build",
   "telegramBotActiveStatus": "Bot is active and polling",
   "telegramBotConfiguredStatus": "Configured but not running",
