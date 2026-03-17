@@ -63,6 +63,7 @@ PKGS=(
     curl
     git
     tesseract-ocr
+    tesseract-ocr-eng
     tesseract-ocr-hin
     poppler-utils          # provides pdftotext
     minidlna               # DLNA / Smart TV streaming
