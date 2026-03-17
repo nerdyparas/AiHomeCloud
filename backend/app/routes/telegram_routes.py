@@ -192,6 +192,9 @@ _SERVICE_NAME = "telegram-bot-api"
 _SERVICE_PORT = 8081
 _BUILD_DEPS = ["cmake", "g++", "libssl-dev", "zlib1g-dev", "gperf"]
 
+# Prevents two concurrent invocations from clobbering the shared _BUILD_DIR.
+_build_lock = asyncio.Lock()
+
 
 def _cleanup_build() -> None:
     """Remove build directory."""
@@ -209,6 +212,12 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
     def _progress(msg: str) -> None:
         update_job(job_id, status=_JobStatus.running, result={"message": msg})
 
+    if _build_lock.locked():
+        update_job(job_id, status=_JobStatus.failed,
+                   error="A build is already in progress. Please wait for it to finish.")
+        return
+
+    await _build_lock.acquire()
     try:
         # Step 1 — Check if service is already running.
         _progress("Checking for existing installation\u2026")
@@ -256,7 +265,8 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             _cleanup_build()
 
             rc, _, err = await run_command(
-                ["git", "clone", "--recursive",
+                ["git", "clone", "--depth", "1", "--recurse-submodules",
+                 "--shallow-submodules",
                  "https://github.com/tdlib/telegram-bot-api.git", _BUILD_DIR],
                 timeout=600,
             )
@@ -285,7 +295,7 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             _progress("Compiling \u2014 this takes 5\u201315 minutes on your device\u2026")
             rc, _, err = await run_command(
                 ["cmake", "--build", build_dir,
-                 "--target", "telegram-bot-api", "-j2"],
+                 "--target", "telegram-bot-api", "--parallel", "2"],
                 timeout=1200,
             )
             if rc != 0:
@@ -410,6 +420,8 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
         logger.error("local_api_setup_failed: %s", exc)
         update_job(job_id, status=_JobStatus.failed, error=str(exc)[:500])
         _cleanup_build()
+    finally:
+        _build_lock.release()
 
 
 async def _send_2gb_confirmation() -> None:
