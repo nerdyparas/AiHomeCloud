@@ -74,10 +74,11 @@ def _wipe_stale_nas_dirs() -> None:
 
 
 async def _bg_wipe_stale_nas_dirs() -> None:
-    """Background wrapper — runs _wipe_stale_nas_dirs in a thread executor."""
+    """Await _wipe_stale_nas_dirs in a thread executor."""
     import asyncio
     try:
-        await asyncio.get_event_loop().run_in_executor(None, _wipe_stale_nas_dirs)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _wipe_stale_nas_dirs)
     except Exception as e:
         logger.warning("Background NAS dir wipe failed: %s", e)
 
@@ -259,12 +260,12 @@ async def create_user(
 
         is_admin = is_first_user
 
-        # First-time setup: schedule cleanup of stale app folders from a
-        # previous installation.  Runs as a background task so user creation
-        # returns instantly — the wipe can take minutes on large USB dirs.
+        # First-time setup: remove stale app folders from a previous
+        # installation before creating the new user's directory hierarchy.
+        # Awaited (not background) to avoid a race where the wipe deletes
+        # folders that add_user just created.
         if is_first_user:
-            import asyncio as _asyncio
-            _asyncio.get_event_loop().create_task(_bg_wipe_stale_nas_dirs())
+            await _bg_wipe_stale_nas_dirs()
 
         user = await store.add_user(
             body.name,
