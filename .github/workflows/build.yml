@@ -4,9 +4,12 @@ name: Build telegram-bot-api Binaries
 #   - Manually via "Run workflow" button with a release tag
 #   - Automatically when a tag matching tgapi-v* is pushed
 #
-# Produces binaries for linux-amd64, linux-arm64, linux-armv7 using
-# cross-compilation on x86_64 GitHub Actions runners (free tier).
-# All three builds run in parallel; total wall-clock time ~15 minutes.
+# Produces binaries for linux-amd64, linux-arm64, linux-armv7.
+# Strategy: QEMU user-mode emulation via docker/setup-qemu-action +
+# `docker run --platform linux/<arch> ubuntu:20.04`.  Each architecture
+# compiles natively inside its own ubuntu:20.04 container — no cross-
+# compilation toolchain required.  glibc 2.31 guaranteed (ubuntu 20.04).
+# All three builds run in parallel; arm64/armv7 take ~60 min under QEMU.
 
 on:
   workflow_dispatch:
@@ -24,93 +27,41 @@ permissions:
 
 jobs:
   # ── Build stage ─────────────────────────────────────────────────────────────
-  # Runs three parallel jobs; the cross-compilation jobs install the foreign-arch
-  # toolchain via Ubuntu multiarch (dpkg --add-architecture) so no ARM runner
-  # is needed.
+  # Three parallel jobs, each building natively inside a platform-specific
+  # ubuntu:20.04 Docker container via QEMU binfmt_misc emulation.
   build:
     name: Build (${{ matrix.target }})
-    # ubuntu-22.04 runner + ubuntu:20.04 Docker container gives us glibc 2.31
-    # (compatible with Armbian Buster/Focal, Raspberry Pi OS Buster, etc.)
-    # without relying on the now-removed ubuntu-20.04 GitHub-hosted runner.
+    # Runs directly on ubuntu-22.04 (no container:). The actual compilation
+    # happens inside `docker run --platform linux/<arch> ubuntu:20.04`, which
+    # uses QEMU user-mode emulation registered by setup-qemu-action.
+    # This gives us:
+    #   - glibc 2.31 (ubuntu 20.04) — compatible with Armbian/RPi OS Buster
+    #   - Native compilation per arch — no cross-compilation toolchain needed
+    #   - Identical build environment for all three platforms
     runs-on: ubuntu-22.04
-    container: ubuntu:20.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Native x86_64 build
           - target: linux-amd64
-            cross: false
+            platform: linux/amd64
 
-          # Cross-compile for 64-bit ARM (Raspberry Pi 4+, Radxa Cubie A7Z, …)
           - target: linux-arm64
-            cross: true
-            cross_triple: aarch64-linux-gnu
-            pkg_arch: arm64
+            platform: linux/arm64
 
-          # Cross-compile for 32-bit ARMv7 (Raspberry Pi 2/3 with 32-bit OS, …)
           - target: linux-armv7
-            cross: true
-            cross_triple: arm-linux-gnueabihf
-            pkg_arch: armhf
+            platform: linux/arm/v7
 
     steps:
-      # ── Container bootstrap ────────────────────────────────────────────────
-      # ubuntu:20.04 is a minimal image — install git + lsb-release first so
-      # actions/checkout and lsb_release -cs work. Running as root in the
-      # container so no sudo is used anywhere in this job.
-      - name: Bootstrap container
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: UTC
-        run: |
-          apt-get update -qq
-          apt-get install -y git lsb-release ca-certificates
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Native amd64 dependencies ──────────────────────────────────────────
-      - name: Install build dependencies (native amd64)
-        if: ${{ !matrix.cross }}
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          apt-get update -qq
-          apt-get install -y cmake g++ libssl-dev zlib1g-dev gperf
-
-      # ── Cross-compilation toolchain setup ──────────────────────────────────
-      # Strategy: enable Ubuntu multiarch so we can install foreign-arch
-      # dev packages (libssl-dev:arm64, zlib1g-dev:arm64) alongside the
-      # cross-compiler binaries (gcc-aarch64-linux-gnu).
-      - name: Install cross-compilation toolchain (${{ matrix.pkg_arch }})
-        if: ${{ matrix.cross }}
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          # Register the foreign architecture with dpkg
-          dpkg --add-architecture ${{ matrix.pkg_arch }}
-
-          # Restrict current sources to amd64 only to avoid conflicts
-          sed -i 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
-          sed -i 's/\[arch=amd64\] \[arch=amd64\]/[arch=amd64]/g' /etc/apt/sources.list
-
-          # Add Ubuntu ports mirror for the foreign architecture
-          CODENAME=$(lsb_release -cs)
-          tee /etc/apt/sources.list.d/cross-${{ matrix.pkg_arch }}.list > /dev/null << EOF
-          deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted universe
-          deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted universe
-          deb [arch=${{ matrix.pkg_arch }}] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main restricted universe
-          EOF
-
-          apt-get update -qq
-          apt-get install -y \
-            cmake make gperf \
-            g++ \
-            gcc-${{ matrix.cross_triple }} \
-            g++-${{ matrix.cross_triple }} \
-            libssl-dev:${{ matrix.pkg_arch }} \
-            zlib1g-dev:${{ matrix.pkg_arch }}
+      # Register QEMU binfmt_misc handlers so `docker run --platform linux/arm64`
+      # transparently runs ARM64 binaries on the x86_64 runner.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,arm
 
       # ── Source checkout ────────────────────────────────────────────────────
       - name: Clone telegram-bot-api source
@@ -118,57 +69,33 @@ jobs:
           git clone --depth 1 --recurse-submodules --shallow-submodules \
             https://github.com/tdlib/telegram-bot-api.git /tmp/tg-src
           echo "Upstream commit: $(git -C /tmp/tg-src rev-parse --short HEAD)"
-      # ── Pre-generate auto files for cross-compilation ──────────────────────
-      # TDLib contains C++ code generators that must be compiled and run on the
-      # HOST before the cross-compilation build. When CMAKE_CROSSCOMPILING=TRUE,
-      # TDLib skips adding build rules for these generators (since a cross-
-      # compiled binary can't run on x86_64), causing "No rule to make target"
-      # for auto-generated files like mime_type_to_extension.cpp.
-      # Solution: configure TDLib natively first, build prepare_cross_compiling,
-      # then pass TD_GENERATED_BINARIES_DIR to the cross-compile configure.
-      - name: Prepare auto-generated files (native TDLib tools)
-        if: ${{ matrix.cross }}
-        run: |
-          cmake -S /tmp/tg-src/td -B /tmp/td-native \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build /tmp/td-native --target prepare_cross_compiling
-      # ── CMake configure ────────────────────────────────────────────────────
-      - name: Configure CMake (native amd64)
-        if: ${{ !matrix.cross }}
-        run: |
-          cmake -S /tmp/tg-src -B /tmp/tg-build \
-            -DCMAKE_BUILD_TYPE=Release
 
-      - name: Configure CMake (cross-compilation)
-        if: ${{ matrix.cross }}
-        run: |
-          # No TD_GENERATED_BINARIES_DIR needed: prepare_cross_compiling writes
-          # auto files directly into the source tree, so CMake finds them via
-          # normal source paths. Setting that var would change include paths
-          # and break non-generated headers like td/db/KeyValueSyncInterface.h.
-          cmake -S /tmp/tg-src -B /tmp/tg-build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE}/scripts/cmake/toolchain-${{ matrix.target }}.cmake"
-
-      # ── Compile ────────────────────────────────────────────────────────────
+      # ── Compile inside platform-specific ubuntu:20.04 container ───────────
+      # The --platform flag selects the target arch; Docker pulls the matching
+      # manifest and routes execution through QEMU on non-native platforms.
+      # Everything compiles natively from the ARM OS's perspective — no
+      # toolchain file, no cross-compiler, no include-path surprises.
       - name: Build
         run: |
-          cmake --build /tmp/tg-build \
-            --target telegram-bot-api \
-            --parallel "$(nproc)"
+          mkdir -p /tmp/tg-output
+          docker run --rm \
+            --platform ${{ matrix.platform }} \
+            -v /tmp/tg-src:/src \
+            -v /tmp/tg-output:/out \
+            ubuntu:20.04 \
+            bash -xc "
+              export DEBIAN_FRONTEND=noninteractive TZ=UTC
+              apt-get update -qq
+              apt-get install -y cmake g++ libssl-dev zlib1g-dev gperf make
+              cmake -S /src -B /tmp/build -DCMAKE_BUILD_TYPE=Release
+              cmake --build /tmp/build --target telegram-bot-api --parallel \$(nproc)
+              strip /tmp/build/telegram-bot-api -o /out/telegram-bot-api-${{ matrix.target }}
+            "
 
-      # ── Strip and rename ───────────────────────────────────────────────────
-      - name: Strip debug symbols and stage binary
+      # ── Verify and stage ───────────────────────────────────────────────────
+      - name: Verify binary
         run: |
-          SRC=/tmp/tg-build/telegram-bot-api
-          DST=/tmp/telegram-bot-api-${{ matrix.target }}
-
-          if [[ "${{ matrix.cross }}" == "true" ]]; then
-            ${{ matrix.cross_triple }}-strip "$SRC" -o "$DST"
-          else
-            strip "$SRC" -o "$DST"
-          fi
-
+          DST=/tmp/tg-output/telegram-bot-api-${{ matrix.target }}
           echo "--- Binary info ---"
           file "$DST"
           ls -lh "$DST"
@@ -178,7 +105,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: telegram-bot-api-${{ matrix.target }}
-          path: /tmp/telegram-bot-api-${{ matrix.target }}
+          path: /tmp/tg-output/telegram-bot-api-${{ matrix.target }}
           retention-days: 30
 
   # ── Release stage ────────────────────────────────────────────────────────────
@@ -221,7 +148,8 @@ jobs:
           ## Pre-built telegram-bot-api binaries
 
           Built from [tdlib/telegram-bot-api](https://github.com/tdlib/telegram-bot-api).
-          Cross-compiled on x86_64 GitHub Actions runners — no ARM hardware required.
+          Each binary compiled natively inside a matching ubuntu:20.04 Docker
+          container via QEMU — glibc 2.31, no cross-compiler patches needed.
 
           | Binary | Architecture | Target devices |
           |--------|-------------|----------------|
