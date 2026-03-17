@@ -6,10 +6,13 @@ name: Build telegram-bot-api Binaries
 #
 # Produces binaries for linux-amd64, linux-arm64, linux-armv7.
 # Strategy: QEMU user-mode emulation via docker/setup-qemu-action +
-# `docker run --platform linux/<arch> ubuntu:20.04`.  Each architecture
-# compiles natively inside its own ubuntu:20.04 container — no cross-
-# compilation toolchain required.  glibc 2.31 guaranteed (ubuntu 20.04).
+# `docker run --platform linux/<arch> ubuntu:22.04`.  Each architecture
+# compiles natively inside its own ubuntu:22.04 container — no cross-
+# compilation toolchain required.  glibc 2.35 (ubuntu 22.04).
 # All three builds run in parallel; arm64/armv7 take ~60 min under QEMU.
+# NOTE: ubuntu:20.04 cmake 3.16 has a compiler-detection bug under QEMU
+# armv7 (CMakeCompilerIdDetection list REMOVE_ITEM error → "Compiler
+# isn't supported").  ubuntu:22.04 (cmake 3.22) fixes this.
 
 on:
   workflow_dispatch:
@@ -28,14 +31,14 @@ permissions:
 jobs:
   # ── Build stage ─────────────────────────────────────────────────────────────
   # Three parallel jobs, each building natively inside a platform-specific
-  # ubuntu:20.04 Docker container via QEMU binfmt_misc emulation.
+  # ubuntu:22.04 Docker container via QEMU binfmt_misc emulation.
   build:
     name: Build (${{ matrix.target }})
     # Runs directly on ubuntu-22.04 (no container:). The actual compilation
-    # happens inside `docker run --platform linux/<arch> ubuntu:20.04`, which
+    # happens inside `docker run --platform linux/<arch> ubuntu:22.04`, which
     # uses QEMU user-mode emulation registered by setup-qemu-action.
     # This gives us:
-    #   - glibc 2.31 (ubuntu 20.04) — compatible with Armbian/RPi OS Buster
+    #   - glibc 2.35 (ubuntu 22.04) — compatible with Debian 12+, Armbian Bookworm+
     #   - Native compilation per arch — no cross-compilation toolchain needed
     #   - Identical build environment for all three platforms
     runs-on: ubuntu-22.04
@@ -70,7 +73,7 @@ jobs:
             https://github.com/tdlib/telegram-bot-api.git /tmp/tg-src
           echo "Upstream commit: $(git -C /tmp/tg-src rev-parse --short HEAD)"
 
-      # ── Compile inside platform-specific ubuntu:20.04 container ───────────
+      # ── Compile inside platform-specific ubuntu:22.04 container ───────────
       # The --platform flag selects the target arch; Docker pulls the matching
       # manifest and routes execution through QEMU on non-native platforms.
       # Everything compiles natively from the ARM OS's perspective — no
@@ -82,7 +85,7 @@ jobs:
             --platform ${{ matrix.platform }} \
             -v /tmp/tg-src:/src \
             -v /tmp/tg-output:/out \
-            ubuntu:20.04 \
+            ubuntu:22.04 \
             bash -xc "
               export DEBIAN_FRONTEND=noninteractive TZ=UTC
               apt-get update -qq
@@ -148,8 +151,8 @@ jobs:
           ## Pre-built telegram-bot-api binaries
 
           Built from [tdlib/telegram-bot-api](https://github.com/tdlib/telegram-bot-api).
-          Each binary compiled natively inside a matching ubuntu:20.04 Docker
-          container via QEMU — glibc 2.31, no cross-compiler patches needed.
+          Each binary compiled natively inside a matching ubuntu:22.04 Docker
+          container via QEMU — glibc 2.35, no cross-compiler patches needed.
 
           | Binary | Architecture | Target devices |
           |--------|-------------|----------------|
