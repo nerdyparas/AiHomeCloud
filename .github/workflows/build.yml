@@ -29,7 +29,9 @@ jobs:
   # is needed.
   build:
     name: Build (${{ matrix.target }})
-    runs-on: ubuntu-22.04
+    # ubuntu-20.04 ships glibc 2.31 — compatible with a wider range of devices
+    # (Armbian Buster/Focal, Raspberry Pi OS Buster, etc.) than ubuntu-22.04's 2.35.
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:

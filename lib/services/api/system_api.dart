@@ -126,6 +126,21 @@ extension SystemApi on ApiService {
     return ctrl.stream;
   }
 
+  /// GET /api/v1/system/arch
+  /// Returns {machine, target, prebuilt_available} for the device architecture.
+  Future<Map<String, dynamic>> getDeviceArch() async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .get(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/system/arch'),
+            headers: _headers,
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   /// GET /api/v1/system/firmware
   Future<Map<String, dynamic>> checkFirmwareUpdate() async {
     final res = await _withAutoRefresh(

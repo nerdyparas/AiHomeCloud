@@ -45,6 +45,12 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
   String? _setup2gbError;
   Timer? _setup2gbPollTimer;
 
+  // Architecture detection
+  String? _archMachine;
+  String? _archTarget;
+  bool _archPrebuilt = false;
+  bool _archLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +84,7 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
           _loading = false;
         });
         _loadPending();
+        _loadArchInfo();
       }
     } catch (e) {
       if (mounted) {
@@ -86,6 +93,23 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _loadArchInfo() async {
+    try {
+      final info =
+          await ref.read(apiServiceProvider).getDeviceArch();
+      if (mounted) {
+        setState(() {
+          _archMachine = info['machine'] as String?;
+          _archTarget = info['target'] as String?;
+          _archPrebuilt = info['prebuilt_available'] as bool? ?? false;
+          _archLoaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _archLoaded = true);
     }
   }
 
@@ -188,7 +212,13 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
               fontWeight: FontWeight.w600),
         ),
         content: Text(
-          l10n.telegram2GbBuildConfirmation,
+          _archLoaded
+              ? (_archPrebuilt
+                  ? l10n.telegram2GbConfirmPrebuilt(
+                      _archTarget ?? _archMachine ?? 'unknown')
+                  : l10n.telegram2GbConfirmBuild(
+                      _archTarget ?? _archMachine ?? 'unknown'))
+              : l10n.telegram2GbBuildConfirmation,
           style: GoogleFonts.dmSans(
               color: AppColors.textSecondary, fontSize: 13),
         ),
@@ -702,6 +732,64 @@ class _TelegramSetupScreenState extends ConsumerState<TelegramSetupScreen> {
                             ),
                           ],
                         ),
+                        // Arch detection chip
+                        if (_archLoaded) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: (_archPrebuilt
+                                      ? AppColors.success
+                                      : AppColors.primary)
+                                  .withAlpha(25),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: (_archPrebuilt
+                                        ? AppColors.success
+                                        : AppColors.primary)
+                                    .withAlpha(80),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _archPrebuilt
+                                      ? Icons.download_done_rounded
+                                      : Icons.build_rounded,
+                                  size: 13,
+                                  color: _archPrebuilt
+                                      ? AppColors.success
+                                      : AppColors.primary,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    _archPrebuilt
+                                        ? AppLocalizations.of(context)!
+                                            .telegramArchPrebuiltFound
+                                        : AppLocalizations.of(context)!
+                                            .telegramArchBuildFallback,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      color: _archPrebuilt
+                                          ? AppColors.success
+                                          : AppColors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  _archTarget ?? _archMachine ?? '',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const Divider(
                             color: AppColors.cardBorder, height: 24),
 

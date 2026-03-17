@@ -4,6 +4,7 @@ System routes — device info, firmware, device name, power management.
 
 import asyncio
 import logging
+import platform
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -35,6 +36,30 @@ async def device_info(request: Request, user: dict = Depends(get_current_user)):
         boardModel=board_model,
         ocrAvailable=ocr_pdftotext_available and ocr_tesseract_available,
     )
+
+
+# Architectures that have a pre-built binary published as a GitHub Release asset.
+_PREBUILT_ARCHES = {"x86_64", "aarch64", "arm64", "armv7l", "armv7"}
+_ARCH_TARGET_MAP = {
+    "x86_64": "linux-amd64",
+    "aarch64": "linux-arm64",
+    "arm64": "linux-arm64",
+    "armv7l": "linux-armv7",
+    "armv7": "linux-armv7",
+}
+
+
+@router.get("/arch")
+async def device_arch(user: dict = Depends(get_current_user)):
+    """Return CPU architecture and whether a pre-built telegram-bot-api binary
+    is available for this device from the GitHub Releases page."""
+    machine = platform.machine()
+    target = _ARCH_TARGET_MAP.get(machine.lower())
+    return {
+        "machine": machine,
+        "target": target,
+        "prebuilt_available": target is not None,
+    }
 
 
 @router.get("/firmware", response_model=FirmwareInfo)

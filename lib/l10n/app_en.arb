@@ -335,6 +335,16 @@
   "telegram2GbModeActive": "2 GB mode active",
   "telegram2GbBuildConfirmation": "This will build the Telegram local server from source. It generally takes 20 to 40 minutes on this device.\n\nOnce the build is complete and configured, you will receive a confirmation message on the Telegram bot.",
   "telegram2GbStartBuildButton": "Start Build",
+
+  "telegramArchDetected": "Your device: {arch}",
+  "@telegramArchDetected": { "placeholders": { "arch": { "type": "String" } } },
+  "telegramArchPrebuiltFound": "Pre-built binary available — install takes seconds",
+  "telegramArchBuildFallback": "No pre-built binary — will compile on device (~30 min)",
+  "telegram2GbConfirmPrebuilt": "A pre-built binary is available for your device ({arch}).\n\nInstall completes in about 30 seconds — no compilation needed.\n\nYou will receive a Telegram confirmation once active.",
+  "@telegram2GbConfirmPrebuilt": { "placeholders": { "arch": { "type": "String" } } },
+  "telegram2GbConfirmBuild": "No pre-built binary found for your device ({arch}). The setup will compile from source.\n\nThis takes 20–40 minutes on this device. You will receive a Telegram confirmation when done.",
+  "@telegram2GbConfirmBuild": { "placeholders": { "arch": { "type": "String" } } },
+
   "telegramBotActiveStatus": "Bot is active and polling",
   "telegramBotConfiguredStatus": "Configured but not running",
   "telegramBotNotConfiguredStatus": "Not configured",
