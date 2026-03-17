@@ -218,44 +218,49 @@ def _arch_to_release_target() -> str | None:
     return mapping.get(arch)
 
 
-async def _try_download_prebuilt() -> bool:
+async def _try_download_prebuilt() -> tuple[bool, str]:
     """Attempt to download a pre-built telegram-bot-api binary from GitHub Releases.
 
-    Returns True and installs the binary to _BINARY_PATH on success.
-    Returns False if no suitable binary is available or the download fails,
-    so the caller can fall back to source compilation.
+    Returns (True, "") on success.
+    Returns (False, reason) on failure so the caller can surface the reason to the user.
     """
     target = _arch_to_release_target()
     if target is None:
-        logger.info("prebuilt_skip arch=%s (no release binary)", platform.machine())
-        return False
+        msg = f"No pre-built binary for {platform.machine()} — compiling from source…"
+        logger.info("prebuilt_skip arch=%s", platform.machine())
+        return False, msg
 
     url = f"{_GITHUB_RELEASES_BASE}/telegram-bot-api-{target}"
     tmp_path = f"/tmp/telegram-bot-api-download-{target}"  # nosec B108
 
+    logger.info("prebuilt_download_attempt url=%s", url)
     rc, _, err = await run_command(
         [
             "curl", "-fsSL",
             "--max-time", "120",
-            "--retry", "3",
-            "--retry-delay", "2",
+            "--retry", "1",  # one retry only — 404 should fail fast
             "-o", tmp_path,
             url,
         ],
         timeout=150,
     )
     if rc != 0:
+        # curl exit 22 = HTTP 4xx/5xx (i.e. 404 — no release published yet)
+        msg = (
+            f"No pre-built binary found for {target} — "
+            "compiling from source (~20–40 min)…"
+        )
         logger.info("prebuilt_download_failed url=%s err=%s", url, err[:200])
-        return False
+        Path(tmp_path).unlink(missing_ok=True)
+        return False, msg
 
     # Sanity check: must be an ELF binary, not an HTML error page.
     rc_file, file_out, _ = await run_command(["file", tmp_path], timeout=10)
     if rc_file != 0 or "ELF" not in file_out:
-        logger.warning(
-            "prebuilt_not_elf url=%s file_output=%s", url, file_out[:200]
-        )
+        msg = f"Downloaded file for {target} is not a valid binary — compiling from source…"
+        logger.warning("prebuilt_not_elf url=%s file_output=%s", url, file_out[:200])
         Path(tmp_path).unlink(missing_ok=True)
-        return False
+        return False, msg
 
     # Install: copy to final path and make executable.
     rc, _, err = await run_command(
@@ -263,12 +268,13 @@ async def _try_download_prebuilt() -> bool:
     )
     Path(tmp_path).unlink(missing_ok=True)
     if rc != 0:
+        msg = "Failed to install pre-built binary — compiling from source…"
         logger.warning("prebuilt_install_failed err=%s", err[:300])
-        return False
+        return False, msg
 
     rc, _, _ = await run_command(["sudo", "chmod", "755", _BINARY_PATH], timeout=10)
     logger.info("prebuilt_installed target=%s path=%s", target, _BINARY_PATH)
-    return True
+    return True, ""
 
 
 def _cleanup_build() -> None:
@@ -314,9 +320,12 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             # 2-pre — Try downloading a pre-built binary from GitHub Releases.
             # This takes seconds and avoids a 20-40 min on-device compilation.
             _progress("Checking for pre-built binary\u2026")
-            if await _try_download_prebuilt():
+            downloaded, fallback_reason = await _try_download_prebuilt()
+            if downloaded:
                 binary_exists = True
-                _progress("Pre-built binary downloaded — skipping compilation\u2026")
+                _progress("Pre-built binary downloaded \u2014 skipping compilation\u2026")
+            else:
+                _progress(fallback_reason)
 
         if not binary_exists:
             # 2a — Verify build dependencies are installed.
