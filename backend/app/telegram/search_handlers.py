@@ -1,4 +1,4 @@
-﻿"""Telegram bot handlers — search handlers."""
+"""Telegram bot handlers — search handlers."""
 
 import asyncio
 import logging
@@ -94,7 +94,7 @@ async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
     docs = await _docidx.list_recent_documents(limit=10)
     if not docs:
         await update.message.reply_text(
-            "ðŸ“‚ <i>No documents indexed yet.</i>\n\nSend a file to start building your library.",
+            "📂 <i>No documents indexed yet.</i>\n\nSend a file to start building your library.",
             parse_mode="HTML",
         )
         return
@@ -106,7 +106,7 @@ async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
         lines.append(f"{i}. <code>{d['filename']}</code>  <i>({added_by})</i>")
 
     await update.message.reply_text(
-        "ðŸ“„ <b>Recent documents</b>\n\n"
+        "📄 <b>Recent documents</b>\n\n"
         + "\n".join(lines)
         + "\n\n<i>Reply with a number to receive the file.</i>",
         parse_mode="HTML",
@@ -122,7 +122,7 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
 
     text = (update.message.text or "").strip()
 
-    # Numeric reply â†’ send file from previous search / list
+    # Numeric reply → send file from previous search / list
     if text.isdigit():
         prev = _last_results.get(chat_id, [])
         idx = int(text) - 1
@@ -130,18 +130,18 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
             await _send_file(update, prev[idx])
         else:
             await update.message.reply_text(
-                "â“ <i>Invalid number.</i> Search for something first or use /list.",
+                "❓ <i>Invalid number.</i> Search for something first or use /list.",
                 parse_mode="HTML",
             )
         return
 
-    # Full-text search (admin-scope â€” bot has unrestricted access to the index)
+    # Full-text search (admin-scope — bot has unrestricted access to the index)
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     results = await _docidx.search_documents(query=text, limit=5, user_role="admin", username="")
 
     if not results:
         await update.message.reply_text(
-            f"ðŸ” <i>No documents found for</i> <b>{text}</b>.\n\n"
+            f"🔍 <i>No documents found for</i> <b>{text}</b>.\n\n"
             "Try a different word or /list to browse recent files.",
             parse_mode="HTML",
         )
@@ -152,11 +152,11 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
         await _send_file(update, results[0])
         return
 
-    # 2-5 results â†’ numbered list
+    # 2-5 results → numbered list
     _last_results[chat_id] = results
     lines = [f"{i + 1}. <code>{r['filename']}</code>" for i, r in enumerate(results)]
     await update.message.reply_text(
-        f"ðŸ” <b>Found {len(results)} files</b>\n\n"
+        f"🔍 <b>Found {len(results)} files</b>\n\n"
         + "\n".join(lines)
         + "\n\n<i>Reply with a number to receive the file.</i>",
         parse_mode="HTML",
@@ -173,7 +173,7 @@ async def _send_file(update, doc: dict) -> None:
         if nas_path:
             await _docidx.remove_document(nas_path)
         await update.message.reply_text(
-            f"âš ï¸ <b>File not found</b>\n\n"
+            f"⚠️ <b>File not found</b>\n\n"
             f"<code>{doc.get('filename', '?')}</code>\n\n"
             "<i>It may have been moved or deleted. The index has been updated.</i>",
             parse_mode="HTML",
@@ -249,14 +249,14 @@ async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
 
         # Health indicator
         if cpu > 80 or ram_pct > 85:
-            health_icon, health_text = "ðŸ”´", "High load"
+            health_icon, health_text = "🔴", "High load"
         elif cpu > 50 or ram_pct > 70:
-            health_icon, health_text = "ðŸŸ¡", "Moderate"
+            health_icon, health_text = "🟡", "Moderate"
         else:
-            health_icon, health_text = "ðŸŸ¢", "Healthy"
+            health_icon, health_text = "🟢", "Healthy"
 
         await update.message.reply_text(
-            f"ðŸ–¥ <b>AiHomeCloud Status</b>  {health_icon} {health_text}\n\n"
+            f"🖥 <b>AiHomeCloud Status</b>  {health_icon} {health_text}\n\n"
             f"\u23f1 Uptime:  <b>{uptime_str}</b>\n"
             f"\U0001f9e0 CPU:     <b>{cpu:.0f}%</b>\n"
             f"\U0001f4be RAM:     <b>{ram_used_gb} / {ram_total_gb} GB</b>  ({ram_pct}%)\n"
@@ -269,7 +269,7 @@ async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
     except Exception as exc:
         logger.warning("telegram_status_error: %s", exc)
         await update.message.reply_text(
-            "âš ï¸ <i>Could not read device status.</i>",
+            "⚠️ <i>Could not read device status.</i>",
             parse_mode="HTML",
         )
 
@@ -310,7 +310,7 @@ async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
     tg_line = f"@{tg_username}" if tg_username else f"ID: {chat_id}"
 
     await update.message.reply_text(
-        f"ðŸ‘¤ <b>{first_name}</b>  ({tg_line})\n\n"
+        f"👤 <b>{first_name}</b>  ({tg_line})\n\n"
         f"Personal folder: <b>{owner}</b>\n\n"
         "<i>To switch folder: /auth &lt;name&gt;</i>",
         parse_mode="HTML",

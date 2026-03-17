@@ -1,18 +1,18 @@
-﻿"""
+"""
 Telegram bot for document retrieval from AiHomeCloud.
 
 Bot commands:
-  /start â€” welcome + prompt to /auth if not linked
-  /auth  â€” link Telegram account to AiHomeCloud
-  /list  â€” last 10 indexed documents
-  /help  â€” show all commands
-  <text> â€” full-text search; 0 results â†’ message; 1 â†’ send file; 2-5 â†’ numbered list
-  <num>  â€” send the nth file from the last search
+  /start — welcome + prompt to /auth if not linked
+  /auth  — link Telegram account to AiHomeCloud
+  /list  — last 10 indexed documents
+  /help  — show all commands
+  <text> — full-text search; 0 results → message; 1 → send file; 2-5 → numbered list
+  <num>  — send the nth file from the last search
 
 Security: users must send /auth to link their Telegram account before accessing
 any data. Linked chat IDs are persisted in the KV store.
 
-The bot is entirely optional â€” it is only started when AHC_TELEGRAM_BOT_TOKEN is
+The bot is entirely optional — it is only started when AHC_TELEGRAM_BOT_TOKEN is
 configured.  If python-telegram-bot is not installed the startup silently skips.
 """
 
@@ -125,7 +125,7 @@ _TRASH_WARNING_BYTES = 10 * 1024 * 1024 * 1024  # 10 GB
 
 
 # ---------------------------------------------------------------------------
-# Access control â€” linked chat IDs persisted in KV store
+# Access control — linked chat IDs persisted in KV store
 # ---------------------------------------------------------------------------
 
 async def _get_linked_ids() -> set[int]:
@@ -301,11 +301,11 @@ async def _upload_progress_heartbeat(message, filename: str, size_text: str, tar
         await _safe_edit_text(
             message,
             (
-                f"ðŸ“¥ <b>Downloadingâ€¦</b>\n\n"
-                f"ðŸ“„ <code>{filename}</code>\n"
-                f"ðŸ“¦ {size_text}\n"
-                f"ðŸ“‚ {target_label}\n"
-                f"â± {elapsed}\n\n"
+                f"📥 <b>Downloading…</b>\n\n"
+                f"📄 <code>{filename}</code>\n"
+                f"📦 {size_text}\n"
+                f"📂 {target_label}\n"
+                f"⏱ {elapsed}\n\n"
                 "<i>Large files can take a few minutes.</i>"
             ),
         )
@@ -443,21 +443,21 @@ async def _store_entertainment_file(bot, pending: PendingUpload) -> Path:
 def _file_type_emoji(kind: str) -> str:
     """Return an emoji for a given file kind."""
     return {
-        "document": "ðŸ“„",
-        "video":    "ðŸŽ¬",
-        "audio":    "ðŸŽµ",
-        "photo":    "ðŸ–¼",
-        "voice":    "ðŸŽ™",
-    }.get(kind, "ðŸ“")
+        "document": "📄",
+        "video":    "🎬",
+        "audio":    "🎵",
+        "photo":    "🖼",
+        "voice":    "🎙",
+    }.get(kind, "📁")
 
 
 def _make_destination_keyboard(chat_id: int):
     """Return a 4-button inline keyboard for upload destination choice."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("ðŸ‘¤  My Folder",        callback_data=f"dest:{chat_id}:1")],
-        [InlineKeyboardButton("ðŸ‘¨\u200dðŸ‘©\u200dðŸ‘§  Family Shared",   callback_data=f"dest:{chat_id}:2")],
-        [InlineKeyboardButton("ðŸŽ¬  Entertainment",   callback_data=f"dest:{chat_id}:3")],
-        [InlineKeyboardButton("âŒ  Cancel",            callback_data=f"dest:{chat_id}:cancel")],
+        [InlineKeyboardButton("👤  My Folder",        callback_data=f"dest:{chat_id}:1")],
+        [InlineKeyboardButton("👨\u200d👩\u200d👧  Family Shared",   callback_data=f"dest:{chat_id}:2")],
+        [InlineKeyboardButton("🎬  Entertainment",   callback_data=f"dest:{chat_id}:3")],
+        [InlineKeyboardButton("❌  Cancel",            callback_data=f"dest:{chat_id}:cancel")],
     ])
 
 # ---------------------------------------------------------------------------
@@ -525,7 +525,7 @@ def _storage_bar(percent: float, width: int = 10) -> str:
 
 
 async def _trash_warning_loop() -> None:
-    """Hourly loop â€” sends a Telegram notification on Saturday at 10 AM when total
+    """Hourly loop — sends a Telegram notification on Saturday at 10 AM when total
     trash exceeds 10 GB.  Fires at most once per ISO week via the KV store."""
 
     while True:

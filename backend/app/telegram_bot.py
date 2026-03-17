@@ -70,7 +70,7 @@ async def start_bot() -> None:
     global _application
 
     if not settings.telegram_bot_token:
-        logger.info("Telegram bot token not set â€” bot disabled")
+        logger.info("Telegram bot token not set — bot disabled")
         return
 
     try:
@@ -79,7 +79,7 @@ async def start_bot() -> None:
             CallbackQueryHandler, filters,
         )
     except ImportError:
-        logger.warning("python-telegram-bot not installed â€” Telegram bot disabled")
+        logger.warning("python-telegram-bot not installed — Telegram bot disabled")
         return
 
     try:
@@ -92,7 +92,7 @@ async def start_bot() -> None:
             .pool_timeout(settings.telegram_download_timeout)
         )
 
-        # Use local Bot API server if configured â€” removes 20MB file limit
+        # Use local Bot API server if configured — removes 20MB file limit
         if settings.telegram_local_api_enabled and settings.telegram_local_api_url:
             local_url = settings.telegram_local_api_url.rstrip("/")
             builder = (

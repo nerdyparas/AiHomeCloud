@@ -1,4 +1,4 @@
-﻿"""Telegram bot handlers — auth handlers."""
+"""Telegram bot handlers — auth handlers."""
 
 import asyncio
 import logging
@@ -46,14 +46,14 @@ async def _handle_start(update, context) -> None:  # type: ignore[type-arg]
 
     if not await _tb()._is_allowed(chat_id):
         await update.message.reply_text(
-            f"ðŸ‘‹ <b>Hi {first_name}!</b>\n\n"
+            f"👋 <b>Hi {first_name}!</b>\n\n"
             "This is a private AiHomeCloud. Send /auth to link your account and get access.",
             parse_mode="HTML",
         )
         return
 
     await update.message.reply_text(
-        f"ðŸ  <b>Welcome back, {first_name}!</b>\n\n"
+        f"🏠 <b>Welcome back, {first_name}!</b>\n\n"
         "Type anything to search your files.\n"
         "Send a file to save it to your cloud.\n\n"
         "Use /help to see all commands.",
@@ -78,8 +78,8 @@ async def _handle_auth(update, context) -> None:  # type: ignore[type-arg]
             await _set_chat_folder_owner(chat_id, new_owner)
             owner = new_owner
         await update.message.reply_text(
-            f"âœ… <b>Already linked, {first_name}</b>\n\n"
-            f"ðŸ‘¤ Personal folder: <b>{owner}</b>\n\n"
+            f"✅ <b>Already linked, {first_name}</b>\n\n"
+            f"👤 Personal folder: <b>{owner}</b>\n\n"
             "To switch folder: <code>/auth &lt;name&gt;</code>",
             parse_mode="HTML",
         )
@@ -127,7 +127,7 @@ async def _handle_unlink(update, context) -> None:  # type: ignore[type-arg]
     _last_results.pop(chat_id, None)
 
     await update.message.reply_text(
-        "ðŸ”“ <b>Account unlinked.</b>\n\n"
+        "🔓 <b>Account unlinked.</b>\n\n"
         "<i>Your Telegram account has been removed from AiHomeCloud.\n"
         "Send /auth to link again.</i>",
         parse_mode="HTML",

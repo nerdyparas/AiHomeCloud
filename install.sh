@@ -159,7 +159,7 @@ install_packages() {
         openssl curl git lsof
         avahi-daemon
         samba nfs-kernel-server
-        tesseract-ocr poppler-utils
+        tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin poppler-utils
         minidlna
         smartmontools
     )
