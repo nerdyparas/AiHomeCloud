@@ -186,7 +186,7 @@ async def setup_local_api(body: SetupLocalApiIn, user: dict = Depends(require_ad
 # Background job -- local API server (build from source)
 # ---------------------------------------------------------------------------
 
-_BUILD_DIR = "/tmp/telegram-bot-api-build"
+_BUILD_DIR = "/tmp/telegram-bot-api-build"  # nosec B108 -- path locked by sudoers entry
 _BINARY_PATH = "/usr/local/bin/telegram-bot-api"
 _SERVICE_NAME = "telegram-bot-api"
 _SERVICE_PORT = 8081
@@ -342,7 +342,7 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             "WantedBy=multi-user.target\n"
         )
 
-        tmp_service = Path("/tmp/telegram-bot-api.service")
+        tmp_service = Path("/tmp/telegram-bot-api.service")  # nosec B108 -- path locked by sudoers entry
         tmp_service.write_text(service_content)
 
         rc, _, err = await run_command(
