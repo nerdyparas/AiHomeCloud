@@ -123,7 +123,7 @@ async def shutdown_device(user: dict = Depends(require_admin)):
 
     # 2. Schedule poweroff after a short delay so the response is delivered.
     logger.info("Shutdown requested by user %s", user.get("sub", "unknown"))
-    asyncio.create_task(_deferred_power_command(["sudo", "-n", "systemctl", "poweroff"]))
+    asyncio.create_task(_deferred_power_command(["sudo", "-n", "/usr/sbin/shutdown", "-h", "now"]))
     return {"status": "shutting_down"}
 
 
@@ -131,7 +131,7 @@ async def shutdown_device(user: dict = Depends(require_admin)):
 async def reboot_device(user: dict = Depends(require_admin)):
     """Reboot the device.  Response is sent before the OS restarts."""
     logger.info("Reboot requested by user %s", user.get("sub", "unknown"))
-    asyncio.create_task(_deferred_power_command(["sudo", "-n", "systemctl", "reboot"]))
+    asyncio.create_task(_deferred_power_command(["sudo", "-n", "/usr/sbin/reboot"]))
     return {"status": "rebooting"}
 
 

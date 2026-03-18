@@ -218,6 +218,7 @@ if [[ ! -f "$SUDOERS_FILE" ]]; then
 $REPO_USER ALL=(root) NOPASSWD: /bin/mount, /bin/umount, /usr/bin/mount, /usr/bin/umount
 $REPO_USER ALL=(root) NOPASSWD: /usr/bin/systemctl start minidlna, /usr/bin/systemctl stop minidlna, /usr/bin/systemctl restart minidlna, /usr/bin/systemctl enable minidlna
 $REPO_USER ALL=(root) NOPASSWD: /usr/bin/systemctl start smbd, /usr/bin/systemctl stop smbd, /usr/bin/systemctl restart smbd, /usr/bin/systemctl start nmbd, /usr/bin/systemctl stop nmbd
+$REPO_USER ALL=(root) NOPASSWD: /usr/sbin/shutdown, /usr/sbin/reboot
 $REPO_USER ALL=(root) NOPASSWD: /sbin/mkfs.ext4, /sbin/mkfs.exfat, /sbin/mkfs.vfat, /sbin/mkfs.ntfs
 $REPO_USER ALL=(root) NOPASSWD: /sbin/parted, /usr/sbin/parted
 $REPO_USER ALL=(root) NOPASSWD: /sbin/sgdisk, /usr/sbin/sgdisk

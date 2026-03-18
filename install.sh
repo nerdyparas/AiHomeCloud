@@ -339,7 +339,7 @@ install_service() {
 configure_sudoers() {
     log "[9/10] Configuring sudoers whitelist..."
 
-    local SUDOERS_VER="2"  # Bump when adding new entries
+    local SUDOERS_VER="3"  # Bump when adding new entries
 
     local need_write=false
     if [[ ! -f "$SUDOERS_FILE" ]]; then
