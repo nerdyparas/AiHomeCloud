@@ -507,14 +507,18 @@ async def clear_otp() -> None:
 
 async def get_value(key: str, default: Any = None) -> Any:
     """Read a value from the generic key-value store (kv.json)."""
-    cached = _get_cached(f"kv:{key}")
+    cache_key = f"kv:{key}"
+    cached = _cache.get(cache_key)
     if cached is not None:
-        return cached
+        value, expires_at = cached
+        if time.monotonic() <= expires_at:
+            return value  # may legitimately be None
+        _cache.pop(cache_key, None)
 
     async with _store_lock:
         data: Dict[str, Any] = _read_json(settings.data_dir / "kv.json", {})
         value = data.get(key, default)
-        _set_cached(f"kv:{key}", value)
+        _set_cached(cache_key, value)
         return value
 
 

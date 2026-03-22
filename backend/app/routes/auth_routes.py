@@ -22,12 +22,25 @@ _MAX_FAILURES = 10
 _LOCKOUT_SECONDS = 900  # 15 minutes
 
 
+def _prune_failed_logins() -> None:
+    """Remove entries whose lockout has expired. Called opportunistically to keep the dict bounded."""
+    now = time.time()
+    stale = [
+        ip for ip, (count, lockout_until) in _failed_logins.items()
+        if lockout_until > 0 and lockout_until < now
+    ]
+    for ip in stale:
+        _failed_logins.pop(ip, None)
+
+
 def _record_failure(ip: str) -> None:
     """Increment failed login counter for an IP; set lockout when threshold reached."""
     record = _failed_logins.get(ip)
     count = (record[0] if record else 0) + 1
     lockout_until = (time.time() + _LOCKOUT_SECONDS) if count >= _MAX_FAILURES else 0.0
     _failed_logins[ip] = (count, lockout_until)
+    # Opportunistic prune: remove other unlocked entries while we have the dict open
+    _prune_failed_logins()
 
 from ..auth import (
     create_token,
@@ -296,6 +309,9 @@ async def login(request: Request, body: LoginRequest):
     """Login with username and PIN and return an access token."""
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
+
+    # Prune stale entries before checking — keeps dict bounded
+    _prune_failed_logins()
 
     # Check account lockout
     record = _failed_logins.get(client_ip)

@@ -311,3 +311,34 @@ async def test_add_user_icon_emoji_defaults_to_empty_string(tmp_path, monkeypatc
     )
 
     store._cache.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_value_caches_none_correctly(tmp_path, monkeypatch):
+    """get_value must return None for a key whose stored value IS None without forcing
+    a re-read on every call (regression: old code used 'if cached is not None')."""
+    monkeypatch.setenv("AHC_DATA_DIR", str(tmp_path))
+    from app.config import settings
+    from app import store
+    settings.data_dir = tmp_path
+    store._cache.clear()
+
+    # Write None as the value for a key
+    await store.set_value("nullable_key", None)
+
+    # Write it back as None explicitly so the JSON has the key with null
+    import json
+    kv_path = tmp_path / "kv.json"
+    kv_path.write_text(json.dumps({"nullable_key": None}))
+    store._cache.clear()
+
+    # First read should return None (from disk)
+    result = await store.get_value("nullable_key", default="MISSING")
+    assert result is None, "get_value must return None for a null JSON value, not the default"
+
+    # Second read with the key absent from JSON should return default
+    await store.set_value("other_key", "hello")
+    result2 = await store.get_value("nonexistent_key", default="fallback")
+    assert result2 == "fallback", "get_value must return the default for a missing key"
+
+    store._cache.clear()

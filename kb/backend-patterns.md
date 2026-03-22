@@ -133,6 +133,43 @@ raise HTTPException(status_code=500, detail=f"Command failed: {stderr}")
 
 ---
 
+## In-Memory Cache Eviction
+
+**Bounded caches:** Caches that grow on every request must be evicted when writing new entries to prevent unbounded memory growth on ARM devices.
+
+```python
+# Pattern used in file_routes.py _scan_cache:
+def _evict_expired_scan_cache() -> None:
+    """Remove expired entries — call before every write."""
+    now = _time.monotonic()
+    stale = [k for k, (_, exp) in _scan_cache.items() if now >= exp]
+    for k in stale:
+        _scan_cache.pop(k, None)
+
+# In the write path:
+_evict_expired_scan_cache()
+_scan_cache[cache_key] = (result, now + _TTL)
+```
+
+**Opportunistic prune pattern:** Security dicts (e.g. `_failed_logins`) should prune stale entries whenever the dict is written to:
+```python
+def _record_failure(ip: str) -> None:
+    ...  # update entry
+    _prune_failed_logins()  # remove expired lockouts on every write
+```
+
+**Blocking I/O in async handlers:** CPU-bound or blocking I/O (rglob, stat calls on large trees) must be offloaded to a thread executor:
+```python
+def _calc_dir_size(path: Path) -> int:
+    return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+
+# Inside async handler:
+loop = asyncio.get_running_loop()
+size_bytes = await loop.run_in_executor(None, _calc_dir_size, resolved)
+```
+
+---
+
 ## Background Tasks & Jobs
 
 **Job store pattern:** Long-running operations (storage format) use `job_store.py`:

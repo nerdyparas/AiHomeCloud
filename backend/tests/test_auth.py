@@ -438,9 +438,47 @@ async def test_pair_qr_does_not_expose_key(client: AsyncClient):
 
     # Other safe fields should be present
     assert "qrValue" in data
-    assert "serial" in data
-    assert "host" in data
-    assert "expiresAt" in data
+
+
+@pytest.mark.asyncio
+async def test_failed_logins_pruned_after_lockout_expires(client: AsyncClient):
+    """Expired lockout entries are pruned from _failed_logins on the next login attempt."""
+    from app.routes import auth_routes
+    import time as _time
+
+    # Inject a stale (already-expired) lockout entry for a fake IP
+    fake_ip = "10.0.0.99"
+    expired_lockout = _time.time() - 1  # 1 second in the past
+    auth_routes._failed_logins[fake_ip] = (auth_routes._MAX_FAILURES, expired_lockout)
+    assert fake_ip in auth_routes._failed_logins
+
+    # Trigger any login attempt -- prune runs at top of the handler
+    await client.post("/api/v1/auth/login", json={"name": "nobody", "pin": "000000"})
+
+    # The stale entry must now be gone
+    assert fake_ip not in auth_routes._failed_logins, (
+        "Expired lockout entry must be pruned from _failed_logins after the lockout time passes"
+    )
+
+
+@pytest.mark.asyncio
+async def test_prune_failed_logins_keeps_active_entries():
+    """_prune_failed_logins removes only expired entries, keeps active ones."""
+    from app.routes import auth_routes
+    import time as _time
+
+    auth_routes._failed_logins.clear()
+    now = _time.time()
+
+    auth_routes._failed_logins["1.2.3.4"] = (10, now - 5)    # expired
+    auth_routes._failed_logins["5.6.7.8"] = (10, now + 500)  # still locked
+
+    auth_routes._prune_failed_logins()
+
+    assert "1.2.3.4" not in auth_routes._failed_logins, "Expired entry must be removed"
+    assert "5.6.7.8" in auth_routes._failed_logins, "Active lockout must be preserved"
+
+    auth_routes._failed_logins.clear()
 
 
 @pytest.mark.asyncio

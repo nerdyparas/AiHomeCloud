@@ -47,6 +47,19 @@ def _invalidate_scan_cache(dir_path: str) -> None:
     to_del = [k for k in _scan_cache if k.startswith(prefix)]
     for k in to_del:
         _scan_cache.pop(k, None)
+
+
+def _evict_expired_scan_cache() -> None:
+    """Remove expired entries from the scan cache. Called on write to keep memory bounded."""
+    now = _time.monotonic()
+    stale = [k for k, (_, exp) in _scan_cache.items() if now >= exp]
+    for k in stale:
+        _scan_cache.pop(k, None)
+
+
+def _calc_dir_size(path: Path) -> int:
+    """Calculate total size of all files under a directory. Designed to run in a thread executor."""
+    return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
 # Executables and dangerous file types that must never be uploaded to the NAS.
@@ -230,6 +243,7 @@ async def list_files(
                     sort_by.lower(), sort_dir.lower() == "desc",
                     page, page_size),
         )
+        _evict_expired_scan_cache()
         _scan_cache[cache_key] = ((paged, total_count), now + _SCAN_TTL)
 
     return FileListResponse(
@@ -286,7 +300,8 @@ async def delete_file(
     if resolved.is_file():
         size_bytes = resolved.stat().st_size
     else:
-        size_bytes = sum(f.stat().st_size for f in resolved.rglob("*") if f.is_file())
+        loop = asyncio.get_running_loop()
+        size_bytes = await loop.run_in_executor(None, _calc_dir_size, resolved)
 
     item = {
         "id": str(uuid.uuid4()),

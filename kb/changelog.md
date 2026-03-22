@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-23 — Backend Memory & Performance Fixes
+
+- `auth_routes.py`: Added `_prune_failed_logins()` — expired lockout entries are now evicted on every `_record_failure()` call and at the top of the login handler, preventing unbounded dict growth from rotating IPs
+- `file_routes.py`: Added `_evict_expired_scan_cache()` — expired scan cache entries are removed before every write, keeping `_scan_cache` bounded during long NAS browsing sessions
+- `file_routes.py`: Offloaded `rglob` directory size calculation in `delete_file` to `loop.run_in_executor()` via `_calc_dir_size()` — prevents event loop blocking on large directories
+- `store.py`: Fixed `get_value` to read `_cache` directly (bypassing `_get_cached`) so `None` stored values are returned from cache correctly rather than causing repeated disk reads
+- Added targeted tests in `test_auth.py`, `test_file_routes.py`, `test_store.py` — 77 pass
+
+---
+
 ## 2026-03-17 — Telegram Local API: Source Build (replaces Docker)
 
 - Replaced Docker-based `setup-local-api` flow with source build from `tdlib/telegram-bot-api`

@@ -289,3 +289,27 @@ async def test_file_ops_require_auth(client: AsyncClient):
         response = await client.request(method, url)
         assert response.status_code in (401, 403), \
             f"{method} {url} should require auth, got {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_scan_cache_evicts_expired_entries(authenticated_client: AsyncClient):
+    """Expired _scan_cache entries are evicted when a new entry is written."""
+    from app.routes import file_routes
+    import time as _time
+
+    # Fill cache with 20 already-expired entries
+    now = _time.monotonic()
+    for i in range(20):
+        file_routes._scan_cache[f"/fake/path{i}|name|asc|1|50"] = (([], 0), now - 10)
+
+    size_before = len(file_routes._scan_cache)
+    assert size_before >= 20
+
+    # Trigger a real list_files call which will write a new entry after eviction
+    await authenticated_client.get("/api/v1/files/list?path=/srv/nas/shared/")
+
+    size_after = len(file_routes._scan_cache)
+    assert size_after < size_before, (
+        f"Expired scan cache entries must be evicted on write: "
+        f"before={size_before}, after={size_after}"
+    )
