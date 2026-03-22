@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-23 — Quick Wins: WAL mode, get_local_ip fallback, bot supervisor poll, unawaited persist
+
+- `document_index.py`: Enabled `PRAGMA journal_mode=WAL` + `PRAGMA synchronous=NORMAL` on all SQLite connections — eliminates FTS5 read/write contention during concurrent uploads/searches
+- `config.py`: Rewrote `get_local_ip()` with interface-enumeration as primary method (works on LAN-only devices without internet route); routing-based discovery kept as fallback
+- `main.py`: Fixed `_supervise_telegram_bot()` — now uses a flat 10s health-check poll and only applies backoff sleep when bot is actually down; removed pointless sleep on every healthy-check iteration
+- `auth_session.dart`: Added `dart:async` import; used `unawaited(Future.wait(writes))` inside `_persistLogin` to explicitly annotate fire-and-forget disk persist
+
+---
+
 ## 2026-03-23 — Backend Memory & Performance Fixes
 
 - `auth_routes.py`: Added `_prune_failed_logins()` — expired lockout entries are now evicted on every `_record_failure()` call and at the top of the login handler, preventing unbounded dict growth from rotating IPs

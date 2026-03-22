@@ -56,7 +56,23 @@ def generate_hotspot_password() -> str:
 
 
 def get_local_ip() -> str:
-    """Get the device's primary local IP address."""
+    """Get the device's primary local IP address.
+
+    Tries interface enumeration first (works on LAN-only devices with no internet
+    route).  Falls back to routing-based discovery, then 127.0.0.1.
+    """
+    # Method 1: Enumerate interfaces — works even without a default route.
+    try:
+        hostname = socket.gethostname()
+        addrs = socket.getaddrinfo(hostname, None, socket.AF_INET)
+        for addr in addrs:
+            ip = addr[4][0]
+            if not ip.startswith("127.") and not ip.startswith("169.254."):
+                return ip
+    except Exception:
+        pass
+
+    # Method 2: Routing-based (original approach — requires default route).
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))

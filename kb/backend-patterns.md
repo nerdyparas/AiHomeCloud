@@ -170,6 +170,21 @@ size_bytes = await loop.run_in_executor(None, _calc_dir_size, resolved)
 
 ---
 
+## SQLite (document_index.py)
+
+**WAL mode:** All SQLite connections use WAL journal mode and NORMAL sync for concurrent read/write performance on SD card / NVMe:
+```python
+def _new_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(str(_db_path()), timeout=10, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")   # eliminates read/write contention
+    conn.execute("PRAGMA synchronous=NORMAL") # safe with WAL; faster on SD/NVMe
+    return conn
+```
+WAL mode allows concurrent readers without blocking writers. `NORMAL` sync is safe with WAL (no data loss on crash, only on power failure mid-write).
+
+---
+
 ## Background Tasks & Jobs
 
 **Job store pattern:** Long-running operations (storage format) use `job_store.py`:

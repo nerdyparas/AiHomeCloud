@@ -69,6 +69,8 @@ _pool: queue.Queue[sqlite3.Connection] = queue.Queue(maxsize=_POOL_SIZE)
 def _new_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(str(_db_path()), timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")   # eliminates read/write contention
+    conn.execute("PRAGMA synchronous=NORMAL") # safe with WAL; faster on SD/NVMe
     return conn
 
 

@@ -54,33 +54,38 @@ async def _supervise_telegram_bot() -> None:
         return  # bot not configured, nothing to supervise
 
     attempt = 0
-    while attempt < _BOT_MAX_RESTARTS:
-        # Wait for crash signal (bot sets this event when it stops unexpectedly)
-        await asyncio.sleep(_BOT_BACKOFF_SCHEDULE[min(attempt, len(_BOT_BACKOFF_SCHEDULE) - 1)])
+    while True:
+        await asyncio.sleep(10)  # flat health-check poll interval
 
-        # Check if bot is still running
         from . import telegram_bot as _tb_mod
         if _tb_mod._application is not None:
-            # Bot is running — reset counter and keep watching
+            # Bot is healthy — reset counter and continue polling
             attempt = 0
             continue
 
-        # Bot is down — attempt restart
+        # Bot is down — apply backoff before attempting restart
         attempt += 1
+        if attempt > _BOT_MAX_RESTARTS:
+            logger.error(
+                "Telegram bot supervisor giving up after %d restart attempts",
+                _BOT_MAX_RESTARTS,
+            )
+            return
+
         delay = _BOT_BACKOFF_SCHEDULE[min(attempt - 1, len(_BOT_BACKOFF_SCHEDULE) - 1)]
-        logger.warning("Telegram bot down — restart attempt %d/%d (waited %ds)",
-                       attempt, _BOT_MAX_RESTARTS, delay)
+        logger.warning(
+            "Telegram bot down — restart attempt %d/%d, waiting %ds",
+            attempt, _BOT_MAX_RESTARTS, delay,
+        )
+        await asyncio.sleep(delay)
+
         try:
             await _start_bot()
             if _tb_mod._application is not None:
                 logger.info("Telegram bot recovered after %d attempt(s)", attempt)
-                attempt = 0  # reset on successful recovery
+                attempt = 0
         except Exception as exc:
             logger.error("Telegram bot restart failed: %s", exc)
-
-    if attempt >= _BOT_MAX_RESTARTS:
-        logger.error("Telegram bot supervisor giving up after %d restart attempts",
-                     _BOT_MAX_RESTARTS)
 
 
 @asynccontextmanager

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -98,7 +100,9 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     } else {
       writes.add(_prefs.remove(AppConstants.prefRefreshToken));
     }
-    Future.wait(writes);
+    // Intentionally fire-and-forget — SharedPreferences updates its in-memory
+    // cache synchronously; disk commits happen in the background.
+    unawaited(Future.wait(writes));
   }
 
   Future<void> logout() async {
