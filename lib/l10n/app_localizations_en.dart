@@ -830,18 +830,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get telegramConfiguredSnackbar => 'Telegram Bot configured!';
 
   @override
-  String get telegramSetupStepsTitle => 'Setup in 3 steps';
+  String get telegramSetupStepsTitle => 'Set up in 3 steps';
 
   @override
-  String get telegramSetupStep1 => 'Open Telegram and search @BotFather';
+  String get telegramSetupStep1 =>
+      'Open Telegram, search @BotFather, send /newbot — copy the bot token';
 
   @override
   String get telegramSetupStep2 =>
-      'Send /newbot — follow the steps and copy the token';
+      'Paste the token below and tap Save & Connect';
 
   @override
   String get telegramSetupStep3 =>
-      'Paste the token below and tap Save. Then open your bot and send /auth to link your account.';
+      'Open your bot, send /auth — then approve the request in this app';
 
   @override
   String get telegramTokenHintConfigured =>
@@ -886,7 +887,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get telegramLargeFileModeSubtitle =>
-      'Requires Telegram API credentials and the local server setup script to be run on your device.';
+      'Enter free API credentials from my.telegram.org — the app handles the rest automatically';
 
   @override
   String get telegramApiCredentialsHint =>
@@ -900,7 +901,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get telegramScriptHint =>
-      'Run scripts/setup-telegram-local-api.sh on your device before enabling this.';
+      'Get free API credentials at my.telegram.org → API development tools';
+
+  @override
+  String get telegramEnable2GbButton => 'Enable 2 GB Mode';
+
+  @override
+  String get telegram2GbSetupTitle => 'Large File Mode';
+
+  @override
+  String get telegram2GbSetupSubtitle =>
+      'Send files up to 2 GB through Telegram';
+
+  @override
+  String get telegram2GbActivatedSnackbar => '2 GB mode activated!';
+
+  @override
+  String get telegram2GbModeActive => '2 GB mode active';
+
+  @override
+  String get telegram2GbBuildConfirmation =>
+      'This will build the Telegram local server from source. It generally takes 20 to 40 minutes on this device.\n\nOnce the build is complete and configured, you will receive a confirmation message on the Telegram bot.';
+
+  @override
+  String get telegram2GbStartBuildButton => 'Start Build';
+
+  @override
+  String telegramArchDetected(String arch) {
+    return 'Your device: $arch';
+  }
+
+  @override
+  String get telegramArchPrebuiltFound =>
+      'Pre-built binary available — install takes seconds';
+
+  @override
+  String get telegramArchBuildFallback =>
+      'No pre-built binary — will compile on device (~30 min)';
+
+  @override
+  String telegram2GbConfirmPrebuilt(String arch) {
+    return 'A pre-built binary is available for your device ($arch).\n\nInstall completes in about 30 seconds — no compilation needed.\n\nYou will receive a Telegram confirmation once active.';
+  }
+
+  @override
+  String telegram2GbConfirmBuild(String arch) {
+    return 'No pre-built binary found for your device ($arch). The setup will compile from source.\n\nThis takes 20–40 minutes on this device. You will receive a Telegram confirmation when done.';
+  }
 
   @override
   String get telegramBotActiveStatus => 'Bot is active and polling';

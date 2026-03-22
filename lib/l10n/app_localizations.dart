@@ -1567,25 +1567,25 @@ abstract class AppLocalizations {
   /// No description provided for @telegramSetupStepsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Setup in 3 steps'**
+  /// **'Set up in 3 steps'**
   String get telegramSetupStepsTitle;
 
   /// No description provided for @telegramSetupStep1.
   ///
   /// In en, this message translates to:
-  /// **'Open Telegram and search @BotFather'**
+  /// **'Open Telegram, search @BotFather, send /newbot — copy the bot token'**
   String get telegramSetupStep1;
 
   /// No description provided for @telegramSetupStep2.
   ///
   /// In en, this message translates to:
-  /// **'Send /newbot — follow the steps and copy the token'**
+  /// **'Paste the token below and tap Save & Connect'**
   String get telegramSetupStep2;
 
   /// No description provided for @telegramSetupStep3.
   ///
   /// In en, this message translates to:
-  /// **'Paste the token below and tap Save. Then open your bot and send /auth to link your account.'**
+  /// **'Open your bot, send /auth — then approve the request in this app'**
   String get telegramSetupStep3;
 
   /// No description provided for @telegramTokenHintConfigured.
@@ -1657,7 +1657,7 @@ abstract class AppLocalizations {
   /// No description provided for @telegramLargeFileModeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Requires Telegram API credentials and the local server setup script to be run on your device.'**
+  /// **'Enter free API credentials from my.telegram.org — the app handles the rest automatically'**
   String get telegramLargeFileModeSubtitle;
 
   /// No description provided for @telegramApiCredentialsHint.
@@ -1681,8 +1681,80 @@ abstract class AppLocalizations {
   /// No description provided for @telegramScriptHint.
   ///
   /// In en, this message translates to:
-  /// **'Run scripts/setup-telegram-local-api.sh on your device before enabling this.'**
+  /// **'Get free API credentials at my.telegram.org → API development tools'**
   String get telegramScriptHint;
+
+  /// No description provided for @telegramEnable2GbButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable 2 GB Mode'**
+  String get telegramEnable2GbButton;
+
+  /// No description provided for @telegram2GbSetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Large File Mode'**
+  String get telegram2GbSetupTitle;
+
+  /// No description provided for @telegram2GbSetupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send files up to 2 GB through Telegram'**
+  String get telegram2GbSetupSubtitle;
+
+  /// No description provided for @telegram2GbActivatedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'2 GB mode activated!'**
+  String get telegram2GbActivatedSnackbar;
+
+  /// No description provided for @telegram2GbModeActive.
+  ///
+  /// In en, this message translates to:
+  /// **'2 GB mode active'**
+  String get telegram2GbModeActive;
+
+  /// No description provided for @telegram2GbBuildConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This will build the Telegram local server from source. It generally takes 20 to 40 minutes on this device.\n\nOnce the build is complete and configured, you will receive a confirmation message on the Telegram bot.'**
+  String get telegram2GbBuildConfirmation;
+
+  /// No description provided for @telegram2GbStartBuildButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Build'**
+  String get telegram2GbStartBuildButton;
+
+  /// No description provided for @telegramArchDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device: {arch}'**
+  String telegramArchDetected(String arch);
+
+  /// No description provided for @telegramArchPrebuiltFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-built binary available — install takes seconds'**
+  String get telegramArchPrebuiltFound;
+
+  /// No description provided for @telegramArchBuildFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'No pre-built binary — will compile on device (~30 min)'**
+  String get telegramArchBuildFallback;
+
+  /// No description provided for @telegram2GbConfirmPrebuilt.
+  ///
+  /// In en, this message translates to:
+  /// **'A pre-built binary is available for your device ({arch}).\n\nInstall completes in about 30 seconds — no compilation needed.\n\nYou will receive a Telegram confirmation once active.'**
+  String telegram2GbConfirmPrebuilt(String arch);
+
+  /// No description provided for @telegram2GbConfirmBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'No pre-built binary found for your device ({arch}). The setup will compile from source.\n\nThis takes 20–40 minutes on this device. You will receive a Telegram confirmation when done.'**
+  String telegram2GbConfirmBuild(String arch);
 
   /// No description provided for @telegramBotActiveStatus.
   ///
