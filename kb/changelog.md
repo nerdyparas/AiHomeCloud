@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-23 — Fix WebSocket token expiry and notification reconnect
+
+- `system_api.dart` (`monitorSystemStats`): moved `token`/`uri` construction inside the retry loop so every reconnect uses the current (possibly refreshed) JWT — previously a stale token caused `code=4003` on every reconnect attempt after 1 hour
+- `system_api.dart` (`notificationStream`): replaced single-shot `StreamController`+`listen()` with `async*` reconnect loop (same pattern as `monitorSystemStats`) — notification bell and overlay now survive network drops and token expiry
+- `flutter-patterns.md`: added WebSocket Stream Patterns section documenting the URI-rebuild and `async*` retry patterns
+
+---
+
 ## 2026-03-23 — Security: Trash Prefs Admin Guard + Pairing Safety Check
 
 - `file_routes.py`: `PUT /api/v1/files/trash/prefs` now requires admin — non-admin family members cannot enable auto-delete (which would permanently delete everyone's data)

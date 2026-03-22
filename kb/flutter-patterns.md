@@ -70,6 +70,38 @@ onRefresh: () async {
 
 ---
 
+## WebSocket Stream Patterns
+
+**Always rebuild URI inside the retry loop.** JWTs expire in 1 hour. If the URI (which embeds `?token=...`) is built once before the loop, every reconnect after expiry will hit `code=4003 Invalid token` and burn through retries:
+
+```dart
+Stream<Foo> myStream({int maxRetries = 30}) async* {
+  final host = _session?.host;
+  int attempts = 0;
+  while (attempts <= maxRetries) {
+    // ✅ Rebuild every attempt — picks up refreshed token
+    final token = _session?.token;
+    final uri = Uri.parse('wss://$host:$port/ws/foo?token=$token');
+    try {
+      final channel = IOWebSocketChannel.connect(uri, ...);
+      await for (final raw in channel.stream) {
+        attempts = 0;
+        yield parse(raw);
+      }
+      return; // clean close — no reconnect
+    } catch (_) {
+      attempts++;
+      if (attempts > maxRetries) return;
+      await Future.delayed(Duration(seconds: (attempts * 2).clamp(2, 30)));
+    }
+  }
+}
+```
+
+**Use `async*` + retry loop, not `StreamController`.** The `StreamController` + `listen()` pattern cannot reconnect on `onDone` without re-establishing the token. The `async*` generator pattern handles reconnect, token refresh, and back-off cleanly in one place.
+
+---
+
 ## Navigation Patterns
 
 **go vs push:**

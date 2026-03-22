@@ -32,16 +32,17 @@ extension SystemApi on ApiService {
   Stream<SystemStats> monitorSystemStats({int maxRetries = 30}) async* {
     final host = _session?.host;
     final port = _session?.port ?? AppConstants.apiPort;
-    final token = _session?.token;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
     }
-    final uri = Uri.parse(
-      'wss://$host:$port/ws/monitor${token != null ? "?token=$token" : ""}',
-    );
 
     int attempts = 0;
     while (attempts <= maxRetries) {
+      // Rebuild URI on every attempt so a refreshed token is always used.
+      final token = _session?.token;
+      final uri = Uri.parse(
+        'wss://$host:$port/ws/monitor${token != null ? "?token=$token" : ""}',
+      );
       try {
         final channel = IOWebSocketChannel.connect(
           uri,
@@ -82,48 +83,51 @@ extension SystemApi on ApiService {
     }
   }
 
-  /// WebSocket /ws/events Ã¢â‚¬â€ real-time notification stream from the backend.
-  Stream<AppNotification> notificationStream() {
+  /// WebSocket /ws/events — real-time notification stream from the backend.
+  ///
+  /// Reconnects automatically on transient errors or token expiry up to
+  /// [maxRetries] attempts with exponential back-off capped at 30 s.
+  Stream<AppNotification> notificationStream({int maxRetries = 30}) async* {
     final host = _session?.host;
     final port = _session?.port ?? AppConstants.apiPort;
-    final token = _session?.token;
     if (host == null || host.isEmpty) {
       throw StateError('Host is not configured in auth session');
     }
-    final uri = Uri.parse(
-      'wss://$host:$port/ws/events${token != null ? '?token=$token' : ''}',
-    );
-    final channel = IOWebSocketChannel.connect(
-      uri,
-      customClient: _createPinnedHttpClient(),
-    );
 
-    int missedBeats = 0;
-    final ctrl = StreamController<AppNotification>();
-    channel.stream.listen(
-      (raw) {
-        missedBeats = 0;
+    int attempts = 0;
+    while (attempts <= maxRetries) {
+      // Rebuild URI on every attempt so a refreshed token is always used.
+      final token = _session?.token;
+      final uri = Uri.parse(
+        'wss://$host:$port/ws/events${token != null ? "?token=$token" : ""}',
+      );
+
+      try {
+        final channel = IOWebSocketChannel.connect(
+          uri,
+          customClient: _createPinnedHttpClient(),
+        );
         _connectionStatusCallback?.call(ConnectionStatus.connected);
-        final data = jsonDecode(raw as String);
-        ctrl.add(AppNotification.fromJson(data));
-      },
-      onError: (e, st) {
-        missedBeats++;
-        if (missedBeats >= 2) {
-          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+
+        await for (final raw in channel.stream) {
+          attempts = 0; // reset back-off on successful message
+          _connectionStatusCallback?.call(ConnectionStatus.connected);
+          final data = jsonDecode(raw as String);
+          yield AppNotification.fromJson(data);
         }
-        ctrl.addError(e, st);
-      },
-      onDone: () {
-        missedBeats++;
-        if (missedBeats >= 2) {
-          _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        // Channel closed cleanly — no reconnect needed.
+        return;
+      } catch (_) {
+        attempts++;
+        if (attempts > maxRetries) {
+          _connectionStatusCallback?.call(ConnectionStatus.disconnected);
+          return;
         }
-        ctrl.close();
-      },
-      cancelOnError: false,
-    );
-    return ctrl.stream;
+        _connectionStatusCallback?.call(ConnectionStatus.reconnecting);
+        final backoff = Duration(seconds: (attempts * 2).clamp(2, 30));
+        await Future.delayed(backoff);
+      }
+    }
   }
 
   /// GET /api/v1/system/arch
