@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
 from ..audit import audit_log
 from ..config import settings
 from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest, TrashItem
@@ -522,8 +522,8 @@ async def get_trash_prefs(user: dict = Depends(get_current_user)):
 
 
 @router.put("/trash/prefs", status_code=status.HTTP_204_NO_CONTENT)
-async def set_trash_prefs(body: _TrashPrefsBody, user: dict = Depends(get_current_user)):
-    """Enable or disable the 30-day auto-delete for trash items."""
+async def set_trash_prefs(body: _TrashPrefsBody, user: dict = Depends(require_admin)):
+    """Enable or disable the 30-day auto-delete for trash items. Admin only."""
     await store.set_value("trash_auto_delete", body.autoDelete)
 
 

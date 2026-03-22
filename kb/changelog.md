@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-23 — Security: Trash Prefs Admin Guard + Pairing Safety Check
+
+- `file_routes.py`: `PUT /api/v1/files/trash/prefs` now requires admin — non-admin family members cannot enable auto-delete (which would permanently delete everyone's data)
+- `auth_routes.py`: Confirmed `_bg_wipe_stale_nas_dirs()` is already gated behind `if is_first_user:` (zero existing users) — no code change needed for pairing guard
+- Tests: added `member_token` fixture to `conftest.py`; added `test_set_trash_prefs_requires_admin` (expects 403) and `test_set_trash_prefs_admin_succeeds` (expects 204)
+
+---
+
 ## 2026-03-23 — Quick Wins: WAL mode, get_local_ip fallback, bot supervisor poll, unawaited persist
 
 - `document_index.py`: Enabled `PRAGMA journal_mode=WAL` + `PRAGMA synchronous=NORMAL` on all SQLite connections — eliminates FTS5 read/write contention during concurrent uploads/searches

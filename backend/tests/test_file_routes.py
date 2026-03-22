@@ -313,3 +313,25 @@ async def test_scan_cache_evicts_expired_entries(authenticated_client: AsyncClie
         f"Expired scan cache entries must be evicted on write: "
         f"before={size_before}, after={size_after}"
     )
+
+
+@pytest.mark.asyncio
+async def test_set_trash_prefs_requires_admin(client: AsyncClient, member_token: str):
+    """Non-admin users must not be able to change the trash auto-delete setting."""
+    res = await client.put(
+        "/api/v1/files/trash/prefs",
+        json={"autoDelete": True},
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_set_trash_prefs_admin_succeeds(client: AsyncClient, admin_token: str):
+    """Admin users can change the trash auto-delete setting."""
+    res = await client.put(
+        "/api/v1/files/trash/prefs",
+        json={"autoDelete": True},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert res.status_code == 204

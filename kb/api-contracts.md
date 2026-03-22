@@ -84,7 +84,7 @@
 | POST | `/trash/{item_id}/restore` | User | Restore item from trash |
 | DELETE | `/trash/{item_id}` | User | Permanently delete trash item |
 | GET | `/trash/prefs` | User | Get trash preferences (auto-delete toggle) |
-| PUT | `/trash/prefs` | User | Set trash preferences (body: `{ autoDelete: bool }`) |
+| PUT | `/trash/prefs` | **Admin** | Set trash preferences (body: `{ autoDelete: bool }`) |
 | PUT | `/rename` | User | Rename file/folder (body: `{ oldPath, newName }`) |
 | POST | `/upload` | User | Upload file (multipart, query: `path`) |
 | GET | `/download` | User | Download file (query: `path`) |

@@ -73,6 +73,35 @@ async def admin_token(client: AsyncClient):
 
 
 @pytest.fixture
+async def member_token(client: AsyncClient):
+    """
+    Create a non-admin user and return a JWT access token.
+    The first user (admin) must be created first; the second user requires admin auth.
+    """
+    # Create admin user (first user, no auth required)
+    await client.post("/api/v1/users", json={"name": "admin", "pin": "0000"})
+
+    # Login as admin to obtain token for creating the second user
+    resp = await client.post("/api/v1/auth/login", json={"name": "admin", "pin": "0000"})
+    assert resp.status_code == 200, f"Admin login failed: {resp.text}"
+    admin_tok = resp.json()["accessToken"]
+
+    # Create non-admin member using admin auth
+    resp = await client.post(
+        "/api/v1/users",
+        json={"name": "alice", "pin": "1111"},
+        headers={"Authorization": f"Bearer {admin_tok}"},
+    )
+    assert resp.status_code in (200, 201), f"Member creation failed: {resp.text}"
+
+    resp = await client.post("/api/v1/auth/login", json={"name": "alice", "pin": "1111"})
+    assert resp.status_code == 200, f"Member login failed: {resp.text}"
+    token = resp.json().get("accessToken")
+    assert token
+    return token
+
+
+@pytest.fixture
 async def authenticated_client(client: AsyncClient, admin_token: str):
     """
     Return a client with Authorization header pre-set with admin token.
