@@ -308,7 +308,7 @@ step_device_name() {
 "What should we call your device?\n\nThis name will appear in the app and on your network." \
             "My Home Cloud") || return 1
 
-        # Validate: non-empty, reasonable length
+        # Validate: non-empty, reasonable length, no dangerous chars
         name=$(echo "$name" | xargs)  # trim whitespace
         if [[ -z "$name" ]]; then
             show_error "Please enter a name for your device."
@@ -316,6 +316,10 @@ step_device_name() {
         fi
         if [[ ${#name} -gt 50 ]]; then
             show_error "The name is too long. Please use 50 characters or less."
+            continue
+        fi
+        if [[ "$name" == *\"* || "$name" == *\\* || "$name" == *\'* ]]; then
+            show_error "Please avoid using quotes or backslashes in the name."
             continue
         fi
         DEVICE_NAME="$name"
@@ -519,7 +523,8 @@ step_install() {
     gauge_update 55 "Setting device name..."
     local device_file="$DATA_DIR/device.json"
     # Always update the device name (user just chose it)
-    echo "{\"name\": \"$DEVICE_NAME\"}" > "$device_file"
+    # Use python3 for safe JSON serialization (handles quotes, unicode)
+    python3 -c "import json; f=open('$device_file','w'); json.dump({'name': '$DEVICE_NAME'.replace(chr(39), chr(8217))}, f); f.close()"
     chown "$REPO_USER:$REPO_USER" "$device_file"
 
     # ── 60%: Avahi mDNS ──────────────────────────────────────────────────────
@@ -540,16 +545,33 @@ step_install() {
     # ── 65%: Sudoers rules ────────────────────────────────────────────────────
     gauge_update 65 "Configuring permissions..."
     local sudoers_file="/etc/sudoers.d/aihomecloud"
+    local sudoers_version="3"  # bump when rules change
+    local needs_sudoers=false
     if [[ ! -f "$sudoers_file" ]]; then
+        needs_sudoers=true
+    elif ! grep -q "AHC_SUDOERS_VERSION=$sudoers_version" "$sudoers_file" 2>/dev/null; then
+        needs_sudoers=true
+    fi
+    if $needs_sudoers; then
         cat > "$sudoers_file" << EOF
-# AiHomeCloud — passwordless sudo for storage and service management
-$REPO_USER ALL=(root) NOPASSWD: /bin/mount, /bin/umount, /usr/bin/mount, /usr/bin/umount
-$REPO_USER ALL=(root) NOPASSWD: /usr/bin/systemctl start *, /usr/bin/systemctl stop *, /usr/bin/systemctl restart *
-$REPO_USER ALL=(root) NOPASSWD: /usr/sbin/shutdown, /usr/sbin/reboot
-$REPO_USER ALL=(root) NOPASSWD: /sbin/mkfs.ext4, /sbin/mkfs.exfat, /sbin/mkfs.vfat
-$REPO_USER ALL=(root) NOPASSWD: /sbin/sgdisk, /usr/sbin/sgdisk, /sbin/parted, /usr/sbin/parted
-$REPO_USER ALL=(root) NOPASSWD: /usr/bin/udevadm, /usr/bin/lsof, /usr/bin/fuser, /usr/bin/sync
-$REPO_USER ALL=(root) NOPASSWD: /usr/sbin/smartctl
+# AiHomeCloud — limited sudo for service user
+# Only commands required by the backend are allowed.
+# AHC_SUDOERS_VERSION=$sudoers_version
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl start *, /usr/bin/systemctl stop *, /usr/bin/systemctl restart *, /usr/bin/systemctl status *
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable *
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/sbin/shutdown, /usr/sbin/reboot
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/sbin/mkfs.ext4, /usr/sbin/mkfs.exfat, /usr/sbin/mkfs.vfat
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/mount, /usr/bin/umount
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/sbin/sgdisk, /usr/sbin/parted
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/udevadm, /usr/bin/lsof, /usr/bin/fuser, /usr/bin/sync
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/sbin/smartctl
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/lsblk, /usr/bin/blkid, /usr/bin/findmnt
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y *
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api /usr/local/bin/telegram-bot-api
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api-build/build/telegram-bot-api /usr/local/bin/telegram-bot-api
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api.service /etc/systemd/system/telegram-bot-api.service
+$REPO_USER ALL=(ALL) NOPASSWD: /usr/bin/chmod 755 /usr/local/bin/telegram-bot-api
 EOF
         chmod 440 "$sudoers_file"
         if ! visudo -c -f "$sudoers_file" >/dev/null 2>&1; then
