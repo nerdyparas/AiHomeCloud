@@ -1,10 +1,28 @@
 # AiHomeCloud — Setup & Deployment Instructions
 
-> Last verified: 2026-03-15 on Radxa ROCK Pi 4A (Armbian Ubuntu 24.04)
+> Last verified: 2026-03-23 on Radxa ROCK Pi 4A (Armbian Ubuntu 24.04)
+
+---
+
+## Recommended: Interactive Setup Wizard
+
+For non-technical users setting up a device for the first time:
+
+```bash
+ssh paras@<device-ip>
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/nerdyparas/AiHomeCloud.git ~/AiHomeCloud
+cd ~/AiHomeCloud
+sudo bash scripts/setup-wizard.sh
+```
+
+The wizard walks through device naming, admin PIN creation, optional storage setup, and starts all services — in about 3 minutes.
 
 ---
 
 ## Part 1: Quick Start — New Hardware (Clone + One Command)
+
+For developers or users who prefer command-line setup, use `dev-setup.sh`:
 
 This is the standard path for any ARM64 SBC running Ubuntu/Debian.
 Tested on: **Radxa ROCK Pi 4A** (RK3399, Armbian 26.2 Noble, kernel 6.18-rockchip64).

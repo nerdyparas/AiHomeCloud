@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-23 — Setup Wizard + Documentation Cleanup
+
+- **Setup wizard:** Added `scripts/setup-wizard.sh` — interactive whiptail/dialog wizard for first-time device setup (device name, admin PIN, optional storage format, systemd install)
+- **Stale docs removed:** Deleted gitlog.md, gitLogs.md, TASK_ROADMAP.md, audit3/ (4 completed fix files), docs/integration-testing-plan.md (unimplemented plan)
+- **backend/README.md:** Trimmed outdated endpoint list and manual deploy steps; now cross-references kb/ docs
+- **.gitignore:** Added audit3/, gitlog*.md, .ai-context/ patterns
+- **README.md:** Added "First-Time Setup" section with wizard instructions; updated dev commands
+
 ## 2026-03-23 — Repo Cleanup, Provider Consolidation, Refactor Pass
 
 - **Repo hygiene:** Removed 18 dev artifact files (BUG_REPORT.md, PROJECT_AUDIT.md, CODEBASE_AUDIT_2026_03_16.md, docs/archive/*, docs/audit/*); updated .gitignore

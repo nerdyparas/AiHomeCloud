@@ -224,7 +224,7 @@ async def test_quota_purge_removes_oldest_items(
     """When trash exceeds 10% of NAS capacity, oldest items should be auto-purged."""
     from app.config import settings
     from app import store
-    from app.routes import file_routes
+    from app.routes import trash_routes
     import unittest.mock as mock
     from datetime import timedelta, timezone as tz
 
@@ -267,8 +267,8 @@ async def test_quota_purge_removes_oldest_items(
     # Both items (800 bytes total) exceed quota → oldest should be purged
     fake_usage = mock.MagicMock()
     fake_usage.total = 700
-    with mock.patch("app.routes.file_routes.shutil.disk_usage", return_value=fake_usage):
-        await file_routes._purge_trash_if_needed()
+    with mock.patch("app.routes.trash_routes.shutil.disk_usage", return_value=fake_usage):
+        await trash_routes._purge_trash_if_needed()
 
     remaining = await store.get_trash_items()
     remaining_ids = [i["id"] for i in remaining]
@@ -314,7 +314,7 @@ async def test_age_purge_skipped_when_auto_delete_off(
     """Items older than 30 days must NOT be purged when auto-delete is disabled."""
     from app.config import settings
     from app import store
-    from app.routes import file_routes
+    from app.routes import trash_routes
     from datetime import timedelta, timezone as tz
 
     # Ensure auto-delete is OFF
@@ -339,7 +339,7 @@ async def test_age_purge_skipped_when_auto_delete_off(
     }
     await store.save_trash_items([old_item])
 
-    await file_routes._purge_trash_if_needed()
+    await trash_routes._purge_trash_if_needed()
 
     remaining = await store.get_trash_items()
     assert any(i["id"] == "ancient-item" for i in remaining), (

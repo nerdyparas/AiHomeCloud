@@ -108,4 +108,7 @@ lib/generated_plugin_registrant.dart
 # Dev artifacts / audit files
 docs/archive/
 docs/audit/
+audit3/
 *.audit.md
+gitlog*.md
+.ai-context/

@@ -25,21 +25,34 @@ AiHomeCloud is a personal home NAS appliance that gives Indian families a privat
 | Backend | `backend/` | Python, FastAPI, Pydantic v2 |
 | CI | `.github/workflows/` | GitHub Actions |
 
-## Getting Started
+## First-Time Setup
+
+Once your device is powered on and connected to your network:
+
+```bash
+sudo bash scripts/setup-wizard.sh
+```
+
+The interactive wizard walks you through naming your device, creating an admin PIN, and optionally setting up a storage drive — all in about 3 minutes.
+
+For manual / headless setup, see [`kb/setup-instructions.md`](kb/setup-instructions.md).
+
+## Development
 
 ### Backend
 
 ```bash
 cd backend
-python -m pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8443 --ssl-keyfile certs/key.pem --ssl-certfile certs/cert.pem
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m app.main
 ```
 
-### Run Backend Tests
+### Backend Tests
 
 ```bash
 cd backend
-pytest -q tests --ignore=tests/test_hardware_integration.py
+python -m pytest tests/ -q
 ```
 
 ### Flutter App
@@ -49,7 +62,7 @@ flutter pub get
 flutter build apk
 ```
 
-### Run Flutter Tests
+### Flutter Tests
 
 ```bash
 flutter analyze
