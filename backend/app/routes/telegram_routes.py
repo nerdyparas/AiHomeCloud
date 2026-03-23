@@ -476,13 +476,13 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                            error=f"Failed to start local API server.\n{err[:300]}")
                 return
 
-        # Step 5 — Health check: up to 2 minutes for server to respond.
+        # Step 5 — Health check: up to 30 seconds for server to respond.
         _progress("Waiting for server to respond\u2026")
         healthy = False
-        for _ in range(12):
-            await asyncio.sleep(10)
+        for _ in range(6):
+            await asyncio.sleep(5)
             hc_rc, _, _ = await run_command(
-                ["curl", "-sf", "--max-time", "5",
+                ["curl", "-s", "--max-time", "5",
                  f"http://127.0.0.1:{_SERVICE_PORT}/"],
                 timeout=15,
             )
@@ -492,7 +492,7 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
 
         if not healthy:
             update_job(job_id, status=_JobStatus.failed, error=(
-                "Local API server did not respond after 2 minutes.\n\n"
+                "Local API server did not respond after 30 seconds.\n\n"
                 f"Check: sudo systemctl status {_SERVICE_NAME}"
             ))
             return
