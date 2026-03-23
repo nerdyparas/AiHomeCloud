@@ -208,6 +208,16 @@ async def smart_activate(
     if best and (best.get("fstype") or "") == "ext4":
         partition_dev = f"/dev/{best['name']}"
         nas_root = str(settings.nas_root)
+
+        # Already mounted at our target — storage state may be stale after a
+        # service restart. Re-sync state and return success without re-mounting.
+        current_mountpoint = (best.get("mountpoint") or "").rstrip("/")
+        if current_mountpoint == nas_root.rstrip("/"):
+            logger.info("smart-activate: %s already mounted at %s — syncing state", partition_dev, nas_root)
+            await _post_mount_setup(partition_dev, disk, display)
+            await emit_device_mounted(partition_dev, nas_root)
+            return {"action": "mounted", "display_name": display}
+
         settings.nas_root.mkdir(parents=True, exist_ok=True)
         rc, _, stderr = await run_command(
             ["sudo", "-n", "mount", partition_dev, nas_root], timeout=30
@@ -490,9 +500,13 @@ async def try_auto_remount():
     """
     On startup, check storage.json for a previously-mounted device.
     If the device is still present and not yet mounted, remount it.
+
+    Retries once with a 3-second delay to survive USB enumeration races
+    where the device node exists but the filesystem isn't ready yet.
     """
     state = await store.get_storage_state()
     device_path = state.get("activeDevice")
+    display_name = state.get("displayName", "")
 
     if not device_path:
         logger.info("No saved storage mount — skipping auto-remount")
@@ -519,25 +533,42 @@ async def try_auto_remount():
                     logger.info(
                         "Auto-remount: %s is already mounted at %s", device_path, nas_root
                     )
+                    # Re-save storage state in case it was wiped (service restart race)
+                    if not state.get("mountedAt"):
+                        state["mountedAt"] = nas_root
+                        await store.save_storage_state(state)
                     return
     except Exception:
         pass
 
-    # Attempt to mount
+    # Attempt to mount — retry once after a short delay to handle USB enumeration
+    # races where /dev/sdXN exists but the filesystem isn't ready yet.
     settings.nas_root.mkdir(parents=True, exist_ok=True)
 
-    rc, _, stderr = await run_command(["sudo", "-n", "mount", device_path, nas_root], timeout=30)
+    for attempt in range(2):
+        if attempt > 0:
+            logger.info("Auto-remount: retrying after 3s (attempt %d)…", attempt + 1)
+            await asyncio.sleep(3)
 
-    if rc == 0:
-        logger.info("Auto-remount: successfully mounted %s at %s", device_path, nas_root)
-        # Ensure NAS dirs exist
-        settings.personal_path.mkdir(parents=True, exist_ok=True)
-        settings.family_path.mkdir(parents=True, exist_ok=True)
-        settings.entertainment_path.mkdir(parents=True, exist_ok=True)
-        # Start NAS services
-        await start_nas_services()
-    else:
-        logger.error(
-            "Auto-remount: failed to mount %s — %s", device_path, stderr
-        )
-        await store.clear_storage_state()
+        rc, _, stderr = await run_command(["sudo", "-n", "mount", device_path, nas_root], timeout=30)
+
+        if rc == 0:
+            logger.info("Auto-remount: successfully mounted %s at %s", device_path, nas_root)
+            # Ensure NAS dirs exist
+            settings.personal_path.mkdir(parents=True, exist_ok=True)
+            settings.family_path.mkdir(parents=True, exist_ok=True)
+            settings.entertainment_path.mkdir(parents=True, exist_ok=True)
+            # Persist state so State D is hit correctly on next smart-activate
+            await store.save_storage_state({
+                **state,
+                "mountedAt": nas_root,
+                "mountedSince": state.get("mountedSince", ""),
+            })
+            # Start NAS services
+            await start_nas_services()
+            return
+
+        logger.warning("Auto-remount attempt %d failed for %s: %s", attempt + 1, device_path, stderr)
+
+    logger.error("Auto-remount: all attempts failed for %s — clearing state", device_path)
+    await store.clear_storage_state()
