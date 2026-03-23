@@ -5,7 +5,6 @@ Uses nmcli (NetworkManager) for WiFi radio control.
 Reads /sys/class/net/<iface>/operstate for Ethernet link detection.
 """
 
-import asyncio
 import logging
 from pathlib import Path
 

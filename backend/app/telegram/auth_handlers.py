@@ -1,30 +1,15 @@
 """Telegram bot handlers — auth handlers."""
 
-import asyncio
-import logging
-import shutil
 from contextlib import suppress
-from pathlib import Path
-from typing import Optional
 
 from .bot_core import (
-    _tb, logger,
+    _tb,
     _check_allowed_and_rate, _is_admin_chat,
-    _pending_uploads, _last_results, _pending_duplicates,
-    _cleanup_pending_uploads,
-    PendingUpload, DuplicateFileError,
-    _sanitize_filename, _human_size, _file_type_emoji,
-    _make_destination_keyboard,
-    _safe_edit_text, _upload_progress_heartbeat, _download_to_path,
-    _format_elapsed, _format_avg_speed,
-    _is_too_large_telegram_file_error, _is_timeout_error,
-    _compute_sha256, _check_duplicate, _record_file_hash, _record_recent_file,
-    _storage_bar,
-    _get_linked_ids, _add_linked_id,
+    _pending_uploads, _last_results,
+    _add_linked_id,
     _get_pending_approvals, _remove_pending_approval,
     _get_chat_folder_owner, _set_chat_folder_owner,
 )
-from ..config import settings
 from .. import store as _store
 
 try:

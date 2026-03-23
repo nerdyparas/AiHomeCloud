@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pydantic models — mirror the Flutter models exactly so JSON serialization
 matches what the app expects.
 """
@@ -6,7 +6,6 @@ matches what the app expects.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field

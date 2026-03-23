@@ -5,9 +5,7 @@ Run with: python -m app.main (auto-configures TLS)
 
 import asyncio
 import logging
-import ssl
 from contextlib import asynccontextmanager, suppress
-from pathlib import Path
 from uuid import uuid4
 
 import uvicorn
@@ -23,7 +21,6 @@ import os  # noqa: E402 — used for env var check below
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .board import detect_board
-from .events import file_event_bus, FileEvent
 from .routes import (
     auth_routes,
     system_routes,
@@ -48,7 +45,7 @@ _BOT_MAX_RESTARTS = 5
 
 async def _supervise_telegram_bot() -> None:
     """Watch the Telegram bot task and restart on crash with exponential backoff."""
-    from .telegram_bot import start_bot as _start_bot, stop_bot as _stop_bot
+    from .telegram_bot import start_bot as _start_bot
     from .config import settings as _settings
 
     if not _settings.telegram_bot_token:
@@ -435,7 +432,6 @@ if __name__ == "__main__":
         "log_level": "info",
     }
     if settings.tls_enabled:
-        import asyncio
         try:
             cert, key = asyncio.run(ensure_tls_cert())
             kwargs["ssl_certfile"] = str(cert)

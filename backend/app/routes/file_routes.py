@@ -15,11 +15,10 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from ..auth import get_current_user, require_admin
+from ..auth import get_current_user
 from ..audit import audit_log
 from ..config import settings
 from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest
