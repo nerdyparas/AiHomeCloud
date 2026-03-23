@@ -11,7 +11,10 @@ import '../core/theme.dart';
 import '../core/error_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../models/models.dart';
-import '../providers.dart';
+import '../providers/core_providers.dart';
+import '../providers/device_providers.dart';
+import '../providers/file_providers.dart';
+import '../services/api_service.dart';
 import 'app_card.dart';
 import 'file_list_tile.dart';
 

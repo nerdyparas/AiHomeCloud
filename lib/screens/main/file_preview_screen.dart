@@ -9,7 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/error_utils.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
-import '../../providers.dart';
+import '../../providers/core_providers.dart';
+import '../../services/api_service.dart';
 
 /// Full-screen file preview for images, text, and other file types.
 /// Pushed via GoRouter with the FileItem as extra data.

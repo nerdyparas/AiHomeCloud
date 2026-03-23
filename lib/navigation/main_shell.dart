@@ -11,7 +11,9 @@ import '../core/constants.dart';
 import '../core/theme.dart';
 import '../l10n/app_localizations.dart';
 import '../models/models.dart';
-import '../providers.dart';
+import '../providers/core_providers.dart';
+import '../providers/device_providers.dart';
+import '../services/share_handler.dart';
 import '../widgets/notification_listener.dart';
 
 final _notificationsPlugin = FlutterLocalNotificationsPlugin();

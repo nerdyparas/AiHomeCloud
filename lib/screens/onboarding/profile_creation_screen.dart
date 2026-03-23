@@ -7,7 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
 import '../../core/error_utils.dart';
 import '../../core/theme.dart';
-import '../../providers.dart';
+import '../../providers/core_providers.dart';
+import '../../services/api_service.dart';
 import '../../widgets/emoji_picker_grid.dart';
 import '../../widgets/user_avatar.dart';
 

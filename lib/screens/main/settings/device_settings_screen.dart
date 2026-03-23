@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/error_utils.dart';
-import '../../../providers.dart';
+import '../../../providers/core_providers.dart';
+import '../../../providers/device_providers.dart';
+import '../../../services/api_service.dart';
 import '../../../widgets/app_card.dart';
 
 class DeviceSettingsScreen extends ConsumerStatefulWidget {

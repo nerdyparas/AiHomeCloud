@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
-import '../../providers.dart';
+import '../../providers/core_providers.dart';
+import '../../providers/device_providers.dart';
+import '../../services/api_service.dart';
 import '../../services/network_scanner.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {

@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme.dart';
 import '../../../core/error_utils.dart';
 import '../../../models/models.dart';
-import '../../../providers.dart';
+import '../../../providers/data_providers.dart';
 import '../../../widgets/app_card.dart';
 
 class ServicesSettingsScreen extends ConsumerWidget {

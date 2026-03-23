@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme.dart';
 import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
-import 'providers.dart';
+import 'providers/core_providers.dart';
+import 'services/share_handler.dart';
 
 /// Trust self-signed TLS certificates from the Cubie backend.
 class _CubieHttpOverrides extends HttpOverrides {

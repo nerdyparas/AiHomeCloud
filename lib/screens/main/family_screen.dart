@@ -9,7 +9,9 @@ import '../../core/theme.dart';
 import '../../core/error_utils.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/models.dart';
-import '../../providers.dart';
+import '../../providers/core_providers.dart';
+import '../../providers/data_providers.dart';
+import '../../services/api_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/user_avatar.dart';
 

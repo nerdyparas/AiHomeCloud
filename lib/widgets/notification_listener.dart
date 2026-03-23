@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
 import '../models/models.dart';
-import '../providers.dart';
+import '../providers/data_providers.dart';
 
 /// Listens to the backend event WebSocket and shows in-app toast notifications.
 ///

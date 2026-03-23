@@ -18,7 +18,8 @@ import '../screens/onboarding/network_scan_screen.dart';
 import '../screens/onboarding/pin_entry_screen.dart';
 import '../screens/onboarding/profile_creation_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
-import '../providers.dart';
+import '../providers/core_providers.dart';
+import '../providers/discovery_providers.dart';
 import '../services/auth_session.dart';
 import 'main_shell.dart';
 
