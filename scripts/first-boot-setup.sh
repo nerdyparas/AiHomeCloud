@@ -36,7 +36,7 @@ SERVICE_NAME="aihomecloud"
 SERVICE_DST="/etc/systemd/system/${SERVICE_NAME}.service"
 POLKIT_DIR="/etc/polkit-1/localauthority/50-local.d"
 POLKIT_FILE="$POLKIT_DIR/50-aihomecloud-network.pkla"
-MIN_PYTHON_VER="3.12"
+MIN_PYTHON_VER="3.10"
 
 # =============================================================================
 log "=== AiHomeCloud First Boot Setup ==="
