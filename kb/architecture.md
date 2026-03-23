@@ -23,7 +23,8 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `auth_routes.py` | `/api/v1` | Mixed | 14 endpoints: QR pairing, user CRUD, login/logout, refresh, PIN, profile |
 | `system_routes.py` | `/api/v1/system` | User/Admin | 6 endpoints: info, firmware, OTA update, rename, shutdown, reboot |
 | `monitor_routes.py` | `/ws` | Token | 1 WS: real-time CPU/RAM/temp/network/storage stats (~2s) |
-| `file_routes.py` | `/api/v1/files` | User | 14 endpoints: list, mkdir, delete, trash CRUD, rename, upload, download, search, sort, roots |
+| `file_routes.py` | `/api/v1/files` | User | 9 endpoints: list, mkdir, delete, rename, upload, download, search, sort, roots |
+| `trash_routes.py` | `/api/v1/files` | User/Admin | 5 endpoints: trash list, restore, permanent delete, prefs get/set |
 | `family_routes.py` | `/api/v1/users/family` | User/Admin | 4 endpoints: list, add, remove, set role |
 | `service_routes.py` | `/api/v1/services` | User/Admin | 2 endpoints: list services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | User/Admin | 9 endpoints: devices, scan, smart-activate, check-usage, format, mount, unmount, eject, stats |
@@ -34,7 +35,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `event_routes.py` | `/ws` | Token | 1 WS: real-time notification stream |
 | `storage_helpers.py` | (internal) | — | Helper functions for storage_routes (lsblk parsing, device detection) |
 
-**Total: 63 endpoints across 13 route files + 1 helper.**
+**Total: 63 endpoints across 14 route files + 1 helper.**
 
 ---
 

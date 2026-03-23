@@ -38,14 +38,15 @@
 | File sorter | `backend/app/file_sorter.py` | Auto file organization by type |
 | WiFi manager | `backend/app/wifi_manager.py` | Auto-disable WiFi when Ethernet active |
 
-**Route files (14+1 helper):**
+**Route files (15+1 helper):**
 
 | File | Prefix | Endpoints | Purpose |
 |---|---|---|---|
 | `auth_routes.py` | `/api/v1` | 14 | Pairing, user CRUD, login/logout, refresh, PIN, profile |
 | `system_routes.py` | `/api/v1/system` | 6 | Info, firmware, OTA update, rename, shutdown, reboot |
 | `monitor_routes.py` | `/ws` | 1 WS | Real-time system stats stream (`/ws/monitor`) |
-| `file_routes.py` | `/api/v1/files` | 14 | List, mkdir, delete, trash CRUD, rename, upload, download, search, sort, roots |
+| `file_routes.py` | `/api/v1/files` | 9 | List, mkdir, delete, rename, upload, download, search, sort, roots |
+| `trash_routes.py` | `/api/v1/files` | 5 | Trash list, restore, permanent delete, prefs get/set |
 | `family_routes.py` | `/api/v1/users/family` | 4 | List, add, remove, set role |
 | `service_routes.py` | `/api/v1/services` | 2 | List services, toggle on/off |
 | `storage_routes.py` | `/api/v1/storage` | 9 | Devices, scan, SMART, usage, format, mount, unmount, eject, stats |
@@ -72,7 +73,7 @@
 | Auth Session | `lib/services/auth_session.dart` | `AuthSession` + `AuthSessionNotifier` — immutable state, persistent refresh, emoji avatar |
 | Discovery | `lib/services/discovery_service.dart` | mDNS → BLE fallback device discovery |
 | Network scan | `lib/services/network_scanner.dart` | mDNS + subnet sweep for first-time setup |
-| Providers | `lib/providers/` | Barrel `lib/providers.dart` re-exports: `core_providers.dart`, `device_providers.dart`, `file_providers.dart`, `data_providers.dart`, `discovery_providers.dart` |
+| Providers | `lib/providers/` | Split by domain: `core_providers.dart`, `device_providers.dart`, `file_providers.dart`, `data_providers.dart`, `discovery_providers.dart` — import specific files |
 | Router | `lib/navigation/app_router.dart` | GoRouter — 13+ routes, onboarding + main shell |
 | Shell | `lib/navigation/main_shell.dart` | Bottom nav — **3 tabs: Home, Files, More** + disconnected banner |
 | Localization | `lib/l10n/` | ARB-based, English |
@@ -202,7 +203,7 @@ These rules are non-negotiable. Every session must follow them.
 - **Constants, enums, config** → `lib/core/`
 - **Data classes / models** → `lib/models/` (split by domain)
 - **API + networking** → `lib/services/` and `lib/services/api/`
-- **State management** → `lib/providers/` (split by domain, barrel in `lib/providers.dart`)
+- **State management** → `lib/providers/` (split by domain, import specific files)
 - **Navigation** → `lib/navigation/`
 - **Screens** → `lib/screens/main/` or `lib/screens/onboarding/`
 - **Reusable widgets** → `lib/widgets/`

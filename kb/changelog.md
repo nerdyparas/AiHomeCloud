@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-23 — Repo Cleanup, Provider Consolidation, Refactor Pass
+
+- **Repo hygiene:** Removed 18 dev artifact files (BUG_REPORT.md, PROJECT_AUDIT.md, CODEBASE_AUDIT_2026_03_16.md, docs/archive/*, docs/audit/*); updated .gitignore
+- **Provider consolidation:** Replaced `lib/providers.dart` barrel with specific imports in 17 Dart files; deleted the barrel file
+- **Trash routes extraction:** Split trash helpers/endpoints (~180 lines) from `file_routes.py` into new `trash_routes.py`; registered in main.py
+- **Dead code removal:** Removed unused imports in 10 backend files (board.py, main.py, models.py, wifi_manager.py, file_routes.py, monitor_routes.py, storage_helpers.py, auth_handlers.py, search_handlers.py, upload_handlers.py); fixed duplicate telegram import block; removed unused variable; fixed `_unlink_trash_item` import path in upload_handlers.py
+
+---
+
 ## 2026-03-23 — Fix WebSocket token expiry and notification reconnect
 
 - `system_api.dart` (`monitorSystemStats`): moved `token`/`uri` construction inside the retry loop so every reconnect uses the current (possibly refreshed) JWT — previously a stale token caused `code=4003` on every reconnect attempt after 1 hour
