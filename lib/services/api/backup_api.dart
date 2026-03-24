@@ -113,4 +113,33 @@ extension BackupApi on ApiService {
     );
     _check(res);
   }
+
+  /// POST /api/v1/files/upload?path=<destPath>
+  /// Uploads a single file to the NAS for backup.
+  /// Returns the HTTP status code (200 or 201 = success).
+  Future<int> uploadBackupFile(
+    String localPath,
+    String destPath,
+    String filename,
+  ) async {
+    final uri =
+        Uri.parse('$_baseUrl${AppConstants.apiVersion}/files/upload')
+            .replace(queryParameters: {'path': destPath});
+
+    Future<http.Response> makeRequest() async {
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = _headers['Authorization'] ?? '';
+      request.files.add(
+        await http.MultipartFile.fromPath('file', localPath,
+            filename: filename),
+      );
+      final streamed = await _client
+          .send(request)
+          .timeout(const Duration(seconds: 120));
+      return http.Response.fromStream(streamed);
+    }
+
+    final res = await _withAutoRefresh(makeRequest);
+    return res.statusCode;
+  }
 }

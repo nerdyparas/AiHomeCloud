@@ -10,6 +10,7 @@ import '../../models/backup_models.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../services/api_service.dart';
+import '../../services/backup_runner.dart';
 import '../../services/backup_worker.dart';
 import '../../widgets/app_card.dart';
 
@@ -30,6 +31,15 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(backupStatusProvider);
+    final progress = ref.watch(backupProgressProvider);
+
+    // Auto-refresh job stats (total counts) after a manual backup completes.
+    ref.listen<BackupProgress>(backupProgressProvider, (prev, next) {
+      if (next.phase == BackupPhase.done &&
+          prev?.phase == BackupPhase.running) {
+        ref.invalidate(backupStatusProvider);
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -61,6 +71,7 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
             ? _EmptyState(onSetup: () => _openSetupSheet(context))
             : _ActiveState(
                 status: status,
+                progress: progress,
                 onAddFolder: () => _openSetupSheet(context),
                 onBackUpNow: _triggerImmediateBackup,
                 onDeleteJob: _deleteJob,
@@ -119,20 +130,13 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
     }
   }
 
-  Future<void> _triggerImmediateBackup() async {
-    try {
-      await BackupWorker.instance.triggerImmediate();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup started — check notifications for progress')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
-      }
-    }
+  void _triggerImmediateBackup() {
+    final status = ref.read(backupStatusProvider).valueOrNull;
+    if (status == null || status.jobs.isEmpty) return;
+    final username = ref.read(authSessionProvider)?.username ?? '';
+    ref
+        .read(backupProgressProvider.notifier)
+        .startAll(status.jobs, username);
   }
 }
 
@@ -206,12 +210,14 @@ class _EmptyState extends StatelessWidget {
 
 class _ActiveState extends StatelessWidget {
   final BackupStatus status;
+  final BackupProgress progress;
   final VoidCallback onAddFolder;
   final VoidCallback onBackUpNow;
   final Future<void> Function(String jobId) onDeleteJob;
 
   const _ActiveState({
     required this.status,
+    required this.progress,
     required this.onAddFolder,
     required this.onBackUpNow,
     required this.onDeleteJob,
@@ -234,17 +240,30 @@ class _ActiveState extends StatelessWidget {
           );
         }),
 
+        // Live progress card — visible while backing up or just after done.
+        if (progress.phase != BackupPhase.idle) ...[          
+          const SizedBox(height: 4),
+          _BackupProgressCard(progress: progress),
+          const SizedBox(height: 4),
+        ],
+
         const SizedBox(height: 8),
 
         // Back up now
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: onBackUpNow,
-            icon: const Icon(Icons.sync_rounded,
-                size: 18, color: AppColors.primary),
+            onPressed: progress.isActive ? null : onBackUpNow,
+            icon: progress.isActive
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.primary))
+                : const Icon(Icons.sync_rounded,
+                    size: 18, color: AppColors.primary),
             label: Text(
-              'Back up now',
+              progress.isActive ? 'Backing up…' : 'Back up now',
               style: GoogleFonts.dmSans(
                   color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
@@ -395,6 +414,108 @@ class _JobCard extends StatelessWidget {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Backup progress card ──────────────────────────────────────────────────────
+
+class _BackupProgressCard extends StatelessWidget {
+  final BackupProgress progress;
+
+  const _BackupProgressCard({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = progress.isActive;
+    final isDone = progress.phase == BackupPhase.done;
+    final isFailed = progress.phase == BackupPhase.failed;
+
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (isActive)
+                const SizedBox(
+                  width: 15,
+                  height: 15,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.primary),
+                )
+              else if (isDone)
+                const Icon(Icons.check_circle_rounded,
+                    color: Colors.green, size: 17)
+              else if (isFailed)
+                const Icon(Icons.error_rounded,
+                    color: AppColors.error, size: 17),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  progress.statusLine,
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (progress.speedText != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  progress.speedText!,
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (progress.phase == BackupPhase.running &&
+              progress.totalFiles > 0) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress.totalFiles > 0
+                    ? progress.doneFiles / progress.totalFiles
+                    : null,
+                backgroundColor:
+                    AppColors.primary.withValues(alpha: 0.15),
+                valueColor:
+                    const AlwaysStoppedAnimation(AppColors.primary),
+                minHeight: 4,
+              ),
+            ),
+            if (progress.currentFile != null) ...[
+              const SizedBox(height: 5),
+              Text(
+                progress.currentFile!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textMuted, fontSize: 11),
+              ),
+            ],
+          ] else if (progress.phase == BackupPhase.scanning) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                backgroundColor:
+                    AppColors.primary.withValues(alpha: 0.15),
+                valueColor:
+                    const AlwaysStoppedAnimation(AppColors.primary),
+                minHeight: 4,
+              ),
+            ),
+          ],
         ],
       ),
     );
