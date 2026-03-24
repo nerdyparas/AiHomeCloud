@@ -203,6 +203,26 @@ Used by: storage format operations.
 
 ---
 
+## Auto Backup (`backup_routes.py` — prefix `/api/v1/backup`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|--------------|
+| POST | `/check-duplicate` | User | Check if SHA-256 hash already recorded → `{ exists: bool }` |
+| POST | `/record-hash` | User | Record SHA-256 after successful upload |
+| GET | `/status` | User | List all backup jobs + enabled flag → `BackupStatus` |
+| POST | `/jobs` | User | Create backup job (phoneFolder + destination) → `BackupJob` |
+| DELETE | `/jobs/{id}` | User | Remove a backup job |
+| POST | `/jobs/{id}/report` | User | Update job stats after a sync run |
+
+**BackupJob:** `{ id, phoneFolder, destination, lastSyncAt?, totalUploaded, totalSkipped }`  
+**BackupStatus:** `{ enabled, jobs: [BackupJob] }`  
+**Destinations:** `personal` → `/srv/nas/personal/{user}/Photos`, `family` → `/srv/nas/family/Photos`, `entertainment` → `/srv/nas/entertainment/Movies`  
+**Store keys:** `backup_file_hashes` (SHA-256 map, max 50 000 entries), `backup_jobs` (max 20 jobs)
+
+---
+
+---
+
 ## Events (`event_routes.py` — WebSocket)
 
 | Method | Path | Auth | Description |

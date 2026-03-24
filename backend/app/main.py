@@ -35,6 +35,7 @@ from .routes import (
     network_routes,
     telegram_routes,
     telegram_upload_routes,
+    backup_routes,
 )
 
 logger = logging.getLogger("aihomecloud.main")
@@ -396,6 +397,7 @@ app.include_router(event_routes.router)
 app.include_router(network_routes.router)
 app.include_router(telegram_routes.router)
 app.include_router(telegram_upload_routes.router)
+app.include_router(backup_routes.router)
 
 
 @app.get("/api/health")

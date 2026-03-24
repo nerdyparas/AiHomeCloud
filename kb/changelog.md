@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-03-24 — Phone Auto Backup Phase 1
+
+- **`backup_routes.py`** (new): 6 endpoints — `POST /check-duplicate`, `POST /record-hash`, `GET /status`, `POST /jobs`, `DELETE /jobs/{id}`, `POST /jobs/{id}/report`; SHA-256 dedup store (max 50 000 hashes), job config store (max 20 jobs)
+- **`backup_batcher.dart`** (new): pure-Dart folder naming + batching; groups files by year-month into "Mar 2024" / "Mar 2024 (2)" folders (max 500/folder, never split mid-day); filename date parsing (WhatsApp, Screenshot_, generic YYYYMMDD)
+- **`backup_worker.dart`** (new): WorkManager callback dispatcher + `BackupWorker` singleton; 6-hour periodic + on-demand one-shot tasks; WiFi-only constraint; SHA-256 → check → upload → record pipeline; local-notifications progress + summary
+- **`backup_models.dart`** (new): `BackupJob`, `BackupStatus` with `statusSubtitle` helper
+- **`backup_api.dart`** (new): ApiService extension with all 6 backup endpoint methods
+- **`auto_backup_screen.dart`** (new): empty state / 3-step setup sheet (folder picker, destination card, WiFi confirm) / active job list with "Back up now" trigger
+- **`more_screen.dart`**: replaced Trash tile with Auto Backup tile (showing live status subtitle); removed dead `_TrashCard` class
+- **`main.dart`**: `BackupWorker.instance.initialize()` + `schedulePeriodicBackup()` on app startup
+- **`AndroidManifest.xml`**: added `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `FOREGROUND_SERVICE`, `RECEIVE_BOOT_COMPLETED` permissions + WorkManager `InitializationProvider`
+- **`pubspec.yaml`**: added `workmanager: ^0.5.0`, `exif: ^3.3.0`
+- **Tests**: 14 new backend tests (`test_backup.py`); 16 new Flutter unit tests (`backup_batcher_test.dart`); all pass
+
+---
+
 ## 2026-03-23 — Setup Wizard + Documentation Cleanup
 
 - **Setup wizard:** Added `scripts/setup-wizard.sh` — interactive whiptail/dialog wizard for first-time device setup (device name, admin PIN, optional storage format, systemd install)

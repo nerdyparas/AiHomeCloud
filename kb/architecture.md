@@ -32,10 +32,11 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `telegram_routes.py` | `/api/v1/telegram` | Admin | 6 endpoints: config get/set, unlink, pending list/approve/deny |
 | `telegram_upload_routes.py` | `/telegram-upload` | Token URL | 2 endpoints: browser upload form + POST |
 | `jobs_routes.py` | `/api/v1/jobs` | User | 1 endpoint: poll long-running job status |
+| `backup_routes.py` | `/api/v1/backup` | User | 6 endpoints: check-duplicate, record-hash, status, create job, delete job, report sync |
 | `event_routes.py` | `/ws` | Token | 1 WS: real-time notification stream |
 | `storage_helpers.py` | (internal) | — | Helper functions for storage_routes (lsblk parsing, device detection) |
 
-**Total: 63 endpoints across 14 route files + 1 helper.**
+**Total: 69 endpoints across 15 route files + 1 helper.**
 
 ---
 
@@ -65,6 +66,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | Profile Edit | `screens/main/profile_edit_screen.dart` | `/profile-edit` | — |
 | Device Settings | `screens/main/settings/device_settings_screen.dart` | `/settings/device` | — |
 | Services Settings | `screens/main/settings/services_settings_screen.dart` | `/settings/services` | — |
+| Auto Backup | `screens/main/auto_backup_screen.dart` | `/auto-backup` | — |
 
 ---
 
@@ -105,6 +107,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `servicesProvider` | `StateNotifierProvider<ServicesNotifier, List<ServiceInfo>>` | Managed services list (optimistic toggle + rollback) |
 | `notificationStreamProvider` | `StreamProvider<AppNotification>` | Real-time notification stream (WS) |
 | `notificationHistoryProvider` | `StateNotifierProvider` | Last 50 notifications |
+| `backupStatusProvider` | `FutureProvider<BackupStatus>` | Backup jobs + enabled flag from API |
 
 ### Device (`device_providers.dart`)
 
@@ -146,6 +149,7 @@ The API client is a singleton (`ApiService`) defined in `lib/services/api_servic
 | `api/system_api.dart` | System | `getDeviceInfo()`, `getFirmware()`, `rename()`, `shutdown()`, `reboot()` |
 | `api/storage_api.dart` | Storage | `getDevices()`, `scan()`, `smartActivate()`, `format()`, `mount()`, `unmount()`, `eject()` |
 | `api/services_network_api.dart` | Services + Network | `getServices()`, `toggleService()`, `getNetworkStatus()`, `getWifi()`, Telegram |
+| `api/backup_api.dart` | Backup | `checkBackupDuplicate()`, `recordBackupHash()`, `getBackupStatus()`, `createBackupJob()`, `deleteBackupJob()`, `reportBackupSyncRun()` |
 
 All methods use `.timeout(ApiService._timeout)` — no raw HTTP client calls.
 
@@ -167,6 +171,7 @@ All methods use `.timeout(ApiService._timeout)` — no raw HTTP client calls.
 - `/profile-creation` → First user onboarding
 - `/dashboard`, `/files`, `/more` → Main shell tabs
 - `/family`, `/storage-explorer`, `/telegram-setup`, `/file-preview`, `/folder-view`, `/profile-edit` → Push routes
+- `/auto-backup` → Phone auto-backup setup and job management
 - `/settings/device`, `/settings/services` → Settings sub-screens
 
 **Disconnected banner:** `main_shell.dart` shows a persistent banner when WebSocket connection is lost (12s debounce, 2-miss threshold).

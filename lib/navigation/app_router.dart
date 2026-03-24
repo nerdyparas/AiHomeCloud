@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/models.dart';
+import '../screens/main/auto_backup_screen.dart';
 import '../screens/main/dashboard_screen.dart';
 import '../screens/main/family_screen.dart';
 import '../screens/main/file_preview_screen.dart';
@@ -174,7 +175,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile-edit',
         builder: (_, __) => const ProfileEditScreen(),
       ),
-
+      // ── Auto Backup (pushed on top, no bottom nav) ────────────────────────────
+      GoRoute(
+        path: '/auto-backup',
+        builder: (_, __) => const AutoBackupScreen(),
+      ),
       // ── File preview (pushed on top, no bottom nav) ────────────────────────
       GoRoute(
         path: '/file-preview',

@@ -18,6 +18,7 @@ part 'api/files_api.dart';
 part 'api/storage_api.dart';
 part 'api/family_api.dart';
 part 'api/services_network_api.dart';
+part 'api/backup_api.dart';
 
 /// AiHomeCloud API service — singleton HTTP + WebSocket client.
 ///

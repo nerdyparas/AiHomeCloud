@@ -7,6 +7,12 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import 'core_providers.dart';
 
+/// Fetches current backup configuration and job stats.
+final backupStatusProvider = FutureProvider<BackupStatus>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  return api.getBackupStatus();
+});
+
 final familyUsersProvider = FutureProvider<List<FamilyUser>>((ref) async {
   final api = ref.read(apiServiceProvider);
   return api.getFamilyUsers();

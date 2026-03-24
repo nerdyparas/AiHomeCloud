@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +10,6 @@ import '../../l10n/app_localizations.dart';
 import '../../models/models.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
-import '../../providers/file_providers.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_card.dart';
 
@@ -199,8 +198,25 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               child: Column(
                 children: [
 
-                  // Trash
-                  const _TrashCard(),
+                  // Auto Backup
+                  Builder(builder: (context) {
+                    final backupAsync = ref.watch(backupStatusProvider);
+                    final subtitle = backupAsync.valueOrNull?.statusSubtitle ?? 'Not set up';
+                    return ListTile(
+                      leading: _iconBox(Icons.cloud_upload_rounded, AppColors.primary),
+                      title: Text('Auto Backup',
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500)),
+                      subtitle: Text(subtitle,
+                          style: GoogleFonts.dmSans(
+                              color: AppColors.textSecondary, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textMuted, size: 20),
+                      onTap: () => context.push('/auto-backup'),
+                    );
+                  }),
 
                   _divider(),
 
@@ -774,110 +790,3 @@ class _ProfileCard extends StatelessWidget {
     );
   }
 }
-
-// â”€â”€â”€ Trash card (Privacy section) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _TrashCard extends ConsumerStatefulWidget {
-  const _TrashCard();
-
-  @override
-  ConsumerState<_TrashCard> createState() => _TrashCardState();
-}
-
-class _TrashCardState extends ConsumerState<_TrashCard> {
-  bool _clearing = false;
-
-  Future<void> _emptyTrash(List<TrashItem> items) async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.moreEmptyTrashDialogTitle, style: GoogleFonts.sora()),
-        content: Text(
-          l10n.moreEmptyTrashDialogMessage(items.length),
-          style: GoogleFonts.dmSans(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.buttonCancel,
-                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.moreEmptyTrashButton,
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() => _clearing = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final api = ref.read(apiServiceProvider);
-      for (final item in items) {
-        await api.permanentDeleteTrashItem(item.id);
-      }
-      ref.invalidate(trashItemsProvider);
-      messenger.showSnackBar(SnackBar(content: Text(l10n.moreTrashEmptiedSnackbar)));
-    } catch (e) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(friendlyError(e))));
-    } finally {
-      if (mounted) setState(() => _clearing = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final trashAsync = ref.watch(trashItemsProvider);
-    final items = trashAsync.valueOrNull ?? [];
-    final totalMB =
-        items.fold(0, (sum, i) => sum + i.sizeBytes) ~/ (1024 * 1024);
-
-    return ListTile(
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Icon(Icons.delete_outline_rounded,
-            color: AppColors.error, size: 18),
-      ),
-      title: Text(l10n.moreTrashTitle,
-          style: GoogleFonts.dmSans(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500)),
-      subtitle: Text(
-          items.isEmpty
-              ? l10n.moreTrashEmpty
-              : l10n.moreTrashItemCount(items.length, totalMB),
-          style: GoogleFonts.dmSans(
-              color: AppColors.textSecondary, fontSize: 12)),
-      trailing: items.isEmpty
-          ? null
-          : _clearing
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: AppColors.error),
-                )
-              : TextButton(
-                  onPressed: () => _emptyTrash(items),
-                  child: Text(l10n.moreTrashEmptyButton,
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.error,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600)),
-                ),
-    );
-  }
-}
-

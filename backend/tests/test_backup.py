@@ -1,0 +1,221 @@
+"""
+Tests for the Auto Backup endpoints (backup_routes.py).
+"""
+import pytest
+from httpx import AsyncClient
+
+
+# ── check-duplicate ───────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_check_duplicate_not_found(client: AsyncClient, admin_token: str):
+    """A fresh hash should not be reported as a duplicate."""
+    resp = await client.post(
+        "/api/v1/backup/check-duplicate",
+        json={"sha256": "a" * 64, "filename": "photo.jpg"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["exists"] is False
+
+
+@pytest.mark.asyncio
+async def test_check_duplicate_requires_auth(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/backup/check-duplicate",
+        json={"sha256": "a" * 64, "filename": "photo.jpg"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_check_duplicate_invalid_sha(client: AsyncClient, admin_token: str):
+    resp = await client.post(
+        "/api/v1/backup/check-duplicate",
+        json={"sha256": "tooshort", "filename": "photo.jpg"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 422
+
+
+# ── record-hash ───────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_record_hash_and_detect_duplicate(client: AsyncClient, admin_token: str):
+    """After recording a hash it should be detected as a duplicate."""
+    sha = "b" * 64
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Record the hash
+    rec = await client.post(
+        "/api/v1/backup/record-hash",
+        json={"sha256": sha, "filename": "video.mp4", "destination": "personal"},
+        headers=headers,
+    )
+    assert rec.status_code == 200
+    assert rec.json()["ok"] is True
+
+    # Now it should be found as a duplicate
+    chk = await client.post(
+        "/api/v1/backup/check-duplicate",
+        json={"sha256": sha, "filename": "video.mp4"},
+        headers=headers,
+    )
+    assert chk.status_code == 200
+    assert chk.json()["exists"] is True
+
+
+@pytest.mark.asyncio
+async def test_record_hash_invalid_destination(client: AsyncClient, admin_token: str):
+    resp = await client.post(
+        "/api/v1/backup/record-hash",
+        json={"sha256": "c" * 64, "filename": "file.jpg", "destination": "invalid"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 422
+
+
+# ── status ────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_backup_status_empty(client: AsyncClient, admin_token: str):
+    resp = await client.get(
+        "/api/v1/backup/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["enabled"] is False
+    assert body["jobs"] == []
+
+
+@pytest.mark.asyncio
+async def test_backup_status_requires_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/backup/status")
+    assert resp.status_code == 401
+
+
+# ── jobs CRUD ─────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_create_and_list_job(client: AsyncClient, admin_token: str):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create = await client.post(
+        "/api/v1/backup/jobs",
+        json={"phoneFolder": "DCIM/Camera", "destination": "personal"},
+        headers=headers,
+    )
+    assert create.status_code == 201
+    job = create.json()
+    assert job["phoneFolder"] == "DCIM/Camera"
+    assert job["destination"] == "personal"
+    assert job["totalUploaded"] == 0
+    assert job["totalSkipped"] == 0
+    assert job["lastSyncAt"] is None
+    assert len(job["id"]) == 12
+
+    status_resp = await client.get("/api/v1/backup/status", headers=headers)
+    assert status_resp.status_code == 200
+    body = status_resp.json()
+    assert body["enabled"] is True
+    assert len(body["jobs"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_create_job_invalid_destination(client: AsyncClient, admin_token: str):
+    resp = await client.post(
+        "/api/v1/backup/jobs",
+        json={"phoneFolder": "DCIM", "destination": "cloud"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_job(client: AsyncClient, admin_token: str):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create = await client.post(
+        "/api/v1/backup/jobs",
+        json={"phoneFolder": "WhatsApp/Media", "destination": "family"},
+        headers=headers,
+    )
+    job_id = create.json()["id"]
+
+    delete = await client.delete(f"/api/v1/backup/jobs/{job_id}", headers=headers)
+    assert delete.status_code == 204
+
+    status_resp = await client.get("/api/v1/backup/status", headers=headers)
+    jobs = status_resp.json()["jobs"]
+    assert not any(j["id"] == job_id for j in jobs)
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_job(client: AsyncClient, admin_token: str):
+    resp = await client.delete(
+        "/api/v1/backup/jobs/doesnotexist",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 404
+
+
+# ── sync report ───────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_report_sync_run(client: AsyncClient, admin_token: str):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create = await client.post(
+        "/api/v1/backup/jobs",
+        json={"phoneFolder": "DCIM/Camera", "destination": "personal"},
+        headers=headers,
+    )
+    job_id = create.json()["id"]
+
+    report = await client.post(
+        f"/api/v1/backup/jobs/{job_id}/report",
+        json={"uploaded": 12, "skipped": 3, "lastSyncAt": "2026-03-24T10:00:00+00:00"},
+        headers=headers,
+    )
+    assert report.status_code == 200
+    updated = report.json()
+    assert updated["totalUploaded"] == 12
+    assert updated["totalSkipped"] == 3
+    assert updated["lastSyncAt"] == "2026-03-24T10:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_report_sync_accumulates(client: AsyncClient, admin_token: str):
+    """Multiple reports should accumulate the uploaded/skipped counts."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create = await client.post(
+        "/api/v1/backup/jobs",
+        json={"phoneFolder": "DCIM", "destination": "family"},
+        headers=headers,
+    )
+    job_id = create.json()["id"]
+
+    await client.post(
+        f"/api/v1/backup/jobs/{job_id}/report",
+        json={"uploaded": 10, "skipped": 2, "lastSyncAt": "2026-03-24T10:00:00Z"},
+        headers=headers,
+    )
+    second = await client.post(
+        f"/api/v1/backup/jobs/{job_id}/report",
+        json={"uploaded": 5, "skipped": 1, "lastSyncAt": "2026-03-24T16:00:00Z"},
+        headers=headers,
+    )
+    assert second.json()["totalUploaded"] == 15
+    assert second.json()["totalSkipped"] == 3
+
+
+@pytest.mark.asyncio
+async def test_report_nonexistent_job(client: AsyncClient, admin_token: str):
+    resp = await client.post(
+        "/api/v1/backup/jobs/nonexistent/report",
+        json={"uploaded": 1, "skipped": 0, "lastSyncAt": "2026-03-24T10:00:00Z"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 404

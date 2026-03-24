@@ -9,6 +9,7 @@ import 'core/theme.dart';
 import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
 import 'providers/core_providers.dart';
+import 'services/backup_worker.dart';
 import 'services/share_handler.dart';
 
 /// Trust self-signed TLS certificates from the Cubie backend.
@@ -41,6 +42,10 @@ void main() async {
   ));
 
   final prefs = await SharedPreferences.getInstance();
+
+  // Initialise WorkManager for background auto-backup tasks.
+  await BackupWorker.instance.initialize();
+  await BackupWorker.instance.schedulePeriodicBackup();
 
   // Auto-reconnect: if a device was previously paired, the AuthSessionNotifier
   // will restore the session from SharedPreferences on init. If not, the

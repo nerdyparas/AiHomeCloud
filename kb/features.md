@@ -60,6 +60,16 @@
 - **Browser upload** — Token-based HTML upload form via Telegram link
 - **Local API support** — Config fields for Telegram Local Bot API (up to 2 GB files)
 
+### Phone Auto Backup (Phase 1)
+- **Background worker** — WorkManager periodic task every 6 hours (WiFi-only)
+- **SHA-256 deduplication** — Files already backed up are skipped on every run
+- **Dated folder naming** — Files grouped into "Mar 2024", "Mar 2024 (2)", … (max 500/folder, never splits a day)
+- **Multiple jobs** — Separate source→destination configs (personal / family / entertainment)
+- **Trigger on demand** — "Back up now" button triggers an immediate one-shot run
+- **Progress notifications** — Persistent Android notification with progress bar during sync
+- **Setup flow** — 3-step bottom sheet: pick folder, pick destination, confirm (WiFi toggle)
+- **Entry point** — Auto Backup tile in More tab (replaces old Trash tile)
+
 ### Family Management
 - **Family list** — View members with folder sizes and avatars
 - **Add member** — Admin creates new family user
