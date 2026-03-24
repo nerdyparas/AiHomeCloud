@@ -72,7 +72,7 @@ class BackupWorker {
       _kPeriodicTaskName,
       frequency: const Duration(hours: 6),
       constraints: Constraints(networkType: NetworkType.unmetered),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     );
   }
 
