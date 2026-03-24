@@ -151,13 +151,15 @@ class BackupRunner {
 
       final jobFiles = <String, List<File>>{};
       int totalFiles = 0;
+      int accessibleDirs = 0;
 
       for (final job in jobs) {
         final dir = Directory(job.phoneFolder);
         if (!dir.existsSync()) continue;
+        accessibleDirs++;
 
         final allFiles = dir
-            .listSync(recursive: false)
+            .listSync(recursive: true)
             .whereType<File>()
             .where(_isMediaFile)
             .toList();
@@ -182,7 +184,23 @@ class BackupRunner {
         totalFiles: totalFiles,
       ));
 
+      if (accessibleDirs == 0) {
+        onProgress(const BackupProgress(
+          phase: BackupPhase.failed,
+          errorMessage:
+              'Could not read backup folders — check app storage permissions',
+        ));
+        return;
+      }
+
       if (totalFiles == 0) {
+        // Nothing new — still record the sync time so the card updates.
+        final now = DateTime.now().toUtc().toIso8601String();
+        for (final job in jobs) {
+          try {
+            await api.reportBackupSyncRun(job.id, 0, 0, now);
+          } catch (_) {}
+        }
         onProgress(const BackupProgress(phase: BackupPhase.done));
         return;
       }

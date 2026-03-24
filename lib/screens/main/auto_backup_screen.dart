@@ -33,10 +33,10 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
     final statusAsync = ref.watch(backupStatusProvider);
     final progress = ref.watch(backupProgressProvider);
 
-    // Auto-refresh job stats (total counts) after a manual backup completes.
+    // Auto-refresh job stats (lastSyncAt + totals) after any backup run ends.
     ref.listen<BackupProgress>(backupProgressProvider, (prev, next) {
-      if (next.phase == BackupPhase.done &&
-          prev?.phase == BackupPhase.running) {
+      if (next.phase == BackupPhase.done ||
+          next.phase == BackupPhase.failed) {
         ref.invalidate(backupStatusProvider);
       }
     });
