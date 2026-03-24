@@ -212,6 +212,16 @@ class BackupRunner {
           } catch (_) {}
         }
         onProgress(const BackupProgress(phase: BackupPhase.done));
+
+        // Notify via Telegram even when nothing new.
+        try {
+          await api.sendBackupNotification(
+            success: true,
+            uploaded: 0,
+            skipped: 0,
+            folders: jobs.length,
+          );
+        } catch (_) {}
         return;
       }
 
@@ -355,6 +365,17 @@ class BackupRunner {
               ? 'Cancelled — $totalUploaded files backed up'
               : 'Backup cancelled',
         ));
+
+        // Notify partial results on cancel.
+        try {
+          await api.sendBackupNotification(
+            success: false,
+            uploaded: totalUploaded,
+            skipped: totalSkipped,
+            folders: jobs.length,
+            errorMessage: 'Backup cancelled by user',
+          );
+        } catch (_) {}
         return;
       }
 
@@ -382,6 +403,15 @@ class BackupRunner {
         phase: BackupPhase.failed,
         errorMessage: 'Backup failed unexpectedly',
       ));
+
+      // Notify failure via Telegram.
+      try {
+        await api.sendBackupNotification(
+          success: false,
+          folders: jobs.length,
+          errorMessage: 'Backup failed unexpectedly',
+        );
+      } catch (_) {}
     } finally {
       _isRunning = false;
     }
