@@ -39,12 +39,17 @@ class BackupProgressNotifier extends StateNotifier<BackupProgress> {
             if (mounted) state = p;
             if (p.phase == BackupPhase.done ||
                 p.phase == BackupPhase.failed) {
-              Future.delayed(const Duration(seconds: 5), () {
+              Future.delayed(const Duration(seconds: 10), () {
                 if (mounted) state = const BackupProgress();
               });
             }
           },
         );
+  }
+
+  /// Cancel a running backup.
+  void cancel() {
+    BackupRunner.instance.cancel();
   }
 }
 

@@ -48,8 +48,6 @@ class BackupJob {
         return 'My Personal Files';
       case 'family':
         return 'Family Folder';
-      case 'entertainment':
-        return 'Entertainment';
       default:
         return destination;
     }
@@ -69,6 +67,13 @@ class BackupJob {
     if (diff.inHours < 1) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
+  }
+
+  /// Human-readable subtitle for the job card.
+  String get statusText {
+    if (lastSyncAt == null) return 'Waiting for first backup';
+    if (totalUploaded == 0) return '$lastSyncRelative · All caught up';
+    return '$lastSyncRelative · $totalUploaded ${totalUploaded == 1 ? 'file' : 'files'} backed up';
   }
 }
 

@@ -142,4 +142,31 @@ extension BackupApi on ApiService {
     final res = await _withAutoRefresh(makeRequest);
     return res.statusCode;
   }
+
+  /// POST /api/v1/backup/notify
+  /// Send a backup summary or failure notification via the Telegram bot.
+  Future<void> sendBackupNotification({
+    required bool success,
+    int uploaded = 0,
+    int skipped = 0,
+    int folders = 0,
+    String errorMessage = '',
+  }) async {
+    final res = await _withAutoRefresh(
+      () => _client
+          .post(
+            Uri.parse('$_baseUrl${AppConstants.apiVersion}/backup/notify'),
+            headers: _headers,
+            body: jsonEncode({
+              'success': success,
+              'uploaded': uploaded,
+              'skipped': skipped,
+              'folders': folders,
+              'error_message': errorMessage,
+            }),
+          )
+          .timeout(ApiService._timeout),
+    );
+    _check(res);
+  }
 }

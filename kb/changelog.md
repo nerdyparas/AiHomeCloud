@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-27 — Auto Backup Redesign: All File Types, Categorisation, Daily Schedule, Telegram Notifications
+
+- **All file types**: Removed media-only filter (`_isMediaFile`) from both `backup_runner.dart` and `backup_worker.dart` — backup now handles photos, videos, documents, audio, and any other file type
+- **Auto-categorisation**: New `_categoryOf()` helper in runner + worker sorts files into `Photos/`, `Videos/`, `Documents/`, `Audio/`, `Other/` sub-folders by extension
+- **Destination path change**: Removed hardcoded `/Photos` and `/Movies` suffixes — destination now maps to base folder (`/personal/<user>/`, `/family/`); category sub-folders are appended automatically
+- **Daily 2:30 AM schedule**: Changed `schedulePeriodicBackup()` from 6-hour to 24-hour with `initialDelay` targeting 2:30 AM; uses `ExistingPeriodicWorkPolicy.replace`
+- **Telegram notifications**: New `POST /api/v1/backup/notify` endpoint sends backup summary (success) or failure alert to all linked Telegram users; runner calls it after manual backup; worker calls it on scheduled backup failure
+- **Removed entertainment destination**: `_VALID_DESTINATIONS` now `{personal, family}` only; updated all validators, models, and UI
+- **UI updates**: Empty state text: "Back up your files automatically"; folder picker: "photos, documents, anything"; schedule notice: "Runs daily at 2:30 AM on WiFi · files sorted by type"; notification text: "files" instead of "photos"
+
 ## 2026-03-24 — Phone Auto Backup Phase 1
 
 - **`backup_routes.py`** (new): 6 endpoints — `POST /check-duplicate`, `POST /record-hash`, `GET /status`, `POST /jobs`, `DELETE /jobs/{id}`, `POST /jobs/{id}/report`; SHA-256 dedup store (max 50 000 hashes), job config store (max 20 jobs)

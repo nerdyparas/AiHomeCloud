@@ -1,13 +1,15 @@
 /// WorkManager-based background backup worker.
 ///
-/// Runs every 6 hours (periodic) or on-demand (one-shot).
+/// Runs daily at approximately 2:30 AM (periodic) or on-demand (one-shot).
 /// Only executes when on WiFi (unmetered network constraint).
 /// Processes each configured backup job:
-///   1. Lists media files in the phone folder
+///   1. Lists all files in the phone folder
 ///   2. Filters by modified date (fast pre-filter)
 ///   3. Deduplicates via SHA-256 + backend check-duplicate endpoint
-///   4. Uploads new files via the files upload endpoint
-///   5. Reports stats to backend
+///   4. Categorises files (Photos/Videos/Documents/Audio/Other)
+///   5. Uploads new files via the files upload endpoint
+///   6. Reports stats to backend
+///   7. Sends Telegram notification on failure
 ///
 /// **Top-level [callbackDispatcher] is required by WorkManager — it must be
 /// annotated with @pragma('vm:entry-point') so the AOT compiler keeps it.**
@@ -45,8 +47,14 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
       await _runAllJobs();
-    } catch (_) {
-      // Silent failure — WorkManager will retry on the next scheduled run.
+    } catch (e) {
+      // Send Telegram failure notification for scheduled backups.
+      try {
+        await _sendTelegramNotification(
+          success: false,
+          errorMessage: 'Scheduled backup failed: $e',
+        );
+      } catch (_) {}
     }
     return true;
   });
@@ -65,14 +73,21 @@ class BackupWorker {
     await Workmanager().initialize(callbackDispatcher);
   }
 
-  /// Register the 6-hour periodic backup task (WiFi only).
+  /// Register a daily backup task targeting ~2:30 AM (WiFi only).
   Future<void> schedulePeriodicBackup() async {
+    // Compute initial delay so the first run targets 2:30 AM.
+    final now = DateTime.now();
+    var target = DateTime(now.year, now.month, now.day, 2, 30);
+    if (target.isBefore(now)) target = target.add(const Duration(days: 1));
+    final delay = target.difference(now);
+
     await Workmanager().registerPeriodicTask(
       _kPeriodicTaskName,
       _kPeriodicTaskName,
-      frequency: const Duration(hours: 6),
+      frequency: const Duration(hours: 24),
+      initialDelay: delay,
       constraints: Constraints(networkType: NetworkType.unmetered),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
@@ -159,12 +174,10 @@ Future<void> _processJob(
   final dir = Directory(phoneFolder);
   if (!dir.existsSync()) return;
 
-  // List files directly in the folder (non-recursive — phone camera folders
-  // are typically flat).
+  // List all files recursively (matches BackupRunner behaviour).
   final allFiles = dir
-      .listSync(recursive: false)
+      .listSync(recursive: true)
       .whereType<File>()
-      .where(_isMediaFile)
       .toList();
 
   // Fast pre-filter by modification date before computing any SHA-256.
@@ -178,7 +191,25 @@ Future<void> _processJob(
           }
         }).toList();
 
-  if (toProcess.isEmpty) return;
+  if (toProcess.isEmpty) {
+    // Still update lastSyncAt so the job card shows when the last check ran.
+    final now = DateTime.now().toUtc().toIso8601String();
+    try {
+      await client
+          .post(
+            Uri.parse(
+                '$baseUrl${AppConstants.apiVersion}/backup/jobs/$jobId/report'),
+            headers: headers,
+            body: jsonEncode({
+              'uploaded': 0,
+              'skipped': 0,
+              'lastSyncAt': now,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {}
+    return;
+  }
 
   final nasSubdir = _destinationSubdir(destination, username);
   int uploaded = 0;
@@ -186,11 +217,13 @@ Future<void> _processJob(
   final total = toProcess.length;
 
   // Process in batches of 20 to avoid hammering the NAS.
+  int fileIndex = 0;
   for (int i = 0; i < toProcess.length; i += 20) {
     final batch = toProcess.skip(i).take(20).toList();
     for (final file in batch) {
+      fileIndex++;
       final filename = file.path.split(RegExp(r'[/\\]')).last;
-      await _showProgress(notifications, i + 1, total, filename);
+      await _showProgress(notifications, fileIndex, total, filename);
 
       final sha = await _computeSha256(file);
 
@@ -228,7 +261,8 @@ Future<void> _processJob(
           ? batches.first.folderName
           : _fallbackFolderName(captureDate);
 
-      final destPath = '$nasSubdir/$folderName';
+      final category = _categoryOf(filename);
+      final destPath = '$nasSubdir/$category/$folderName';
 
       // Upload the file
       try {
@@ -296,25 +330,38 @@ Future<void> _processJob(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-bool _isMediaFile(File f) {
-  const mediaExtensions = {
+/// Categorise a file by extension into one of five NAS sub-folders.
+String _categoryOf(String filename) {
+  const photoExts = {
     'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic', 'heif',
-    'mp4', 'mov', 'avi', 'mkv', '3gp', 'wmv', 'm4v',
+    'raw', 'cr2', 'nef', 'arw', 'dng',
   };
-  final ext = f.path.split('.').last.toLowerCase();
-  return mediaExtensions.contains(ext);
+  const videoExts = {
+    'mp4', 'mov', 'avi', 'mkv', '3gp', 'wmv', 'm4v', 'webm',
+  };
+  const docExts = {
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'txt', 'csv', 'rtf', 'odt', 'ods', 'odp',
+  };
+  const audioExts = {
+    'mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma', 'opus',
+  };
+  final ext = filename.split('.').last.toLowerCase();
+  if (photoExts.contains(ext)) return 'Photos';
+  if (videoExts.contains(ext)) return 'Videos';
+  if (docExts.contains(ext)) return 'Documents';
+  if (audioExts.contains(ext)) return 'Audio';
+  return 'Other';
 }
 
 String _destinationSubdir(String destination, String username) {
   switch (destination) {
     case 'personal':
-      return '/srv/nas/personal/$username/Photos';
+      return '/srv/nas/personal/$username';
     case 'family':
-      return '/srv/nas/family/Photos';
-    case 'entertainment':
-      return '/srv/nas/entertainment/Movies';
+      return '/srv/nas/family';
     default:
-      return '/srv/nas/personal/$username/Photos';
+      return '/srv/nas/personal/$username';
   }
 }
 
@@ -358,7 +405,7 @@ Future<void> _showProgress(
 ) async {
   await notifications.show(
     _kProgressNotificationId,
-    'Backing up photos',
+    'Backing up files',
     '$current of $total — $filename',
     NotificationDetails(
       android: AndroidNotificationDetails(
@@ -382,7 +429,7 @@ Future<void> _showSummary(
   await notifications.show(
     _kSummaryNotificationId,
     'Backup complete',
-    'Backed up $count ${count == 1 ? 'photo' : 'photos'} to AiHomeCloud',
+    'Backed up $count ${count == 1 ? 'file' : 'files'} to AiHomeCloud',
     const NotificationDetails(
       android: AndroidNotificationDetails(
         _kNotificationChannelId,
@@ -393,4 +440,44 @@ Future<void> _showSummary(
       ),
     ),
   );
+}
+
+/// Send a backup notification via the Telegram bot (best-effort).
+Future<void> _sendTelegramNotification({
+  required bool success,
+  int uploaded = 0,
+  int skipped = 0,
+  int folders = 0,
+  String errorMessage = '',
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final host = prefs.getString(AppConstants.prefDeviceIp);
+  final port =
+      prefs.getInt(AppConstants.prefDevicePort) ?? AppConstants.apiPort;
+  final token = prefs.getString(AppConstants.prefAuthToken);
+
+  if (host == null || host.isEmpty || token == null || token.isEmpty) return;
+
+  final client = _buildHttpClient();
+  try {
+    await client
+        .post(
+          Uri.parse(
+              '${AppConstants.apiScheme}://$host:$port${AppConstants.apiVersion}/backup/notify'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'success': success,
+            'uploaded': uploaded,
+            'skipped': skipped,
+            'folders': folders,
+            'error_message': errorMessage,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+  } finally {
+    client.close();
+  }
 }

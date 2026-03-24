@@ -11,7 +11,6 @@ import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../services/api_service.dart';
 import '../../services/backup_runner.dart';
-import '../../services/backup_worker.dart';
 import '../../widgets/app_card.dart';
 
 /// Screen for managing automatic phone-to-NAS photo backup.
@@ -74,6 +73,7 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
                 progress: progress,
                 onAddFolder: () => _openSetupSheet(context),
                 onBackUpNow: _triggerImmediateBackup,
+                onCancel: _cancelBackup,
                 onDeleteJob: _deleteJob,
               ),
       ),
@@ -103,11 +103,9 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
     try {
       await ref.read(apiServiceProvider).createBackupJob(phoneFolder, destination);
       ref.invalidate(backupStatusProvider);
-      // Trigger an immediate backup run after setup
-      await BackupWorker.instance.triggerImmediate();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup set up — syncing now over WiFi')),
+          const SnackBar(content: Text('Backup folder added \u2014 tap \u201CBack up now\u201D to start')),
         );
       }
     } catch (e) {
@@ -138,6 +136,10 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
         .read(backupProgressProvider.notifier)
         .startAll(status.jobs, username);
   }
+
+  void _cancelBackup() {
+    ref.read(backupProgressProvider.notifier).cancel();
+  }
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -166,7 +168,7 @@ class _EmptyState extends StatelessWidget {
           ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
           const SizedBox(height: 24),
           Text(
-            'Back up your photos automatically',
+            'Back up your files automatically',
             textAlign: TextAlign.center,
             style: GoogleFonts.sora(
                 color: AppColors.textPrimary,
@@ -175,7 +177,7 @@ class _EmptyState extends StatelessWidget {
           ).animate().fadeIn(delay: 100.ms),
           const SizedBox(height: 12),
           Text(
-            'Select folders on your phone and they\'ll be safely copied to your AiHomeCloud — over WiFi, in the background.',
+            'Select folders on your phone and they\'ll be safely copied to your AiHomeCloud — sorted by type, over WiFi, daily at 2:30 AM.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
                 color: AppColors.textSecondary, fontSize: 14, height: 1.5),
@@ -213,6 +215,7 @@ class _ActiveState extends StatelessWidget {
   final BackupProgress progress;
   final VoidCallback onAddFolder;
   final VoidCallback onBackUpNow;
+  final VoidCallback onCancel;
   final Future<void> Function(String jobId) onDeleteJob;
 
   const _ActiveState({
@@ -220,6 +223,7 @@ class _ActiveState extends StatelessWidget {
     required this.progress,
     required this.onAddFolder,
     required this.onBackUpNow,
+    required this.onCancel,
     required this.onDeleteJob,
   });
 
@@ -243,7 +247,10 @@ class _ActiveState extends StatelessWidget {
         // Live progress card — visible while backing up or just after done.
         if (progress.phase != BackupPhase.idle) ...[          
           const SizedBox(height: 4),
-          _BackupProgressCard(progress: progress),
+          _BackupProgressCard(
+            progress: progress,
+            onCancel: progress.isActive ? onCancel : null,
+          ),
           const SizedBox(height: 4),
         ],
 
@@ -294,15 +301,15 @@ class _ActiveState extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        // WiFi-only notice
+        // Schedule notice
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_rounded,
+            const Icon(Icons.schedule_rounded,
                 size: 14, color: AppColors.textMuted),
             const SizedBox(width: 4),
             Text(
-              'Runs on WiFi only — your mobile data is protected.',
+              'Runs daily at 2:30 AM on WiFi · files sorted by type',
               style: GoogleFonts.dmSans(
                   color: AppColors.textMuted, fontSize: 11),
             ),
@@ -400,19 +407,37 @@ class _JobCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${job.lastSyncRelative} · ${job.totalUploaded} files backed up',
+                  job.statusText,
                   style: GoogleFonts.dmSans(
                       color: AppColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: onDelete,
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'remove') onDelete();
+            },
             icon: const Icon(Icons.more_vert_rounded,
                 color: AppColors.textMuted, size: 20),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'remove',
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.delete_outline_rounded,
+                        color: AppColors.error, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Remove backup',
+                        style: GoogleFonts.dmSans(
+                            color: AppColors.error, fontSize: 14)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -424,8 +449,9 @@ class _JobCard extends StatelessWidget {
 
 class _BackupProgressCard extends StatelessWidget {
   final BackupProgress progress;
+  final VoidCallback? onCancel;
 
-  const _BackupProgressCard({required this.progress});
+  const _BackupProgressCard({required this.progress, this.onCancel});
 
   @override
   Widget build(BuildContext context) {
@@ -473,6 +499,14 @@ class _BackupProgressCard extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
+                ),
+              ],
+              if (onCancel != null) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onCancel,
+                  child: const Icon(Icons.close_rounded,
+                      color: AppColors.textMuted, size: 18),
                 ),
               ],
             ],
@@ -537,7 +571,6 @@ class _SetupSheetState extends State<_SetupSheet> {
   int _step = 0;
   String? _selectedFolder;
   String? _selectedDestination;
-  bool _wifiOnly = true;
   bool _submitting = false;
 
   // ── Step 1: Folder picker ──────────────────────────────────────────────────
@@ -625,7 +658,7 @@ class _SetupSheetState extends State<_SetupSheet> {
       children: [
         _buildSheetTitle('Which folder on your phone?'),
         Text(
-          'Select the folder containing the photos and videos you want to back up.',
+          'Select the folder you want to back up — photos, documents, anything.',
           style: GoogleFonts.dmSans(
               color: AppColors.textSecondary, fontSize: 13, height: 1.5),
         ),
@@ -669,13 +702,6 @@ class _SetupSheetState extends State<_SetupSheet> {
         icon: Icons.people_rounded,
         color: const Color(0xFFE8A84C),
       ),
-      (
-        value: 'entertainment',
-        title: 'Entertainment',
-        subtitle: 'Movies and videos',
-        icon: Icons.movie_rounded,
-        color: AppColors.secondary,
-      ),
     ];
 
     return Column(
@@ -717,9 +743,7 @@ class _SetupSheetState extends State<_SetupSheet> {
   Widget _buildStepConfirm() {
     final destLabel = _selectedDestination == 'personal'
         ? 'Your Personal Files'
-        : _selectedDestination == 'family'
-            ? 'Family Folder'
-            : 'Entertainment';
+        : 'Family Folder';
 
     return Column(
       key: const ValueKey(2),
@@ -771,61 +795,22 @@ class _SetupSheetState extends State<_SetupSheet> {
 
         const SizedBox(height: 16),
 
-        // WiFi-only toggle
-        AppCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'WiFi only',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500),
-            ),
-            subtitle: Text(
-              'Recommended — protects you from mobile data charges',
-              style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 11),
-            ),
-            value: _wifiOnly,
-            activeThumbColor: AppColors.primary,
-            onChanged: (v) {
-              // Warn if the user tries to disable WiFi-only
-              if (!v) {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text('Use mobile data?', style: GoogleFonts.sora()),
-                    content: Text(
-                      'Backing up photos over mobile data can use a lot of data and may incur charges.',
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.textSecondary),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text('Keep WiFi only',
-                            style: GoogleFonts.dmSans(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() => _wifiOnly = false);
-                          Navigator.pop(ctx);
-                        },
-                        child: Text('Allow mobile data',
-                            style: GoogleFonts.dmSans(
-                                color: AppColors.textSecondary)),
-                      ),
-                    ],
-                  ),
-                );
-              } else {
-                setState(() => _wifiOnly = true);
-              }
-            },
+        // WiFi-only notice
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              const Icon(Icons.wifi_rounded,
+                  size: 14, color: AppColors.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Backups run over WiFi only — your mobile data is never used.',
+                  style: GoogleFonts.dmSans(
+                      color: AppColors.textMuted, fontSize: 11, height: 1.4),
+                ),
+              ),
+            ],
           ),
         ),
 

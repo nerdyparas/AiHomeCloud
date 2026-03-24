@@ -8,12 +8,15 @@ Endpoints:
   POST   /api/v1/backup/jobs
   DELETE /api/v1/backup/jobs/{job_id}
   POST   /api/v1/backup/jobs/{job_id}/report
+  POST   /api/v1/backup/notify
 
 Hash records live in kv.json under key "backup_file_hashes".
 Job configs live in kv.json under key "backup_jobs".
 """
 
+import logging
 import uuid
+from contextlib import suppress
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -22,11 +25,13 @@ from pydantic import BaseModel, field_validator
 from ..auth import get_current_user
 from .. import store
 
+logger = logging.getLogger("aihomecloud.backup")
+
 router = APIRouter(prefix="/api/v1/backup", tags=["backup"])
 
 _MAX_HASHES = 50_000
 _MAX_JOBS = 20
-_VALID_DESTINATIONS = frozenset({"personal", "family", "entertainment"})
+_VALID_DESTINATIONS = frozenset({"personal", "family"})
 
 
 # ── Request models ─────────────────────────────────────────────────────────────
@@ -61,7 +66,7 @@ class RecordHashRequest(BaseModel):
     @classmethod
     def validate_destination(cls, v: str) -> str:
         if v not in _VALID_DESTINATIONS:
-            raise ValueError("destination must be personal, family, or entertainment")
+            raise ValueError("destination must be personal or family")
         return v
 
 
@@ -73,7 +78,7 @@ class CreateJobRequest(BaseModel):
     @classmethod
     def validate_destination(cls, v: str) -> str:
         if v not in _VALID_DESTINATIONS:
-            raise ValueError("destination must be personal, family, or entertainment")
+            raise ValueError("destination must be personal or family")
         return v
 
     @field_validator("phoneFolder")
@@ -201,3 +206,59 @@ async def report_sync_run(
             await store.set_value("backup_jobs", jobs)
             return job
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backup job not found")
+
+
+# ── Telegram backup notification ─────────────────────────────────────────────
+
+class BackupNotifyRequest(BaseModel):
+    success: bool
+    uploaded: int = 0
+    skipped: int = 0
+    folders: int = 0
+    error_message: str = ""
+
+
+@router.post("/notify")
+async def send_backup_notification(
+    req: BackupNotifyRequest,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Send a backup summary or failure notification via the Telegram bot."""
+    try:
+        from .. import telegram_bot as tb
+    except ImportError:
+        return {"sent": False, "reason": "telegram_not_available"}
+
+    if tb._application is None:
+        return {"sent": False, "reason": "telegram_not_configured"}
+
+    linked_ids = await tb._get_linked_ids()
+    if not linked_ids:
+        return {"sent": False, "reason": "no_linked_users"}
+
+    if req.success:
+        lines = ["✅ <b>Backup complete</b>\n"]
+        lines.append(
+            f"📁 {req.folders} folder{'s' if req.folders != 1 else ''} checked"
+        )
+        if req.uploaded > 0:
+            lines.append(
+                f"⬆️ {req.uploaded} file{'s' if req.uploaded != 1 else ''} uploaded"
+            )
+        if req.skipped > 0:
+            lines.append(f"⏭ {req.skipped} already synced")
+        if req.uploaded == 0 and req.skipped == 0:
+            lines.append("✨ Everything is up to date")
+        msg = "\n".join(lines)
+    else:
+        msg = f"❌ <b>Backup failed</b>\n\n{req.error_message or 'Unknown error'}"
+
+    sent = 0
+    for chat_id in linked_ids:
+        with suppress(Exception):
+            await tb._application.bot.send_message(
+                chat_id=chat_id, text=msg, parse_mode="HTML"
+            )
+            sent += 1
+
+    return {"sent": True, "recipients": sent}

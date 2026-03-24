@@ -97,14 +97,18 @@ class BackupProgress {
             ? 'Found $totalFiles files to check…'
             : 'Scanning files…';
       case BackupPhase.running:
-        return '$doneFiles / $totalFiles files processed';
+        return 'Backing up $doneFiles of $totalFiles';
       case BackupPhase.done:
-        if (uploadedFiles == 0) {
-          return skippedFiles > 0
-              ? 'Already up to date · $skippedFiles files'
-              : 'No new files to back up';
+        if (uploadedFiles == 0 && skippedFiles == 0) {
+          return 'No new files to back up';
         }
-        return '$uploadedFiles new ${uploadedFiles == 1 ? 'file' : 'files'} backed up';
+        if (uploadedFiles == 0) {
+          return 'All caught up — $skippedFiles ${skippedFiles == 1 ? 'file' : 'files'} checked';
+        }
+        if (skippedFiles > 0) {
+          return '$uploadedFiles backed up · $skippedFiles already synced';
+        }
+        return '$uploadedFiles ${uploadedFiles == 1 ? 'file' : 'files'} backed up';
       case BackupPhase.failed:
         return errorMessage ?? 'Backup failed';
     }
@@ -128,9 +132,15 @@ class BackupRunner {
   static final BackupRunner instance = BackupRunner._();
 
   bool _isRunning = false;
+  bool _cancelled = false;
 
   /// Whether a backup is currently in progress.
   bool get isRunning => _isRunning;
+
+  /// Request cancellation of the current run.
+  void cancel() {
+    if (_isRunning) _cancelled = true;
+  }
 
   /// Process all [jobs] and fire [onProgress] on every state change.
   ///
@@ -144,6 +154,7 @@ class BackupRunner {
   }) async {
     if (_isRunning) return;
     _isRunning = true;
+    _cancelled = false;
 
     try {
       // ── Phase 1: scan directories to count total files ─────────────────────
@@ -161,7 +172,6 @@ class BackupRunner {
         final allFiles = dir
             .listSync(recursive: true)
             .whereType<File>()
-            .where(_isMediaFile)
             .toList();
 
         final lastSyncAt = job.lastSyncAt;
@@ -209,7 +219,9 @@ class BackupRunner {
       int totalDone = 0;
       int totalUploaded = 0;
       int totalSkipped = 0;
-      double? lastSpeed;
+      int totalBytesTransferred = 0;
+      int totalTransferTimeMs = 0;
+      double? avgSpeed;
 
       for (final job in jobs) {
         final files = jobFiles[job.id];
@@ -219,6 +231,7 @@ class BackupRunner {
         int jobSkipped = 0;
 
         for (final file in files) {
+          if (_cancelled) break;
           final filename = file.path.split(RegExp(r'[/\\]')).last;
 
           onProgress(BackupProgress(
@@ -228,7 +241,7 @@ class BackupRunner {
             uploadedFiles: totalUploaded,
             skippedFiles: totalSkipped,
             currentFile: filename,
-            speedBytesPerSec: lastSpeed,
+            speedBytesPerSec: avgSpeed,
           ));
 
           // Compute SHA-256 hash.
@@ -268,7 +281,8 @@ class BackupRunner {
               : _fallbackFolderName(captureDate);
 
           final nasSubdir = _destinationSubdir(job.destination, username);
-          final destPath = '$nasSubdir/$folderName';
+          final category = _categoryOf(filename);
+          final destPath = '$nasSubdir/$category/$folderName';
 
           // Upload with speed measurement.
           final fileSize = file.statSync().size;
@@ -286,7 +300,10 @@ class BackupRunner {
             final elapsedMs =
                 DateTime.now().difference(uploadStart).inMilliseconds;
             if (elapsedMs > 0) {
-              lastSpeed = fileSize / (elapsedMs / 1000.0);
+              totalBytesTransferred += fileSize;
+              totalTransferTimeMs += elapsedMs;
+              avgSpeed =
+                  totalBytesTransferred / (totalTransferTimeMs / 1000.0);
             }
 
             try {
@@ -307,9 +324,12 @@ class BackupRunner {
             uploadedFiles: totalUploaded,
             skippedFiles: totalSkipped,
             currentFile: filename,
-            speedBytesPerSec: lastSpeed,
+            speedBytesPerSec: avgSpeed,
           ));
         }
+
+        // Check cancellation between jobs.
+        if (_cancelled) break;
 
         // Report per-job stats to backend.
         try {
@@ -324,6 +344,20 @@ class BackupRunner {
         }
       }
 
+      if (_cancelled) {
+        onProgress(BackupProgress(
+          phase: BackupPhase.failed,
+          totalFiles: totalFiles,
+          doneFiles: totalDone,
+          uploadedFiles: totalUploaded,
+          skippedFiles: totalSkipped,
+          errorMessage: totalUploaded > 0
+              ? 'Cancelled — $totalUploaded files backed up'
+              : 'Backup cancelled',
+        ));
+        return;
+      }
+
       onProgress(BackupProgress(
         phase: BackupPhase.done,
         totalFiles: totalFiles,
@@ -331,6 +365,18 @@ class BackupRunner {
         uploadedFiles: totalUploaded,
         skippedFiles: totalSkipped,
       ));
+
+      // Send Telegram notification for manual backup summary.
+      try {
+        await api.sendBackupNotification(
+          success: true,
+          uploaded: totalUploaded,
+          skipped: totalSkipped,
+          folders: jobs.length,
+        );
+      } catch (_) {
+        // Non-critical — notification failure should not affect backup result.
+      }
     } catch (e) {
       onProgress(const BackupProgress(
         phase: BackupPhase.failed,
@@ -344,28 +390,40 @@ class BackupRunner {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-bool _isMediaFile(File f) {
-  const mediaExtensions = {
+/// Categorise a file by extension into one of five NAS sub-folders.
+String _categoryOf(String filename) {
+  const photoExts = {
     'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic', 'heif',
-    'mp4', 'mov', 'avi', 'mkv', '3gp', 'wmv', 'm4v',
+    'raw', 'cr2', 'nef', 'arw', 'dng',
   };
-  final ext = f.path.split('.').last.toLowerCase();
-  return mediaExtensions.contains(ext);
+  const videoExts = {
+    'mp4', 'mov', 'avi', 'mkv', '3gp', 'wmv', 'm4v', 'webm',
+  };
+  const docExts = {
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'txt', 'csv', 'rtf', 'odt', 'ods', 'odp',
+  };
+  const audioExts = {
+    'mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma', 'opus',
+  };
+  final ext = filename.split('.').last.toLowerCase();
+  if (photoExts.contains(ext)) return 'Photos';
+  if (videoExts.contains(ext)) return 'Videos';
+  if (docExts.contains(ext)) return 'Documents';
+  if (audioExts.contains(ext)) return 'Audio';
+  return 'Other';
 }
 
 /// Maps a [BackupJob.destination] key to a NAS-relative path.
-/// The backend's `_safe_resolve()` accepts both `/personal/…` (relative) and
-/// `/srv/nas/personal/…` (full), so the relative form is used here.
+/// Category sub-folder (Photos/Videos/…) is appended by the caller.
 String _destinationSubdir(String destination, String username) {
   switch (destination) {
     case 'personal':
-      return '/personal/$username/Photos';
+      return '/personal/$username';
     case 'family':
-      return '/family/Photos';
-    case 'entertainment':
-      return '/entertainment/Movies';
+      return '/family';
     default:
-      return '/personal/$username/Photos';
+      return '/personal/$username';
   }
 }
 
