@@ -62,7 +62,7 @@ class BackupWorker {
   /// Initialise WorkManager with the top-level [callbackDispatcher].
   /// Call once from main() after WidgetsFlutterBinding.ensureInitialized().
   Future<void> initialize() async {
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    await Workmanager().initialize(callbackDispatcher);
   }
 
   /// Register the 6-hour periodic backup task (WiFi only).
