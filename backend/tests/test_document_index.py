@@ -172,7 +172,7 @@ async def test_member_can_see_shared_docs(tmp_path):
     """Member can see shared Documents."""
     await _make_index(tmp_path)
     nas = tmp_path / "nas"
-    shared_dir = nas / "shared" / "Documents"
+    shared_dir = nas / "family" / "Documents"
     shared_dir.mkdir(parents=True)
     settings.nas_root = nas
 

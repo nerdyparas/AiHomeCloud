@@ -102,12 +102,18 @@ class TestJobsRoute:
 
     @pytest.mark.asyncio
     async def test_get_job_wrong_user(self, client):
-        resp = await client.post("/api/v1/users", json={"name": "user1", "pin": "1111"})
-        resp = await client.post("/api/v1/auth/login", json={"name": "user1", "pin": "1111"})
+        # First user becomes admin automatically
+        await client.post("/api/v1/users", json={"name": "admin1", "pin": "0000"})
+        admin_resp = await client.post("/api/v1/auth/login", json={"name": "admin1", "pin": "0000"})
+        admin_headers = {"Authorization": f"Bearer {admin_resp.json()['accessToken']}"}
+
+        # Create a non-admin second user (requires admin auth)
+        await client.post("/api/v1/users", json={"name": "user2", "pin": "2222"}, headers=admin_headers)
+        resp = await client.post("/api/v1/auth/login", json={"name": "user2", "pin": "2222"})
         token = resp.json()["accessToken"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        from app.job_store import create_job, JobStatus
+        from app.job_store import create_job
         job = create_job(user_id="other-user-id")
 
         resp = await client.get(f"/api/v1/jobs/{job.id}", headers=headers)
