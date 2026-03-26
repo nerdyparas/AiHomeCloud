@@ -135,15 +135,17 @@ async def close_db() -> None:
 # ---------------------------------------------------------------------------
 
 async def _extract_text(file_path: Path) -> str:
-    """Return searchable text for *file_path*. Returns '' on any failure or if OCR is disabled."""
-    if not settings.ocr_enabled:
-        return ""
+    """Return searchable text for *file_path*. Returns '' on any failure.
+
+    Plain-text files are always read directly (no OCR required).
+    PDF and image OCR is only attempted when settings.ocr_enabled is True.
+    """
     if not file_path.exists():
         return ""
 
     ext = file_path.suffix.lower()
 
-    # Plain-text types: read directly
+    # Plain-text types: read directly — always enabled, no OCR software needed
     if ext in (".txt", ".md", ".csv", ".rtf"):
         loop = asyncio.get_event_loop()
         try:
@@ -153,6 +155,10 @@ async def _extract_text(file_path: Path) -> str:
         except Exception as exc:
             logger.warning("text_read_error file=%s error=%s", file_path.name, exc)
             return ""
+
+    # PDF and image OCR — only when explicitly enabled (requires pdftotext/tesseract)
+    if not settings.ocr_enabled:
+        return ""
 
     # PDF: use pdftotext (poppler-utils)
     if ext == ".pdf":
