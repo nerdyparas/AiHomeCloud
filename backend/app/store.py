@@ -239,7 +239,6 @@ async def update_user_profile(
             if icon_emoji is not None:
                 u["icon_emoji"] = icon_emoji.strip()
             await save_users(users)
-            _set_cached("users", None)  # invalidate cache
             return True
     return False
 

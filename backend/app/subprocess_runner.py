@@ -35,6 +35,7 @@ async def run_command(cmd: List[str], timeout: int = 30) -> Tuple[int, str, str]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -43,6 +44,7 @@ async def run_command(cmd: List[str], timeout: int = 30) -> Tuple[int, str, str]
         except asyncio.TimeoutError:
             try:
                 proc.kill()
+                await proc.wait()
             except Exception:
                 pass
             logger.warning("cmd_timeout", extra={"cmd": cmd, "timeout": timeout})

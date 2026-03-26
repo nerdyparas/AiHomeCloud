@@ -267,10 +267,23 @@ async def upload_file(token: str, file: UploadFile = File(...)):
 
     from ..file_sorter import _sort_file, _unique_dest
     from ..document_index import index_document
+    from .file_routes import BLOCKED_EXTENSIONS
 
     filename = Path(file.filename or ut.filename).name
     if not filename or filename in (".", ".."):
         filename = ut.filename
+
+    # Guard: blocked extension
+    ext = Path(filename).suffix.lower()
+    if ext in BLOCKED_EXTENSIONS:
+        raise HTTPException(status_code=422, detail=f"File type '{ext}' is not allowed.")
+
+    # Guard: file size
+    if file.size is not None and file.size > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds maximum upload size of {settings.max_upload_bytes} bytes.",
+        )
 
     try:
         if ut.destination == "entertainment":

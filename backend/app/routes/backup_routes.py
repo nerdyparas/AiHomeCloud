@@ -31,7 +31,7 @@ router = APIRouter(prefix="/api/v1/backup", tags=["backup"])
 
 _MAX_HASHES = 50_000
 _MAX_JOBS = 20
-_VALID_DESTINATIONS = frozenset({"personal", "family"})
+_VALID_DESTINATIONS = frozenset({"personal", "family", "entertainment"})
 
 
 # ── Request models ─────────────────────────────────────────────────────────────

@@ -267,7 +267,7 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
         else:
             # Member scope: own personal Documents + shared Documents
             own_prefix = f"/personal/{username}/%"
-            shared_prefix = "/shared/%"
+            shared_prefix = "/family/%"
             rows = conn.execute(
                 """
                 SELECT path, filename, added_by, added_at,
