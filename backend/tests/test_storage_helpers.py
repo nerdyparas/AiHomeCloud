@@ -506,7 +506,11 @@ async def test_ensure_dlna_start_fails():
 async def test_check_open_handles_lsof_output():
     lsof_out = "COMMAND  PID USER  FD  TYPE DEVICE SIZE/OFF NODE NAME\nsmbd     123 root  10w REG  8,1  1024 999 /srv/nas/file.txt"
     with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
-        mock_cmd.return_value = (0, lsof_out, "")
+        async def side_effect(cmd, *args, **kwargs):
+            if cmd[0] == "fuser":
+                raise FileNotFoundError("fuser not found")
+            return (0, lsof_out, "")
+        mock_cmd.side_effect = side_effect
         result = await check_open_handles()
         assert len(result) == 1
         assert result[0]["command"] == "smbd"

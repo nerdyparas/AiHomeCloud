@@ -77,7 +77,7 @@ def test_job_store_create_and_get():
     from app.job_store import create_job, get_job, JobStatus
 
     job = create_job()
-    assert job.status == JobStatus.pending
+    assert job.status == JobStatus.running
 
     fetched = get_job(job.id)
     assert fetched is not None

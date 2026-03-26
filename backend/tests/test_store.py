@@ -61,7 +61,7 @@ async def test_store_services_defaults(tmp_path, monkeypatch):
 
     services = await store.get_services()
     assert isinstance(services, list)
-    assert len(services) >= 3  # media, ssh, nfs are defaults
+    assert len(services) >= 2  # media, ssh are defaults (nfs removed)
     ids = [s["id"] for s in services]
     assert "media" in ids
 
