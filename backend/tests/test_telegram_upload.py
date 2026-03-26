@@ -107,7 +107,7 @@ async def test_upload_file_blocked_extension_returns_422(client: AsyncClient, tm
     """Files with blocked extensions (.exe, .sh, etc.) are rejected."""
     from app.config import settings
     settings.nas_root = tmp_path / "nas"
-    settings.nas_root.mkdir()
+    settings.nas_root.mkdir(exist_ok=True)
 
     token = create_upload_token(
         chat_id=3, destination="private", owner="alice", filename="malware.exe"

@@ -232,7 +232,7 @@ class RefreshTokenRecord(BaseModel):
 
 class ChangePinRequest(BaseModel):
     old_pin: Optional[str] = Field(None, alias="oldPin")
-    new_pin: str = Field(min_length=4, max_length=16, alias="newPin")
+    new_pin: str = Field(max_length=16, alias="newPin")
 
     model_config = {"populate_by_name": True}
 

@@ -15,9 +15,9 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_list_family_requires_auth(client: AsyncClient):
-    """GET /users/family without a token → 403 Forbidden."""
+    """GET /users/family without a token → 401 Unauthorized."""
     resp = await client.get("/api/v1/users/family")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -97,9 +97,9 @@ async def test_add_family_empty_name_returns_400(client: AsyncClient, admin_toke
 
 @pytest.mark.asyncio
 async def test_add_family_requires_auth(client: AsyncClient):
-    """No token → 403."""
+    """No token → 401 Unauthorized."""
     resp = await client.post("/api/v1/users/family", json={"name": "noauth"})
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------

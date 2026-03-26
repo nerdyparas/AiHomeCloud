@@ -131,6 +131,22 @@ async def get_current_user_optional(
     return decode_token(credentials.credentials)
 
 
+async def migrate_plaintext_pins() -> int:
+    """Hash any plaintext PINs still in the user store. Returns count migrated."""
+    users = await store.get_users()
+    migrated = 0
+    changed = False
+    for user in users:
+        pin = user.get("pin", "")
+        if pin and not str(pin).startswith("$2"):
+            user["pin"] = await hash_password(str(pin))
+            migrated += 1
+            changed = True
+    if changed:
+        await store.save_users(users)
+    return migrated
+
+
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     """FastAPI dependency — ensures the user has admin privileges.
     Works by looking up the user in the store by subject (serial/user_id).
