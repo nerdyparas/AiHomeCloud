@@ -93,11 +93,13 @@ async def _purge_trash_if_needed() -> None:
         to_keep.sort(key=lambda i: i.get("deletedAt", ""))
         final: list[dict] = []
         for item in to_keep:
-            if total_size <= quota_bytes:
+            item_size = max(item.get("sizeBytes", 0), 0)
+            if total_size <= quota_bytes or item_size == 0:
+                # Keep zero-byte items — they don't contribute to quota
                 final.append(item)
             else:
                 _unlink_trash_item(item)
-                total_size -= item.get("sizeBytes", 0)
+                total_size -= item_size
         to_keep = final
 
     await store.save_trash_items(to_keep)

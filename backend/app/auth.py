@@ -145,21 +145,3 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
-_migrate_logger = logging.getLogger("aihomecloud.auth.migrate")
-
-
-async def migrate_plaintext_pins() -> int:
-    """One-time startup migration: find plaintext PINs, hash them, save back."""
-    users = await store.get_users()
-    migrated = 0
-    for u in users:
-        pin = u.get("pin")
-        if pin and not str(pin).startswith("$2"):
-            u["pin"] = await hash_password(str(pin))
-            migrated += 1
-    if migrated:
-        await store.save_users(users)
-        _migrate_logger.info("migrate_plaintext_pins migrated=%d", migrated)
-    else:
-        _migrate_logger.debug("migrate_plaintext_pins: nothing to migrate")
-    return migrated

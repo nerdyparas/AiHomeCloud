@@ -87,7 +87,7 @@ def _diff_states(previous: StateMap, current: StateMap) -> tuple[list[str], list
 
 async def sync_once(previous_state: StateMap | None) -> StateMap:
     """Run one reconciliation pass and return the new state."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     current_state = await loop.run_in_executor(None, _scan_documents_sync)
 
     prev = previous_state or {}

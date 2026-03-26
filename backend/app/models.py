@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ─── AhcDevice ─────────────────────────────────────────────────────────────
@@ -133,20 +133,48 @@ class FormatRequest(BaseModel):
 
     model_config = {"populate_by_name": True}
 
+    @field_validator("device", "confirm_device")
+    @classmethod
+    def must_be_dev_path(cls, v: str) -> str:
+        if not v.startswith("/dev/"):
+            raise ValueError("device path must start with /dev/")
+        return v
+
 
 class MountRequest(BaseModel):
     """Mount a block device at the NAS root."""
     device: str                                         # "/dev/sda1"
+
+    @field_validator("device")
+    @classmethod
+    def must_be_dev_path(cls, v: str) -> str:
+        if not v.startswith("/dev/"):
+            raise ValueError("device path must start with /dev/")
+        return v
 
 
 class EjectRequest(BaseModel):
     """Eject a specific device (unmount + power off)."""
     device: str                                         # "/dev/sda1"
 
+    @field_validator("device")
+    @classmethod
+    def must_be_dev_path(cls, v: str) -> str:
+        if not v.startswith("/dev/"):
+            raise ValueError("device path must start with /dev/")
+        return v
+
 
 class SmartActivateRequest(BaseModel):
     """One-tap drive activation. Call with a whole disk path (e.g. /dev/sda)."""
     device: str                                         # "/dev/sda" (disk, not partition)
+
+    @field_validator("device")
+    @classmethod
+    def must_be_dev_path(cls, v: str) -> str:
+        if not v.startswith("/dev/"):
+            raise ValueError("device path must start with /dev/")
+        return v
 
 
 # ─── Request / Response helpers ──────────────────────────────────────────────
@@ -187,7 +215,7 @@ class TokenResponse(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=64)
     pin: Optional[str] = None
     icon_emoji: str = ""
 
@@ -204,7 +232,7 @@ class RefreshTokenRecord(BaseModel):
 
 class ChangePinRequest(BaseModel):
     old_pin: Optional[str] = Field(None, alias="oldPin")
-    new_pin: str = Field(alias="newPin")
+    new_pin: str = Field(min_length=4, max_length=16, alias="newPin")
 
     model_config = {"populate_by_name": True}
 

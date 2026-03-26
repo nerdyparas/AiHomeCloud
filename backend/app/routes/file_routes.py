@@ -35,7 +35,8 @@ _UPLOAD_WRITE_BUF = 2 * 1024 * 1024
 # Value: (result_tuple, expires_at_monotonic)
 import time as _time
 _scan_cache: dict[str, tuple] = {}
-_SCAN_TTL = 7.0  # seconds
+_SCAN_TTL = 7.0        # seconds
+_SCAN_CACHE_MAX = 500  # maximum entries; prevents unbounded growth on busy NAS
 
 
 def _invalidate_scan_cache(dir_path: str) -> None:
@@ -47,11 +48,14 @@ def _invalidate_scan_cache(dir_path: str) -> None:
 
 
 def _evict_expired_scan_cache() -> None:
-    """Remove expired entries from the scan cache. Called on write to keep memory bounded."""
+    """Remove expired entries; then evict oldest if over the size cap."""
     now = _time.monotonic()
     stale = [k for k, (_, exp) in _scan_cache.items() if now >= exp]
     for k in stale:
         _scan_cache.pop(k, None)
+    # Size cap: drop the oldest insertion-order entries until under the limit.
+    while len(_scan_cache) >= _SCAN_CACHE_MAX:
+        _scan_cache.pop(next(iter(_scan_cache)))
 
 
 def _calc_dir_size(path: Path) -> int:

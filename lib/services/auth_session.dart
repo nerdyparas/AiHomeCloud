@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -122,6 +123,26 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     await _prefs.setString(AppConstants.prefAuthToken, token);
   }
 
+  /// Returns true if [token] is a JWT whose `exp` claim is in the past.
+  /// Returns false for non-JWT strings (no exp field) to avoid false positives.
+  static bool _isJwtExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return false;
+      // Base64-url decode the payload (add padding if needed).
+      var payload = parts[1];
+      payload = payload.padRight((payload.length + 3) ~/ 4 * 4, '=');
+      final decoded = utf8.decode(base64Url.decode(payload));
+      final map = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = map['exp'];
+      if (exp == null) return false;
+      final expiry = DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
+      return DateTime.now().isAfter(expiry);
+    } catch (_) {
+      return false; // unparseable — assume not expired
+    }
+  }
+
   void _restorePersistedSession() {
     final host = _prefs.getString(AppConstants.prefDeviceIp);
     final token = _prefs.getString(AppConstants.prefAuthToken);
@@ -131,8 +152,17 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
       return;
     }
 
-    final port = _prefs.getInt(AppConstants.prefDevicePort) ?? AppConstants.apiPort;
     final refreshToken = _prefs.getString(AppConstants.prefRefreshToken);
+
+    // If the access token is expired and there is no refresh token, clear the
+    // session and force re-login rather than restoring a permanently broken state.
+    if (_isJwtExpired(token) &&
+        (refreshToken == null || refreshToken.isEmpty)) {
+      state = null;
+      return;
+    }
+
+    final port = _prefs.getInt(AppConstants.prefDevicePort) ?? AppConstants.apiPort;
     final username = _prefs.getString(AppConstants.prefUserName) ?? '';
     final isAdmin = _prefs.getBool(AppConstants.prefIsAdmin) ?? false;
 

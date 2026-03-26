@@ -346,7 +346,7 @@ async def login(request: Request, body: LoginRequest):
         # Auto-upgrade bcrypt rounds if configuration changed (e.g. 12 → 10).
         if pwd_context.needs_update(stored_pin):
             import asyncio as _aio
-            _aio.get_event_loop().create_task(_rehash_pin(found["id"], body.pin))
+            _aio.create_task(_rehash_pin(found["id"], body.pin))
     else:
         logger.warning("Non-bcrypt PIN found for user %s — rejecting", body.name)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")

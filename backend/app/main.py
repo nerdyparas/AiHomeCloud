@@ -198,15 +198,6 @@ async def lifespan(app: FastAPI):
     except (OSError, ValueError):
         logger.debug("Pairing OTP cleanup skipped or failed")
 
-    # Migrate any plaintext PINs from early development
-    try:
-        from .auth import migrate_plaintext_pins
-        migrated = await migrate_plaintext_pins()
-        if migrated:
-            logger.info("Startup PIN migration: hashed %d plaintext PIN(s)", migrated)
-    except (OSError, RuntimeError, ValueError) as e:
-        logger.error("PIN migration failed: %s", e)
-
     # Initialise document search index (FTS5)
     try:
         from .document_index import init_db as _init_doc_db

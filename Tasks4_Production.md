@@ -30,12 +30,12 @@
 
 | # | Task | File(s) | Status | AI Model |
 |---|---|---|---|---|
-| 1 | **Fix `document_index.py` `/shared/%` → `family/` prefix** — non-admin users can't search family documents | `backend/app/document_index.py` ~L290 | `TODO` | Sonnet |
-| 2 | **Fix `jobs_routes.py` admin check** — change `user.get("role") == "admin"` to `user.get("is_admin")` | `backend/app/routes/jobs_routes.py` L26 | `TODO` | Sonnet |
-| 3 | **Add file size limit + blocked extension check to telegram upload** — prevents disk fill and executable upload | `backend/app/routes/telegram_upload_routes.py` L260-304 | `TODO` | Sonnet |
-| 4 | **Fix `store.py` double cache invalidation** in `update_user_profile` — second `_set_cached("users", None)` wipes fresh data | `backend/app/store.py` ~L210 | `TODO` | Sonnet |
-| 5 | **Fix `monitor_routes.py` `_last_storage_warn` scoping** — add `nonlocal` so warning fires once/hour not every tick | `backend/app/routes/monitor_routes.py` L179 | `TODO` | Sonnet |
-| 6 | **Fix `subprocess_runner.py` zombie reaping** — add `await proc.wait()` after `proc.kill()` on timeout | `backend/app/subprocess_runner.py` L39-43 | `TODO` | Sonnet |
+| 1 | **Fix `document_index.py` `/shared/%` → `family/` prefix** — non-admin users can't search family documents | `backend/app/document_index.py` ~L290 | `DONE` | Sonnet |
+| 2 | **Fix `jobs_routes.py` admin check** — change `user.get("role") == "admin"` to `user.get("is_admin")` | `backend/app/routes/jobs_routes.py` L26 | `DONE` | Sonnet |
+| 3 | **Add file size limit + blocked extension check to telegram upload** — prevents disk fill and executable upload | `backend/app/routes/telegram_upload_routes.py` L260-304 | `DONE` | Sonnet |
+| 4 | **Fix `store.py` double cache invalidation** in `update_user_profile` — second `_set_cached("users", None)` wipes fresh data | `backend/app/store.py` ~L210 | `DONE` | Sonnet |
+| 5 | **Fix `monitor_routes.py` `_last_storage_warn` scoping** — add `nonlocal` so warning fires once/hour not every tick | `backend/app/routes/monitor_routes.py` L179 | `DONE` | Sonnet |
+| 6 | **Fix `subprocess_runner.py` zombie reaping** — add `await proc.wait()` after `proc.kill()` on timeout | `backend/app/subprocess_runner.py` L39-43 | `DONE` | Sonnet |
 
 ---
 
@@ -43,19 +43,19 @@
 
 | # | Task | File(s) | Status | AI Model |
 |---|---|---|---|---|
-| 7 | **Fix global TLS bypass in Flutter** — scope `badCertificateCallback` to device IP only, not all HTTPS | `lib/main.dart` | `TODO` | Opus 4.6 |
-| 8 | **Add `sudo -n` to all sudo calls** — prevents hanging on interactive password prompt | `backend/app/routes/storage_routes.py`, `telegram_routes.py`, others | `TODO` | Sonnet |
-| 9 | **Deduplicate `_SERVICE_UNITS`** — extract shared mapping from `system_routes.py` and `service_routes.py` | `backend/app/routes/system_routes.py`, `service_routes.py` | `TODO` | Sonnet |
-| 10 | **WiFi toggle require admin** — any user can currently disrupt connectivity | `backend/app/routes/network_routes.py` L85-90 | `TODO` | Sonnet |
-| 11 | **Add rate limiting to missing endpoints** — file search, sort-now, storage mutations, family mgmt, telegram upload | Multiple route files | `TODO` | Sonnet |
-| 12 | **Telegram upload: async file writes** — use `run_in_executor` like main upload, currently blocks event loop | `backend/app/routes/telegram_upload_routes.py` L304-312 | `TODO` | Sonnet |
-| 13 | **Remove OTA stub from UI** — half-implemented feature confuses users | Flutter screens/settings | `TODO` | Sonnet |
-| 14 | **Make OCR/Tesseract indexing opt-in** — adds ~20MB RAM + 500MB lang packs, 95% of users won't use it | `backend/app/document_index.py`, settings | `TODO` | Opus 4.6 |
-| 15 | **Make auto file sorting manual** — replace 20-second `rglob("*")` poll with "Sort now" button only | `backend/app/file_sorter.py`, `index_watcher.py` | `TODO` | Opus 4.6 |
-| 16 | **Fix `config.py` socket leak** in `get_local_ip` — add `with` statement | `backend/app/config.py` L65-68 | `TODO` | Sonnet |
-| 17 | **Fix `config.py` secret generation TOCTOU** — use atomic read/write for JWT secret file | `backend/app/config.py` L21-27 | `TODO` | Sonnet |
-| 18 | **Add `stdin=DEVNULL` to subprocess_runner** — prevents commands hanging on stdin | `backend/app/subprocess_runner.py` | `TODO` | Sonnet |
-| 19 | **Fix `event_routes.py` leaking `/dev/` paths** in `emit_device_mounted` — violates invariant | `backend/app/routes/event_routes.py` L123-131 | `TODO` | Sonnet |
+| 7 | **Fix global TLS bypass in Flutter** — scope `badCertificateCallback` to device IP only, not all HTTPS | `lib/main.dart` | `DONE` | Opus 4.6 |
+| 8 | **Add `sudo -n` to all sudo calls** — prevents hanging on interactive password prompt | `backend/app/routes/storage_routes.py`, `telegram_routes.py`, others | `DONE` | Sonnet |
+| 9 | **Deduplicate `_SERVICE_UNITS`** — extract shared mapping from `system_routes.py` and `service_routes.py` | `backend/app/routes/system_routes.py`, `service_routes.py` | `DONE` | Sonnet |
+| 10 | **WiFi toggle require admin** — any user can currently disrupt connectivity | `backend/app/routes/network_routes.py` L85-90 | `DONE` | Sonnet |
+| 11 | **Add rate limiting to missing endpoints** — file search, sort-now, storage mutations, family mgmt, telegram upload | Multiple route files | `DONE` | Sonnet |
+| 12 | **Telegram upload: async file writes** — use `run_in_executor` like main upload, currently blocks event loop | `backend/app/routes/telegram_upload_routes.py` L304-312 | `DONE` | Sonnet |
+| 13 | **Remove OTA stub from UI** — half-implemented feature confuses users | Flutter screens/settings | `SKIP — no active OTA UI found` | Sonnet |
+| 14 | **Make OCR/Tesseract indexing opt-in** — adds ~20MB RAM + 500MB lang packs, 95% of users won't use it | `backend/app/document_index.py`, settings | `DONE` | Opus 4.6 |
+| 15 | **Make auto file sorting manual** — replace 20-second `rglob("*")` poll with "Sort now" button only | `backend/app/file_sorter.py`, `index_watcher.py` | `DONE` | Opus 4.6 |
+| 16 | **Fix `config.py` socket leak** in `get_local_ip` — add `with` statement | `backend/app/config.py` L65-68 | `DONE` | Sonnet |
+| 17 | **Fix `config.py` secret generation TOCTOU** — use atomic read/write for JWT secret file | `backend/app/config.py` L21-27 | `DONE` | Sonnet |
+| 18 | **Add `stdin=DEVNULL` to subprocess_runner** — prevents commands hanging on stdin | `backend/app/subprocess_runner.py` | `SKIP — already implemented` | Sonnet |
+| 19 | **Fix `event_routes.py` leaking `/dev/` paths** in `emit_device_mounted` — violates invariant | `backend/app/routes/event_routes.py` L123-131 | `DONE` | Sonnet |
 
 ---
 
@@ -122,12 +122,12 @@
 
 | Priority | Total | Done | Remaining |
 |---|---|---|---|
-| P0 (Ship-blockers) | 6 | 0 | 6 |
-| P1 (Week 1) | 13 | 0 | 13 |
+| P0 (Ship-blockers) | 6 | 6 | 0 |
+| P1 (Week 1) | 13 | 11 | 2 skipped (13, 18) |
 | P2 (Week 2) | 19 | 0 | 19 |
 | P3 (Post-launch) | 12 | 0 | 12 |
 | P4 (v2) | 7 | 0 | 7 |
-| **Total** | **57** | **0** | **57** |
+| **Total** | **57** | **17** | **40** |
 
 ---
 

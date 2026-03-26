@@ -250,7 +250,6 @@ async def remove_pin(user_id: str) -> bool:
         if u["id"] == user_id:
             u["pin"] = None
             await save_users(users)
-            _set_cached("users", None)
             return True
     return False
 
@@ -262,7 +261,6 @@ async def update_user_role(user_id: str, is_admin: bool) -> bool:
         if u["id"] == user_id:
             u["is_admin"] = is_admin
             await save_users(users)
-            _set_cached("users", None)
             return True
     return False
 
@@ -329,9 +327,9 @@ async def get_services() -> List[dict]:
 
 async def save_services(services: List[dict]) -> None:
     """Persist services list to disk under lock."""
-    _set_cached("services", None)
     async with _store_lock:
         _write_json(settings.services_file, services)
+        _set_cached("services", services)
 
 
 async def toggle_service(service_id: str, enabled: bool) -> bool:
@@ -364,12 +362,12 @@ async def get_device_state() -> dict:
 
 async def update_device_name(name: str) -> None:
     """Update device display name under lock."""
-    _set_cached("device_state", None)
     async with _store_lock:
         dev_file = settings.data_dir / "device.json"
         state = _read_json(dev_file, {"name": settings.device_name})
         state["name"] = name
         _write_json(dev_file, state)
+        _set_cached("device_state", state)
 
 
 # ─── Storage state ────────────────────────────────────────────────────────────
@@ -388,16 +386,16 @@ async def get_storage_state() -> dict:
 
 async def save_storage_state(state: dict) -> None:
     """Persist storage mount info to disk."""
-    _set_cached("storage_state", None)
     async with _store_lock:
         _write_json(settings.storage_file, state)
+        _set_cached("storage_state", state)
 
 
 async def clear_storage_state() -> None:
     """Clear persisted storage state (after unmount)."""
-    _set_cached("storage_state", None)
     async with _store_lock:
         _write_json(settings.storage_file, {})
+        _set_cached("storage_state", {})
 
 
 # ─── Tokens (refresh tokens) ─────────────────────────────────────────────────
@@ -418,9 +416,9 @@ async def get_tokens() -> List[dict]:
 
 async def save_tokens(tokens: List[dict]) -> None:
     """Persist tokens list to disk."""
-    _set_cached("tokens", None)
     async with _store_lock:
         _write_json(settings.tokens_file, tokens)
+        _set_cached("tokens", tokens)
 
 
 async def add_token(record: dict) -> None:

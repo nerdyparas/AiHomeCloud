@@ -118,7 +118,7 @@ def _init_db_sync() -> None:
 async def init_db() -> None:
     """Initialise the FTS5 database. Call once from main.py lifespan."""
     check_ocr_tools()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     # Drain stale pooled connections (e.g. if data_dir changed between calls)
     await loop.run_in_executor(None, _close_pool)
     await loop.run_in_executor(None, _init_db_sync)
@@ -126,7 +126,7 @@ async def init_db() -> None:
 
 async def close_db() -> None:
     """Close all pooled connections. Call from main.py lifespan shutdown."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _close_pool)
 
 
@@ -147,7 +147,7 @@ async def _extract_text(file_path: Path) -> str:
 
     # Plain-text types: read directly — always enabled, no OCR software needed
     if ext in (".txt", ".md", ".csv", ".rtf"):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             return await loop.run_in_executor(
                 None, lambda: file_path.read_text(errors="replace")[:100_000]
@@ -359,7 +359,7 @@ async def index_document(path: str, filename: str, added_by: str) -> None:
         )
         nas_path = _to_nas_path(abs_path)
         ocr_text = await _extract_text(abs_path)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _upsert_sync, nas_path, filename, ocr_text, added_by)
         logger.info(
             "indexed_document path=%s added_by=%s ocr_chars=%d",
@@ -385,7 +385,7 @@ async def search_documents(
     if not query.strip():
         return []
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None, _search_sync, query, limit, user_role, username
         )
@@ -399,7 +399,7 @@ async def remove_document(path: str) -> None:
     """Async: remove a document entry from the index."""
     if Path(path).is_absolute():
         path = _to_nas_path(Path(path))
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _remove_sync, path)
 
 
@@ -408,19 +408,19 @@ async def remove_documents_by_prefix(path_prefix: str) -> int:
     if Path(path_prefix).is_absolute():
         path_prefix = _to_nas_path(Path(path_prefix))
     nas_prefix = path_prefix.rstrip("/") + "/"
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _remove_prefix_sync, nas_prefix)
 
 
 async def remove_documents_by_filename_patterns(patterns: list[str]) -> int:
     """Async: remove index rows matching shell-style filename patterns."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _remove_by_filename_patterns_sync, patterns)
 
 
 async def remove_missing_documents() -> int:
     """Async: prune stale index entries whose files are gone."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _remove_missing_sync)
 
 
@@ -471,5 +471,5 @@ def _list_recent_sync(limit: int) -> list[dict]:
 
 async def list_recent_documents(limit: int = 10) -> list[dict]:
     """Return the *limit* most recently indexed documents, newest first."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _list_recent_sync, limit)

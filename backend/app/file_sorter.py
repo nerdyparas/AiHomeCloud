@@ -178,7 +178,7 @@ def _collect_inboxes() -> list[tuple[Path, Path]]:
 
 async def _run_sort_pass() -> None:
     """Single pass: sort all ready files across all known .inbox/ directories."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     for inbox, base_dir in _collect_inboxes():
         try:
             entries = list(inbox.iterdir())
@@ -244,7 +244,7 @@ async def sort_folder_now(folder: Path, added_by: str) -> dict[str, int]:
     Manually sort all top-level files inside *folder* into category subfolders.
     Intended for one-shot ingestion of existing dumps (e.g. RawData).
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     moved, skipped, failed, docs = await loop.run_in_executor(
         None, lambda: _sort_folder_sync(folder)
     )

@@ -19,7 +19,7 @@ _TEST_ARTIFACT_PATTERNS: tuple[str, ...] = (
 
 def _scan_test_artifacts() -> list[Path]:
     matches: list[Path] = []
-    roots = [settings.personal_path, settings.shared_path]
+    roots = [settings.personal_path, settings.family_path]
     for root in roots:
         if not root.exists() or not root.is_dir():
             continue
