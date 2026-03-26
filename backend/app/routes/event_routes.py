@@ -9,6 +9,7 @@ import logging
 import time
 from enum import Enum
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
@@ -131,24 +132,27 @@ async def emit_service_toggled(service_name: str, enabled: bool):
 
 
 async def emit_device_mounted(device: str, mount_point: str):
+    # Strip /dev/ prefix — never expose raw device paths to clients
+    device_display = Path(device).name if device.startswith("/dev/") else device
     await event_bus.publish(AppEvent(
         type="device_mounted",
         title="Storage Mounted",
-        body=f"{device} mounted at {mount_point}",
+        body=f"Drive mounted at {mount_point}",
         severity=EventSeverity.success.value,
         timestamp=time.time(),
-        data={"device": device, "mountPoint": mount_point},
+        data={"device": device_display, "mountPoint": mount_point},
     ))
 
 
 async def emit_device_ejected(device: str):
+    device_display = Path(device).name if device.startswith("/dev/") else device
     await event_bus.publish(AppEvent(
         type="device_ejected",
         title="Device Ejected",
-        body=f"{device} safely removed",
+        body=f"Drive safely removed",
         severity=EventSeverity.info.value,
         timestamp=time.time(),
-        data={"device": device},
+        data={"device": device_display},
     ))
 
 

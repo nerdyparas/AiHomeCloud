@@ -13,6 +13,7 @@ Security:
   - Uploaded file size is bounded by settings.max_upload_bytes.
 """
 
+import asyncio
 import logging
 import secrets
 import time
@@ -24,6 +25,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 from fastapi.responses import HTMLResponse
 
 from ..config import settings
+from ..limiter import limiter
 
 logger = logging.getLogger("aihomecloud.telegram_upload")
 
@@ -259,7 +261,8 @@ async def upload_form(token: str):
 
 
 @router.post("/api/telegram-upload/{token}")
-async def upload_file(token: str, file: UploadFile = File(...)):
+@limiter.limit("20/minute")
+async def upload_file(request: Request, token: str, file: UploadFile = File(...)):
     """Receive the uploaded file, store it, and notify the user via Telegram."""
     ut = pop_upload_token(token)
     if ut is None:
@@ -324,15 +327,16 @@ async def upload_file(token: str, file: UploadFile = File(...)):
 
 
 async def _write_upload(upload_file: UploadFile, dest_path: Path) -> None:
-    """Stream an uploaded file to disk."""
+    """Stream an uploaded file to disk using a thread executor for writes."""
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     chunk_size = settings.upload_chunk_size
+    loop = asyncio.get_running_loop()
     with open(dest_path, "wb") as f:
         while True:
             chunk = await upload_file.read(chunk_size)
             if not chunk:
                 break
-            f.write(chunk)
+            await loop.run_in_executor(None, f.write, chunk)
 
 
 async def _sort_uploaded_file(

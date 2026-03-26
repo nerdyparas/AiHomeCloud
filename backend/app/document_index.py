@@ -135,7 +135,9 @@ async def close_db() -> None:
 # ---------------------------------------------------------------------------
 
 async def _extract_text(file_path: Path) -> str:
-    """Return searchable text for *file_path*. Returns '' on any failure."""
+    """Return searchable text for *file_path*. Returns '' on any failure or if OCR is disabled."""
+    if not settings.ocr_enabled:
+        return ""
     if not file_path.exists():
         return ""
 

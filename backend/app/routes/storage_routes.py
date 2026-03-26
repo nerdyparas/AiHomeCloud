@@ -15,6 +15,9 @@ from shutil import disk_usage
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.requests import Request
+
+from ..limiter import limiter
 
 from ..auth import get_current_user, require_admin
 from ..config import settings
@@ -60,7 +63,8 @@ async def list_devices(user: dict = Depends(get_current_user)):
 # ── 2A.2  Scan ───────────────────────────────────────────────────────────────
 
 @router.get("/scan", response_model=List[StorageDevice])
-async def scan_devices(user: dict = Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def scan_devices(request: Request, user: dict = Depends(get_current_user)):
     """
     Re-scan for newly connected block devices.
     Triggers udev to re-detect, waits for settle, then returns fresh list.
@@ -162,7 +166,9 @@ async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str
 # ── Smart-activate endpoint ──────────────────────────────────────────────────
 
 @router.post("/smart-activate")
+@limiter.limit("5/minute")
 async def smart_activate(
+    request: Request,
     req: SmartActivateRequest,
     user: dict = Depends(require_admin),
 ):
@@ -274,7 +280,9 @@ async def check_usage(user: dict = Depends(get_current_user)):
 # ── 2A.3  Format ─────────────────────────────────────────────────────────────
 
 @router.post("/format")
+@limiter.limit("5/minute")
 async def format_device(
+    request: Request,
     req: FormatRequest,
     user: dict = Depends(require_admin),
 ):
@@ -312,7 +320,7 @@ async def format_device(
             logger.warning("FORMATTING %s as ext4 (label=%s)", req.device, req.label)
 
             rc, _, stderr = await run_command([
-                "sudo", "mkfs.ext4", "-F", "-L", req.label, req.device
+                "sudo", "-n", "mkfs.ext4", "-F", "-L", req.label, req.device
             ], timeout=600)
 
             if rc != 0:
@@ -347,7 +355,9 @@ async def format_device(
 # ── 2A.4  Mount ──────────────────────────────────────────────────────────────
 
 @router.post("/mount")
+@limiter.limit("5/minute")
 async def mount_device(
+    request: Request,
     req: MountRequest,
     user: dict = Depends(require_admin),
 ):
@@ -406,7 +416,9 @@ async def mount_device(
 # ── 2A.5  Unmount ────────────────────────────────────────────────────────────
 
 @router.post("/unmount")
+@limiter.limit("5/minute")
 async def unmount_device(
+    request: Request,
     force: bool = False,
     user: dict = Depends(require_admin),
 ):
@@ -421,7 +433,9 @@ async def unmount_device(
 # ── 2A.6  Eject ──────────────────────────────────────────────────────────────
 
 @router.post("/eject")
+@limiter.limit("5/minute")
 async def eject_device(
+    request: Request,
     req: EjectRequest,
     user: dict = Depends(require_admin),
 ):

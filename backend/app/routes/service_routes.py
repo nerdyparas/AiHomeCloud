@@ -17,8 +17,8 @@ logger = logging.getLogger("aihomecloud.services")
 
 router = APIRouter(prefix="/api/v1/services", tags=["services"])
 
-# Map our service IDs → systemd unit names
-_SERVICE_UNITS: dict[str, list[str]] = {
+# Map our service IDs → systemd unit names (shared with system_routes for shutdown)
+SERVICE_UNITS: dict[str, list[str]] = {
     "samba": ["smbd", "nmbd"],
     "nfs": ["nfs-kernel-server"],
     "ssh": ["ssh"],
@@ -26,7 +26,7 @@ _SERVICE_UNITS: dict[str, list[str]] = {
     "media": ["minidlna", "minidlnad", "smbd", "nmbd"],
 }
 
-ALLOWED_SERVICES: frozenset[str] = frozenset(_SERVICE_UNITS.keys())
+ALLOWED_SERVICES: frozenset[str] = frozenset(SERVICE_UNITS.keys())
 
 
 async def _systemctl(action: str, unit: str) -> tuple[bool, str]:
@@ -55,7 +55,7 @@ async def toggle(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Service not found")
 
     # Run real systemctl start/stop
-    units = _SERVICE_UNITS.get(service_id, [])
+    units = SERVICE_UNITS.get(service_id, [])
     action = "start" if body.enabled else "stop"
 
     errors: list[str] = []

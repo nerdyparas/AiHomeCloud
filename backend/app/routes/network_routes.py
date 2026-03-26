@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
 from ..models import NetworkStatus
 from ..subprocess_runner import run_command
 from ..wifi_manager import get_wifi_status, set_user_wifi_override
@@ -86,7 +86,7 @@ class WifiToggleRequest(BaseModel):
 
 
 @router.put("/network/wifi")
-async def toggle_wifi(body: WifiToggleRequest, _user: dict = Depends(get_current_user)):
+async def toggle_wifi(body: WifiToggleRequest, _user: dict = Depends(require_admin)):
     """Toggle WiFi radio."""
     await set_user_wifi_override(body.enabled)
     return await get_wifi_status()

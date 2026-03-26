@@ -7,6 +7,9 @@ import logging
 import os
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
+from starlette.requests import Request
+
+from ..limiter import limiter
 
 from ..auth import get_current_user, require_admin
 from ..config import settings
@@ -76,7 +79,8 @@ def _ensure_personal_folder(path: str) -> None:
 
 
 @router.get("/family", response_model=list[FamilyUser])
-async def list_family(user: dict = Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def list_family(request: Request, user: dict = Depends(get_current_user)):
     """List all family users on this Cubie."""
     users = await store.get_users()
     # Compute folder sizes in parallel to avoid sequential blocking
@@ -100,7 +104,8 @@ async def list_family(user: dict = Depends(get_current_user)):
 
 
 @router.post("/family", response_model=FamilyUser, status_code=status.HTTP_201_CREATED)
-async def add_family(body: AddFamilyUserRequest, user: dict = Depends(require_admin)):
+@limiter.limit("20/minute")
+async def add_family(request: Request, body: AddFamilyUserRequest, user: dict = Depends(require_admin)):
     """Add a new family member."""
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
@@ -120,7 +125,8 @@ async def add_family(body: AddFamilyUserRequest, user: dict = Depends(require_ad
 
 
 @router.delete("/family/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_family(user_id: str, user: dict = Depends(require_admin)):
+@limiter.limit("20/minute")
+async def remove_family(request: Request, user_id: str, user: dict = Depends(require_admin)):
     """Remove a family member."""
     target = await store.find_user(user_id)
     if not target or not await store.remove_user(user_id):
@@ -129,7 +135,9 @@ async def remove_family(user_id: str, user: dict = Depends(require_admin)):
 
 
 @router.put("/family/{user_id}/role", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("20/minute")
 async def set_family_role(
+    request: Request,
     user_id: str,
     body: SetUserRoleRequest,
     caller: dict = Depends(require_admin),

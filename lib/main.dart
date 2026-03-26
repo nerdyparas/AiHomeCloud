@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/constants.dart';
 import 'core/theme.dart';
 import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
@@ -12,12 +13,14 @@ import 'providers/core_providers.dart';
 import 'services/backup_worker.dart';
 import 'services/share_handler.dart';
 
-/// Trust self-signed TLS certificates from the Cubie backend.
+/// Trust self-signed TLS certificates from the Cubie backend only.
+/// Scoped to our API port so other HTTPS connections are not affected.
 class _CubieHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
-      ..badCertificateCallback = (cert, host, port) => true;
+      ..badCertificateCallback =
+          (cert, host, port) => port == AppConstants.apiPort;
   }
 }
 

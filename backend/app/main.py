@@ -224,12 +224,15 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError) as e:
         logger.warning("Startup hygiene cleanup failed: %s", e)
 
-    # Start InboxWatcher for auto-sorting uploaded files
-    try:
-        from .file_sorter import get_watcher as _get_watcher
-        _get_watcher().start()
-    except (OSError, RuntimeError, ValueError) as e:
-        logger.error("InboxWatcher startup failed: %s", e)
+    # Start InboxWatcher for auto-sorting uploaded files (opt-in via AHC_AUTO_SORT_ENABLED)
+    if settings.auto_sort_enabled:
+        try:
+            from .file_sorter import get_watcher as _get_watcher
+            _get_watcher().start()
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.error("InboxWatcher startup failed: %s", e)
+    else:
+        logger.info("InboxWatcher disabled — set AHC_AUTO_SORT_ENABLED=true to enable")
 
     # Start document index watcher for out-of-band file changes.
     try:
@@ -288,12 +291,13 @@ async def lifespan(app: FastAPI):
     except (OSError, RuntimeError, ValueError):
         logger.debug("Telegram bot shutdown skipped")
 
-    # Stop InboxWatcher
-    try:
-        from .file_sorter import get_watcher as _get_watcher
-        await _get_watcher().stop()
-    except (OSError, RuntimeError, ValueError):
-        logger.debug("InboxWatcher shutdown skipped")
+    # Stop InboxWatcher (only if it was started)
+    if settings.auto_sort_enabled:
+        try:
+            from .file_sorter import get_watcher as _get_watcher
+            await _get_watcher().stop()
+        except (OSError, RuntimeError, ValueError):
+            logger.debug("InboxWatcher shutdown skipped")
 
     # Stop document index watcher
     try:

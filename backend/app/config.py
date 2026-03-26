@@ -6,7 +6,6 @@ All settings can be overridden via environment variables prefixed with AHC_.
 import os
 import secrets
 import socket
-import stat
 from pathlib import Path
 from typing import Any
 
@@ -19,27 +18,45 @@ DEFAULT_CORS_ORIGINS = ["http://localhost", "http://localhost:3000"]
 
 
 def generate_jwt_secret(secret_file: Path = JWT_SECRET_FILE) -> str:
-    """Return the existing JWT secret or generate one and persist it."""
-    secret_file.parent.mkdir(parents=True, exist_ok=True)
-    if secret_file.exists():
-        return secret_file.read_text().strip()
+    """Return the existing JWT secret or generate and atomically persist one.
 
+    Uses O_CREAT|O_EXCL to avoid a TOCTOU race between checking existence and
+    writing — only one concurrent starter writes the file; the other reads it.
+    """
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
     secret = secrets.token_hex(32)
-    secret_file.write_text(secret)
-    secret_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    return secret
+    tmp = secret_file.with_suffix(".tmp")
+    try:
+        fd = os.open(str(secret_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            os.write(fd, secret.encode())
+        finally:
+            os.close(fd)
+        return secret
+    except FileExistsError:
+        return secret_file.read_text().strip()
+    except Exception:
+        # Clean up partial tmp if it exists, then re-raise
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
 
 
 def generate_pairing_key(key_file: Path = PAIRING_KEY_FILE) -> str:
-    """Return the existing pairing key or generate one and persist it."""
+    """Return the existing pairing key or generate and atomically persist one."""
     key_file.parent.mkdir(parents=True, exist_ok=True)
-    if key_file.exists():
-        return key_file.read_text().strip()
-
     key = secrets.token_urlsafe(16)
-    key_file.write_text(key)
-    key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    return key
+    try:
+        fd = os.open(str(key_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            os.write(fd, key.encode())
+        finally:
+            os.close(fd)
+        return key
+    except FileExistsError:
+        return key_file.read_text().strip()
 
 
 def generate_device_serial() -> str:
@@ -75,10 +92,11 @@ def get_local_ip() -> str:
     # Method 2: Routing-based (original approach — requires default route).
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        try:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+        finally:
+            s.close()
     except Exception:
         return "127.0.0.1"
 
@@ -121,6 +139,16 @@ class Settings(BaseSettings):
     # ── Upload ────────────────────────────────────────────────────────────────
     upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB — fewer async cycles on ARM
     max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
+
+    # ── Document indexing / OCR ────────────────────────────────────────────────
+    # Disabled by default — requires tesseract + language packs (~500 MB).
+    # Enable via AHC_OCR_ENABLED=true to allow full-text search of documents.
+    ocr_enabled: bool = False
+
+    # ── File auto-sorting ──────────────────────────────────────────────────────
+    # Disabled by default — polls every 30s and walks .inbox/ directories.
+    # Enable via AHC_AUTO_SORT_ENABLED=true or use the /files/sort-now endpoint.
+    auto_sort_enabled: bool = False
 
     # ── Telegram Bot (optional — disabled if token is empty) ─────────────────
     telegram_bot_token: str = ""   # AHC_TELEGRAM_BOT_TOKEN

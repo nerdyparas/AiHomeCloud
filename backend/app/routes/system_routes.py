@@ -13,6 +13,7 @@ from ..config import settings, get_local_ip
 from ..models import AhcDevice, FirmwareInfo, UpdateNameRequest
 from .. import store
 from ..subprocess_runner import run_command
+from .service_routes import SERVICE_UNITS as _SERVICE_UNITS
 
 logger = logging.getLogger("aihomecloud.system")
 
@@ -89,15 +90,6 @@ async def update_name(body: UpdateNameRequest, user: dict = Depends(require_admi
     if not body.name.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name cannot be empty")
     await store.update_device_name(body.name)
-
-
-# Map service IDs to their systemd unit names (mirrors service_routes)
-_SERVICE_UNITS: dict[str, list[str]] = {
-    "samba": ["smbd", "nmbd"],
-    "nfs": ["nfs-kernel-server"],
-    "ssh": ["ssh"],
-    "dlna": ["minidlna", "minidlnad"],
-}
 
 
 @router.post("/shutdown", status_code=status.HTTP_202_ACCEPTED)

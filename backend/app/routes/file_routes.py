@@ -583,7 +583,9 @@ async def download_file(
 
 
 @router.get("/search")
+@limiter.limit("30/minute")
 async def search_files(
+    request: Request,
     q: str = Query(..., min_length=1, max_length=200, description="Full-text search query"),
     limit: int = Query(10, ge=1, le=50),
     user: dict = Depends(get_current_user),
@@ -601,7 +603,9 @@ async def search_files(
 
 
 @router.post("/sort-now")
+@limiter.limit("10/minute")
 async def sort_now(
+    request: Request,
     path: str = Query(..., description="NAS directory path to sort immediately"),
     user: dict = Depends(get_current_user),
 ):
