@@ -56,7 +56,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     Future<String> Function(String host, int port, String refreshToken)? refreshTokenFn,
   })  : _refreshTokenFn = refreshTokenFn,
         super(null) {
-    _restorePersistedSession();
+    unawaited(_restorePersistedSession());
   }
 
   Future<void> login({
@@ -146,7 +146,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     }
   }
 
-  void _restorePersistedSession() {
+  Future<void> _restorePersistedSession() async {
     final host = _prefs.getString(AppConstants.prefDeviceIp);
     final token = _prefs.getString(AppConstants.prefAuthToken);
 
@@ -156,34 +156,71 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     }
 
     final refreshToken = _prefs.getString(AppConstants.prefRefreshToken);
+    final port = _prefs.getInt(AppConstants.prefDevicePort) ?? AppConstants.apiPort;
+    final username = _prefs.getString(AppConstants.prefUserName) ?? '';
+    final isAdmin = _prefs.getBool(AppConstants.prefIsAdmin) ?? false;
+    final iconEmoji = _prefs.getString('icon_emoji') ?? '';
 
-    // If the access token is expired and there is no refresh token, clear the
-    // session and force re-login rather than restoring a permanently broken state.
-    if (_isJwtExpired(token) &&
-        (refreshToken == null || refreshToken.isEmpty)) {
+    if (!_isJwtExpired(token)) {
+      // Access token still valid — restore immediately, then proactively
+      // background-refresh so the next session starts with a fresh token.
+      trustedDeviceHost = host;
+      state = AuthSession(
+        host: host,
+        port: port,
+        token: token,
+        refreshToken: refreshToken,
+        username: username,
+        isAdmin: isAdmin,
+        iconEmoji: iconEmoji,
+      );
+      if (_refreshTokenFn != null && refreshToken != null && refreshToken.isNotEmpty) {
+        unawaited(_refreshPersistedToken(host, port, refreshToken));
+      }
+      return;
+    }
+
+    // Access token is expired — must refresh before setting state.
+    if (refreshToken == null || refreshToken.isEmpty || _refreshTokenFn == null) {
+      // No way to recover — clear tokens and send to onboarding.
+      await _clearExpiredTokens();
       state = null;
       return;
     }
 
-    final port = _prefs.getInt(AppConstants.prefDevicePort) ?? AppConstants.apiPort;
-    final username = _prefs.getString(AppConstants.prefUserName) ?? '';
-    final isAdmin = _prefs.getBool(AppConstants.prefIsAdmin) ?? false;
-
-    final iconEmoji = _prefs.getString('icon_emoji') ?? '';
-
-    state = AuthSession(
-      host: host,
-      port: port,
-      token: token,
-      refreshToken: refreshToken,
-      username: username,
-      isAdmin: isAdmin,
-      iconEmoji: iconEmoji,
-    );
-
-    if (_refreshTokenFn != null && refreshToken != null && refreshToken.isNotEmpty) {
-      _refreshPersistedToken(host, port, refreshToken);
+    try {
+      final newToken = await _refreshTokenFn(host, port, refreshToken);
+      if (newToken.isEmpty) {
+        await _clearExpiredTokens();
+        state = null;
+        return;
+      }
+      // Refresh succeeded — persist new token and restore session.
+      await _prefs.setString(AppConstants.prefAuthToken, newToken);
+      trustedDeviceHost = host;
+      state = AuthSession(
+        host: host,
+        port: port,
+        token: newToken,
+        refreshToken: refreshToken,
+        username: username,
+        isAdmin: isAdmin,
+        iconEmoji: iconEmoji,
+      );
+    } catch (_) {
+      // Refresh failed (server unreachable, token revoked, etc.) —
+      // clear credentials so the next startup doesn't loop, and send
+      // the user through onboarding to re-authenticate.
+      await _clearExpiredTokens();
+      state = null;
     }
+  }
+
+  /// Remove only auth tokens from prefs, keeping device IP so the user can
+  /// re-authenticate without repeating full device discovery.
+  Future<void> _clearExpiredTokens() async {
+    await _prefs.remove(AppConstants.prefAuthToken);
+    await _prefs.remove(AppConstants.prefRefreshToken);
   }
 
   Future<void> updateProfile({String? username, String? iconEmoji}) async {

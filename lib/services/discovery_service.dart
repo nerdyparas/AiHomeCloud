@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:multicast_dns/multicast_dns.dart';
 
 import '../core/constants.dart';
@@ -17,6 +18,10 @@ class DiscoveryService {
   DiscoveryService._();
   static final DiscoveryService instance = DiscoveryService._();
 
+  /// Override the mDNS lookup for unit tests (returns null = not found).
+  @visibleForTesting
+  Future<String?> Function(String serial)? mdnsOverride;
+
   /// Try mDNS for up to [AppConstants.mdnsTimeout].
   /// Throws if the device is not found.
   Future<DiscoveryResult> discover(
@@ -24,7 +29,7 @@ class DiscoveryService {
     void Function(String) onStatus,
   ) async {
     onStatus('Searching via mDNS…');
-    final ip = await _tryMdns(serial);
+    final ip = await (mdnsOverride ?? _tryMdns)(serial);
     if (ip != null) {
       onStatus('Found device via mDNS!');
       return DiscoveryResult(ip: ip, method: DiscoveryMethod.mdns);

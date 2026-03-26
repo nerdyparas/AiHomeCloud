@@ -41,18 +41,24 @@ void main() {
   // ─── DiscoveryService singleton ─────────────────────────────────────────────
 
   group('DiscoveryService', () {
+    setUp(() {
+      // Force "not found" so the test is not affected by real mDNS devices
+      // on the local network (e.g., the dev machine's paired Radxa SBC).
+      DiscoveryService.instance.mdnsOverride = (_) async => null;
+    });
+
+    tearDown(() {
+      DiscoveryService.instance.mdnsOverride = null;
+    });
+
     test('instance is a singleton', () {
       expect(DiscoveryService.instance, same(DiscoveryService.instance));
     });
 
     test('discover() throws when device is not reachable', () async {
-      // In a unit-test environment there is no real device, no Bluetooth
-      // adapter, and no mDNS responder — both paths fail gracefully and the
-      // method throws. On desktop test runners, the BLE plugin may throw
-      // UnsupportedError before the service-level Exception is raised.
-      expect(
+      await expectLater(
         () => DiscoveryService.instance.discover('AHC-TESTDEV', (_) {}),
-        throwsA(isA<Object>()),
+        throwsA(isA<Exception>()),
       );
     });
   });
