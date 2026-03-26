@@ -186,6 +186,27 @@ class TestSetUserWifiOverride:
             mock_disable.assert_called_once()
 
 
+class TestWifiMonitor:
+    @pytest.mark.asyncio
+    async def test_start_and_stop_monitor(self):
+        """start_wifi_monitor creates a task; stop_wifi_monitor cancels it cleanly."""
+        from app.wifi_manager import start_wifi_monitor, stop_wifi_monitor
+        import app.wifi_manager as wm
+        start_wifi_monitor()
+        assert wm._monitor_task is not None
+        assert not wm._monitor_task.done()
+        await stop_wifi_monitor()
+        assert wm._monitor_task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_monitor_no_op_when_not_started(self):
+        """stop_wifi_monitor is safe when no task is running."""
+        from app.wifi_manager import stop_wifi_monitor
+        import app.wifi_manager as wm
+        wm._monitor_task = None
+        await stop_wifi_monitor()  # must not raise
+
+
 # — tls.py ———————————————————————————————————————————————————
 
 class TestGetLocalIps:

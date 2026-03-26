@@ -85,3 +85,35 @@ async def test_sync_once_sets_added_by_from_path(tmp_path):
     called = {(c.args[1], c.args[2]) for c in mock_index.await_args_list}
     assert ("x.txt", "alice") in called
     assert ("y.txt", "family") in called
+
+
+def test_load_persisted_state_missing_file(tmp_path):
+    """Returns None when state file doesn't exist."""
+    from app.index_watcher import _load_persisted_state
+    from app.config import settings
+    settings.index_watcher_state_file = tmp_path / "nonexistent.json"
+    result = _load_persisted_state()
+    assert result is None
+
+
+def test_save_and_load_persisted_state(tmp_path):
+    """Round-trip: saved state can be loaded back."""
+    from app.index_watcher import _load_persisted_state, _save_persisted_state
+    from app.config import settings
+    settings.index_watcher_state_file = tmp_path / "watcher_state.json"
+
+    state = {"/some/path/file.txt": (1234567890, 2048)}
+    _save_persisted_state(state)
+    loaded = _load_persisted_state()
+    assert loaded == state
+
+
+def test_load_persisted_state_corrupt_file(tmp_path):
+    """Returns None for corrupt JSON without raising."""
+    from app.index_watcher import _load_persisted_state
+    from app.config import settings
+    state_file = tmp_path / "corrupt.json"
+    state_file.write_text("{not valid json")
+    settings.index_watcher_state_file = state_file
+    result = _load_persisted_state()
+    assert result is None
