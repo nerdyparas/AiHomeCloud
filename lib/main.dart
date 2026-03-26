@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants.dart';
 import 'core/theme.dart';
+import 'core/tls_config.dart';
 import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
 import 'providers/core_providers.dart';
@@ -14,13 +15,20 @@ import 'services/backup_worker.dart';
 import 'services/share_handler.dart';
 
 /// Trust self-signed TLS certificates from the Cubie backend only.
-/// Scoped to our API port so other HTTPS connections are not affected.
+///
+/// Scoped to the known device IP + API port. During onboarding (before
+/// any session is saved) [trustedDeviceHost] is null and only the port is
+/// checked — needed so health-check probes during discovery can succeed.
+/// Once a session exists the host must also match.
 class _CubieHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (cert, host, port) => port == AppConstants.apiPort;
+      ..badCertificateCallback = (cert, host, port) {
+        if (port != AppConstants.apiPort) return false;
+        final trusted = trustedDeviceHost;
+        return trusted == null || host == trusted;
+      };
   }
 }
 
@@ -45,6 +53,10 @@ void main() async {
   ));
 
   final prefs = await SharedPreferences.getInstance();
+
+  // Scope TLS bypass to the previously paired device IP (if any).
+  // null during first-time onboarding — port-only check applies until login.
+  trustedDeviceHost = prefs.getString(AppConstants.prefDeviceIp);
 
   // Initialise WorkManager for background auto-backup tasks.
   await BackupWorker.instance.initialize();

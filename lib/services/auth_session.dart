@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
+import '../core/tls_config.dart';
 
 class AuthSession {
   final String host;
@@ -78,6 +79,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
     );
 
     state = next;
+    trustedDeviceHost = host; // update TLS bypass scope
 
     // Persist to disk in parallel — SharedPreferences updates its in-memory
     // cache synchronously, so values are readable immediately.  Disk commits
@@ -108,6 +110,7 @@ class AuthSessionNotifier extends StateNotifier<AuthSession?> {
 
   Future<void> logout() async {
     state = null;
+    trustedDeviceHost = null; // clear TLS bypass scope on logout
     await _prefs.remove(AppConstants.prefAuthToken);
     await _prefs.remove(AppConstants.prefRefreshToken);
     await _prefs.remove(AppConstants.prefUserName);
