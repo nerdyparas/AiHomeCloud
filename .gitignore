@@ -1,5 +1,6 @@
 # AI context (prompt + tasks — gitignored)
 .ai-context/
+.claude/
 logs.md
 
 # Miscellaneous
