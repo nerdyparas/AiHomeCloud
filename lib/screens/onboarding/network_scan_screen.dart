@@ -24,6 +24,11 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
   String? _localIp;
   String? _error;
 
+  // Manual IP entry
+  bool _showManualEntry = false;
+  final _ipController = TextEditingController();
+  String? _manualIpError;
+
   @override
   void initState() {
     super.initState();
@@ -68,8 +73,26 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _ipController.dispose();
+    super.dispose();
+  }
+
   void _selectDevice(DiscoveredHost host) {
     context.go('/pin-entry', extra: host.ip);
+  }
+
+  void _connectManual() {
+    final ip = _ipController.text.trim();
+    final valid = RegExp(
+            r'^(\d{1,3}\.){3}\d{1,3}$')
+        .hasMatch(ip);
+    if (!valid) {
+      setState(() => _manualIpError = 'Enter a valid IP address (e.g. 192.168.0.10)');
+      return;
+    }
+    context.go('/pin-entry', extra: ip);
   }
 
   @override
@@ -205,7 +228,7 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
 
               const SizedBox(height: 20),
 
-              // Device list
+              // Device list + manual IP entry
               Expanded(
                 child: ListView(
                   children: [
@@ -218,6 +241,91 @@ class _NetworkScanScreenState extends ConsumerState<NetworkScanScreen> {
                           ).animate().fadeIn(duration: 300.ms).slideX(
                               begin: 0.05, end: 0)),
                       const SizedBox(height: 24),
+                    ],
+
+                    // Manual IP entry
+                    _sectionHeader('Enter IP Manually'),
+                    const SizedBox(height: 8),
+                    if (!_showManualEntry)
+                      TextButton.icon(
+                        onPressed: () => setState(() => _showManualEntry = true),
+                        icon: const Icon(Icons.edit_rounded, size: 16),
+                        label: Text(
+                          'Know the IP address? Enter it here',
+                          style: GoogleFonts.dmSans(fontSize: 13),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                        ),
+                      )
+                    else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _ipController,
+                              keyboardType: TextInputType.number,
+                              autofocus: true,
+                              style: GoogleFonts.dmSans(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: '192.168.0.10',
+                                hintStyle: GoogleFonts.dmSans(
+                                  color: AppColors.textMuted,
+                                  fontSize: 15,
+                                ),
+                                errorText: _manualIpError,
+                                filled: true,
+                                fillColor: AppColors.card,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: AppColors.cardBorder),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: AppColors.cardBorder),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: AppColors.primary),
+                                ),
+                              ),
+                              onSubmitted: (_) => _connectManual(),
+                              onChanged: (_) {
+                                if (_manualIpError != null) {
+                                  setState(() => _manualIpError = null);
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: _connectManual,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text('Connect',
+                                style: GoogleFonts.dmSans(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ],
                 ),

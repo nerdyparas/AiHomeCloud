@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -112,6 +113,26 @@ async def sync_once(previous_state: StateMap | None) -> StateMap:
     return current_state
 
 
+def _load_persisted_state() -> StateMap | None:
+    """Load previously persisted watcher state from disk, or return None."""
+    path = settings.index_watcher_state_file
+    try:
+        raw = json.loads(path.read_text())
+        # Stored as {abs_path: [mtime_ns, size_bytes]}
+        return {k: tuple(v) for k, v in raw.items()}  # type: ignore[return-value]
+    except (OSError, json.JSONDecodeError, (TypeError, ValueError)):
+        return None
+
+
+def _save_persisted_state(state: StateMap) -> None:
+    """Persist watcher state snapshot to disk."""
+    path = settings.index_watcher_state_file
+    try:
+        path.write_text(json.dumps(state))
+    except OSError as exc:
+        logger.warning("Failed to persist index watcher state: %s", exc)
+
+
 class DocumentIndexWatcher:
     """Background task that continuously syncs file changes into doc index."""
 
@@ -121,6 +142,10 @@ class DocumentIndexWatcher:
         self._state: StateMap | None = None
 
     def start(self) -> None:
+        # Restore state from previous run to skip full re-index on startup.
+        self._state = _load_persisted_state()
+        if self._state is not None:
+            logger.info("DocumentIndexWatcher restored %d entries from disk", len(self._state))
         self._task = asyncio.create_task(self._loop(), name="document_index_watcher")
         logger.info("DocumentIndexWatcher started interval=%ds", self._interval_seconds)
 
@@ -132,18 +157,28 @@ class DocumentIndexWatcher:
             except asyncio.CancelledError:
                 pass
         self._task = None
+        # Persist current state so next startup can skip unchanged files.
+        if self._state is not None:
+            _save_persisted_state(self._state)
         logger.info("DocumentIndexWatcher stopped")
 
     async def _loop(self) -> None:
         while True:
             try:
                 self._state = await sync_once(self._state)
+                # Persist state after each successful sync.
+                if self._state is not None:
+                    _save_persisted_state(self._state)
             except Exception as exc:
                 logger.error("DocumentIndexWatcher pass error: %s", exc)
             await asyncio.sleep(self._interval_seconds)
 
 
-_watcher = DocumentIndexWatcher()
+def _make_watcher() -> DocumentIndexWatcher:
+    return DocumentIndexWatcher(interval_seconds=settings.document_index_interval)
+
+
+_watcher = _make_watcher()
 
 
 def get_index_watcher() -> DocumentIndexWatcher:

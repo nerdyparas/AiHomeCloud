@@ -275,12 +275,6 @@ _DEFAULT_SERVICES = [
         "isEnabled": True,
     },
     {
-        "id": "nfs",
-        "name": "NFS",
-        "description": "Linux / Mac network filesystem",
-        "isEnabled": False,
-    },
-    {
         "id": "ssh",
         "name": "SSH",
         "description": "Secure remote terminal",

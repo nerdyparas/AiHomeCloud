@@ -156,7 +156,6 @@ class _ServiceToggleState extends State<_ServiceToggle> {
 String _friendlyServiceName(String id) => switch (id.toLowerCase()) {
       'samba' || 'smb' => 'TV & Computer Sharing',
       'dlna' => 'Smart TV Streaming',
-      'nfs' => 'Network Sharing',
       'ssh' => 'Remote Access (Advanced)',
       _ => id,
     };

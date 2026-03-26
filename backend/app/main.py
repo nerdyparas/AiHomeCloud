@@ -259,10 +259,11 @@ async def lifespan(app: FastAPI):
         _supervise_telegram_bot(), name="telegram_bot_supervisor"
     )
 
-    # Auto-disable WiFi if Ethernet is active
+    # Auto-disable WiFi if Ethernet is active, then start periodic re-check
     try:
-        from .wifi_manager import auto_disable_wifi_if_ethernet
+        from .wifi_manager import auto_disable_wifi_if_ethernet, start_wifi_monitor
         await auto_disable_wifi_if_ethernet()
+        start_wifi_monitor()
     except (OSError, RuntimeError, ValueError) as e:
         logger.warning("WiFi auto-disable check failed: %s", e)
 
@@ -296,6 +297,13 @@ async def lifespan(app: FastAPI):
         await _get_index_watcher().stop()
     except (OSError, RuntimeError, ValueError):
         logger.debug("DocumentIndexWatcher shutdown skipped")
+
+    # Stop WiFi monitor
+    try:
+        from .wifi_manager import stop_wifi_monitor
+        await stop_wifi_monitor()
+    except (OSError, RuntimeError, ValueError):
+        logger.debug("WiFi monitor stop skipped")
 
     # Close document index connection pool
     try:

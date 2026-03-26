@@ -258,7 +258,6 @@ class ApiService {
     return switch (id) {
       'media' => Icons.tv_rounded,
       'samba' => Icons.desktop_windows_rounded,
-      'nfs' => Icons.dns_rounded,
       'ssh' => Icons.terminal_rounded,
       'dlna' => Icons.tv_rounded,
       _ => Icons.miscellaneous_services_rounded,

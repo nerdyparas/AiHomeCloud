@@ -62,7 +62,7 @@ def _db_path() -> Path:
 # Connection pool — reuse up to _POOL_SIZE SQLite connections for reads/writes.
 # ---------------------------------------------------------------------------
 
-_POOL_SIZE = 3
+_POOL_SIZE: int = settings.document_index_pool_size
 _pool: queue.Queue[sqlite3.Connection] = queue.Queue(maxsize=_POOL_SIZE)
 
 
@@ -178,7 +178,7 @@ async def _extract_text(file_path: Path) -> str:
     # Images: tesseract OCR
     if ext in (".jpg", ".jpeg", ".png", ".heic", ".heif", ".tiff", ".tif", ".bmp"):
         rc, stdout, stderr = await run_command(
-            ["tesseract", str(file_path), "stdout", "-l", "eng+hin"], timeout=60
+            ["tesseract", str(file_path), "stdout", "-l", settings.ocr_languages], timeout=60
         )
         if rc == 0:
             return stdout[:100_000]

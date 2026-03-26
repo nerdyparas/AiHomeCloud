@@ -20,7 +20,6 @@ router = APIRouter(prefix="/api/v1/services", tags=["services"])
 # Map our service IDs → systemd unit names (shared with system_routes for shutdown)
 SERVICE_UNITS: dict[str, list[str]] = {
     "samba": ["smbd", "nmbd"],
-    "nfs": ["nfs-kernel-server"],
     "ssh": ["ssh"],
     "dlna": ["minidlna", "minidlnad"],
     "media": ["minidlna", "minidlnad", "smbd", "nmbd"],

@@ -366,25 +366,10 @@ async def check_open_handles() -> list[dict]:
     nas_root = str(settings.nas_root)
     blockers: list[dict] = []
 
+    # Try fuser first — fast mountpoint-level check (what umount uses internally).
     try:
-        rc, out, _ = await run_command(["lsof", "+D", nas_root])
-        if rc == 0 and out:
-            lines = out.strip().split("\n")
-            for line in lines[1:]:
-                parts = line.split()
-                if len(parts) >= 9:
-                    blockers.append({
-                        "command": parts[0],
-                        "pid": parts[1],
-                        "user": parts[2],
-                        "path": parts[8] if len(parts) > 8 else nas_root,
-                    })
-        return blockers
-    except Exception:
-        pass
-
-    try:
-        rc, _, stderr = await run_command(["fuser", "-v", "-m", nas_root])
+        rc, _, stderr = await run_command(["fuser", "-v", "-m", nas_root], timeout=5)
+        # fuser exits 0 when processes found, 1 when none; output goes to stderr.
         if stderr:
             lines = stderr.strip().split("\n")
             for line in lines[1:]:
@@ -396,8 +381,28 @@ async def check_open_handles() -> list[dict]:
                         "user": parts[0] if parts else "?",
                         "path": nas_root,
                     })
+        return blockers
+    except FileNotFoundError:
+        pass  # fuser not installed — fall through to lsof
     except Exception:
-        logger.warning("Neither lsof nor fuser available for handle check")
+        pass
+
+    # Fallback: lsof +D — slower (recursive directory walk) but more detailed.
+    try:
+        rc, out, _ = await run_command(["lsof", "+D", nas_root], timeout=30)
+        if rc == 0 and out:
+            lines = out.strip().split("\n")
+            for line in lines[1:]:
+                parts = line.split()
+                if len(parts) >= 9:
+                    blockers.append({
+                        "command": parts[0],
+                        "pid": parts[1],
+                        "user": parts[2],
+                        "path": parts[8] if len(parts) > 8 else nas_root,
+                    })
+    except Exception:
+        logger.warning("Neither fuser nor lsof available for handle check")
 
     return blockers
 

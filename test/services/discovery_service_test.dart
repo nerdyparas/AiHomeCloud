@@ -15,9 +15,8 @@ void main() {
   // ─── DiscoveryMethod ────────────────────────────────────────────────────────
 
   group('DiscoveryMethod', () {
-    test('has mdns, ble, manual values', () {
+    test('has mdns and manual values', () {
       expect(DiscoveryMethod.values, contains(DiscoveryMethod.mdns));
-      expect(DiscoveryMethod.values, contains(DiscoveryMethod.ble));
       expect(DiscoveryMethod.values, contains(DiscoveryMethod.manual));
     });
   });
@@ -32,8 +31,8 @@ void main() {
     });
 
     test('two results with same values are logically equivalent', () {
-      const a = DiscoveryResult(ip: '10.0.0.1', method: DiscoveryMethod.ble);
-      const b = DiscoveryResult(ip: '10.0.0.1', method: DiscoveryMethod.ble);
+      const a = DiscoveryResult(ip: '10.0.0.1', method: DiscoveryMethod.manual);
+      const b = DiscoveryResult(ip: '10.0.0.1', method: DiscoveryMethod.manual);
       expect(a.ip, b.ip);
       expect(a.method, b.method);
     });

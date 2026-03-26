@@ -36,9 +36,12 @@ class AppEvent:
     severity: str        # EventSeverity value
     timestamp: float     # epoch seconds
     data: Optional[dict] = None
+    admin_only: bool = False  # if True, only sent to admin subscribers
 
     def to_json(self) -> str:
-        return json.dumps(asdict(self))
+        d = asdict(self)
+        d.pop("admin_only", None)  # don't expose internal field to clients
+        return json.dumps(d)
 
 
 # ─── Global event bus ────────────────────────────────────────────────────────
@@ -47,12 +50,14 @@ class EventBus:
     """Simple pub-sub for broadcasting events to WebSocket clients."""
 
     def __init__(self):
+        from ..config import settings as _settings
         self._subscribers: list[asyncio.Queue] = []
         self._recent: list[AppEvent] = []
-        self._max_recent = 50
+        self._max_recent: int = _settings.event_max_recent
+        self._queue_size: int = _settings.event_queue_size
 
     def subscribe(self) -> asyncio.Queue:
-        q: asyncio.Queue = asyncio.Queue(maxsize=100)
+        q: asyncio.Queue = asyncio.Queue(maxsize=self._queue_size)
         self._subscribers.append(q)
         return q
 
@@ -71,8 +76,15 @@ class EventBus:
                 q.put_nowait(event)
             except asyncio.QueueFull:
                 dead.append(q)
-        for q in dead:
-            self._subscribers = [s for s in self._subscribers if s is not q]
+        if dead:
+            logger.warning(
+                "event_bus dropped %d slow subscriber(s) for event '%s' "
+                "(queue full — client not consuming fast enough)",
+                len(dead),
+                event.type,
+            )
+            for q in dead:
+                self._subscribers = [s for s in self._subscribers if s is not q]
 
         logger.debug("Event published: %s (%d subscribers)", event.type, len(self._subscribers))
 
@@ -117,6 +129,7 @@ async def emit_storage_warning(used_percent: float, free_gb: float):
         severity=severity,
         timestamp=time.time(),
         data={"usedPercent": used_percent, "freeGB": free_gb},
+        admin_only=True,
     ))
 
 
@@ -128,6 +141,7 @@ async def emit_service_toggled(service_name: str, enabled: bool):
         severity=EventSeverity.info.value,
         timestamp=time.time(),
         data={"serviceName": service_name, "enabled": enabled},
+        admin_only=True,
     ))
 
 
@@ -141,6 +155,7 @@ async def emit_device_mounted(device: str, mount_point: str):
         severity=EventSeverity.success.value,
         timestamp=time.time(),
         data={"device": device_display, "mountPoint": mount_point},
+        admin_only=True,
     ))
 
 
@@ -153,6 +168,7 @@ async def emit_device_ejected(device: str):
         severity=EventSeverity.info.value,
         timestamp=time.time(),
         data={"device": device_display},
+        admin_only=True,
     ))
 
 
@@ -169,9 +185,17 @@ async def events_ws(ws: WebSocket, token: str = Query(default=None)):
     if not token:
         await ws.close(code=4001, reason="Missing token")
         return
+    is_admin = False
     try:
         from ..auth import decode_token
-        decode_token(token)
+        from .. import store as _store
+        payload = decode_token(token)
+        if payload.get("type") == "device":
+            is_admin = True
+        else:
+            user_id = payload.get("sub", "")
+            found = await _store.find_user(user_id)
+            is_admin = bool(found and found.get("is_admin", False))
     except Exception:
         await ws.close(code=4003, reason="Invalid token")
         return
@@ -182,6 +206,9 @@ async def events_ws(ws: WebSocket, token: str = Query(default=None)):
     try:
         while True:
             event = await queue.get()
+            # Skip admin-only events for non-admin subscribers.
+            if event.admin_only and not is_admin:
+                continue
             await ws.send_text(event.to_json())
     except WebSocketDisconnect:
         pass

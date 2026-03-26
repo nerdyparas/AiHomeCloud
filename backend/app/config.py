@@ -144,6 +144,21 @@ class Settings(BaseSettings):
     # Disabled by default — requires tesseract + language packs (~500 MB).
     # Enable via AHC_OCR_ENABLED=true to allow full-text search of documents.
     ocr_enabled: bool = False
+    ocr_languages: str = "eng"                 # AHC_OCR_LANGUAGES — tesseract lang codes ('+' separated)
+    document_index_pool_size: int = 3          # AHC_DOCUMENT_INDEX_POOL_SIZE — SQLite connection pool
+    document_index_cache_ttl: int = 300        # AHC_DOCUMENT_INDEX_CACHE_TTL — search cache TTL (seconds)
+    document_index_interval: int = 20          # AHC_DOCUMENT_INDEX_INTERVAL — watcher polling interval (seconds)
+
+    # ── Auth ───────────────────────────────────────────────────────────────────
+    bcrypt_rounds: int = 10                    # AHC_BCRYPT_ROUNDS — bcrypt work factor (10 ≈ 0.1s on ARM)
+
+    # ── Event bus ─────────────────────────────────────────────────────────────
+    event_queue_size: int = 100               # AHC_EVENT_QUEUE_SIZE — per-subscriber queue depth
+    event_max_recent: int = 50                # AHC_EVENT_MAX_RECENT — recent events kept in memory
+
+    # ── Job store ─────────────────────────────────────────────────────────────
+    job_max_count: int = 100                  # AHC_JOB_MAX_COUNT — max tracked jobs
+    job_ttl_hours: int = 1                    # AHC_JOB_TTL_HOURS — job retention window
 
     # ── File auto-sorting ──────────────────────────────────────────────────────
     # Disabled by default — polls every 30s and walks .inbox/ directories.
@@ -217,6 +232,16 @@ class Settings(BaseSettings):
     def trash_file(self) -> Path:
         """JSON metadata file for trash items."""
         return self.data_dir / "trash.json"
+
+    @property
+    def index_watcher_state_file(self) -> Path:
+        """JSON snapshot of document index watcher state (persisted across restarts)."""
+        return self.data_dir / "index_watcher_state.json"
+
+    @property
+    def jobs_file(self) -> Path:
+        """JSON file for persisting long-running job status across restarts."""
+        return self.data_dir / "jobs.json"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
