@@ -29,42 +29,54 @@ A private home NAS appliance (Radxa SBC + USB/NVMe drive) with a Flutter Android
 
 These are ship-blockers:
 
-| # | Bug | Impact | File |
-|---|---|---|---|
-| 1 | **`document_index.py` uses `/shared/%` but migration renamed to `family/`** | Non-admin users can't search family documents at all | `backend/app/document_index.py` ~L290 |
-| 2 | **`jobs_routes.py` checks `user.get("role")` instead of `user.get("is_admin")`** | Admin job RBAC completely broken — admin can't see other users' jobs | `backend/app/routes/jobs_routes.py` L26 |
-| 3 | **Telegram upload has no file size limit or blocked extension check** | Disk fill attack + executable upload via any valid upload token | `backend/app/routes/telegram_upload_routes.py` L260-304 |
-| 4 | **`store.py` `update_user_profile` double-invalidates cache** | Unnecessary disk I/O on every profile update — wipes fresh cache | `backend/app/store.py` ~L210 |
-| 5 | **`monitor_routes.py` `_last_storage_warn` scoping bug** | Storage warning fires every 1-second tick instead of once per hour | `backend/app/routes/monitor_routes.py` L179 |
-| 6 | **`subprocess_runner.py` doesn't reap zombies after timeout kill** | Zombie process accumulation over time | `backend/app/subprocess_runner.py` L39-43 |
+| # | Status | Bug | Impact | File |
+|---|---|---|---|---|
+| 1 | ✅ DONE | **`document_index.py` uses `/shared/%` but migration renamed to `family/`** | Non-admin users can't search family documents at all | `backend/app/document_index.py` ~L290 |
+| 2 | ✅ DONE | **`jobs_routes.py` checks `user.get("role")` instead of `user.get("is_admin")`** | Admin job RBAC completely broken — admin can't see other users' jobs | `backend/app/routes/jobs_routes.py` L26 |
+| 3 | ✅ DONE | **Telegram upload has no file size limit or blocked extension check** | Disk fill attack + executable upload via any valid upload token | `backend/app/routes/telegram_upload_routes.py` L260-304 |
+| 4 | ✅ DONE | **`store.py` `update_user_profile` double-invalidates cache** | Unnecessary disk I/O on every profile update — wipes fresh cache | `backend/app/store.py` ~L210 |
+| 5 | ✅ DONE | **`monitor_routes.py` `_last_storage_warn` scoping bug** | Storage warning fires every 1-second tick instead of once per hour | `backend/app/routes/monitor_routes.py` L179 |
+| 6 | ✅ DONE | **`subprocess_runner.py` doesn't reap zombies after timeout kill** | Zombie process accumulation over time | `backend/app/subprocess_runner.py` L39-43 |
 
 ---
 
 ## C. Engineering Changes (Priority Order)
 
-### C1. Kill the Global TLS Bypass in Flutter (Security — 1 hour)
+### ✅ C1. Kill the Global TLS Bypass in Flutter (Security — 1 hour)
 
 `main.dart` overrides `badCertificateCallback` to `true` globally. This destroys the careful TLS pinning in `ApiService` for any non-API HTTPS call (image loading, etc.). Fix: scope the override to only the device's IP, not all HTTPS connections.
 
-### C2. Add `sudo -n` Consistently (Reliability — 30 min)
+**Done:** `lib/core/tls_config.dart` holds shared `trustedDeviceHost`; `_CubieHttpOverrides` checks both port AND host. Null during onboarding (port-only), set to device IP on login, cleared on logout.
+
+### ❌ TODO: C2. Add `sudo -n` Consistently (Reliability — 30 min)
 
 Several `sudo` calls in `storage_routes.py` and `telegram_routes.py` lack `-n` (no-password). If sudoers isn't configured perfectly, these hang forever waiting for interactive password input inside `run_command()`. Audit every `sudo` call and add `-n`.
 
-### C3. Deduplicate `_SERVICE_UNITS` (Maintenance — 15 min)
+**Status:** `storage_routes.py` — all fixed. `telegram_routes.py` — still missing `-n` on `cp`, `chmod`, `apt-get install`, and `systemctl` calls (~8 occurrences).
+
+### ✅ C3. Deduplicate `_SERVICE_UNITS` (Maintenance — 15 min)
 
 The same service-name-to-unit mapping exists in both `system_routes.py` and `service_routes.py`. When someone adds a service to one and forgets the other, shutdown misses services. Extract to a shared module.
 
-### C4. WiFi Toggle Should Require Admin (Security — 5 min)
+**Done:** `service_routes.py` now exports `SERVICE_UNITS`; `system_routes.py` imports it as `_SERVICE_UNITS`.
+
+### ✅ C4. WiFi Toggle Should Require Admin (Security — 5 min)
 
 Any authenticated family member can toggle WiFi on/off for the entire device. This should be admin-only.
 
-### C5. Add Rate Limiting to Missing Endpoints (Security — 30 min)
+**Done:** `PUT /network/wifi` now uses `Depends(require_admin)`.
+
+### ✅ C5. Add Rate Limiting to Missing Endpoints (Security — 30 min)
 
 `/files/search`, `/files/sort-now`, all storage mutation endpoints, all family management endpoints, and the telegram upload endpoint have no rate limiting.
 
-### C6. Telegram Upload — Async Writes (Performance — 30 min)
+**Done:** All listed endpoints decorated with `@limiter.limit(...)`. Rates: search 30/min, sort-now 10/min, storage mutations 5/min, family 20/min, telegram upload 20/min.
+
+### ✅ C6. Telegram Upload — Async Writes (Performance — 30 min)
 
 The telegram upload writes file chunks synchronously, blocking the event loop. For a 2GB file, this blocks the entire backend for the duration of the upload. Use `run_in_executor` like the main file_routes upload does.
+
+**Done:** `telegram_upload_routes.py` now uses `await loop.run_in_executor(None, f.write, chunk)`.
 
 ---
 
@@ -85,21 +97,21 @@ Everything else — OTA updates, iOS app, multi-device, AI categorization — is
 
 **Things to remove or defer from v1:**
 
-| Feature | Why |
-|---|---|
-| **OCR/Tesseract indexing** | Adds ~20MB RAM + 500MB of language packs. 95% of users will never use document search. Make it opt-in toggle, not always-on. |
-| **Auto file sorting** | Every 20-second `rglob("*")` poll is wasteful. Users don't expect auto-sorting from a NAS. Make it manual ("Sort my Inbox now" button) or remove. |
-| **BLE discovery fallback** | mDNS works on every modern router. BLE adds `flutter_blue_plus` + complex platform permissions. If mDNS fails, show a "enter IP manually" form instead. Drastically simpler. |
-| **NFS service toggle** | No Indian family is mounting NFS shares. Keep Samba, drop NFS. |
-| **OTA firmware stubs** | Half-implemented features confuse users. Remove the UI entry point until it actually works. |
+| Status | Feature | Why |
+|---|---|---|
+| ✅ DONE | **OCR/Tesseract indexing** | Now opt-in: `ocr_enabled: bool = False` in config. Disabled by default. |
+| ✅ DONE | **Auto file sorting** | Now opt-in: `auto_sort_enabled: bool = False` in config. Manual "Sort now" button kept. |
+| ✅ DONE | **BLE discovery fallback** | Removed `flutter_blue_plus` + `permission_handler` from pubspec. Manual IP entry form added to network scan screen. |
+| ✅ DONE | **NFS service toggle** | Removed from `SERVICE_UNITS`, `_DEFAULT_SERVICES`, Flutter UI, and service icon map. |
+| ✅ DONE | **OTA firmware stubs** | No OTA action button/route in UI. `firmwareVersion` shown as display-only label in device settings. |
 
 **Things to add for v1:**
 
-| Feature | Why |
-|---|---|
-| **Photo gallery view** | This is THE use case for Indian families — send photos from phone, view on TV/family devices. A grid view of images with thumbnails would make this feel like Google Photos. |
-| **Auto-backup from phone** | Background sync of camera roll → NAS. This is the killer feature that justifies the hardware purchase. Without it, users must manually upload. |
-| **Simple sharing links** | "Share this file with anyone on the same network" via a temporary URL. Families share files by URL, not by knowing the folder path. |
+| Status | Feature | Why |
+|---|---|---|
+| ✅ DONE | **Auto-backup from phone** | Background sync of camera roll → NAS via WorkManager. Daily 2:30 AM + manual trigger. Telegram notifications on completion. |
+| ❌ TODO | **Photo gallery view** | This is THE use case for Indian families — send photos from phone, view on TV/family devices. A grid view of images with thumbnails would make this feel like Google Photos. |
+| ❌ TODO | **Simple sharing links** | "Share this file with anyone on the same network" via a temporary URL. Families share files by URL, not by knowing the folder path. |
 
 ### D3. Hardware Strategy
 
@@ -129,21 +141,21 @@ These are **NOT v1 priorities**. Listed for awareness:
 
 3. **Replace the `lifespan()` god-function** in `main.py` (220 lines) with a startup-task registry pattern.
 
-4. **Persistent job store** — currently in-memory only. A crash during a format operation leaves the user with no feedback.
+4. ✅ **Persistent job store** — implemented: JSON persistence across restarts; in-progress jobs marked failed on reload; configurable TTL and max count via `AHC_JOB_TTL_HOURS` / `AHC_JOB_MAX_COUNT`.
 
-5. **Event filtering by user role** — currently all WS clients see all events. Regular users shouldn't see admin events or other users' uploads.
+5. ✅ **Event filtering by user role** — implemented: `admin_only` flag on `AppEvent`; WebSocket handler checks user's admin status and skips admin-only events for non-admin subscribers.
 
 ---
 
 ## F. Testing Gaps to Close Before Launch
 
-| Gap | Risk | Effort |
-|---|---|---|
-| Flutter provider tests (0/5 files tested) | **High** — providers bridge API↔UI, bugs here are invisible until production | 2-3 days |
-| `discovery_service.dart` (untested) | **High** — this is the onboarding critical path | 1 day |
-| `telegram_upload_routes.py` backend tests | **High** — untested security boundary with upload + token auth | 1 day |
-| `family_routes.py` backend tests | **Medium** — admin RBAC not directly tested | Half day |
-| Navigation/routing tests | **Medium** — 13+ routes with guards, redirect logic untested | 1 day |
+| Status | Gap | Risk | Effort |
+|---|---|---|---|
+| ✅ DONE | Flutter provider tests (0/5 files tested) | **High** — providers bridge API↔UI, bugs here are invisible until production | 2-3 days |
+| ✅ DONE | `discovery_service.dart` (untested) | **High** — this is the onboarding critical path | 1 day |
+| ✅ DONE | `telegram_upload_routes.py` backend tests | **High** — untested security boundary with upload + token auth | 1 day |
+| ✅ DONE | `family_routes.py` backend tests | **Medium** — admin RBAC not directly tested | Half day |
+| ✅ DONE | Navigation/routing tests | **Medium** — 13+ routes with guards, redirect logic untested | 1 day |
 
 ---
 
