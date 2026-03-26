@@ -48,11 +48,11 @@ These are ship-blockers:
 
 **Done:** `lib/core/tls_config.dart` holds shared `trustedDeviceHost`; `_CubieHttpOverrides` checks both port AND host. Null during onboarding (port-only), set to device IP on login, cleared on logout.
 
-### ❌ TODO: C2. Add `sudo -n` Consistently (Reliability — 30 min)
+### ✅ C2. Add `sudo -n` Consistently (Reliability — 30 min)
 
 Several `sudo` calls in `storage_routes.py` and `telegram_routes.py` lack `-n` (no-password). If sudoers isn't configured perfectly, these hang forever waiting for interactive password input inside `run_command()`. Audit every `sudo` call and add `-n`.
 
-**Status:** `storage_routes.py` — all fixed. `telegram_routes.py` — still missing `-n` on `cp`, `chmod`, `apt-get install`, and `systemctl` calls (~8 occurrences).
+**Done:** All sudo calls in both `storage_routes.py` and `telegram_routes.py` now have `-n`. Fixed 8 occurrences in telegram_routes (`cp`, `chmod`, `apt-get install`, `systemctl daemon-reload`, `systemctl enable`, `systemctl start`).
 
 ### ✅ C3. Deduplicate `_SERVICE_UNITS` (Maintenance — 15 min)
 
@@ -324,10 +324,10 @@ These are **NOT v1 priorities**. Listed for awareness:
 - Token auto-refresh with mutex (`_isRefreshing`) prevents concurrent refresh storms
 
 ### Concerns
-1. **Global TLS bypass**: `_CubieHttpOverrides` in `main.dart` trusts ALL certificates globally. Destroys TLS pinning for non-API calls.
+1. ✅ **Global TLS bypass**: Fixed — `_CubieHttpOverrides` now scopes cert bypass to device IP + API port only. See C1.
 2. **`totalStorageGB = 500.0` hardcoded** in constants — should come from device API.
 3. **No integration/E2E tests** — only unit and widget tests.
-4. **Session restore has no token expiry check**: Blindly restores potentially expired JWT from SharedPreferences.
+4. ✅ **Session restore has no token expiry check**: Fixed — `_restorePersistedSession()` now checks JWT expiry; attempts refresh on expired token; clears session and sends to onboarding if refresh fails.
 
 ### Test Coverage
 | Area | Score | Detail |
@@ -335,14 +335,14 @@ These are **NOT v1 priorities**. Listed for awareness:
 | Backend tests | **A** | ~1:1 source:test ratio, all critical paths |
 | Flutter widget tests | **A** | 8/8 widgets tested |
 | Flutter screen tests | **B-** | 11/15 screens tested |
-| Flutter service tests | **C** | 3/5 services tested |
+| Flutter service tests | **A** | 5/5 services tested |
 | Flutter provider tests | **F** | 0/5 provider files tested |
 | Flutter integration tests | **F** | None exist |
 
 ### Dependency Watch List
 | Package | Version | Concern |
 |---|---|---|
-| `flutter_blue_plus` | ^1.31.14 | BLE plugins fragile across OS versions |
+| ~~`flutter_blue_plus`~~ | ~~^1.31.14~~ | ✅ Removed — BLE discovery replaced with manual IP entry |
 | `multicast_dns` | ^0.3.2+1 | Low version, niche package |
 | `receive_sharing_intent` | ^1.8.0 | v1.x, check for v2 compatibility |
 | `percent_indicator` | ^4.2.3 | Unmaintained recently |
