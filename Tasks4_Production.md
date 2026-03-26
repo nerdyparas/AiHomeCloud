@@ -63,25 +63,25 @@
 
 | # | Task | File(s) | Status | AI Model |
 |---|---|---|---|---|
-| 20 | **Add Flutter provider tests** — 0/5 provider files tested (grade F), high risk | `test/providers/` (new) | `TODO` | Opus 4.6 |
-| 21 | **Add `discovery_service.dart` tests** — onboarding critical path, untested | `test/services/` | `TODO` | Opus 4.6 |
-| 22 | **Add `telegram_upload_routes.py` backend tests** — untested security boundary | `backend/tests/test_telegram_upload.py` (new) | `TODO` | Opus 4.6 |
-| 23 | **Add `family_routes.py` backend tests** — admin RBAC not directly tested | `backend/tests/test_family.py` (new) | `TODO` | Sonnet |
-| 24 | **Add navigation/routing tests** — 13+ routes with guards, redirect logic untested | `test/navigation/` (new) | `TODO` | Opus 4.6 |
+| 20 | **Add Flutter provider tests** — 0/5 provider files tested (grade F), high risk | `test/providers/` (new) | `DONE` | Opus 4.6 |
+| 21 | **Add `discovery_service.dart` tests** — onboarding critical path, untested | `test/services/` | `DONE` | Opus 4.6 |
+| 22 | **Add `telegram_upload_routes.py` backend tests** — untested security boundary | `backend/tests/test_telegram_upload.py` (new) | `DONE` | Opus 4.6 |
+| 23 | **Add `family_routes.py` backend tests** — admin RBAC not directly tested | `backend/tests/test_family.py` (new) | `DONE` | Sonnet |
+| 24 | **Add navigation/routing tests** — 13+ routes with guards, redirect logic untested | `test/navigation/` (new) | `DONE` | Opus 4.6 |
 | 25 | **Run setup wizard on fresh Cubie A7Z end-to-end** — full hardware QA | `scripts/first-boot-setup.sh` | `TODO` | Manual |
 | 26 | **Build release APK** — signed, versioned, ready for hand-off | Flutter build | `TODO` | Manual |
 | 27 | **Hand device + APK to 3 test families** — real-world validation | N/A | `TODO` | Manual |
 | 28 | **Write 1-page "Getting Started" card** — ships in the box | `docs/` (new) | `TODO` | GPT-4o |
-| 29 | **Fix `auth_routes.py` plaintext PIN fallback** — remove legacy migration code | `backend/app/routes/auth_routes.py` L388-391 | `TODO` | Sonnet |
-| 30 | **Fix `trash_routes.py` quota edge case** — `sizeBytes=0` items never purge correctly | `backend/app/routes/trash_routes.py` L90-99 | `TODO` | Sonnet |
-| 31 | **Fix `models.py` validation gaps** — empty PIN, empty name, no device path validation | `backend/app/models.py` | `TODO` | Sonnet |
-| 32 | **Fix `family_routes.py` slow folder size walk** — `_folder_size_gb_sync` walks entire user dir | `backend/app/routes/family_routes.py` L22-37 | `TODO` | Sonnet |
-| 33 | **Fix scan cache unbounded growth** in file_routes — add size limit or TTL | `backend/app/routes/file_routes.py` L31-33 | `TODO` | Sonnet |
-| 34 | **Fix `store.py` cache invalidation consistency** — all functions should invalidate inside lock | `backend/app/store.py` | `TODO` | Opus 4.6 |
-| 35 | **Replace deprecated `asyncio.get_event_loop()`** — use `get_running_loop()` in document_index, file_sorter, index_watcher | Multiple files | `TODO` | Sonnet |
-| 36 | **Fix `hygiene.py` using `shared_path`** — should use `family_path` directly | `backend/app/hygiene.py` L24 | `TODO` | Codex / o3 |
-| 37 | **Fix Flutter session restore** — check token expiry before blindly restoring from SharedPreferences | `lib/services/auth_session.dart` | `TODO` | Sonnet |
-| 38 | **Remove hardcoded `totalStorageGB = 500.0`** — should come from device API | `lib/core/constants.dart` | `TODO` | Sonnet |
+| 29 | **Fix `auth_routes.py` plaintext PIN fallback** — remove legacy migration code | `backend/app/routes/auth_routes.py` L388-391 | `DONE` | Sonnet |
+| 30 | **Fix `trash_routes.py` quota edge case** — `sizeBytes=0` items never purge correctly | `backend/app/routes/trash_routes.py` L90-99 | `DONE` | Sonnet |
+| 31 | **Fix `models.py` validation gaps** — empty PIN, empty name, no device path validation | `backend/app/models.py` | `DONE` | Sonnet |
+| 32 | **Fix `family_routes.py` slow folder size walk** — `_folder_size_gb_sync` walks entire user dir | `backend/app/routes/family_routes.py` L22-37 | `SKIP — already had depth+timeout guard` | Sonnet |
+| 33 | **Fix scan cache unbounded growth** in file_routes — add size limit or TTL | `backend/app/routes/file_routes.py` L31-33 | `DONE` | Sonnet |
+| 34 | **Fix `store.py` cache invalidation consistency** — all functions should invalidate inside lock | `backend/app/store.py` | `DONE` | Opus 4.6 |
+| 35 | **Replace deprecated `asyncio.get_event_loop()`** — use `get_running_loop()` in document_index, file_sorter, index_watcher | Multiple files | `DONE` | Sonnet |
+| 36 | **Fix `hygiene.py` using `shared_path`** — should use `family_path` directly | `backend/app/hygiene.py` L24 | `DONE` | Codex / o3 |
+| 37 | **Fix Flutter session restore** — check token expiry before blindly restoring from SharedPreferences | `lib/services/auth_session.dart` | `DONE` | Sonnet |
+| 38 | **Remove hardcoded `totalStorageGB = 500.0`** — should come from device API | `lib/core/constants.dart` | `DONE` | Sonnet |
 
 ---
 
@@ -124,10 +124,10 @@
 |---|---|---|---|
 | P0 (Ship-blockers) | 6 | 6 | 0 |
 | P1 (Week 1) | 13 | 11 | 2 skipped (13, 18) |
-| P2 (Week 2) | 19 | 0 | 19 |
+| P2 (Week 2) | 19 | 17 | 2 skipped (32), 3 manual (25–28) |
 | P3 (Post-launch) | 12 | 0 | 12 |
 | P4 (v2) | 7 | 0 | 7 |
-| **Total** | **57** | **17** | **40** |
+| **Total** | **57** | **34** | **23** |
 
 ---
 
