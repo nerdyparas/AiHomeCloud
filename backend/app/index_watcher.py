@@ -120,7 +120,7 @@ def _load_persisted_state() -> StateMap | None:
         raw = json.loads(path.read_text())
         # Stored as {abs_path: [mtime_ns, size_bytes]}
         return {k: tuple(v) for k, v in raw.items()}  # type: ignore[return-value]
-    except (OSError, json.JSONDecodeError, (TypeError, ValueError)):
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
 
 
