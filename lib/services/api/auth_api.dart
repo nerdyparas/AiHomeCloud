@@ -148,7 +148,7 @@ extension AuthApi on ApiService {
     final base = 'https://$host:${AppConstants.apiPort}';
     final uri = Uri.parse('$base${AppConstants.apiVersion}/auth/users/names');
 
-    List<UserPickerEntry> _parse(http.Response res) {
+    List<UserPickerEntry> parse(http.Response res) {
       _check(res);
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final list = data['users'] as List<dynamic>;
@@ -160,13 +160,13 @@ extension AuthApi on ApiService {
     }
 
     try {
-      return _parse(await _client.get(uri).timeout(ApiService._timeout));
+      return parse(await _client.get(uri).timeout(ApiService._timeout));
     } on SocketException {
       await Future.delayed(const Duration(milliseconds: 800));
-      return _parse(await _client.get(uri).timeout(ApiService._timeout));
+      return parse(await _client.get(uri).timeout(ApiService._timeout));
     } on HandshakeException {
       await Future.delayed(const Duration(milliseconds: 800));
-      return _parse(await _client.get(uri).timeout(ApiService._timeout));
+      return parse(await _client.get(uri).timeout(ApiService._timeout));
     }
   }
 
