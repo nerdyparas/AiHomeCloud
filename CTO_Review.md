@@ -336,7 +336,7 @@ These are **NOT v1 priorities**. Listed for awareness:
 | Flutter widget tests | **A** | 8/8 widgets tested |
 | Flutter screen tests | **B-** | 11/15 screens tested |
 | Flutter service tests | **A** | 5/5 services tested |
-| Flutter provider tests | **F** | 0/5 provider files tested |
+| Flutter provider tests | **B** | 4/5 provider files tested (core, discovery, file, data); `device_providers.dart` untested |
 | Flutter integration tests | **F** | None exist |
 
 ### Dependency Watch List
