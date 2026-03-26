@@ -264,7 +264,7 @@ async def _try_download_prebuilt() -> tuple[bool, str]:
 
     # Install: copy to final path and make executable.
     rc, _, err = await run_command(
-        ["sudo", "cp", tmp_path, _BINARY_PATH], timeout=30
+        ["sudo", "-n", "cp", tmp_path, _BINARY_PATH], timeout=30
     )
     Path(tmp_path).unlink(missing_ok=True)
     if rc != 0:
@@ -272,7 +272,7 @@ async def _try_download_prebuilt() -> tuple[bool, str]:
         logger.warning("prebuilt_install_failed err=%s", err[:300])
         return False, msg
 
-    rc, _, _ = await run_command(["sudo", "chmod", "755", _BINARY_PATH], timeout=10)
+    rc, _, _ = await run_command(["sudo", "-n", "chmod", "755", _BINARY_PATH], timeout=10)
     logger.info("prebuilt_installed target=%s path=%s", target, _BINARY_PATH)
     return True, ""
 
@@ -339,7 +339,7 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             if missing:
                 _progress(f"Installing build tools: {', '.join(missing)}\u2026")
                 rc, _, err = await run_command(
-                    ["sudo", "apt-get", "install", "-y", "--no-install-recommends"]
+                    ["sudo", "-n", "apt-get", "install", "-y", "--no-install-recommends"]
                     + missing,
                     timeout=300,
                 )
@@ -406,7 +406,7 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                 return
 
             rc, _, err = await run_command(
-                ["sudo", "cp", built_binary, _BINARY_PATH],
+                ["sudo", "-n", "cp", built_binary, _BINARY_PATH],
                 timeout=30,
             )
             if rc != 0:
@@ -448,7 +448,7 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
         tmp_service.write_text(service_content)
 
         rc, _, err = await run_command(
-            ["sudo", "cp", str(tmp_service),
+            ["sudo", "-n", "cp", str(tmp_service),
              f"/etc/systemd/system/{_SERVICE_NAME}.service"],
             timeout=30,
         )
@@ -460,15 +460,15 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
 
         # Step 4 — Enable and start service.
         _progress("Starting local API server\u2026")
-        await run_command(["sudo", "systemctl", "daemon-reload"], timeout=30)
+        await run_command(["sudo", "-n", "systemctl", "daemon-reload"], timeout=30)
         rc, _, err = await run_command(
-            ["sudo", "systemctl", "enable", "--now", _SERVICE_NAME],
+            ["sudo", "-n", "systemctl", "enable", "--now", _SERVICE_NAME],
             timeout=30,
         )
         if rc != 0:
             # Fallback: try just starting if enable fails (sudoers might lack enable).
             rc, _, err = await run_command(
-                ["sudo", "systemctl", "start", _SERVICE_NAME],
+                ["sudo", "-n", "systemctl", "start", _SERVICE_NAME],
                 timeout=30,
             )
             if rc != 0:
