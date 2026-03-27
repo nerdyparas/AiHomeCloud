@@ -14,7 +14,7 @@ import pytest
 def test_jpg_goes_to_photos(tmp_path: Path):
     from app.file_sorter import _destination_folder
     f = tmp_path / "holiday.jpg"
-    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (900 * 1024))  # >800 KB → Photos
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (900 * 1024))
     assert _destination_folder(f) == "Photos"
 
 
@@ -39,11 +39,59 @@ def test_unknown_ext_goes_to_others(tmp_path: Path):
     assert _destination_folder(f) == "Others"
 
 
-def test_small_jpg_goes_to_documents(tmp_path: Path):
-    """JPG under 800 KB → document photo → Documents/"""
+def test_small_jpg_no_keyword_goes_to_photos(tmp_path: Path):
+    """Small JPG with no doc keyword → Photos (size is no longer a signal)."""
     from app.file_sorter import _destination_folder
     f = tmp_path / "photo.jpg"
-    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * 100)  # tiny file
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * 100)  # tiny file, no doc keyword
+    assert _destination_folder(f) == "Photos"
+
+
+def test_large_jpg_no_keyword_goes_to_photos(tmp_path: Path):
+    """Large JPG with no doc keyword → Photos."""
+    from app.file_sorter import _destination_folder
+    f = tmp_path / "dji_mimo_photo.jpg"
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (6 * 1024 * 1024))
+    assert _destination_folder(f) == "Photos"
+
+
+def test_whatsapp_photo_goes_to_photos(tmp_path: Path):
+    """WhatsApp camera photos (IMG-YYYYMMDD-WA) must never land in Documents."""
+    from app.file_sorter import _destination_folder
+    f = tmp_path / "IMG-20240315-WA0001.jpg"
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (350 * 1024))  # 350 KB compressed
+    assert _destination_folder(f) == "Photos"
+
+
+def test_whatsapp_doc_goes_to_documents(tmp_path: Path):
+    """WhatsApp forwarded documents (DOC-YYYYMMDD-WA) go to Documents."""
+    from app.file_sorter import _destination_folder
+    f = tmp_path / "DOC-20240315-WA0002.jpg"
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (500 * 1024))
+    assert _destination_folder(f) == "Documents"
+
+
+def test_screenshot_goes_to_documents(tmp_path: Path):
+    """Android screenshots (Screenshot_…) are treated as documents."""
+    from app.file_sorter import _destination_folder
+    f = tmp_path / "Screenshot_20240315-143022.png"
+    f.write_bytes(b"\x89PNG\r\n" + b"\x00" * (450 * 1024))
+    assert _destination_folder(f) == "Documents"
+
+
+def test_aadhaar_any_size_goes_to_documents(tmp_path: Path):
+    """aadhaar keyword in filename → Documents regardless of file size."""
+    from app.file_sorter import _destination_folder
+    f = tmp_path / "aadhaar_front.jpg"
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (4 * 1024 * 1024))  # 4 MB
+    assert _destination_folder(f) == "Documents"
+
+
+def test_invoice_goes_to_documents(tmp_path: Path):
+    """invoice keyword → Documents."""
+    from app.file_sorter import _destination_folder
+    f = tmp_path / "invoice_march.jpg"
+    f.write_bytes(b"\xff\xd8\xff" + b"\x00" * (1 * 1024 * 1024))
     assert _destination_folder(f) == "Documents"
 
 

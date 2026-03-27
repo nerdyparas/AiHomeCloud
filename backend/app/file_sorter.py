@@ -5,6 +5,7 @@ auto-sorts files into Photos / Videos / Documents / Others based on extension.
 
 import asyncio
 import logging
+import re
 import shutil
 import time
 from pathlib import Path
@@ -33,12 +34,41 @@ SORT_RULES: dict[str, str] = {
     ".odp": "Documents", ".rtf": "Documents",
 }
 
-# Keywords in filename (stem, lowercase) that indicate a document-style photo
+# Keywords in filename stem (lowercase) that identify a document-style photo.
+# Matched as substrings — keywords are chosen to avoid common false positives
+# (e.g. "pan" is excluded because it matches "panorama", "japan", etc.).
 DOC_KEYWORDS: frozenset[str] = frozenset({
-    "aadhaar", "aadhar", "pan", "passport", "license", "licence",
-    "invoice", "receipt", "bill", "certificate", "marksheet", "degree",
-    "statement", "insurance", "policy", "property", "agreement", "contract",
+    # Indian identity documents
+    "aadhaar", "aadhar", "adhaar", "adhar",
+    "pancard", "pan_card", "pan-card",
+    "passport",
+    "driving", "drivinglicence", "drivinglicense",
+    "voter", "voterid", "voter_id",
+    # Financial documents
+    "invoice", "receipt", "bill",
+    "statement", "salary", "payslip",
+    "gst", "challan",
+    "insurance", "policy",
+    # Legal / education
+    "certificate", "marksheet", "degree", "transcript",
+    "property", "agreement", "contract",
+    "affidavit",
+    # Medical
+    "prescription",
+    # Generic document indicators
+    "scanned", "document",
+    # Pre-existing terms kept for compatibility
+    "license", "licence",
 })
+
+# WhatsApp photo filenames: IMG-YYYYMMDD-WAXXXX — always a camera photo, never a doc.
+_WA_PHOTO_RE = re.compile(r"^img-\d{8}-wa\d{4}")
+
+# WhatsApp forwarded document filenames: DOC-YYYYMMDD-WAXXXX — treat as document.
+_WA_DOC_RE = re.compile(r"^doc-\d{8}-wa\d{4}")
+
+# Android screenshot naming: Screenshot_YYYYMMDD-HHMMSS or Screenshot_YYYY…
+_SCREENSHOT_RE = re.compile(r"^screenshot[_\-\s]")
 
 # Entertainment sub-folder routing (applied when base_dir is entertainment_path)
 ENTERTAINMENT_SORT_RULES: dict[str, str] = {
@@ -50,14 +80,26 @@ ENTERTAINMENT_SORT_RULES: dict[str, str] = {
 }
 
 _MIN_AGE_SECONDS = 30          # file must be at least this old (not still uploading)
-_DOC_PHOTO_MAX_BYTES = 800 * 1024   # < 800 KB image → likely a scanned document
 _SKIP_SUFFIXES = frozenset({".uploading", ".part", ".tmp"})
 
 
 def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
     """Return the target sub-folder name for *file_path*.
 
-    When *base_dir* is the entertainment folder, ENTERTAINMENT_SORT_RULES are used.
+    Classification strategy (keyword-only, no size threshold):
+
+    1. Entertainment base_dir → ENTERTAINMENT_SORT_RULES (Movies/Series/Music/Others).
+    2. Extension not in SORT_RULES → Others.
+    3. Non-photo extensions (video, document, etc.) → as per SORT_RULES.
+    4. Photo extensions → apply document-photo detection:
+       a. WhatsApp camera photos (IMG-YYYYMMDD-WAXXXX) → Photos  [explicit early return]
+       b. WhatsApp forwarded docs (DOC-YYYYMMDD-WAXXXX) → Documents
+       c. Android screenshots (Screenshot_…) → Documents
+       d. DOC_KEYWORDS substring match in filename stem → Documents
+       e. Everything else → Photos
+
+    File size is intentionally NOT used — WhatsApp-compressed photos (~200–500 KB)
+    are not documents, and phone photos of ID cards (3–8 MB) are.
     """
     # Entertainment-specific routing
     if base_dir is not None:
@@ -72,15 +114,20 @@ def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
     ext = file_path.suffix.lower()
     folder = SORT_RULES.get(ext, "Others")
 
-    # Document-photo override: small image OR doc keyword in filename → Documents/
+    # Document-photo override for image extensions
     if folder == "Photos":
-        name_lower = file_path.stem.lower()
-        has_keyword = any(kw in name_lower for kw in DOC_KEYWORDS)
-        try:
-            is_small = file_path.stat().st_size < _DOC_PHOTO_MAX_BYTES
-        except OSError:
-            is_small = False
-        if has_keyword or is_small:
+        stem_lower = file_path.stem.lower()
+
+        # WhatsApp camera photos are never documents — short-circuit immediately
+        if _WA_PHOTO_RE.match(stem_lower):
+            return "Photos"
+
+        # WhatsApp forwarded documents, screenshots, and keyword-named files → Documents
+        if (
+            _WA_DOC_RE.match(stem_lower)
+            or _SCREENSHOT_RE.match(stem_lower)
+            or any(kw in stem_lower for kw in DOC_KEYWORDS)
+        ):
             folder = "Documents"
 
     return folder
