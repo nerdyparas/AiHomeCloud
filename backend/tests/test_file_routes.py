@@ -248,6 +248,7 @@ async def test_sort_now_sorts_existing_folder(authenticated_client: AsyncClient)
     shared_raw.mkdir(parents=True, exist_ok=True)
     (shared_raw / "nested").mkdir(parents=True, exist_ok=True)
     (shared_raw / "holiday.jpg").write_bytes(b"img")
+    (shared_raw / "receipt_scan.jpg").write_bytes(b"img2")
     (shared_raw / "movie.mp4").write_bytes(b"vid")
     (shared_raw / "notes.txt").write_bytes(b"doc")
     (shared_raw / "nested" / "paper.pdf").write_bytes(b"%PDF-1.4")
@@ -257,10 +258,12 @@ async def test_sort_now_sorts_existing_folder(authenticated_client: AsyncClient)
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["moved"] >= 4
+    assert data["moved"] >= 5
 
-    # Small images are treated as scanned documents by heuristic.
-    assert (shared_raw / "Documents" / "holiday.jpg").exists()
+    # Plain photo name → Photos (size is no longer a classification signal).
+    assert (shared_raw / "Photos" / "holiday.jpg").exists()
+    # Keyword in filename → Documents regardless of size.
+    assert (shared_raw / "Documents" / "receipt_scan.jpg").exists()
     assert (shared_raw / "Videos" / "movie.mp4").exists()
     assert (shared_raw / "Documents" / "notes.txt").exists()
     assert (shared_raw / "Documents" / "paper.pdf").exists()
