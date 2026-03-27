@@ -206,3 +206,100 @@ Implement actual file upload:
 - Separate frontend build process (must be self-contained HTML)
 - Internet/WAN access (LAN-only)
 - Mobile-optimized responsive design (mobile users have the app)
+
+---
+
+## Testing & Verification
+
+### 1. Service health
+
+```bash
+# Confirm backend is running
+systemctl is-active aihomecloud
+
+# Confirm health endpoint responds
+curl -sk https://localhost:8443/api/health
+# expected: {"status":"ok"}
+```
+
+### 2. Web portal reachable
+
+```bash
+# Returns HTTP 200 and the full HTML page
+curl -sk -o /dev/null -w "%{http_code}\n" https://localhost:8443/web
+# expected: 200
+
+# From another machine on the LAN (replace IP):
+curl -sk -o /dev/null -w "%{http_code}\n" https://192.168.0.241:8443/web
+# expected: 200
+```
+
+### 3. Browser walkthrough (manual)
+
+Open `https://<device-ip>:8443/web` in Chrome, Firefox, or Safari.
+Accept the self-signed certificate warning.
+
+| Step | What to do | Expected result |
+|------|-----------|-----------------|
+| User picker loads | Page opens | AiHomeCloud logo + user cards shown |
+| No-PIN login | Click a user that has no PIN | Jumps straight to upload dashboard |
+| PIN login | Click a user with a PIN, type 4 digits | Auto-submits; dashboard appears |
+| Wrong PIN | Enter incorrect PIN | Error message shown, dots reset, try again |
+| All 3 zones visible | After login | Personal 🗂️ / Family 👨‍👩‍👧‍👦 / Entertainment 🎬 zones rendered |
+| Drag hover | Drag a file over a zone without dropping | Drop area border turns purple, background tints |
+| Click to browse | Click a drop area | Native file picker opens |
+| Upload a small file | Drop a .txt or .jpg | Progress bar fills to 100%, shows ✓ Done |
+| Upload large file (>100 MB) | Drop a video | Progress bar updates in real time |
+| Multi-file drop | Drop 3+ files at once | All queued, upload sequentially, individual progress |
+| Per-zone stats | After uploads finish | "X uploaded · Y failed" shown below queue |
+| Blocked extension | Drop a .sh or .exe | Server rejects with 422, item shows red ✗ error |
+| Retry | Click Retry on a failed item | Item re-queues and attempts upload again |
+| Logout | Click Logout button | sessionStorage cleared, user picker shown |
+| Browser back | Press browser back button | Stays on /web (does not navigate away) |
+| Responsive | Resize window below 900px | 3 zones stack vertically |
+
+### 4. Verify files landed on NAS
+
+```bash
+# After uploading to Personal zone (logged in as "paras"):
+ls /srv/nas/personal/paras/
+
+# After uploading to Family zone:
+ls /srv/nas/family/
+
+# After uploading to Entertainment zone:
+ls /srv/nas/entertainment/
+```
+
+### 5. Verify upload via API directly
+
+```bash
+# Get a token first
+TOKEN=$(curl -sk -X POST https://localhost:8443/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"paras","pin":""}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+
+# Upload a test file to Personal
+curl -sk -X POST "https://localhost:8443/api/v1/files/upload?path=/srv/nas/personal/paras/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/etc/hostname" | python3 -m json.tool
+# expected: {"name":"hostname","path":"...","sizeBytes":...}
+```
+
+### 6. Session security check
+
+```bash
+# Request without token should fail
+curl -sk -X POST "https://localhost:8443/api/v1/files/upload?path=/srv/nas/personal/paras/" \
+  -F "file=@/etc/hostname"
+# expected: HTTP 401 or 403
+```
+
+### 7. Service restart survivability
+
+```bash
+sudo systemctl restart aihomecloud
+sleep 5
+curl -sk -o /dev/null -w "%{http_code}\n" https://localhost:8443/web
+# expected: 200
+```

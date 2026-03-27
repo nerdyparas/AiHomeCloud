@@ -495,7 +495,7 @@ async function loadUsers() {
 
   let users;
   try {
-    const res = await fetch('/auth/users/names');
+    const res = await fetch('/api/v1/auth/users/names');
     if (!res.ok) throw new Error('Server error ' + res.status);
     const data = await res.json();
     users = data.users || [];
@@ -541,7 +541,7 @@ async function doLogin(name, pin) {
 
   let data;
   try {
-    const res = await fetch('/auth/login', {
+    const res = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, pin }),
@@ -881,4 +881,8 @@ loadUsers();
 @router.get("/web", response_class=HTMLResponse, include_in_schema=False)
 async def web_upload_portal():
     """Serve the self-contained web upload portal (LAN-only drag-and-drop interface)."""
-    return HTMLResponse(content=_HTML, status_code=200)
+    headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Pragma": "no-cache",
+    }
+    return HTMLResponse(content=_HTML, status_code=200, headers=headers)
