@@ -337,7 +337,7 @@ async def delete_duplicate_file(
     logger.info("duplicate_deleted path=%s by=%s", path_str, user.get("sub", "?"))
 
     # Update stored results: remove this path; drop sets reduced to 1 copy
-    async def _prune(results: list) -> list:
+    def _prune(results: list) -> list:
         updated = []
         for entry in results:
             copies = [c for c in entry.get("copies", []) if c["path"] != path_str]

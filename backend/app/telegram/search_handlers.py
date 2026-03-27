@@ -459,7 +459,7 @@ async def _handle_dupdelete_callback(update, context) -> None:  # type: ignore[t
     # Prune stored results: remove this path, drop sets with <2 copies remaining
     path_str = str(target_path)
 
-    async def _prune(stored: list) -> list:
+    def _prune(stored: list) -> list:
         out = []
         for r in stored:
             remaining = [c for c in r.get("copies", []) if c["path"] != path_str]
