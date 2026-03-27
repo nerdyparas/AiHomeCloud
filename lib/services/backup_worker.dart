@@ -147,16 +147,33 @@ Future<void> _runAllJobs() async {
     final notifications = FlutterLocalNotificationsPlugin();
     await _initNotifications(notifications);
 
+    int inaccessibleCount = 0;
     for (final job in jobs) {
-      await _processJob(
+      final accessible = await _processJob(
           job, username, baseUrl, headers, client, notifications);
+      if (!accessible) inaccessibleCount++;
+    }
+
+    // Send one Telegram failure notification if any folder was unreadable.
+    if (inaccessibleCount > 0) {
+      try {
+        await _sendTelegramNotification(
+          success: false,
+          folders: jobs.length,
+          errorMessage:
+              'Backup failed: cannot access $inaccessibleCount phone '
+              'folder${inaccessibleCount == 1 ? '' : 's'}. '
+              'Open the app and check storage permissions.',
+        );
+      } catch (_) {}
     }
   } finally {
     client.close();
   }
 }
 
-Future<void> _processJob(
+/// Returns true if the phone folder was accessible, false if it could not be read.
+Future<bool> _processJob(
   Map<String, dynamic> job,
   String username,
   String baseUrl,
@@ -172,7 +189,7 @@ Future<void> _processJob(
       lastSyncAtStr != null ? DateTime.tryParse(lastSyncAtStr) : null;
 
   final dir = Directory(phoneFolder);
-  if (!dir.existsSync()) return;
+  if (!dir.existsSync()) return false;
 
   // List all files recursively (matches BackupRunner behaviour).
   final allFiles = dir
@@ -208,7 +225,7 @@ Future<void> _processJob(
           )
           .timeout(const Duration(seconds: 15));
     } catch (_) {}
-    return;
+    return true;
   }
 
   final nasSubdir = _destinationSubdir(destination, username);
@@ -326,6 +343,7 @@ Future<void> _processJob(
   if (uploaded > 0) {
     await _showSummary(notifications, uploaded);
   }
+  return true;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -357,11 +375,11 @@ String _categoryOf(String filename) {
 String _destinationSubdir(String destination, String username) {
   switch (destination) {
     case 'personal':
-      return '/srv/nas/personal/$username';
+      return '/personal/$username';
     case 'family':
-      return '/srv/nas/family';
+      return '/family';
     default:
-      return '/srv/nas/personal/$username';
+      return '/personal/$username';
   }
 }
 

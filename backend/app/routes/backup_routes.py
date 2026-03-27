@@ -236,6 +236,11 @@ async def send_backup_notification(
     if not linked_ids:
         return {"sent": False, "reason": "no_linked_users"}
 
+    # Don't send a message when a successful run processed nothing.
+    # The runner only calls /notify when it has something meaningful to report.
+    if req.success and req.uploaded == 0 and req.skipped == 0:
+        return {"sent": False, "reason": "nothing_to_notify"}
+
     if req.success:
         lines = ["✅ <b>Backup complete</b>\n"]
         lines.append(

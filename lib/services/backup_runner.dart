@@ -200,6 +200,16 @@ class BackupRunner {
           errorMessage:
               'Could not read backup folders — check app storage permissions',
         ));
+        // Notify via Telegram so the user knows why backup silently failed.
+        try {
+          await api.sendBackupNotification(
+            success: false,
+            folders: jobs.length,
+            errorMessage:
+                'Backup failed: cannot access phone folders. '
+                'Open the app and check storage permissions.',
+          );
+        } catch (_) {}
         return;
       }
 
@@ -212,16 +222,7 @@ class BackupRunner {
           } catch (_) {}
         }
         onProgress(const BackupProgress(phase: BackupPhase.done));
-
-        // Notify via Telegram even when nothing new.
-        try {
-          await api.sendBackupNotification(
-            success: true,
-            uploaded: 0,
-            skipped: 0,
-            folders: jobs.length,
-          );
-        } catch (_) {}
+        // Genuinely nothing to do — silent success, no Telegram notification.
         return;
       }
 
@@ -387,16 +388,18 @@ class BackupRunner {
         skippedFiles: totalSkipped,
       ));
 
-      // Send Telegram notification for manual backup summary.
-      try {
-        await api.sendBackupNotification(
-          success: true,
-          uploaded: totalUploaded,
-          skipped: totalSkipped,
-          folders: jobs.length,
-        );
-      } catch (_) {
-        // Non-critical — notification failure should not affect backup result.
+      // Send Telegram notification only when files were actually processed.
+      if (totalUploaded > 0 || totalSkipped > 0) {
+        try {
+          await api.sendBackupNotification(
+            success: true,
+            uploaded: totalUploaded,
+            skipped: totalSkipped,
+            folders: jobs.length,
+          );
+        } catch (_) {
+          // Non-critical — notification failure should not affect backup result.
+        }
       }
     } catch (e) {
       onProgress(const BackupProgress(

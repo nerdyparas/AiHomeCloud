@@ -219,3 +219,55 @@ async def test_report_nonexistent_job(client: AsyncClient, admin_token: str):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 404
+
+
+# ── /notify — silent when nothing happened ────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_notify_silent_when_nothing_to_report(
+    client: AsyncClient, admin_token: str
+):
+    """
+    /notify must NOT send a Telegram message when success=true and both
+    uploaded and skipped are zero (genuinely nothing to back up).
+    The endpoint should return sent=False with reason='nothing_to_notify'.
+    """
+    resp = await client.post(
+        "/api/v1/backup/notify",
+        json={"success": True, "uploaded": 0, "skipped": 0, "folders": 2},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["sent"] is False
+    assert body["reason"] == "nothing_to_notify"
+
+
+@pytest.mark.asyncio
+async def test_notify_sends_when_files_uploaded(
+    client: AsyncClient, admin_token: str
+):
+    """
+    /notify must attempt to send when uploaded > 0, even if Telegram is not
+    configured (it will return sent=False with a different reason, not
+    nothing_to_notify).
+    """
+    resp = await client.post(
+        "/api/v1/backup/notify",
+        json={"success": True, "uploaded": 5, "skipped": 2, "folders": 1},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # In test env Telegram is not configured, so sent=False — but the reason
+    # must NOT be "nothing_to_notify": the endpoint must have attempted to send.
+    assert body.get("reason") != "nothing_to_notify"
+
+
+@pytest.mark.asyncio
+async def test_notify_requires_auth(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/backup/notify",
+        json={"success": True, "uploaded": 0, "skipped": 0, "folders": 0},
+    )
+    assert resp.status_code == 401

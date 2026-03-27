@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/error_utils.dart';
 import '../../core/theme.dart';
@@ -80,8 +83,6 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
     );
   }
 
-  // ── Actions ────────────────────────────────────────────────────────────────
-
   void _openSetupSheet(BuildContext ctx) {
     showModalBottomSheet(
       context: ctx,
@@ -100,6 +101,8 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
   }
 
   Future<void> _createJob(String phoneFolder, String destination) async {
+    final granted = await _requestStoragePermission();
+    if (!granted || !mounted) return;
     try {
       await ref.read(apiServiceProvider).createBackupJob(phoneFolder, destination);
       ref.invalidate(backupStatusProvider);
@@ -128,13 +131,83 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
     }
   }
 
-  void _triggerImmediateBackup() {
+  // ── Storage permission ─────────────────────────────────────────────────────
+
+  /// Returns true if storage/media permission is granted.
+  /// On Android 13+ requests READ_MEDIA_IMAGES; on older Android READ_EXTERNAL_STORAGE.
+  /// Shows a SnackBar on denial or a settings dialog on permanent denial.
+  Future<bool> _requestStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    var status = await Permission.photos.status;
+    if (status.isGranted) return true;
+
+    if (status.isPermanentlyDenied) {
+      if (mounted) _showOpenSettingsDialog();
+      return false;
+    }
+
+    status = await Permission.photos.request();
+    if (status.isGranted) return true;
+
+    if (status.isPermanentlyDenied) {
+      if (mounted) _showOpenSettingsDialog();
+      return false;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Storage permission is needed to read your photos for backup.',
+          ),
+        ),
+      );
+    }
+    return false;
+  }
+
+  void _showOpenSettingsDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Permission required', style: GoogleFonts.sora()),
+        content: Text(
+          'Storage permission is permanently denied. Open Settings to allow '
+          'AiHomeCloud to access your photos.',
+          style:
+              GoogleFonts.dmSans(color: AppColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            child: Text('Open Settings',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  void _triggerImmediateBackup() async {
+    final granted = await _requestStoragePermission();
+    if (!granted || !mounted) return;
     final status = ref.read(backupStatusProvider).valueOrNull;
     if (status == null || status.jobs.isEmpty) return;
     final username = ref.read(authSessionProvider)?.username ?? '';
-    ref
-        .read(backupProgressProvider.notifier)
-        .startAll(status.jobs, username);
+    ref.read(backupProgressProvider.notifier).startAll(status.jobs, username);
   }
 
   void _cancelBackup() {
