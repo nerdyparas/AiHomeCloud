@@ -192,10 +192,16 @@ Future<bool> _processJob(
   if (!dir.existsSync()) return false;
 
   // List all files recursively (matches BackupRunner behaviour).
-  final allFiles = dir
-      .listSync(recursive: true)
-      .whereType<File>()
-      .toList();
+  List<File> allFiles;
+  try {
+    allFiles = dir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .toList();
+  } catch (_) {
+    // Permission denied — scoped storage blocked the listing.
+    return false;
+  }
 
   // Fast pre-filter by modification date before computing any SHA-256.
   final toProcess = lastSyncAt == null

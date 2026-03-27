@@ -169,10 +169,17 @@ class BackupRunner {
         if (!dir.existsSync()) continue;
         accessibleDirs++;
 
-        final allFiles = dir
-            .listSync(recursive: true)
-            .whereType<File>()
-            .toList();
+        List<File> allFiles;
+        try {
+          allFiles = dir
+              .listSync(recursive: true)
+              .whereType<File>()
+              .toList();
+        } catch (_) {
+          // Permission denied — scoped storage blocked the listing.
+          // accessibleDirs is not incremented, so the failure path fires below.
+          continue;
+        }
 
         final lastSyncAt = job.lastSyncAt;
         final toProcess = lastSyncAt == null

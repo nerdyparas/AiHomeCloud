@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -133,38 +134,50 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
 
   // ── Storage permission ─────────────────────────────────────────────────────
 
-  /// Returns true if storage/media permission is granted.
-  /// On Android 13+ requests READ_MEDIA_IMAGES; on older Android READ_EXTERNAL_STORAGE.
-  /// Shows a SnackBar on denial or a settings dialog on permanent denial.
+  /// Returns true if the necessary storage permission is granted.
+  ///
+  /// Android 11+ (API 30+): requests MANAGE_EXTERNAL_STORAGE — the only
+  /// permission that allows dart:io Directory.listSync() on arbitrary paths
+  /// under /storage/emulated/0 without SAF.
+  /// Android 10 and below: READ_EXTERNAL_STORAGE is sufficient.
   Future<bool> _requestStoragePermission() async {
     if (!Platform.isAndroid) return true;
 
-    var status = await Permission.photos.status;
-    if (status.isGranted) return true;
+    final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
 
-    if (status.isPermanentlyDenied) {
-      if (mounted) _showOpenSettingsDialog();
-      return false;
-    }
-
-    status = await Permission.photos.request();
-    if (status.isGranted) return true;
-
-    if (status.isPermanentlyDenied) {
-      if (mounted) _showOpenSettingsDialog();
-      return false;
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Storage permission is needed to read your photos for backup.',
+    if (sdk >= 30) {
+      // Android 11+ — need "All files access"
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      final result = await Permission.manageExternalStorage.request();
+      if (result.isGranted) return true;
+      if (result.isPermanentlyDenied) {
+        if (mounted) _showOpenSettingsDialog();
+        return false;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Storage access is required to back up your files. '
+              'Please grant "All files access" in Settings.',
+            ),
           ),
-        ),
-      );
+        );
+      }
+      return false;
+    } else {
+      // Android 10 and below — READ_EXTERNAL_STORAGE is sufficient
+      final result = await Permission.storage.request();
+      if (result.isGranted) return true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Storage permission is needed to back up your files.'),
+          ),
+        );
+      }
+      return false;
     }
-    return false;
   }
 
   void _showOpenSettingsDialog() {
@@ -173,8 +186,8 @@ class _AutoBackupScreenState extends ConsumerState<AutoBackupScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('Permission required', style: GoogleFonts.sora()),
         content: Text(
-          'Storage permission is permanently denied. Open Settings to allow '
-          'AiHomeCloud to access your photos.',
+          'AiHomeCloud needs "All files access" to back up your folders. '
+          'Open Settings → Apps → AiHomeCloud → Permissions → Files and media.',
           style:
               GoogleFonts.dmSans(color: AppColors.textSecondary, height: 1.4),
         ),
