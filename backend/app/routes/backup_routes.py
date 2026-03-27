@@ -229,17 +229,17 @@ async def send_backup_notification(
     except ImportError:
         return {"sent": False, "reason": "telegram_not_available"}
 
+    # Don't send a message when a successful run processed nothing.
+    # The runner only calls /notify when it has something meaningful to report.
+    if req.success and req.uploaded == 0 and req.skipped == 0:
+        return {"sent": False, "reason": "nothing_to_notify"}
+
     if tb._application is None:
         return {"sent": False, "reason": "telegram_not_configured"}
 
     linked_ids = await tb._get_linked_ids()
     if not linked_ids:
         return {"sent": False, "reason": "no_linked_users"}
-
-    # Don't send a message when a successful run processed nothing.
-    # The runner only calls /notify when it has something meaningful to report.
-    if req.success and req.uploaded == 0 and req.skipped == 0:
-        return {"sent": False, "reason": "nothing_to_notify"}
 
     if req.success:
         lines = ["✅ <b>Backup complete</b>\n"]
