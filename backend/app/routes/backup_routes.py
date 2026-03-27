@@ -15,14 +15,17 @@ Job configs live in kv.json under key "backup_jobs".
 """
 
 import logging
+import urllib.parse
 import uuid
 from contextlib import suppress
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
+from ..config import settings
 from .. import store
 
 logger = logging.getLogger("aihomecloud.backup")
@@ -267,3 +270,81 @@ async def send_backup_notification(
             sent += 1
 
     return {"sent": True, "recipients": sent}
+
+
+# ── Duplicate scanner endpoints ───────────────────────────────────────────────
+
+def _resolve_dup_path(encoded_path: str) -> Path:
+    """URL-decode *encoded_path* and resolve it safely within nas_root."""
+    raw = urllib.parse.unquote(encoded_path)
+    nas_root = settings.nas_root.resolve()
+    if Path(raw).is_absolute():
+        candidate = Path(raw).resolve()
+    else:
+        candidate = (settings.nas_root / raw.lstrip("/")).resolve()
+    if not str(candidate).startswith(str(nas_root)):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path outside NAS root")
+    return candidate
+
+
+@router.get("/duplicates")
+async def get_duplicate_results(
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Return the last duplicate scan results and when the scan ran."""
+    results = await store.get_value("duplicate_scan_results", default=[])
+    ran_at = await store.get_value("duplicate_scan_ran_at", default=None)
+    return {"results": results, "ranAt": ran_at, "count": len(results)}
+
+
+@router.post("/duplicates/scan", status_code=status.HTTP_202_ACCEPTED)
+async def trigger_duplicate_scan(
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_admin),
+) -> dict:
+    """Trigger an immediate duplicate scan (admin only).  Runs in background."""
+    from ..duplicate_scanner import get_duplicate_scanner
+    scanner = get_duplicate_scanner()
+    if scanner.is_scanning:
+        return {"status": "already_scanning"}
+    background_tasks.add_task(scanner._scan_nas_for_duplicates)
+    return {"status": "scanning"}
+
+
+@router.delete("/duplicates/{encoded_path:path}", status_code=status.HTTP_200_OK)
+async def delete_duplicate_file(
+    encoded_path: str,
+    user: dict = Depends(require_admin),
+) -> dict:
+    """Permanently delete one file from a duplicate set and update stored results."""
+    resolved = _resolve_dup_path(encoded_path)
+
+    if not resolved.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    if not resolved.is_file():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path is not a file")
+
+    path_str = str(resolved)
+
+    # Remove from document index (best-effort — module may not be available)
+    with suppress(Exception):
+        from .. import document_index as _docidx
+        nas_rel = "/" + str(resolved.relative_to(settings.nas_root.resolve())).replace("\\", "/")
+        await _docidx.remove_document(nas_rel)
+
+    # Delete the file
+    resolved.unlink()
+    logger.info("duplicate_deleted path=%s by=%s", path_str, user.get("sub", "?"))
+
+    # Update stored results: remove this path; drop sets reduced to 1 copy
+    async def _prune(results: list) -> list:
+        updated = []
+        for entry in results:
+            copies = [c for c in entry.get("copies", []) if c["path"] != path_str]
+            if len(copies) >= 2:
+                updated.append({**entry, "copies": copies})
+        return updated
+
+    await store.atomic_update("duplicate_scan_results", _prune, default=[])
+
+    return {"deleted": path_str}

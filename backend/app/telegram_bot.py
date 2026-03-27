@@ -40,6 +40,8 @@ from app.telegram.auth_handlers import (  # noqa: F401
 from app.telegram.search_handlers import (  # noqa: F401
     _handle_help, _handle_list, _handle_message, _send_file,
     _handle_status, _handle_cancel, _handle_whoami, _handle_storage_cmd,
+    _handle_duplicates, _handle_scan,
+    _handle_dupdelete_callback, _handle_dupskip_callback,
 )
 
 from app.telegram.upload_handlers import (  # noqa: F401
@@ -117,8 +119,10 @@ async def start_bot() -> None:
         _application.add_handler(CommandHandler("whoami",  _handle_whoami))
         _application.add_handler(CommandHandler("unlink",  _handle_unlink))
         _application.add_handler(CommandHandler("recent",  _handle_recent))
-        _application.add_handler(CommandHandler("storage", _handle_storage_cmd))
-        _application.add_handler(CommandHandler("keep",    _handle_keep))
+        _application.add_handler(CommandHandler("storage",    _handle_storage_cmd))
+        _application.add_handler(CommandHandler("duplicates", _handle_duplicates))
+        _application.add_handler(CommandHandler("scan",       _handle_scan))
+        _application.add_handler(CommandHandler("keep",       _handle_keep))
         _application.add_handler(CommandHandler("skip",    _handle_skip))
         _application.add_handler(CommandHandler("approve", _handle_approve_command))
         _application.add_handler(CommandHandler("deny",    _handle_deny_command))
@@ -142,6 +146,12 @@ async def start_bot() -> None:
         )
         _application.add_handler(
             CallbackQueryHandler(_handle_empty_trash_callback, pattern=r"^trash:empty$")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupdelete_callback, pattern=r"^dupdelete:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupskip_callback, pattern=r"^dupskip:")
         )
 
         await _application.initialize()

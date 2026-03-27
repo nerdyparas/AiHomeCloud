@@ -39,10 +39,66 @@ from .routes import (
     web_upload_routes,
 )
 
+from datetime import datetime, timedelta
+
 logger = logging.getLogger("aihomecloud.main")
 
 _BOT_BACKOFF_SCHEDULE = [5, 10, 30, 60, 60]  # seconds between restart attempts
 _BOT_MAX_RESTARTS = 5
+
+
+async def _run_nightly_duplicate_scan() -> None:
+    """Sleep until 2:00 AM then run the duplicate scanner, repeat daily."""
+    while True:
+        try:
+            now = datetime.now()
+            target = now.replace(hour=2, minute=0, second=0, microsecond=0)
+            if target <= now:
+                target += timedelta(days=1)
+            await asyncio.sleep((target - now).total_seconds())
+            from .duplicate_scanner import get_duplicate_scanner
+            await get_duplicate_scanner()._scan_nas_for_duplicates()
+            logger.info("Nightly duplicate scan complete")
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.error("Nightly duplicate scan failed: %s", exc)
+
+
+async def _send_evening_duplicate_report() -> None:
+    """Sleep until 6:00 PM then send the Telegram duplicate report, repeat daily."""
+    while True:
+        try:
+            now = datetime.now()
+            target = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            if target <= now:
+                target += timedelta(days=1)
+            await asyncio.sleep((target - now).total_seconds())
+
+            from . import store as _store_mod
+            results = await _store_mod.get_value("duplicate_scan_results", default=[])
+            if not results:
+                continue
+
+            from .duplicate_scanner import get_duplicate_scanner
+            msg = get_duplicate_scanner()._format_telegram_report(results)
+            if msg is None:
+                continue
+
+            from . import telegram_bot as _tb_mod
+            from .telegram.bot_core import _get_linked_ids
+            if _tb_mod._application is not None:
+                linked = await _get_linked_ids()
+                for chat_id in linked:
+                    with suppress(Exception):
+                        await _tb_mod._application.bot.send_message(
+                            chat_id=chat_id, text=msg, parse_mode="HTML"
+                        )
+            logger.info("Evening duplicate report sent to %d user(s)", len(linked) if _tb_mod._application else 0)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.error("Evening duplicate report failed: %s", exc)
 
 
 async def _supervise_telegram_bot() -> None:
@@ -260,6 +316,14 @@ async def lifespan(app: FastAPI):
         _supervise_telegram_bot(), name="telegram_bot_supervisor"
     )
 
+    # Nightly duplicate scan at 2:00 AM + evening Telegram report at 6:00 PM
+    app.state.dup_scan_task = asyncio.create_task(
+        _run_nightly_duplicate_scan(), name="duplicate_scan_nightly"
+    )
+    app.state.dup_report_task = asyncio.create_task(
+        _send_evening_duplicate_report(), name="duplicate_report_evening"
+    )
+
     # Auto-disable WiFi if Ethernet is active, then start periodic re-check
     try:
         from .wifi_manager import auto_disable_wifi_if_ethernet, start_wifi_monitor
@@ -270,12 +334,13 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Cancel bot supervisor
-    sup = getattr(app.state, "bot_supervisor_task", None)
-    if sup and not sup.done():
-        sup.cancel()
-        with suppress(asyncio.CancelledError):
-            await sup
+    # Cancel scheduled tasks
+    for task_attr in ("bot_supervisor_task", "dup_scan_task", "dup_report_task"):
+        task = getattr(app.state, task_attr, None)
+        if task and not task.done():
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
     # Stop Telegram bot
     try:

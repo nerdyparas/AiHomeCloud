@@ -1,6 +1,7 @@
 """Telegram bot handlers — search handlers."""
 
 import shutil
+import urllib.parse
 from pathlib import Path
 
 from .bot_core import (
@@ -11,6 +12,7 @@ from .bot_core import (
     _get_chat_folder_owner,
 )
 from ..config import settings
+from .. import store as _store
 
 from .. import document_index as _docidx
 
@@ -296,6 +298,188 @@ async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
     )
 
 
+
+
+async def _handle_duplicates(update, context) -> None:  # type: ignore[type-arg]
+    """Show last duplicate scan results with per-set delete buttons."""
+    chat_id = update.effective_chat.id
+    if not await _check_allowed_and_rate(update):
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    results = await _store.get_value("duplicate_scan_results", default=[])
+    ran_at = await _store.get_value("duplicate_scan_ran_at", default=None)
+
+    if not results:
+        ran_note = f"\nLast scan: <i>{ran_at}</i>" if ran_at else ""
+        is_admin = await _is_admin_chat(chat_id)
+        admin_hint = "  Use /scan to run now." if is_admin else ""
+        await update.message.reply_text(
+            f"✅ <b>No duplicates found.</b>{ran_note}\n"
+            f"<i>Scan runs nightly at 2 AM.{admin_hint}</i>",
+            parse_mode="HTML",
+        )
+        return
+
+    ran_note = f"  <i>(scan: {ran_at[:10] if ran_at else 'unknown'})</i>"
+    await update.message.reply_text(
+        f"🔍 <b>{len(results)} duplicate set{'s' if len(results) != 1 else ''} found</b>{ran_note}\n"
+        "<i>Tap a button to delete one copy permanently.</i>",
+        parse_mode="HTML",
+    )
+
+    for entry in results[:10]:
+        size_bytes = entry.get("sizeBytes", 0)
+        if size_bytes < 1024 * 1024:
+            size_str = f"{size_bytes / 1024:.0f} KB"
+        elif size_bytes < 1024 ** 3:
+            size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
+        else:
+            size_str = f"{size_bytes / (1024 ** 3):.2f} GB"
+
+        filename = entry.get("filename", "unknown")
+        copies = entry.get("copies", [])
+        hash_prefix = entry.get("hash", "")[:16]
+
+        # callback_data: "dupdelete:<hash16>:<copy_idx>" — max ~28 chars (well under 64 limit)
+        buttons = [
+            [InlineKeyboardButton(
+                f"🗑 Delete {c.get('owner', f'copy {i+1}')} copy",
+                callback_data=f"dupdelete:{hash_prefix}:{i}",
+            )]
+            for i, c in enumerate(copies)
+        ]
+        buttons.append([InlineKeyboardButton("⏭ Skip", callback_data=f"dupskip:{hash_prefix}")])
+
+        await update.message.reply_text(
+            f"📄 <code>{filename}</code> — {size_str} × {len(copies)} copies\n"
+            + "\n".join(f"  • {c['owner']}: <code>{c['path']}</code>" for c in copies),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+
+    if len(results) > 10:
+        await update.message.reply_text(
+            f"<i>…and {len(results) - 10} more duplicate sets not shown.</i>",
+            parse_mode="HTML",
+        )
+
+
+async def _handle_scan(update, context) -> None:  # type: ignore[type-arg]
+    """Trigger an immediate duplicate scan (admin only)."""
+    chat_id = update.effective_chat.id
+    if not await _check_allowed_and_rate(update):
+        return
+
+    if not await _is_admin_chat(chat_id):
+        await update.message.reply_text(
+            "🔒 <i>Admin access required to run a scan.</i>",
+            parse_mode="HTML",
+        )
+        return
+
+    from ..duplicate_scanner import get_duplicate_scanner
+    import asyncio
+    scanner = get_duplicate_scanner()
+    if scanner.is_scanning:
+        await update.message.reply_text(
+            "⏳ <i>A scan is already in progress.</i>",
+            parse_mode="HTML",
+        )
+        return
+
+    asyncio.create_task(scanner._scan_nas_for_duplicates(), name="telegram_dup_scan")
+    await update.message.reply_text(
+        "🔍 <b>Storage scan started.</b>\n\n"
+        "I'll send a summary at 6 PM, or use /duplicates to check anytime.",
+        parse_mode="HTML",
+    )
+
+
+async def _handle_dupdelete_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Inline keyboard callback: permanently delete one copy from a duplicate set."""
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat.id
+    if not await _is_admin_chat(chat_id):
+        await query.edit_message_text("🔒 Admin access required.")
+        return
+
+    # "dupdelete:<hash16>:<copy_idx>"
+    parts = query.data.split(":")
+    if len(parts) != 3:
+        await query.edit_message_text("❌ Invalid action.")
+        return
+
+    _, hash_prefix, idx_str = parts
+    try:
+        copy_idx = int(idx_str)
+    except ValueError:
+        await query.edit_message_text("❌ Invalid copy index.")
+        return
+
+    results = await _store.get_value("duplicate_scan_results", default=[])
+    entry = next(
+        (r for r in results if r.get("hash", "").startswith(hash_prefix)),
+        None,
+    )
+    if entry is None:
+        await query.edit_message_text("⚠️ Duplicate set no longer found (already resolved?).")
+        return
+
+    copies = entry.get("copies", [])
+    if copy_idx >= len(copies):
+        await query.edit_message_text("⚠️ Copy index out of range.")
+        return
+
+    target_path = Path(copies[copy_idx]["path"])
+    if not target_path.exists():
+        await query.edit_message_text(
+            f"⚠️ File already gone: <code>{target_path.name}</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_path.unlink()
+        logger.info("telegram_dupdelete path=%s", target_path)
+    except OSError as exc:
+        await query.edit_message_text(f"❌ Delete failed: {exc}")
+        return
+
+    # Best-effort document index removal
+    try:
+        nas_rel = "/" + str(target_path.relative_to(settings.nas_root.resolve())).replace("\\", "/")
+        await _docidx.remove_document(nas_rel)
+    except Exception:
+        pass
+
+    # Prune stored results: remove this path, drop sets with <2 copies remaining
+    path_str = str(target_path)
+
+    async def _prune(stored: list) -> list:
+        out = []
+        for r in stored:
+            remaining = [c for c in r.get("copies", []) if c["path"] != path_str]
+            if len(remaining) >= 2:
+                out.append({**r, "copies": remaining})
+        return out
+
+    await _store.atomic_update("duplicate_scan_results", _prune, default=[])
+
+    await query.edit_message_text(
+        f"✅ Deleted: <code>{target_path.name}</code>",
+        parse_mode="HTML",
+    )
+
+
+async def _handle_dupskip_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Inline keyboard callback: dismiss a duplicate set without deleting."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_reply_markup(reply_markup=None)
 
 
 async def _handle_storage_cmd(update, context) -> None:  # type: ignore[type-arg]
