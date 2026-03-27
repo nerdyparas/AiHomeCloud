@@ -514,10 +514,10 @@ async function loadUsers() {
   users.forEach(u => {
     const card = document.createElement('div');
     card.className = 'user-card';
-    card.innerHTML = \`
-      <div class="avatar">\${escHtml(u.icon_emoji || '👤')}</div>
-      <div class="uname">\${escHtml(u.name)}</div>
-    \`;
+    card.innerHTML = `
+      <div class="avatar">${escHtml(u.icon_emoji || '👤')}</div>
+      <div class="uname">${escHtml(u.name)}</div>
+    `;
     card.addEventListener('click', () => onUserSelect(u));
     grid.appendChild(card);
   });

@@ -115,3 +115,4 @@ audit3/
 *.audit.md
 gitlog*.md
 .ai-context/
+.coverage
