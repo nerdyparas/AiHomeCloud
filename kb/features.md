@@ -91,6 +91,7 @@
 ## Planned / In Progress
 
 - **Telegram large files** — Full Task 13 implementation: local Bot API server, Docker setup script, 2 GB file receive (see `tasks.md`)
+- **Web Upload Portal** — LAN-accessible drag-and-drop web page at `/web`; user picker with PIN, 3 upload zones (Personal / Family / Entertainment), XHR progress bars, retry on failure, responsive layout
 - **OTA firmware update** — `POST /system/update` exists but has TODO stub
 - **Auto AP fallback** — `auto_ap.py` exists for access-point mode when no network (partially implemented)
 

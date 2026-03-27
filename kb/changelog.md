@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-03-27 — Web Upload Portal (Tasks 1–6)
+
+- **New route**: `GET /web` — self-contained HTML+CSS+JS page served by FastAPI (`web_upload_routes.py`)
+- **User picker**: fetches `GET /auth/users/names`, shows emoji avatars, PIN modal with on-screen keypad + keyboard support, auto-submit on 4th digit
+- **Upload dashboard**: 3 drag-and-drop zones (Personal / Family / Entertainment) in responsive CSS Grid (3-col desktop, 1-col mobile)
+- **Upload engine**: XHR with `upload.onprogress` for real-time progress bars, sequential queue per zone, parallel across zones, retry button on failure, 401 auto-logout
+- **Session management**: JWT stored in `sessionStorage`; logout clears all state; `history.replaceState` prevents back-button navigation away from SPA
+- **Zero new dependencies**: reuses existing `/auth/login`, `/api/v1/files/upload`, path sandboxing, TLS
+
+---
+
 ## 2026-03-27 — Auto Backup Redesign: All File Types, Categorisation, Daily Schedule, Telegram Notifications
 
 - **All file types**: Removed media-only filter (`_isMediaFile`) from both `backup_runner.dart` and `backup_worker.dart` — backup now handles photos, videos, documents, audio, and any other file type

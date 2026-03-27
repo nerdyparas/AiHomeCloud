@@ -31,6 +31,7 @@ Communication is HTTPS (self-signed TLS, trust-on-first-use pinning) on port 844
 | `network_routes.py` | `/api/v1` | User | 3 endpoints: network status, Wi-Fi get/set |
 | `telegram_routes.py` | `/api/v1/telegram` | Admin | 6 endpoints: config get/set, unlink, pending list/approve/deny |
 | `telegram_upload_routes.py` | `/telegram-upload` | Token URL | 2 endpoints: browser upload form + POST |
+| `web_upload_routes.py` | `/web` | None (HTML) | 1 endpoint: LAN drag-and-drop web upload portal |
 | `jobs_routes.py` | `/api/v1/jobs` | User | 1 endpoint: poll long-running job status |
 | `backup_routes.py` | `/api/v1/backup` | User | 6 endpoints: check-duplicate, record-hash, status, create job, delete job, report sync |
 | `event_routes.py` | `/ws` | Token | 1 WS: real-time notification stream |

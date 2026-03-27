@@ -54,6 +54,7 @@
 | `network_routes.py` | `/api/v1/network` | 3 | Status, Wi-Fi get/set |
 | `telegram_routes.py` | `/api/v1/telegram` | 6 | Config get/set, unlink, pending list/approve/deny |
 | `telegram_upload_routes.py` | `/telegram-upload` | 2 | HTML upload form (GET), file upload (POST) — token auth |
+| `web_upload_routes.py` | `/web` | 1 | LAN web upload portal — user picker + drag-and-drop upload |
 | `jobs_routes.py` | `/api/v1/jobs` | 1 | Job status polling |
 | `event_routes.py` | `/ws` | 1 WS | Real-time event stream (`/ws/events`) |
 
