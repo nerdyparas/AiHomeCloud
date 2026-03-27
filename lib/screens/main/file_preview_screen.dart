@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -111,18 +112,32 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
     try {
       final api = ref.read(apiServiceProvider);
       final res = await api.downloadFile(widget.file.path);
-      final dir = await getApplicationDocumentsDirectory();
-      final downloadsDir = Directory('${dir.path}/Downloads');
-      if (!downloadsDir.existsSync()) {
-        downloadsDir.createSync(recursive: true);
+
+      if (_isImage) {
+        await Gal.putImageBytes(res.bodyBytes, name: widget.file.name);
+      } else if (_isVideo) {
+        final tmp = await getTemporaryDirectory();
+        final tmpFile = File('${tmp.path}/${widget.file.name}');
+        await tmpFile.writeAsBytes(res.bodyBytes);
+        try {
+          await Gal.putVideo(tmpFile.path);
+        } finally {
+          await tmpFile.delete();
+        }
+      } else {
+        // Documents and audio — save to app external storage (accessible
+        // by file managers with MANAGE_EXTERNAL_STORAGE).
+        final dir = await getExternalStorageDirectory();
+        final saveDir = Directory('${dir!.path}/Downloads');
+        if (!saveDir.existsSync()) saveDir.createSync(recursive: true);
+        await File('${saveDir.path}/${widget.file.name}')
+            .writeAsBytes(res.bodyBytes);
       }
-      final file = File('${downloadsDir.path}/${widget.file.name}');
-      await file.writeAsBytes(res.bodyBytes);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Saved: ${widget.file.name}',
+          content: Text('Saved to gallery: ${widget.file.name}',
               style: GoogleFonts.dmSans()),
           backgroundColor: AppColors.card,
         ),

@@ -109,6 +109,8 @@ lib/generated_plugin_registrant.dart
 # Dev artifacts / audit files
 docs/archive/
 docs/audit/
+docs/CTO_Review.md
+docs/Tasks4_Production.md
 audit3/
 *.audit.md
 gitlog*.md

@@ -32,6 +32,7 @@ dependencies:
   exif: ^3.3.0
   permission_handler: ^11.3.1
   device_info_plus: ^9.1.0
+  gal: ^2.3.0
 
 dev_dependencies:
   flutter_test:
