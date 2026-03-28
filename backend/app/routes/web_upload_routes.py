@@ -475,7 +475,8 @@ _HTML = """<!DOCTYPE html>
     .upload-status.uploading { color: #6C63FF; }
     .upload-status.done      { color: #4caf50; }
     .upload-status.failed    { color: #ff6b6b; }
-    .upload-status.skipped   { color: #888; }
+    .upload-status.skipped    { color: #888; }
+    .upload-status.cancelled  { color: #888; }
     .upload-detail {
       font-size: 0.69rem;
       color: #666;
@@ -498,6 +499,31 @@ _HTML = """<!DOCTYPE html>
       flex-shrink: 0;
     }
     .btn-clear-done:hover { color: #ccc; background: rgba(255,255,255,0.07); }
+    .btn-cancel-all {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.72rem;
+      cursor: pointer;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-cancel-all:hover { color: #ff6b6b; background: rgba(255,107,107,0.08); }
+    .btn-cancel-item {
+      background: none;
+      border: none;
+      color: #444;
+      font-size: 0.72rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0.1rem 0.25rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+      transition: color 0.1s;
+    }
+    .btn-cancel-item:hover { color: #ff6b6b; }
     .upload-bar-wrap {
       height: 3px;
       background: #2a2a2a;
@@ -511,8 +537,9 @@ _HTML = """<!DOCTYPE html>
       width: 0%;
       transition: width 0.15s linear;
     }
-    .upload-bar.done   { background: #4caf50; }
-    .upload-bar.failed { background: #ff6b6b; }
+    .upload-bar.done      { background: #4caf50; }
+    .upload-bar.failed    { background: #ff6b6b; }
+    .upload-bar.cancelled { background: #444; }
     .btn-retry {
       background: none;
       border: 1px solid #ff6b6b;
@@ -604,6 +631,7 @@ _HTML = """<!DOCTYPE html>
         <span class="zone-icon">🗂️</span>
         <span class="zone-title">Personal</span>
         <span class="zone-subtitle">Your private files</span>
+        <button class="btn-cancel-all" id="cancel-all-personal" style="display:none">Cancel all</button>
         <button class="btn-clear-done" id="clear-personal" style="display:none">Clear</button>
       </div>
       <div class="zone-drop" id="drop-personal">
@@ -621,6 +649,7 @@ _HTML = """<!DOCTYPE html>
         <span class="zone-icon">👨‍👩‍👧‍👦</span>
         <span class="zone-title">Family</span>
         <span class="zone-subtitle">Shared with everyone</span>
+        <button class="btn-cancel-all" id="cancel-all-family" style="display:none">Cancel all</button>
         <button class="btn-clear-done" id="clear-family" style="display:none">Clear</button>
       </div>
       <div class="zone-drop" id="drop-family">
@@ -638,6 +667,7 @@ _HTML = """<!DOCTYPE html>
         <span class="zone-icon">🎬</span>
         <span class="zone-title">Entertainment</span>
         <span class="zone-subtitle">Movies, music &amp; more</span>
+        <button class="btn-cancel-all" id="cancel-all-entertainment" style="display:none">Cancel all</button>
         <button class="btn-clear-done" id="clear-entertainment" style="display:none">Clear</button>
       </div>
       <div class="zone-drop" id="drop-entertainment">
@@ -663,13 +693,14 @@ const state = {
   token: null,
   userName: null,
 };
-// Per-zone upload queues, busy flags and summary counters
-const uploadQueues = { personal: [], family: [], entertainment: [] };
-const uploadBusy   = { personal: false, family: false, entertainment: false };
-const uploadStats  = {
-  personal:      { done: 0, failed: 0, skipped: 0 },
-  family:        { done: 0, failed: 0, skipped: 0 },
-  entertainment: { done: 0, failed: 0, skipped: 0 },
+// Per-zone upload queues, busy flags, active entry tracker and summary counters
+const uploadQueues  = { personal: [], family: [], entertainment: [] };
+const uploadBusy    = { personal: false, family: false, entertainment: false };
+const activeEntry   = { personal: null,  family: null,  entertainment: null  };
+const uploadStats   = {
+  personal:      { done: 0, failed: 0, skipped: 0, cancelled: 0 },
+  family:        { done: 0, failed: 0, skipped: 0, cancelled: 0 },
+  entertainment: { done: 0, failed: 0, skipped: 0, cancelled: 0 },
 };
 
 // ── View switching ───────────────────────────────────────────────────────
@@ -797,7 +828,7 @@ function setupZone(zoneId) {
   // pointer-events on dropEl is none (CSS), so the click bubbles from zoneEl
   zoneEl.addEventListener('click', e => {
     // Only trigger file picker if the click wasn't on the queue/stats
-    if (e.target.closest('.zone-queue, .zone-stats, .btn-retry, .btn-clear-done')) return;
+    if (e.target.closest('.zone-queue, .zone-stats, .btn-retry, .btn-clear-done, .btn-cancel-all')) return;
     fileEl.click();
   });
 
@@ -838,20 +869,24 @@ function resetUploadState() {
   ['personal', 'family', 'entertainment'].forEach(z => {
     uploadQueues[z] = [];
     uploadBusy[z]   = false;
-    uploadStats[z]  = { done: 0, failed: 0, skipped: 0 };
+    activeEntry[z]  = null;
+    uploadStats[z]  = { done: 0, failed: 0, skipped: 0, cancelled: 0 };
   });
 }
 
 function onFilesSelected(zoneId, files) {
   files.forEach(f => {
-    const itemEl = createQueueItem(f.name);
+    const entry  = { file: f, itemEl: null, abortFn: null, cancelled: false };
+    const itemEl = createQueueItem(f.name, () => cancelEntry(zoneId, entry));
+    entry.itemEl = itemEl;
     document.getElementById('queue-' + zoneId).appendChild(itemEl);
-    uploadQueues[zoneId].push({ file: f, itemEl });
+    uploadQueues[zoneId].push(entry);
   });
+  updateCancelAllButton(zoneId);
   processQueue(zoneId);
 }
 
-function createQueueItem(name) {
+function createQueueItem(name, cancelCb) {
   const el = document.createElement('div');
   el.className = 'upload-item';
   const nameHtml = escHtml(truncateName(name, 36));
@@ -860,9 +895,14 @@ function createQueueItem(name) {
     '<div class="upload-row">' +
       '<span class="upload-name" title="' + nameFull + '">' + nameHtml + '</span>' +
       '<span class="upload-status pending">Queued</span>' +
+      '<button class="btn-cancel-item" title="Cancel">\u2715</button>' +
     '</div>' +
     '<div class="upload-bar-wrap"><div class="upload-bar"></div></div>' +
     '<div class="upload-detail"></div>';
+  el.querySelector('.btn-cancel-item').addEventListener('click', e => {
+    e.stopPropagation();
+    cancelCb();
+  });
   return el;
 }
 
@@ -877,12 +917,15 @@ function truncateName(str, max) {
 
 function processQueue(zoneId) {
   if (uploadBusy[zoneId] || uploadQueues[zoneId].length === 0) return;
-  uploadBusy[zoneId] = true;
+  uploadBusy[zoneId]  = true;
   const entry = uploadQueues[zoneId].shift();
+  activeEntry[zoneId] = entry;
   uploadFile(zoneId, entry).then(() => {
-    uploadBusy[zoneId] = false;
+    activeEntry[zoneId] = null;
+    uploadBusy[zoneId]  = false;
     updateZoneStats(zoneId);
     updateClearButton(zoneId);
+    updateCancelAllButton(zoneId);
     processQueue(zoneId);
   });
 }
@@ -901,15 +944,47 @@ function fmtSpeed(bps) {
   return bps + ' B/s';
 }
 
+// ── Cancel helpers ────────────────────────────────────────────────────────
+function cancelEntry(zoneId, entry) {
+  if (entry.abortFn) {
+    // Checking or uploading — abort whatever is in flight
+    entry.abortFn();
+  } else {
+    // Still pending in queue — remove silently
+    const idx = uploadQueues[zoneId].indexOf(entry);
+    if (idx !== -1) uploadQueues[zoneId].splice(idx, 1);
+    entry.itemEl.remove();
+    updateCancelAllButton(zoneId);
+    updateClearButton(zoneId);
+  }
+}
+
+function cancelAll(zoneId) {
+  // Remove all pending entries from queue and DOM
+  uploadQueues[zoneId].forEach(e => e.itemEl.remove());
+  uploadQueues[zoneId] = [];
+  // Abort the active upload/check if any
+  if (activeEntry[zoneId] && activeEntry[zoneId].abortFn) {
+    activeEntry[zoneId].abortFn();
+  }
+  updateCancelAllButton(zoneId);
+  updateClearButton(zoneId);
+}
+
+function updateCancelAllButton(zoneId) {
+  const btn = document.getElementById('cancel-all-' + zoneId);
+  if (!btn) return;
+  const hasActive = uploadBusy[zoneId] || uploadQueues[zoneId].length > 0;
+  btn.style.display = hasActive ? '' : 'none';
+}
+
 // ── Clear-done helpers ─────────────────────────────────────────────────────
+const _CLEARABLE = '.upload-status.done, .upload-status.failed, .upload-status.skipped, .upload-status.cancelled';
 function clearDone(zoneId) {
   const queue = document.getElementById('queue-' + zoneId);
   if (!queue) return;
   queue.querySelectorAll('.upload-item').forEach(item => {
-    const s = item.querySelector('.upload-status');
-    if (s && (s.classList.contains('done') || s.classList.contains('failed') || s.classList.contains('skipped'))) {
-      item.remove();
-    }
+    if (item.querySelector(_CLEARABLE)) item.remove();
   });
   updateClearButton(zoneId);
 }
@@ -917,8 +992,7 @@ function updateClearButton(zoneId) {
   const btn   = document.getElementById('clear-' + zoneId);
   const queue = document.getElementById('queue-' + zoneId);
   if (!btn || !queue) return;
-  const has = !!queue.querySelector('.upload-status.done, .upload-status.failed, .upload-status.skipped');
-  btn.style.display = has ? '' : 'none';
+  btn.style.display = queue.querySelector(_CLEARABLE) ? '' : 'none';
 }
 
 // ── Duplicate detection ───────────────────────────────────────────────────
@@ -934,17 +1008,18 @@ function addDupSuffix(name) {
  * Ask the server if a file with this name+size already exists on the NAS.
  * Returns { found: bool, path: string } or null on network error.
  */
-async function checkDuplicate(file) {
+async function checkDuplicate(file, signal) {
   try {
     const params = new URLSearchParams({ name: file.name, size: String(file.size) });
     const res = await fetch('/web/check-duplicate?' + params.toString(), {
       headers: { 'Authorization': 'Bearer ' + state.token },
+      signal,
     });
-    if (res.status === 401) return null; // handled in uploadFile
-    if (!res.ok) return null;            // non-fatal; proceed with upload
+    if (res.status === 401) return null;
+    if (!res.ok) return null;
     return await res.json();
   } catch (_) {
-    return null;
+    return null;  // includes AbortError — treated as non-fatal
   }
 }
 
@@ -977,36 +1052,56 @@ function showDupModal(originalName, existingPath, newName) {
 
 async function uploadFile(zoneId, entry) {
   const { file, itemEl } = entry;
-  const statusEl = itemEl.querySelector('.upload-status');
-  const barEl    = itemEl.querySelector('.upload-bar');
-  const detailEl = itemEl.querySelector('.upload-detail');
+  const statusEl  = itemEl.querySelector('.upload-status');
+  const barEl     = itemEl.querySelector('.upload-bar');
+  const detailEl  = itemEl.querySelector('.upload-detail');
+  const cancelBtn = itemEl.querySelector('.btn-cancel-item');
 
-  // ── Step 1: duplicate check ──────────────────────────────────────────
+  // Shared helper — mark this item as cancelled in the UI
+  function _markCancelled() {
+    entry.abortFn = null;
+    detailEl.className   = 'upload-detail';
+    detailEl.textContent = '';
+    barEl.classList.add('cancelled');
+    statusEl.className   = 'upload-status cancelled';
+    statusEl.textContent = '\u2715 Cancelled';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    uploadStats[zoneId].cancelled++;
+  }
+
+  // ── Step 1: duplicate check (cancellable via AbortController) ────────
   statusEl.className   = 'upload-status checking';
-  statusEl.textContent = 'Checking…';
+  statusEl.textContent = 'Checking\u2026';
+
+  const checkCtrl  = new AbortController();
+  entry.abortFn    = () => { entry.cancelled = true; checkCtrl.abort(); };
 
   let uploadName = file.name;
-  const dupResult = await checkDuplicate(file);
+  const dupResult = await checkDuplicate(file, checkCtrl.signal);
+
+  if (entry.cancelled) { _markCancelled(); return; }
+  entry.abortFn = null;
 
   if (dupResult && dupResult.found) {
     const newName = addDupSuffix(file.name);
     const choice  = await showDupModal(file.name, dupResult.path, newName);
 
+    if (entry.cancelled) { _markCancelled(); return; }
+
     if (!choice.proceed) {
-      // User cancelled — mark item as skipped (not an error)
       statusEl.className   = 'upload-status skipped';
       statusEl.textContent = '\u2296 Skipped';
+      if (cancelBtn) cancelBtn.style.display = 'none';
       uploadStats[zoneId].skipped++;
       return;
     }
-    // Upload with the renamed filename
     uploadName = choice.newName;
     const nameEl = itemEl.querySelector('.upload-name');
     nameEl.textContent = truncateName(uploadName, 36);
     nameEl.title       = uploadName;
   }
 
-  // ── Step 2: actual upload via XHR (streaming, no multipart buffering) ──
+  // ── Step 2: XHR upload (cancellable via xhr.abort()) ─────────────────
   statusEl.className   = 'upload-status uploading';
   statusEl.textContent = '0%';
 
@@ -1021,6 +1116,8 @@ async function uploadFile(zoneId, entry) {
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 
+    entry.abortFn = () => xhr.abort();
+
     let rateBase = 0, rateBaseTime = Date.now(), lastUiUpdate = 0;
 
     xhr.upload.onprogress = e => {
@@ -1028,6 +1125,8 @@ async function uploadFile(zoneId, entry) {
       const pct = Math.round((e.loaded / e.total) * 100);
       barEl.style.width    = pct + '%';
       statusEl.textContent = pct + '%';
+      // Hide cancel once 100% sent — abort has no useful effect after this
+      if (pct >= 100 && cancelBtn) cancelBtn.style.display = 'none';
       const now = Date.now();
       if (now - lastUiUpdate >= 300) {
         const dt   = (now - rateBaseTime) / 1000;
@@ -1039,9 +1138,18 @@ async function uploadFile(zoneId, entry) {
       }
     };
 
-    xhr.onload = () => {
+    xhr.onabort = () => {
       detailEl.className = 'upload-detail';
       detailEl.textContent = '';
+      _markCancelled();
+      resolve();
+    };
+
+    xhr.onload = () => {
+      entry.abortFn = null;
+      detailEl.className   = 'upload-detail';
+      detailEl.textContent = '';
+      if (cancelBtn) cancelBtn.style.display = 'none';
       if (xhr.status === 401) {
         statusEl.className   = 'upload-status failed';
         statusEl.textContent = 'Session expired';
@@ -1069,7 +1177,8 @@ async function uploadFile(zoneId, entry) {
     };
 
     xhr.onerror = () => {
-      detailEl.className = 'upload-detail';
+      entry.abortFn = null;
+      detailEl.className   = 'upload-detail';
       detailEl.textContent = '';
       markFailed(zoneId, entry, itemEl, statusEl, barEl, 'Network error', resolve);
     };
@@ -1079,6 +1188,9 @@ async function uploadFile(zoneId, entry) {
 }
 
 function markFailed(zoneId, entry, itemEl, statusEl, barEl, msg, resolve) {
+  entry.abortFn = null;
+  const cancelBtn = itemEl.querySelector('.btn-cancel-item');
+  if (cancelBtn) cancelBtn.style.display = 'none';
   barEl.classList.add('failed');
   statusEl.className   = 'upload-status failed';
   statusEl.textContent = '\u2717 ' + msg;
@@ -1089,13 +1201,16 @@ function markFailed(zoneId, entry, itemEl, statusEl, barEl, msg, resolve) {
   retryBtn.textContent = 'Retry';
   retryBtn.addEventListener('click', () => {
     retryBtn.remove();
+    entry.cancelled      = false;
     barEl.className      = 'upload-bar';
     barEl.style.width    = '0%';
     statusEl.className   = 'upload-status pending';
     statusEl.textContent = 'Queued';
+    if (cancelBtn) cancelBtn.style.display = '';
     uploadStats[zoneId].failed = Math.max(0, uploadStats[zoneId].failed - 1);
     uploadQueues[zoneId].unshift(entry);
     updateZoneStats(zoneId);
+    updateCancelAllButton(zoneId);
     processQueue(zoneId);
   });
   row.appendChild(retryBtn);
@@ -1105,12 +1220,13 @@ function markFailed(zoneId, entry, itemEl, statusEl, barEl, msg, resolve) {
 function updateZoneStats(zoneId) {
   const el = document.getElementById('stats-' + zoneId);
   if (!el) return;
-  const { done, failed, skipped } = uploadStats[zoneId];
-  if (done + failed + skipped === 0) { el.textContent = ''; return; }
+  const { done, failed, skipped, cancelled } = uploadStats[zoneId];
+  if (done + failed + skipped + cancelled === 0) { el.textContent = ''; return; }
   const parts = [];
-  if (done)    parts.push(done    + ' uploaded');
-  if (failed)  parts.push(failed  + ' failed');
-  if (skipped) parts.push(skipped + ' skipped');
+  if (done)      parts.push(done      + ' uploaded');
+  if (failed)    parts.push(failed    + ' failed');
+  if (skipped)   parts.push(skipped   + ' skipped');
+  if (cancelled) parts.push(cancelled + ' cancelled');
   el.textContent = parts.join(' \u00b7 ');
 }
 
@@ -1208,6 +1324,8 @@ document.getElementById('btn-logout').addEventListener('click', () => {
     if (s) s.textContent = '';
     const c = document.getElementById('clear-' + z);
     if (c) c.style.display = 'none';
+    const ca = document.getElementById('cancel-all-' + z);
+    if (ca) ca.style.display = 'none';
   });
   resetUploadState();
   showView('view-picker');
@@ -1220,6 +1338,7 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 ['personal', 'family', 'entertainment'].forEach(zone => {
   setupZone(zone);
   document.getElementById('clear-' + zone).addEventListener('click', () => clearDone(zone));
+  document.getElementById('cancel-all-' + zone).addEventListener('click', () => cancelAll(zone));
 });
 // Keep the SPA on /web so the browser back button does not navigate away.
 history.replaceState({ ahc: true }, '', '/web');
