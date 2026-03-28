@@ -944,20 +944,20 @@ async function uploadFile(zoneId, entry) {
     nameEl.title       = uploadName;
   }
 
-  // ── Step 2: actual upload via XHR ────────────────────────────────────
+  // ── Step 2: actual upload via XHR (streaming, no multipart buffering) ──
   statusEl.className   = 'upload-status uploading';
   statusEl.textContent = '0%';
 
   const path = ZONE_PATHS[zoneId]();
-  const url  = '/api/v1/files/upload?path=' + encodeURIComponent(path);
-  const fd   = new FormData();
-  // Pass uploadName as the filename so the server uses it (handles (1) rename)
-  fd.append('file', file, uploadName);
+  const url  = '/api/v1/files/upload-stream'
+             + '?path='     + encodeURIComponent(path)
+             + '&filename=' + encodeURIComponent(uploadName);
 
   await new Promise(resolve => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
@@ -997,7 +997,7 @@ async function uploadFile(zoneId, entry) {
     xhr.onerror = () =>
       markFailed(zoneId, entry, itemEl, statusEl, barEl, 'Network error', resolve);
 
-    xhr.send(fd);
+    xhr.send(file);
   });
 }
 

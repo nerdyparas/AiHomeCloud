@@ -521,6 +521,103 @@ async def upload_file(
     }
 
 
+@router.post("/upload-stream", status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
+async def upload_file_stream(
+    request: Request,
+    filename: str = Query(..., min_length=1, max_length=512),
+    path: str = Query("", description="Destination directory (NAS-absolute). Empty → user .inbox/."),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Upload a file by streaming the raw request body (Content-Type: application/octet-stream).
+
+    Bypasses Starlette's multipart SpooledTemporaryFile buffering entirely — data flows
+    directly from the TCP socket to the destination file with zero intermediate copies.
+    Use this endpoint for large files (>1 GB) from the web portal.
+    """
+    _require_external_storage()
+    if user.get("type") == "device":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Device tokens cannot upload files")
+
+    user_record = await store.find_user(user.get("sub", ""))
+    if user_record is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "User not found")
+    safe_username = Path(user_record["name"]).name
+
+    use_inbox = True
+    if path and path.strip():
+        resolved_dir = _safe_resolve(path)
+        if resolved_dir.is_dir():
+            dest_dir = resolved_dir
+            use_inbox = False
+    if use_inbox:
+        dest_dir = settings.personal_path / safe_username / ".inbox"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_name = Path(filename).name
+    if not safe_name or safe_name in (".", ".."):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
+
+    for ext in [s.lower() for s in Path(safe_name).suffixes]:
+        if ext in BLOCKED_EXTENSIONS:
+            raise HTTPException(
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                f"File type '{ext}' is not allowed for security reasons.",
+            )
+
+    resolved_dest = (dest_dir / safe_name).resolve()
+    if not str(resolved_dest).startswith(str(settings.nas_root.resolve())):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
+
+    total = 0
+    max_bytes = settings.max_upload_bytes
+    loop = asyncio.get_running_loop()
+    uploading_dest = resolved_dest.with_name(resolved_dest.name + ".uploading")
+
+    fd = open(uploading_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
+    try:
+        async for chunk in request.stream():
+            if not chunk:
+                continue
+            total += len(chunk)
+            if max_bytes and total > max_bytes:
+                fd.close()
+                uploading_dest.unlink(missing_ok=True)
+                raise HTTPException(
+                    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    f"File exceeds maximum upload size of {max_bytes // (1024 * 1024)} MB",
+                )
+            await loop.run_in_executor(None, fd.write, chunk)
+    except Exception:
+        fd.close()
+        uploading_dest.unlink(missing_ok=True)
+        raise
+    finally:
+        fd.close()
+
+    uploading_dest.rename(resolved_dest)
+
+    user_name = user.get("sub", "unknown")
+    asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
+    _invalidate_scan_cache(str(dest_dir))
+
+    if not use_inbox and _is_document_file(resolved_dest):
+        from ..document_index import index_document
+        asyncio.create_task(
+            index_document(str(resolved_dest), safe_name, user_name),
+            name=f"index_upload_{safe_name}",
+        )
+
+    sorted_to = None if not use_inbox else _destination_folder(resolved_dest)
+    return {
+        "name": safe_name,
+        "path": "/" + str(resolved_dest.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
+        "sizeBytes": total,
+        "sortedTo": sorted_to,
+    }
+
+
 async def _post_upload_notify(safe_name: str, user_name: str, resolved_path: str) -> None:
     """Fire-and-forget: emit upload event + file event after response is sent."""
     try:

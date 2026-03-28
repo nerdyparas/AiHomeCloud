@@ -138,7 +138,7 @@ class Settings(BaseSettings):
 
     # ── Upload ────────────────────────────────────────────────────────────────
     upload_chunk_size: int = 4 * 1024 * 1024  # 4 MB — fewer async cycles on ARM
-    max_upload_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB (0 = unlimited)
+    max_upload_bytes: int = 25 * 1024 * 1024 * 1024  # 25 GB (0 = unlimited)
 
     # ── Document indexing / OCR ────────────────────────────────────────────────
     # Disabled by default — requires tesseract + language packs (~500 MB).
