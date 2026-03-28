@@ -576,27 +576,28 @@ async def upload_file_stream(
     uploading_dest = resolved_dest.with_name(resolved_dest.name + ".uploading")
 
     fd = open(uploading_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
+    wrote_ok = False
     try:
         async for chunk in request.stream():
             if not chunk:
                 continue
             total += len(chunk)
             if max_bytes and total > max_bytes:
-                fd.close()
-                uploading_dest.unlink(missing_ok=True)
                 raise HTTPException(
                     status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     f"File exceeds maximum upload size of {max_bytes // (1024 * 1024)} MB",
                 )
             await loop.run_in_executor(None, fd.write, chunk)
-    except Exception:
-        fd.close()
-        uploading_dest.unlink(missing_ok=True)
-        raise
+        wrote_ok = True
     finally:
-        fd.close()
+        # Bug fix 1 & 3: close exactly once, in run_in_executor so it never
+        # blocks the event loop (flush + close can stall on USB3/HDD under load).
+        await loop.run_in_executor(None, fd.close)
+        if not wrote_ok:
+            uploading_dest.unlink(missing_ok=True)
 
-    uploading_dest.rename(resolved_dest)
+    # Bug fix 2: rename is a syscall — run it off the event loop.
+    await loop.run_in_executor(None, uploading_dest.rename, resolved_dest)
 
     user_name = user.get("sub", "unknown")
     asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
