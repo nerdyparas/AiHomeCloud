@@ -497,7 +497,7 @@ async def _handle_mount(update, context) -> None:  # type: ignore[type-arg]
 
     try:
         import httpx
-        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+        async with httpx.AsyncClient(verify=False, timeout=30) as client:  # nosec B501 — localhost self-signed cert, intentional
             from ..config import settings as _settings
             base = f"https://localhost:{_settings.https_port}"
 

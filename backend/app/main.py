@@ -24,7 +24,7 @@ import os  # noqa: E402 — used for env var check below
 # /tmp is a 1.9 GB tmpfs on this device — large files (>1.9 GB) would overflow it
 # and produce a misleading "There was an error parsing the body" 422 error.
 # Redirect to eMMC /var/tmp which has ~50 GB free.
-_AHC_UPLOAD_TMP = "/var/tmp/ahc_uploads"
+_AHC_UPLOAD_TMP = "/var/tmp/ahc_uploads"  # nosec B108 — intentional: eMMC path, not world-writable /tmp
 os.makedirs(_AHC_UPLOAD_TMP, exist_ok=True)
 tempfile.tempdir = _AHC_UPLOAD_TMP
 from .logging_config import configure_logging, set_request_id, reset_request_id

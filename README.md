@@ -102,13 +102,14 @@ sudo systemctl status aihomecloud           # should show "active (running)"
 
 ## Pairing the App
 
-1. Open the AiHomeCloud app on your Android phone
-2. Tap **Scan QR** on the welcome screen
-3. On your device, visit `https://<device-ip>:8443/web` or run:
+1. Make sure your phone and the AiHomeCloud device are on the same Wi-Fi network
+2. Open the AiHomeCloud app — it will automatically scan the local subnet for your device
+3. Tap your device when it appears in the list (or enter its IP manually)
+4. Enter the pairing key shown on the device:
    ```bash
-   curl -sk https://localhost:8443/api/v1/pair/qr
+   sudo cat /var/lib/aihomecloud/pairing_key
    ```
-4. Accept the TLS certificate fingerprint shown by the app — this pins the cert for future connections
+5. Accept the TLS certificate fingerprint shown by the app — this pins the cert for future connections
 
 ---
 
