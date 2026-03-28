@@ -339,7 +339,7 @@ install_service() {
 configure_sudoers() {
     log "[9/10] Configuring sudoers whitelist..."
 
-    local SUDOERS_VER="3"  # Bump when adding new entries
+    local SUDOERS_VER="4"  # Bump when adding new entries
 
     local need_write=false
     if [[ ! -f "$SUDOERS_FILE" ]]; then
@@ -359,10 +359,13 @@ ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/shutdown, /usr/sbin/reboot
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/mkfs.ext4, /usr/bin/mount, /usr/bin/umount
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/sbin/smartctl
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/lsblk, /usr/bin/blkid, /usr/bin/findmnt
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/udevadm *
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/fstab
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y *
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api /usr/local/bin/telegram-bot-api
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api-build/build/telegram-bot-api /usr/local/bin/telegram-bot-api
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/telegram-bot-api.service /etc/systemd/system/telegram-bot-api.service
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/cp /tmp/ahc-udev.rules /etc/udev/rules.d/99-ahc-storage.rules
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
 ${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable *
 EOF
@@ -372,6 +375,95 @@ EOF
         log "  Sudoers whitelist installed (v${SUDOERS_VER})."
     else
         log "  Sudoers whitelist is up to date (v${SUDOERS_VER})."
+    fi
+}
+
+configure_storage_automount() {
+    log "[9b] Configuring storage auto-mount (fstab + udev)..."
+
+    local UDEV_RULES_DST="/etc/udev/rules.d/99-ahc-storage.rules"
+    local UDEV_HELPER="/usr/local/bin/ahc-mount-helper"
+
+    # ── udev helper script ────────────────────────────────────────────────────
+    # Called by udev when a matching drive is plugged in.
+    # Mounts the drive at NAS_ROOT if it's not already mounted.
+    cat > /tmp/ahc-mount-helper << 'HELPER'
+#!/usr/bin/env bash
+# AiHomeCloud — udev hot-plug mount helper
+# Invoked by udev rule: ACTION=="add", ENV{ID_FS_TYPE}=="ext4"
+set -euo pipefail
+DEV="$1"
+NAS_ROOT="/srv/nas"
+LOG="/tmp/ahc-mount-helper.log"
+
+echo "$(date -Iseconds) ahc-mount-helper called: DEV=${DEV}" >> "$LOG"
+
+# Already mounted somewhere?
+if grep -q "^${DEV} " /proc/mounts 2>/dev/null; then
+    echo "$(date -Iseconds) ${DEV} already mounted — skipping" >> "$LOG"
+    exit 0
+fi
+
+# Is the NAS root already occupied?
+if grep -q " ${NAS_ROOT} " /proc/mounts 2>/dev/null; then
+    echo "$(date -Iseconds) ${NAS_ROOT} already mounted — skipping" >> "$LOG"
+    exit 0
+fi
+
+mkdir -p "$NAS_ROOT"
+if mount "$DEV" "$NAS_ROOT"; then
+    echo "$(date -Iseconds) Mounted ${DEV} at ${NAS_ROOT}" >> "$LOG"
+    # Notify the AiHomeCloud service to re-sync its storage state
+    systemctl restart aihomecloud 2>/dev/null || true
+else
+    echo "$(date -Iseconds) Mount of ${DEV} failed" >> "$LOG"
+    exit 1
+fi
+HELPER
+    chmod +x /tmp/ahc-mount-helper
+    cp /tmp/ahc-mount-helper "$UDEV_HELPER"
+
+    # ── udev rule ─────────────────────────────────────────────────────────────
+    # Triggers on any ext4 partition on USB or NVME transport that matches
+    # one of the known AiHomeCloud labels.
+    cat > /tmp/ahc-udev.rules << 'RULES'
+# AiHomeCloud — auto-mount NAS drives on hot-plug
+# Matches: ext4 partition, USB or NVMe, label = AiHomeCloud | AiHomeNAS | ahc_nas
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="ext4", \
+  ENV{ID_FS_LABEL}=="AiHomeCloud|AiHomeNAS|ahc_nas|aihomecloud", \
+  RUN+="/usr/local/bin/ahc-mount-helper %E{DEVNAME}"
+
+# Fallback: any ext4 on USB transport (catches unlabelled drives too)
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="ext4", \
+  ENV{ID_BUS}=="usb", \
+  RUN+="/usr/local/bin/ahc-mount-helper %E{DEVNAME}"
+RULES
+    cp /tmp/ahc-udev.rules "$UDEV_RULES_DST"
+    udevadm control --reload-rules 2>/dev/null || true
+    log "  udev hot-plug rule installed → $UDEV_RULES_DST"
+
+    # ── fstab entry ───────────────────────────────────────────────────────────
+    # Detect an already-activated NAS drive by checking what's mounted at
+    # NAS_ROOT. If found, add a nofail fstab entry using its UUID.
+    local current_dev
+    current_dev=$(findmnt -n -o SOURCE --target "$NAS_ROOT" 2>/dev/null || true)
+    if [[ -n "$current_dev" && "$current_dev" != "tmpfs" ]]; then
+        local uuid
+        uuid=$(blkid -s UUID -o value "$current_dev" 2>/dev/null || true)
+        if [[ -n "$uuid" ]]; then
+            if grep -q "$uuid" /etc/fstab 2>/dev/null; then
+                log "  fstab entry for $uuid already present — skipping."
+            else
+                echo "UUID=${uuid} ${NAS_ROOT} ext4 defaults,nofail,x-systemd.device-timeout=10 0 2" \
+                    | tee -a /etc/fstab > /dev/null
+                log "  fstab entry added for UUID=${uuid} (${current_dev})."
+            fi
+        else
+            warn "  Could not read UUID for ${current_dev} — fstab entry skipped."
+        fi
+    else
+        warn "  No drive mounted at ${NAS_ROOT} right now — fstab entry skipped."
+        warn "  Mount your NAS drive first, then re-run: sudo bash install.sh"
     fi
 }
 
@@ -443,6 +535,7 @@ main() {
     configure_mdns
     install_service
     configure_sudoers
+    configure_storage_automount
     start_and_verify
     print_summary
 }

@@ -42,6 +42,7 @@ from app.telegram.search_handlers import (  # noqa: F401
     _handle_status, _handle_cancel, _handle_whoami, _handle_storage_cmd,
     _handle_duplicates, _handle_scan,
     _handle_dupdelete_callback, _handle_dupskip_callback,
+    _handle_mount,
 )
 
 from app.telegram.upload_handlers import (  # noqa: F401
@@ -120,6 +121,7 @@ async def start_bot() -> None:
         _application.add_handler(CommandHandler("unlink",  _handle_unlink))
         _application.add_handler(CommandHandler("recent",  _handle_recent))
         _application.add_handler(CommandHandler("storage",    _handle_storage_cmd))
+        _application.add_handler(CommandHandler("mount",      _handle_mount))
         _application.add_handler(CommandHandler("duplicates", _handle_duplicates))
         _application.add_handler(CommandHandler("scan",       _handle_scan))
         _application.add_handler(CommandHandler("keep",       _handle_keep))

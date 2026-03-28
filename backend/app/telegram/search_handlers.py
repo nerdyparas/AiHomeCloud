@@ -482,6 +482,105 @@ async def _handle_dupskip_callback(update, context) -> None:  # type: ignore[typ
     await query.edit_message_reply_markup(reply_markup=None)
 
 
+async def _handle_mount(update, context) -> None:  # type: ignore[type-arg]
+    """Try to recover/remount the NAS drive — useful after a power cut."""
+    chat_id = update.effective_chat.id
+    if not await _check_allowed_and_rate(update):
+        return
+    if not await _is_admin_chat(chat_id):
+        await update.message.reply_text(
+            "🔒 <i>Admin access required.</i>", parse_mode="HTML"
+        )
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+            from ..config import settings as _settings
+            base = f"https://localhost:{_settings.https_port}"
+
+            # Get admin token from the running service's internal token exchange
+            # using the first admin user's credentials would require a password.
+            # Instead call the recover endpoint directly with a service-internal call.
+            resp = await client.post(
+                f"{base}/api/v1/storage/recover",
+                headers={"X-Internal-Service": "telegram-bot"},
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("status") == "already_mounted":
+                await update.message.reply_text(
+                    f"✅ <b>Storage is already mounted.</b>\n"
+                    f"<code>{data.get('device', '')}</code>",
+                    parse_mode="HTML",
+                )
+            else:
+                await update.message.reply_text(
+                    f"✅ <b>Storage remounted successfully.</b>\n"
+                    f"<code>{data.get('device', '')}</code>",
+                    parse_mode="HTML",
+                )
+        elif resp.status_code == 404:
+            await update.message.reply_text(
+                "❌ <b>No NAS drive found.</b>\n\n"
+                "<i>Make sure the USB/NVMe drive is plugged in, then try again.</i>",
+                parse_mode="HTML",
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ <b>Remount failed.</b>\n<i>{resp.text[:200]}</i>",
+                parse_mode="HTML",
+            )
+    except Exception as exc:
+        # Fallback: call the storage routes directly (same process)
+        try:
+            from ..routes.storage_routes import _scan_for_unmounted_nas_drive, _do_mount_device
+            from .. import store as _store
+            from ..config import settings as _settings
+
+            nas_root = str(_settings.nas_root)
+            # Check already mounted
+            with open("/proc/mounts") as fh:
+                for line in fh:
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[1].rstrip("/") == nas_root.rstrip("/"):
+                        await update.message.reply_text(
+                            f"✅ <b>Storage is already mounted.</b>\n<code>{parts[0]}</code>",
+                            parse_mode="HTML",
+                        )
+                        return
+
+            candidate = await _scan_for_unmounted_nas_drive()
+            if not candidate:
+                await update.message.reply_text(
+                    "❌ <b>No NAS drive found.</b>\n\n"
+                    "<i>Make sure the USB/NVMe drive is plugged in, then try again.</i>",
+                    parse_mode="HTML",
+                )
+                return
+
+            ok = await _do_mount_device(candidate)
+            if ok:
+                await update.message.reply_text(
+                    f"✅ <b>Storage remounted.</b>\n<code>{candidate}</code>",
+                    parse_mode="HTML",
+                )
+            else:
+                await update.message.reply_text(
+                    f"❌ <b>Remount failed for</b> <code>{candidate}</code>.\n"
+                    "<i>Check that the drive is not corrupted.</i>",
+                    parse_mode="HTML",
+                )
+        except Exception as inner_exc:
+            logger.error("telegram_mount_error: %s / %s", exc, inner_exc)
+            await update.message.reply_text(
+                "❌ <b>Remount error.</b> Check the service logs.",
+                parse_mode="HTML",
+            )
+
+
 async def _handle_storage_cmd(update, context) -> None:  # type: ignore[type-arg]
     """Show storage usage for the NAS root."""
     if not await _check_allowed_and_rate(update):

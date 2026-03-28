@@ -510,79 +510,201 @@ async def storage_stats(user: dict = Depends(get_current_user)):
 
 # ── 2A.10  Auto-remount (called from main.py lifespan) ───────────────────────
 
+# Labels that identify a drive as an AiHomeCloud NAS drive.
+_AHC_LABELS = frozenset({"AiHomeCloud", "AiHomeNAS", "ahc_nas", "aihomecloud"})
+
+
+def _is_nas_candidate(partition: dict) -> bool:
+    """Return True if this partition looks like an AiHomeCloud NAS drive."""
+    if (partition.get("fstype") or "") != "ext4":
+        return False
+    label = (partition.get("label") or "").strip()
+    if label in _AHC_LABELS:
+        return True
+    # Also accept any unlabelled ext4 on a non-OS disk (generous fallback)
+    return True
+
+
+async def _scan_for_unmounted_nas_drive() -> str | None:
+    """Scan all non-OS block devices for an unmounted ext4 partition.
+
+    Returns the first partition path that looks like an AiHomeCloud NAS
+    drive and is not currently mounted anywhere, or None if nothing found.
+    Prefers drives whose label matches a known AHC label.
+    """
+    nas_root = str(settings.nas_root)
+    try:
+        raw = await list_block_devices(skip_cache=True)
+    except Exception:
+        return None
+
+    # Build set of currently-mounted device paths from /proc/mounts
+    mounted: set[str] = set()
+    try:
+        with open("/proc/mounts") as fh:
+            for line in fh:
+                parts = line.split()
+                if parts:
+                    mounted.add(parts[0])
+    except Exception:
+        pass
+
+    candidates: list[tuple[int, str]] = []  # (priority, dev_path)
+    for disk in raw:
+        if is_os_partition(disk):
+            continue
+        transport = classify_transport(disk)
+        if transport not in ("usb", "nvme"):
+            continue
+        for part in disk.get("children", []):
+            if (part.get("fstype") or "") != "ext4":
+                continue
+            dev_path = f"/dev/{part['name']}"
+            # Skip if already mounted somewhere
+            if dev_path in mounted:
+                # If it's already at our NAS root, tell caller by returning it
+                mp = (part.get("mountpoint") or "").rstrip("/")
+                if mp == nas_root.rstrip("/"):
+                    return dev_path
+                continue
+            label = (part.get("label") or "").strip()
+            priority = 0 if label in _AHC_LABELS else 1
+            candidates.append((priority, dev_path))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0])
+    return candidates[0][1]
+
+
+async def _do_mount_device(device_path: str, state_hint: dict | None = None) -> bool:
+    """Mount *device_path* at nas_root, create dirs, save state, start services.
+
+    Returns True on success, False on failure.
+    """
+    nas_root = str(settings.nas_root)
+    settings.nas_root.mkdir(parents=True, exist_ok=True)
+
+    for attempt in range(2):
+        if attempt > 0:
+            logger.info("Mount: retrying after 3s (attempt %d)…", attempt + 1)
+            await asyncio.sleep(3)
+
+        rc, _, stderr = await run_command(
+            ["sudo", "-n", "mount", device_path, nas_root], timeout=30
+        )
+        if rc == 0:
+            logger.info("Mount: successfully mounted %s at %s", device_path, nas_root)
+            settings.personal_path.mkdir(parents=True, exist_ok=True)
+            settings.family_path.mkdir(parents=True, exist_ok=True)
+            settings.entertainment_path.mkdir(parents=True, exist_ok=True)
+            new_state = {
+                **(state_hint or {}),
+                "activeDevice": device_path,
+                "mountedAt": nas_root,
+                "mountedSince": datetime.now(timezone.utc).isoformat(),
+            }
+            await store.save_storage_state(new_state)
+            await start_nas_services()
+            return True
+        logger.warning("Mount attempt %d failed for %s: %s", attempt + 1, device_path, stderr)
+
+    return False
+
+
 async def try_auto_remount():
     """
     On startup, check storage.json for a previously-mounted device.
     If the device is still present and not yet mounted, remount it.
 
-    Retries once with a 3-second delay to survive USB enumeration races
-    where the device node exists but the filesystem isn't ready yet.
+    If storage.json is empty (e.g. after a power cut cleared it), scan all
+    non-OS USB/NVMe drives for an unmounted ext4 partition and mount the
+    best candidate automatically.
     """
     state = await store.get_storage_state()
     device_path = state.get("activeDevice")
-    display_name = state.get("displayName", "")
-
-    if not device_path:
-        logger.info("No saved storage mount — skipping auto-remount")
-        return
-
-    logger.info("Auto-remount: checking saved device %s", device_path)
-
-    # Check the device still exists
-    dev_node = Path(device_path)
-    if not dev_node.exists():
-        logger.warning(
-            "Auto-remount: device %s not found — was it removed?", device_path
-        )
-        await store.clear_storage_state()
-        return
-
-    # Check if already mounted at NAS root
     nas_root = str(settings.nas_root)
+
+    # ── Fast-path: check if something is already mounted at nas_root ──────────
     try:
-        with open("/proc/mounts") as f:
-            for line in f:
+        with open("/proc/mounts") as fh:
+            for line in fh:
                 parts = line.split()
-                if len(parts) >= 2 and parts[0] == device_path and parts[1] == nas_root:
+                if len(parts) >= 2 and parts[1].rstrip("/") == nas_root.rstrip("/"):
+                    actual_dev = parts[0]
                     logger.info(
-                        "Auto-remount: %s is already mounted at %s", device_path, nas_root
+                        "Auto-remount: %s already mounted at %s — syncing state",
+                        actual_dev, nas_root,
                     )
-                    # Re-save storage state in case it was wiped (service restart race)
-                    if not state.get("mountedAt"):
+                    if not state.get("mountedAt") or state.get("activeDevice") != actual_dev:
+                        state["activeDevice"] = actual_dev
                         state["mountedAt"] = nas_root
                         await store.save_storage_state(state)
                     return
     except Exception:
         pass
 
-    # Attempt to mount — retry once after a short delay to handle USB enumeration
-    # races where /dev/sdXN exists but the filesystem isn't ready yet.
-    settings.nas_root.mkdir(parents=True, exist_ok=True)
+    # ── Known device path from storage.json ──────────────────────────────────
+    if device_path:
+        logger.info("Auto-remount: checking saved device %s", device_path)
+        if not Path(device_path).exists():
+            logger.warning("Auto-remount: saved device %s not found", device_path)
+            await store.clear_storage_state()
+            # Fall through to blind scan below
+        else:
+            if await _do_mount_device(device_path, state):
+                return
+            logger.error("Auto-remount: all attempts failed for saved device %s", device_path)
+            await store.clear_storage_state()
+            # Fall through to blind scan
 
-    for attempt in range(2):
-        if attempt > 0:
-            logger.info("Auto-remount: retrying after 3s (attempt %d)…", attempt + 1)
-            await asyncio.sleep(3)
+    # ── Blind scan: storage.json empty or saved device failed ─────────────────
+    logger.info("Auto-remount: scanning for unmounted NAS drive…")
+    candidate = await _scan_for_unmounted_nas_drive()
+    if not candidate:
+        logger.info("Auto-remount: no unmounted NAS drive found")
+        return
 
-        rc, _, stderr = await run_command(["sudo", "-n", "mount", device_path, nas_root], timeout=30)
+    logger.info("Auto-remount: found candidate %s — attempting mount", candidate)
+    if await _do_mount_device(candidate):
+        logger.info("Auto-remount: blind-scan mount of %s succeeded", candidate)
+    else:
+        logger.error("Auto-remount: blind-scan mount of %s failed", candidate)
 
-        if rc == 0:
-            logger.info("Auto-remount: successfully mounted %s at %s", device_path, nas_root)
-            # Ensure NAS dirs exist
-            settings.personal_path.mkdir(parents=True, exist_ok=True)
-            settings.family_path.mkdir(parents=True, exist_ok=True)
-            settings.entertainment_path.mkdir(parents=True, exist_ok=True)
-            # Persist state so State D is hit correctly on next smart-activate
-            await store.save_storage_state({
-                **state,
-                "mountedAt": nas_root,
-                "mountedSince": state.get("mountedSince", ""),
-            })
-            # Start NAS services
-            await start_nas_services()
-            return
 
-        logger.warning("Auto-remount attempt %d failed for %s: %s", attempt + 1, device_path, stderr)
+# ── Recovery endpoint (app + Telegram trigger) ───────────────────────────────
 
-    logger.error("Auto-remount: all attempts failed for %s — clearing state", device_path)
-    await store.clear_storage_state()
+@router.post("/recover")
+@limiter.limit("5/minute")
+async def recover_storage(
+    request: Request,
+    user: dict = Depends(require_admin),
+):
+    """Scan for an unmounted NAS drive and mount it.
+
+    Called by the app's 'Reconnect Storage' button and the Telegram /mount
+    command when the drive is present but storage.json was lost (e.g. after a
+    power cut).  Returns the mounted device path or raises 404.
+    """
+    nas_root = str(settings.nas_root)
+
+    # Already mounted? Return immediately.
+    try:
+        with open("/proc/mounts") as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) >= 2 and parts[1].rstrip("/") == nas_root.rstrip("/"):
+                    return {"status": "already_mounted", "device": parts[0]}
+    except Exception:
+        pass
+
+    candidate = await _scan_for_unmounted_nas_drive()
+    if not candidate:
+        raise HTTPException(404, "No unmounted NAS drive found")
+
+    ok = await _do_mount_device(candidate)
+    if not ok:
+        raise HTTPException(500, f"Mount failed for {candidate}")
+
+    await emit_device_mounted(candidate, nas_root)
+    return {"status": "mounted", "device": candidate}
