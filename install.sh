@@ -140,26 +140,32 @@ preflight() {
     fi
     log "  Internet: OK"
 
-    # 6. Port conflict check — stop our own service if it holds the port
+    # 6. Port conflict check — stop our own service and kill any orphan process
     if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
-        local conflict
-        conflict=$(ss -tlnp | grep ":${PORT} " | awk '{print $6}' | head -1)
-        # Always try stopping our service first (handles active/restarting states)
-        if systemctl stop "$SERVICE_NAME" 2>/dev/null; then
-            log "  Port ${PORT}: stopped $SERVICE_NAME for upgrade..."
-        else
-            # Service may not exist yet (first install) — check if something else owns it
-            if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
-                die "Port ${PORT} is in use by a non-AiHomeCloud process: $conflict. Stop it first."
-            fi
+        # Stop the systemd service (covers active/restarting/activating)
+        systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+        log "  Port ${PORT}: stopped $SERVICE_NAME..."
+        sleep 1
+        # Kill any lingering process still holding the port (e.g. orphan from previous run)
+        # ss output: "users:(("python",pid=12345,fd=19))" — extract all PIDs and kill them
+        local pids
+        pids=$(ss -tlnp 2>/dev/null | grep ":${PORT} " \
+               | grep -oP 'pid=\K[0-9]+' || true)
+        if [[ -n "$pids" ]]; then
+            log "  Port ${PORT}: killing orphan process(es): $pids"
+            kill -TERM $pids 2>/dev/null || true
+            sleep 2
+            kill -KILL $pids 2>/dev/null || true
         fi
-        # Wait up to 5s for the port to free
-        for _i in 1 2 3 4 5; do
+        # Final check — wait up to 3 more seconds
+        for _i in 1 2 3; do
             ss -tlnp 2>/dev/null | grep -q ":${PORT} " || break
             sleep 1
         done
         if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
-            die "Port ${PORT} still occupied after stopping $SERVICE_NAME."
+            local leftover
+            leftover=$(ss -tlnp | grep ":${PORT} " | awk '{print $6}' | head -1)
+            die "Port ${PORT} still occupied by: $leftover. Kill it manually and retry."
         fi
     fi
     log "  Port ${PORT}: available"
