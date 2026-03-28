@@ -502,7 +502,7 @@ _HTML = """<!DOCTYPE html>
     .btn-cancel-all {
       background: none;
       border: none;
-      color: #555;
+      color: #888;
       font-size: 0.72rem;
       cursor: pointer;
       padding: 0.15rem 0.5rem;
@@ -514,7 +514,7 @@ _HTML = """<!DOCTYPE html>
     .btn-cancel-item {
       background: none;
       border: none;
-      color: #444;
+      color: #888;
       font-size: 0.72rem;
       line-height: 1;
       cursor: pointer;
