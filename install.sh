@@ -140,17 +140,26 @@ preflight() {
     fi
     log "  Internet: OK"
 
-    # 6. Port conflict check — skip if it's our own service (idempotent re-run)
-    if ss -tlnp 2>/dev/null | grep -q ":${PORT} " ; then
+    # 6. Port conflict check — stop our own service if it holds the port
+    if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
         local conflict
         conflict=$(ss -tlnp | grep ":${PORT} " | awk '{print $6}' | head -1)
-        # Allow re-runs: if the process is our own service, stop it temporarily
-        if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
-            log "  Port ${PORT}: occupied by $SERVICE_NAME — stopping for upgrade..."
-            systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-            sleep 2
+        # Always try stopping our service first (handles active/restarting states)
+        if systemctl stop "$SERVICE_NAME" 2>/dev/null; then
+            log "  Port ${PORT}: stopped $SERVICE_NAME for upgrade..."
         else
-            die "Port ${PORT} is already in use by: $conflict. Stop the conflicting service first."
+            # Service may not exist yet (first install) — check if something else owns it
+            if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+                die "Port ${PORT} is in use by a non-AiHomeCloud process: $conflict. Stop it first."
+            fi
+        fi
+        # Wait up to 5s for the port to free
+        for _i in 1 2 3 4 5; do
+            ss -tlnp 2>/dev/null | grep -q ":${PORT} " || break
+            sleep 1
+        done
+        if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+            die "Port ${PORT} still occupied after stopping $SERVICE_NAME."
         fi
     fi
     log "  Port ${PORT}: available"
