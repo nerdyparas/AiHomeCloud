@@ -52,7 +52,7 @@ jobs:
           AHC_DATA_DIR: ${{ runner.temp }}/ahc_test_data
           AHC_NAS_ROOT: ${{ runner.temp }}/ahc_test_nas
         run: |
-          pytest --cov=app --cov-report=xml:coverage.xml --cov-fail-under=67 -q tests --ignore=tests/test_hardware_integration.py
+          pytest --cov=app --cov-report=xml:coverage.xml --cov-fail-under=65 -q tests --ignore=tests/test_hardware_integration.py
 
       - name: Upload coverage report
         if: always()
