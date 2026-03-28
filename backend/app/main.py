@@ -5,6 +5,7 @@ Run with: python -m app.main (auto-configures TLS)
 
 import asyncio
 import logging
+import tempfile
 from contextlib import asynccontextmanager, suppress
 from uuid import uuid4
 
@@ -18,6 +19,14 @@ from slowapi.errors import RateLimitExceeded
 from .config import settings, JWT_SECRET_FILE
 from .limiter import limiter
 import os  # noqa: E402 — used for env var check below
+
+# Starlette buffers uploaded files through SpooledTemporaryFile -> tempdir.
+# /tmp is a 1.9 GB tmpfs on this device — large files (>1.9 GB) would overflow it
+# and produce a misleading "There was an error parsing the body" 422 error.
+# Redirect to eMMC /var/tmp which has ~50 GB free.
+_AHC_UPLOAD_TMP = "/var/tmp/ahc_uploads"
+os.makedirs(_AHC_UPLOAD_TMP, exist_ok=True)
+tempfile.tempdir = _AHC_UPLOAD_TMP
 from .logging_config import configure_logging, set_request_id, reset_request_id
 from .tls import ensure_tls_cert
 from .board import detect_board
