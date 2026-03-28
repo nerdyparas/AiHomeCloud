@@ -338,3 +338,110 @@ async def test_set_trash_prefs_admin_succeeds(client: AsyncClient, admin_token: 
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert res.status_code == 204
+
+
+# ---------------------------------------------------------------------------
+# upload-stream endpoint
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_upload_stream_basic(authenticated_client: AsyncClient):
+    """Stream upload writes the file and returns correct metadata."""
+    content = b"hello streaming world"
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=stream_test.txt&path=/srv/nas/shared/",
+        content=content,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "stream_test.txt"
+    assert data["sizeBytes"] == len(content)
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_to_inbox_when_no_path(authenticated_client: AsyncClient):
+    """Stream upload with no path lands in the user's .inbox/ directory."""
+    content = b"inbox content"
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=inbox_file.txt",
+        content=content,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "inbox_file.txt"
+    assert data["sizeBytes"] == len(content)
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_blocked_extension(authenticated_client: AsyncClient):
+    """Streaming a .sh file must be rejected with 415."""
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=evil.sh&path=/srv/nas/shared/",
+        content=b"#!/bin/bash",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 415
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_blocked_extension_py(authenticated_client: AsyncClient):
+    """Streaming a .py file must be rejected with 415."""
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=script.py&path=/srv/nas/shared/",
+        content=b"print('hi')",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 415
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_invalid_filename(authenticated_client: AsyncClient):
+    """A filename that reduces to empty/dot after sanitisation must be rejected with 400."""
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=.",
+        content=b"data",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_path_traversal_in_filename(authenticated_client: AsyncClient):
+    """Path separators in the filename must be stripped (only the basename is kept)."""
+    content = b"traversal attempt"
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=../../etc/passwd&path=/srv/nas/shared/",
+        content=content,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    # Either sanitised to "passwd" and succeeds, or rejected
+    if response.status_code == 201:
+        assert response.json()["name"] == "passwd"
+    else:
+        assert response.status_code in (400, 403)
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_size_limit(authenticated_client: AsyncClient, monkeypatch):
+    """Exceeding max_upload_bytes must return 413."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "max_upload_bytes", 5)
+    response = await authenticated_client.post(
+        "/api/v1/files/upload-stream?filename=big.txt&path=/srv/nas/shared/",
+        content=b"123456789",  # 9 bytes > 5 byte limit
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_upload_stream_requires_auth(client: AsyncClient):
+    """Stream upload without auth must return 401 or 403."""
+    response = await client.post(
+        "/api/v1/files/upload-stream?filename=test.txt",
+        content=b"data",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code in (401, 403)
