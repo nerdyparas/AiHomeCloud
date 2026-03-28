@@ -476,6 +476,28 @@ _HTML = """<!DOCTYPE html>
     .upload-status.done      { color: #4caf50; }
     .upload-status.failed    { color: #ff6b6b; }
     .upload-status.skipped   { color: #888; }
+    .upload-detail {
+      font-size: 0.69rem;
+      color: #666;
+      padding-top: 0.15rem;
+      display: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .upload-detail.visible { display: block; }
+    .btn-clear-done {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.72rem;
+      cursor: pointer;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-clear-done:hover { color: #ccc; background: rgba(255,255,255,0.07); }
     .upload-bar-wrap {
       height: 3px;
       background: #2a2a2a;
@@ -582,6 +604,7 @@ _HTML = """<!DOCTYPE html>
         <span class="zone-icon">🗂️</span>
         <span class="zone-title">Personal</span>
         <span class="zone-subtitle">Your private files</span>
+        <button class="btn-clear-done" id="clear-personal" style="display:none">Clear</button>
       </div>
       <div class="zone-drop" id="drop-personal">
         <div class="drop-icon">⬆️</div>
@@ -598,6 +621,7 @@ _HTML = """<!DOCTYPE html>
         <span class="zone-icon">👨‍👩‍👧‍👦</span>
         <span class="zone-title">Family</span>
         <span class="zone-subtitle">Shared with everyone</span>
+        <button class="btn-clear-done" id="clear-family" style="display:none">Clear</button>
       </div>
       <div class="zone-drop" id="drop-family">
         <div class="drop-icon">⬆️</div>
@@ -614,6 +638,7 @@ _HTML = """<!DOCTYPE html>
         <span class="zone-icon">🎬</span>
         <span class="zone-title">Entertainment</span>
         <span class="zone-subtitle">Movies, music &amp; more</span>
+        <button class="btn-clear-done" id="clear-entertainment" style="display:none">Clear</button>
       </div>
       <div class="zone-drop" id="drop-entertainment">
         <div class="drop-icon">⬆️</div>
@@ -772,7 +797,7 @@ function setupZone(zoneId) {
   // pointer-events on dropEl is none (CSS), so the click bubbles from zoneEl
   zoneEl.addEventListener('click', e => {
     // Only trigger file picker if the click wasn't on the queue/stats
-    if (e.target.closest('.zone-queue, .zone-stats, .btn-retry')) return;
+    if (e.target.closest('.zone-queue, .zone-stats, .btn-retry, .btn-clear-done')) return;
     fileEl.click();
   });
 
@@ -836,7 +861,8 @@ function createQueueItem(name) {
       '<span class="upload-name" title="' + nameFull + '">' + nameHtml + '</span>' +
       '<span class="upload-status pending">Queued</span>' +
     '</div>' +
-    '<div class="upload-bar-wrap"><div class="upload-bar"></div></div>';
+    '<div class="upload-bar-wrap"><div class="upload-bar"></div></div>' +
+    '<div class="upload-detail"></div>';
   return el;
 }
 
@@ -856,8 +882,43 @@ function processQueue(zoneId) {
   uploadFile(zoneId, entry).then(() => {
     uploadBusy[zoneId] = false;
     updateZoneStats(zoneId);
+    updateClearButton(zoneId);
     processQueue(zoneId);
   });
+}
+
+// ── Format helpers ────────────────────────────────────────────────────────
+function fmtBytes(b) {
+  if (b >= 1073741824) return (b / 1073741824).toFixed(2) + ' GB';
+  if (b >= 1048576)    return (b / 1048576).toFixed(1)    + ' MB';
+  if (b >= 1024)       return (b / 1024).toFixed(0)       + ' KB';
+  return b + ' B';
+}
+function fmtSpeed(bps) {
+  if (bps >= 1073741824) return (bps / 1073741824).toFixed(1) + ' GB/s';
+  if (bps >= 1048576)    return (bps / 1048576).toFixed(1)    + ' MB/s';
+  if (bps >= 1024)       return (bps / 1024).toFixed(0)       + ' KB/s';
+  return bps + ' B/s';
+}
+
+// ── Clear-done helpers ─────────────────────────────────────────────────────
+function clearDone(zoneId) {
+  const queue = document.getElementById('queue-' + zoneId);
+  if (!queue) return;
+  queue.querySelectorAll('.upload-item').forEach(item => {
+    const s = item.querySelector('.upload-status');
+    if (s && (s.classList.contains('done') || s.classList.contains('failed') || s.classList.contains('skipped'))) {
+      item.remove();
+    }
+  });
+  updateClearButton(zoneId);
+}
+function updateClearButton(zoneId) {
+  const btn   = document.getElementById('clear-' + zoneId);
+  const queue = document.getElementById('queue-' + zoneId);
+  if (!btn || !queue) return;
+  const has = !!queue.querySelector('.upload-status.done, .upload-status.failed, .upload-status.skipped');
+  btn.style.display = has ? '' : 'none';
 }
 
 // ── Duplicate detection ───────────────────────────────────────────────────
@@ -918,6 +979,7 @@ async function uploadFile(zoneId, entry) {
   const { file, itemEl } = entry;
   const statusEl = itemEl.querySelector('.upload-status');
   const barEl    = itemEl.querySelector('.upload-bar');
+  const detailEl = itemEl.querySelector('.upload-detail');
 
   // ── Step 1: duplicate check ──────────────────────────────────────────
   statusEl.className   = 'upload-status checking';
@@ -959,15 +1021,27 @@ async function uploadFile(zoneId, entry) {
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 
+    let rateBase = 0, rateBaseTime = Date.now(), lastUiUpdate = 0;
+
     xhr.upload.onprogress = e => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        barEl.style.width    = pct + '%';
-        statusEl.textContent = pct + '%';
+      if (!e.lengthComputable) return;
+      const pct = Math.round((e.loaded / e.total) * 100);
+      barEl.style.width    = pct + '%';
+      statusEl.textContent = pct + '%';
+      const now = Date.now();
+      if (now - lastUiUpdate >= 300) {
+        const dt   = (now - rateBaseTime) / 1000;
+        const rate = dt > 0 ? (e.loaded - rateBase) / dt : 0;
+        detailEl.className   = 'upload-detail visible';
+        detailEl.textContent = fmtBytes(e.loaded) + ' / ' + fmtBytes(e.total)
+                             + (rate > 500 ? '  \u00b7  ' + fmtSpeed(rate) : '');
+        rateBase = e.loaded; rateBaseTime = now; lastUiUpdate = now;
       }
     };
 
     xhr.onload = () => {
+      detailEl.className = 'upload-detail';
+      detailEl.textContent = '';
       if (xhr.status === 401) {
         statusEl.className   = 'upload-status failed';
         statusEl.textContent = 'Session expired';
@@ -994,8 +1068,11 @@ async function uploadFile(zoneId, entry) {
       }
     };
 
-    xhr.onerror = () =>
+    xhr.onerror = () => {
+      detailEl.className = 'upload-detail';
+      detailEl.textContent = '';
       markFailed(zoneId, entry, itemEl, statusEl, barEl, 'Network error', resolve);
+    };
 
     xhr.send(file);
   });
@@ -1123,12 +1200,14 @@ document.getElementById('btn-logout').addEventListener('click', () => {
   state.token    = null;
   state.userName = null;
   state.selectedUser = null;
-  // Clear queues, progress and stats so stale entries don't appear on next login
+  // Clear queues, progress, stats and clear buttons so stale entries don't appear on next login
   ['personal', 'family', 'entertainment'].forEach(z => {
     const q = document.getElementById('queue-' + z);
     if (q) q.innerHTML = '';
     const s = document.getElementById('stats-' + z);
     if (s) s.textContent = '';
+    const c = document.getElementById('clear-' + z);
+    if (c) c.style.display = 'none';
   });
   resetUploadState();
   showView('view-picker');
@@ -1138,7 +1217,10 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 // ── Boot ──────────────────────────────────────────────────────────────────
 // Set up zones once — NOT inside initDashboard() to prevent duplicate
 // event listeners accumulating across logout/login cycles.
-['personal', 'family', 'entertainment'].forEach(zone => setupZone(zone));
+['personal', 'family', 'entertainment'].forEach(zone => {
+  setupZone(zone);
+  document.getElementById('clear-' + zone).addEventListener('click', () => clearDone(zone));
+});
 // Keep the SPA on /web so the browser back button does not navigate away.
 history.replaceState({ ahc: true }, '', '/web');
 window.addEventListener('popstate', () => history.pushState({ ahc: true }, '', '/web'));
