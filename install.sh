@@ -118,11 +118,18 @@ preflight() {
     fi
     log "  Internet: OK"
 
-    # 6. Port conflict check
+    # 6. Port conflict check — skip if it's our own service (idempotent re-run)
     if ss -tlnp 2>/dev/null | grep -q ":${PORT} " ; then
         local conflict
         conflict=$(ss -tlnp | grep ":${PORT} " | awk '{print $6}' | head -1)
-        die "Port ${PORT} is already in use by: $conflict. Stop the conflicting service first."
+        # Allow re-runs: if the process is our own service, stop it temporarily
+        if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+            log "  Port ${PORT}: occupied by $SERVICE_NAME — stopping for upgrade..."
+            systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+            sleep 2
+        else
+            die "Port ${PORT} is already in use by: $conflict. Stop the conflicting service first."
+        fi
     fi
     log "  Port ${PORT}: available"
 
