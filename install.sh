@@ -37,6 +37,28 @@ PORT=8443
 AVAHI_SVC="/etc/avahi/services/aihomecloud.service"
 SUDOERS_FILE="/etc/sudoers.d/aihomecloud"
 
+# ── Auto-detect existing deployment ──────────────────────────────────────────
+# If a service file already exists (re-run scenario), extract the actual user,
+# backend path, and venv path from it so the installer doesn't fight with the
+# running setup.
+if [[ -f "$SERVICE_DST" ]]; then
+    _svc_user=$(grep '^User=' "$SERVICE_DST" 2>/dev/null | cut -d= -f2 | tr -d ' ')
+    _svc_exec=$(grep '^ExecStart=' "$SERVICE_DST" 2>/dev/null | sed 's/^ExecStart=//' | awk '{print $1}')
+    if [[ -n "$_svc_user" ]]; then
+        APP_USER="$_svc_user"
+        APP_HOME=$(eval echo "~$APP_USER" 2>/dev/null || echo "/home/$APP_USER")
+    fi
+    if [[ -n "$_svc_exec" ]]; then
+        # ExecStart is the python binary; walk up to find the venv root
+        # e.g. /home/paras/AiHomeCloud/backend/.venv/bin/python -> .venv dir
+        _venv_candidate="${_svc_exec%/bin/python*}"
+        if [[ -f "$_venv_candidate/bin/activate" ]]; then
+            VENV_DIR="$_venv_candidate"
+            BACKEND_SRC="$(dirname "$VENV_DIR")"
+        fi
+    fi
+fi
+
 INSTALL_LOG="/tmp/aihomecloud-install-$(date +%Y%m%d%H%M%S).log"
 
 # Track what we've created so we can clean up on failure
@@ -270,10 +292,13 @@ deploy_backend() {
 setup_venv() {
     log "[6/10] Setting up Python virtual environment..."
     if [[ ! -f "$VENV_DIR/bin/activate" ]]; then
+        # Create the venv directory owned by the app user
+        mkdir -p "$(dirname "$VENV_DIR")"
+        chown "$APP_USER":"$APP_USER" "$(dirname "$VENV_DIR")" 2>/dev/null || true
         sudo -u "$APP_USER" "$PYTHON_BIN" -m venv "$VENV_DIR"
-        log "  Venv created."
+        log "  Venv created at $VENV_DIR."
     else
-        log "  Venv already exists."
+        log "  Venv already exists at $VENV_DIR."
     fi
 
     local requirements="$BACKEND_SRC/requirements.txt"
