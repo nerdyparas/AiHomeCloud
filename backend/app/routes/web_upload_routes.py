@@ -3,17 +3,79 @@ AiHomeCloud Web Upload Portal — serves a self-contained HTML page at GET /web.
 
 This is a LAN-accessible drag-and-drop file upload interface for desktop/laptop
 users who cannot run the Flutter mobile app. It reuses existing API endpoints:
-  - GET  /auth/users/names   → user picker
-  - POST /auth/login         → PIN authentication
-  - POST /api/v1/files/upload → file upload with progress
+  - GET  /auth/users/names        → user picker
+  - POST /auth/login              → PIN authentication
+  - POST /api/v1/files/upload     → file upload with progress
+  - GET  /web/check-duplicate     → name+size duplicate scan (this file)
 
 No new upload logic — this route only serves HTML/CSS/JS.
 """
 
-from fastapi import APIRouter
+import asyncio
+import logging
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
+from ..auth import get_current_user
+from ..config import settings
+
+logger = logging.getLogger("aihomecloud.web")
 router = APIRouter()
+
+# Directories skipped during the duplicate scan (same set as duplicate_scanner.py)
+_SKIP_DIRS = frozenset({".ahc_trash", ".inbox", ".git", "__pycache__", "lost+found"})
+
+
+# ── Duplicate-check endpoint ──────────────────────────────────────────────────
+
+@router.get("/web/check-duplicate")
+async def web_check_duplicate(
+    name: str = Query(..., min_length=1, max_length=512),
+    size: int = Query(..., ge=0),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Scan NAS for a file whose name (case-insensitive) and size match.
+
+    Used by the web upload portal before each upload to detect duplicates.
+    Runs in a thread executor so it doesn't block the event loop.
+    Returns: { "found": bool, "path": str | null }
+    """
+    if "/" in name or "\\" in name or ".." in name:
+        raise HTTPException(400, "Invalid filename")
+
+    nas_root = settings.nas_root.resolve()
+    name_lower = name.lower()
+
+    def _scan() -> str | None:
+        stack: list[Path] = [nas_root]
+        while stack:
+            current = stack.pop()
+            try:
+                entries = list(current.iterdir())
+            except (PermissionError, OSError):
+                continue
+            for entry in entries:
+                try:
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir():
+                        if entry.name not in _SKIP_DIRS and not entry.name.startswith("."):
+                            stack.append(entry)
+                    elif entry.is_file():
+                        if entry.name.lower() == name_lower and entry.stat().st_size == size:
+                            return str(entry)
+                except OSError:
+                    continue
+        return None
+
+    loop = asyncio.get_running_loop()
+    match = await loop.run_in_executor(None, _scan)
+    return {"found": match is not None, "path": match}
+
+
+# ── Self-contained HTML page ──────────────────────────────────────────────────
 
 _HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -190,6 +252,85 @@ _HTML = """<!DOCTYPE html>
     }
     .pin-cancel:hover { color: #ccc; }
 
+    /* ── Duplicate Warning Modal ─────────────────────────────────────── */
+    #dup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    #dup-overlay.open { display: flex; }
+
+    .dup-modal {
+      background: #1e1e1e;
+      border: 1.5px solid #f59e0b;
+      border-radius: 20px;
+      padding: 2rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      max-width: 480px;
+    }
+    .dup-modal .dup-icon { font-size: 2.5rem; line-height: 1; }
+    .dup-modal h2 { font-size: 1.1rem; font-weight: 700; color: #f59e0b; }
+    .dup-info { font-size: 0.875rem; color: #aaa; text-align: center; }
+    .dup-filename {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #eee;
+      text-align: center;
+      word-break: break-all;
+    }
+    .dup-location-label { font-size: 0.75rem; color: #666; }
+    .dup-path {
+      font-size: 0.78rem;
+      color: #aaa;
+      background: #252525;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      word-break: break-all;
+      width: 100%;
+      text-align: center;
+    }
+    .dup-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      width: 100%;
+    }
+    .btn-dup-save {
+      background: #6C63FF;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: center;
+    }
+    .btn-dup-save:hover { background: #5a52e0; }
+    .btn-dup-cancel {
+      background: none;
+      border: 1.5px solid #333;
+      border-radius: 10px;
+      color: #888;
+      font-size: 0.875rem;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      text-align: center;
+    }
+    .btn-dup-cancel:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
     /* ── Upload Dashboard ───────────────────────────────────────────────── */
     #view-dashboard {
       flex-direction: column;
@@ -273,18 +414,25 @@ _HTML = """<!DOCTYPE html>
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s;
       padding: 1.5rem;
+      pointer-events: none; /* zone handles drag; drop area handles click only */
     }
-    .zone-drop:hover {
+    .drop-icon { font-size: 2.5rem; opacity: 0.4; }
+    .drop-hint { font-size: 0.875rem; color: #666; text-align: center; }
+    .drop-hint span { color: #6C63FF; text-decoration: underline; }
+
+    /* Drag-over state on the whole zone */
+    .zone.dragover {
       border-color: #6C63FF;
-      background: rgba(108,99,255,0.04);
     }
     .zone.dragover .zone-drop {
       border-color: #6C63FF;
       background: rgba(108,99,255,0.1);
     }
-    .drop-icon { font-size: 2.5rem; opacity: 0.4; }
-    .drop-hint { font-size: 0.875rem; color: #666; text-align: center; }
-    .drop-hint span { color: #6C63FF; text-decoration: underline; }
+    /* Hover state: only the drop area reacts to mouse (not drag) */
+    .zone:not(.dragover) .zone-drop:hover {
+      border-color: #6C63FF;
+      background: rgba(108,99,255,0.04);
+    }
 
     .zone-queue {
       padding: 0.5rem 1rem 0;
@@ -323,9 +471,11 @@ _HTML = """<!DOCTYPE html>
       flex-shrink: 0;
     }
     .upload-status.pending   { color: #888; }
+    .upload-status.checking  { color: #f59e0b; }
     .upload-status.uploading { color: #6C63FF; }
     .upload-status.done      { color: #4caf50; }
     .upload-status.failed    { color: #ff6b6b; }
+    .upload-status.skipped   { color: #888; }
     .upload-bar-wrap {
       height: 3px;
       background: #2a2a2a;
@@ -394,6 +544,22 @@ _HTML = """<!DOCTYPE html>
     </div>
     <div id="pin-error" class="pin-error"></div>
     <button class="pin-cancel" id="pin-cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ── Duplicate Warning Modal ──────────────────────────────────────── -->
+<div id="dup-overlay">
+  <div class="dup-modal">
+    <div class="dup-icon">⚠️</div>
+    <h2>Possible Duplicate</h2>
+    <p class="dup-info">This file might already exist in AiHomeCloud:</p>
+    <div class="dup-filename" id="dup-filename"></div>
+    <div class="dup-location-label">Found at:</div>
+    <div class="dup-path" id="dup-path"></div>
+    <div class="dup-actions">
+      <button class="btn-dup-save" id="btn-dup-save">Save as <span id="dup-newname"></span></button>
+      <button class="btn-dup-cancel" id="btn-dup-cancel">Cancel upload</button>
+    </div>
   </div>
 </div>
 
@@ -476,10 +642,11 @@ const state = {
 const uploadQueues = { personal: [], family: [], entertainment: [] };
 const uploadBusy   = { personal: false, family: false, entertainment: false };
 const uploadStats  = {
-  personal:      { done: 0, failed: 0 },
-  family:        { done: 0, failed: 0 },
-  entertainment: { done: 0, failed: 0 },
+  personal:      { done: 0, failed: 0, skipped: 0 },
+  family:        { done: 0, failed: 0, skipped: 0 },
+  entertainment: { done: 0, failed: 0, skipped: 0 },
 };
+
 // ── View switching ───────────────────────────────────────────────────────
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -514,10 +681,9 @@ async function loadUsers() {
   users.forEach(u => {
     const card = document.createElement('div');
     card.className = 'user-card';
-    card.innerHTML = `
-      <div class="avatar">${escHtml(u.icon_emoji || '👤')}</div>
-      <div class="uname">${escHtml(u.name)}</div>
-    `;
+    card.innerHTML =
+      '<div class="avatar">' + escHtml(u.icon_emoji || '👤') + '</div>' +
+      '<div class="uname">' + escHtml(u.name) + '</div>';
     card.addEventListener('click', () => onUserSelect(u));
     grid.appendChild(card);
   });
@@ -581,7 +747,10 @@ async function doLogin(name, pin) {
 
 // ── Dashboard ────────────────────────────────────────────────────────────
 const ZONE_PATHS = {
-  personal:      () => '/srv/nas/personal/' + encodeURIComponent(state.userName) + '/',
+  // Bug fix: raw username — no encodeURIComponent here; path is a filesystem
+  // path, not a URL. encodeURIComponent is applied to the whole path as a
+  // query-param value in uploadFile().
+  personal:      () => '/srv/nas/personal/' + state.userName + '/',
   family:        () => '/srv/nas/family/',
   entertainment: () => '/srv/nas/entertainment/',
 };
@@ -589,16 +758,23 @@ const ZONE_PATHS = {
 function initDashboard() {
   resetUploadState();
   document.getElementById('dash-username').textContent = state.userName || '';
-  ['personal', 'family', 'entertainment'].forEach(zone => setupZone(zone));
+  // NOTE: setupZone() is called once at boot (not here) to avoid duplicate
+  // event listeners accumulating across logout/login cycles.
 }
 
+// ── Zone setup (called ONCE at boot, not on every login) ─────────────────
 function setupZone(zoneId) {
   const zoneEl  = document.getElementById('zone-' + zoneId);
   const dropEl  = document.getElementById('drop-' + zoneId);
   const fileEl  = document.getElementById('file-' + zoneId);
 
-  // Click on drop area → open file picker
-  dropEl.addEventListener('click', () => fileEl.click());
+  // Click on the drop area → open file picker
+  // pointer-events on dropEl is none (CSS), so the click bubbles from zoneEl
+  zoneEl.addEventListener('click', e => {
+    // Only trigger file picker if the click wasn't on the queue/stats
+    if (e.target.closest('.zone-queue, .zone-stats, .btn-retry')) return;
+    fileEl.click();
+  });
 
   // File picker selection
   fileEl.addEventListener('change', () => {
@@ -608,14 +784,16 @@ function setupZone(zoneId) {
     }
   });
 
-  // Drag events
-  dropEl.addEventListener('dragenter', e => { e.preventDefault(); zoneEl.classList.add('dragover'); });
-  dropEl.addEventListener('dragover',  e => { e.preventDefault(); zoneEl.classList.add('dragover'); });
-  dropEl.addEventListener('dragleave', e => {
-    // Only remove if truly leaving the zone (not entering a child)
+  // Drag events on the whole zone (not just the drop area) so dragging onto
+  // the zone header or stats row also works and the browser doesn't navigate
+  // to the file URL when dropped outside the drop area.
+  zoneEl.addEventListener('dragenter', e => { e.preventDefault(); zoneEl.classList.add('dragover'); });
+  zoneEl.addEventListener('dragover',  e => { e.preventDefault(); zoneEl.classList.add('dragover'); });
+  zoneEl.addEventListener('dragleave', e => {
+    // Only remove when the pointer truly leaves the zone element
     if (!zoneEl.contains(e.relatedTarget)) zoneEl.classList.remove('dragover');
   });
-  dropEl.addEventListener('drop', e => {
+  zoneEl.addEventListener('drop', e => {
     e.preventDefault();
     zoneEl.classList.remove('dragover');
     const files = Array.from(e.dataTransfer.files);
@@ -623,12 +801,19 @@ function setupZone(zoneId) {
   });
 }
 
-// ── Upload engine ───────────────────────────────────────────────────────────────
+// Fallback: clear all dragover states if drag leaves the document entirely
+document.addEventListener('dragleave', e => {
+  if (!e.relatedTarget) {
+    document.querySelectorAll('.zone.dragover').forEach(z => z.classList.remove('dragover'));
+  }
+});
+
+// ── Upload engine ─────────────────────────────────────────────────────────
 function resetUploadState() {
   ['personal', 'family', 'entertainment'].forEach(z => {
     uploadQueues[z] = [];
     uploadBusy[z]   = false;
-    uploadStats[z]  = { done: 0, failed: 0 };
+    uploadStats[z]  = { done: 0, failed: 0, skipped: 0 };
   });
 }
 
@@ -675,19 +860,101 @@ function processQueue(zoneId) {
   });
 }
 
-function uploadFile(zoneId, entry) {
+// ── Duplicate detection ───────────────────────────────────────────────────
+
+/** Generate a `name(1).ext` variant for a filename. */
+function addDupSuffix(name) {
+  const dot = name.lastIndexOf('.');
+  if (dot > 0) return name.slice(0, dot) + '(1)' + name.slice(dot);
+  return name + '(1)';
+}
+
+/**
+ * Ask the server if a file with this name+size already exists on the NAS.
+ * Returns { found: bool, path: string } or null on network error.
+ */
+async function checkDuplicate(file) {
+  try {
+    const params = new URLSearchParams({ name: file.name, size: String(file.size) });
+    const res = await fetch('/web/check-duplicate?' + params.toString(), {
+      headers: { 'Authorization': 'Bearer ' + state.token },
+    });
+    if (res.status === 401) return null; // handled in uploadFile
+    if (!res.ok) return null;            // non-fatal; proceed with upload
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Show the duplicate warning modal.
+ * Returns a Promise that resolves to { proceed: bool, newName: string }.
+ */
+function showDupModal(originalName, existingPath, newName) {
   return new Promise(resolve => {
-    const { file, itemEl } = entry;
-    const statusEl = itemEl.querySelector('.upload-status');
-    const barEl    = itemEl.querySelector('.upload-bar');
-    statusEl.className   = 'upload-status uploading';
-    statusEl.textContent = '0%';
+    document.getElementById('dup-filename').textContent = originalName;
+    document.getElementById('dup-path').textContent    = existingPath;
+    document.getElementById('dup-newname').textContent = newName;
+    document.getElementById('dup-overlay').classList.add('open');
 
-    const path = ZONE_PATHS[zoneId]();
-    const url  = '/api/v1/files/upload?path=' + encodeURIComponent(path);
-    const fd   = new FormData();
-    fd.append('file', file);
+    function close(result) {
+      document.getElementById('dup-overlay').classList.remove('open');
+      resolve(result);
+    }
 
+    document.getElementById('btn-dup-save').addEventListener(
+      'click', () => close({ proceed: true, newName }), { once: true }
+    );
+    document.getElementById('btn-dup-cancel').addEventListener(
+      'click', () => close({ proceed: false, newName: '' }), { once: true }
+    );
+  });
+}
+
+// ── Upload (async, with pre-flight duplicate check) ───────────────────────
+
+async function uploadFile(zoneId, entry) {
+  const { file, itemEl } = entry;
+  const statusEl = itemEl.querySelector('.upload-status');
+  const barEl    = itemEl.querySelector('.upload-bar');
+
+  // ── Step 1: duplicate check ──────────────────────────────────────────
+  statusEl.className   = 'upload-status checking';
+  statusEl.textContent = 'Checking…';
+
+  let uploadName = file.name;
+  const dupResult = await checkDuplicate(file);
+
+  if (dupResult && dupResult.found) {
+    const newName = addDupSuffix(file.name);
+    const choice  = await showDupModal(file.name, dupResult.path, newName);
+
+    if (!choice.proceed) {
+      // User cancelled — mark item as skipped (not an error)
+      statusEl.className   = 'upload-status skipped';
+      statusEl.textContent = '\u2296 Skipped';
+      uploadStats[zoneId].skipped++;
+      return;
+    }
+    // Upload with the renamed filename
+    uploadName = choice.newName;
+    const nameEl = itemEl.querySelector('.upload-name');
+    nameEl.textContent = truncateName(uploadName, 36);
+    nameEl.title       = uploadName;
+  }
+
+  // ── Step 2: actual upload via XHR ────────────────────────────────────
+  statusEl.className   = 'upload-status uploading';
+  statusEl.textContent = '0%';
+
+  const path = ZONE_PATHS[zoneId]();
+  const url  = '/api/v1/files/upload?path=' + encodeURIComponent(path);
+  const fd   = new FormData();
+  // Pass uploadName as the filename so the server uses it (handles (1) rename)
+  fd.append('file', file, uploadName);
+
+  await new Promise(resolve => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
@@ -761,11 +1028,12 @@ function markFailed(zoneId, entry, itemEl, statusEl, barEl, msg, resolve) {
 function updateZoneStats(zoneId) {
   const el = document.getElementById('stats-' + zoneId);
   if (!el) return;
-  const { done, failed } = uploadStats[zoneId];
-  if (done + failed === 0) { el.textContent = ''; return; }
+  const { done, failed, skipped } = uploadStats[zoneId];
+  if (done + failed + skipped === 0) { el.textContent = ''; return; }
   const parts = [];
-  if (done)   parts.push(done   + ' uploaded');
-  if (failed) parts.push(failed + ' failed');
+  if (done)    parts.push(done    + ' uploaded');
+  if (failed)  parts.push(failed  + ' failed');
+  if (skipped) parts.push(skipped + ' skipped');
   el.textContent = parts.join(' \u00b7 ');
 }
 
@@ -802,7 +1070,7 @@ function buildKeypad() {
   keys.forEach(k => {
     const btn = document.createElement('button');
     btn.className = 'pin-key' + (k === 'del' ? ' del' : '') + (k === 'spacer' ? ' spacer' : '');
-    btn.textContent = k === 'del' ? '⌫' : k === 'spacer' ? '' : k;
+    btn.textContent = k === 'del' ? '\u232b' : k === 'spacer' ? '' : k;
     btn.type = 'button';
     if (k !== 'spacer') {
       btn.addEventListener('click', () => onPinKey(k));
@@ -821,12 +1089,11 @@ function onPinKey(key) {
   state.pin += key;
   updateDots();
   if (state.pin.length === 4) {
-    // Auto-submit
     doLogin(state.selectedUser.name, state.pin);
   }
 }
 
-// Close modal on overlay click
+// Close PIN modal on overlay click
 document.getElementById('pin-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closePinModal();
 });
@@ -868,7 +1135,10 @@ document.getElementById('btn-logout').addEventListener('click', () => {
   loadUsers();
 });
 
-// ── Boot ─────────────────────────────────────────────────────────────────
+// ── Boot ──────────────────────────────────────────────────────────────────
+// Set up zones once — NOT inside initDashboard() to prevent duplicate
+// event listeners accumulating across logout/login cycles.
+['personal', 'family', 'entertainment'].forEach(zone => setupZone(zone));
 // Keep the SPA on /web so the browser back button does not navigate away.
 history.replaceState({ ahc: true }, '', '/web');
 window.addEventListener('popstate', () => history.pushState({ ahc: true }, '', '/web'));
