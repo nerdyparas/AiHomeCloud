@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
   bool _loggingIn = false;
   bool _loadingUsers = true;
   late final AnimationController _bgController;
+  Timer? _pinDebounce;
 
   @override
   void initState() {
@@ -113,9 +115,18 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
 
   @override
   void dispose() {
+    _pinDebounce?.cancel();
     _bgController.dispose();
     _pinController.dispose();
     super.dispose();
+  }
+
+  void _onPinChanged(String value) {
+    _pinDebounce?.cancel();
+    if (value.length < 4 || _loading) return;
+    _pinDebounce = Timer(const Duration(milliseconds: 600), () {
+      if (_pinController.text.length >= 4 && !_loading) _submit();
+    });
   }
 
   Future<void> _submit() async {
@@ -151,6 +162,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
 
   Future<void> _onUserTapped(UserPickerEntry user) async {
     if (_selectedUser?.name == user.name && _showPin) return;
+    _pinDebounce?.cancel();
     setState(() {
       _selectedUser = user;
       _pinController.clear();
@@ -454,6 +466,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen>
                                     color: AppColors.primary, width: 2),
                               ),
                             ),
+                            onChanged: _onPinChanged,
                             onSubmitted: (_) => _submit(),
                           ),
                           if (_error != null) ...[
