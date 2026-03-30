@@ -775,8 +775,13 @@ async function api(method, path, body, opts = {}) {
   });
   if (!r.ok) {
     const text = await r.text();
-    let msg;
-    try { msg = JSON.parse(text).detail || text; } catch { msg = text; }
+    let msg = text;
+    try {
+      const detail = JSON.parse(text).detail;
+      if (typeof detail === 'string') msg = detail;
+      else if (Array.isArray(detail)) msg = detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+      else if (detail) msg = JSON.stringify(detail);
+    } catch { /* keep raw text */ }
     throw new Error(msg || r.statusText);
   }
   const ct = r.headers.get('Content-Type') || '';
@@ -903,8 +908,9 @@ async function loginWithPin(user, pin) {
     await loadBrowser();
   } catch (e) {
     if (avatarEl) avatarEl.innerHTML = originalContent;
-    errEl.textContent = e.message.includes('401') || e.message.toLowerCase().includes('invalid') || e.message.toLowerCase().includes('incorrect')
-      ? 'Incorrect PIN' : e.message;
+    const msg = e.message || '';
+    errEl.textContent = (msg.includes('401') || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('pin'))
+      ? 'Incorrect PIN' : (msg || 'Login failed');
   }
 }
 
