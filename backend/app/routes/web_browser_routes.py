@@ -900,7 +900,7 @@ async function loginWithPin(user, pin) {
   if (avatarEl) avatarEl.innerHTML = '<div class="login-spinner"></div>';
 
   try {
-    const data = await api('POST', '/auth/login', { username: user.name, pin: pin || '' });
+    const data = await api('POST', '/auth/login', { name: user.name, pin: pin || '' });
     token = data.accessToken;
     currentUser = data.user?.name || user.name;
     sessionStorage.setItem('ahc_token', token);
@@ -947,13 +947,13 @@ async function loadDirectory() {
     const qs = new URLSearchParams({
       path: currentPath,
       sort_by: sortBy,
-      asc: sortAsc ? 'true' : 'false',
+      sort_dir: sortAsc ? 'asc' : 'desc',
       page: currentPage,
       page_size: PAGE_SIZE,
     });
     const data = await api('GET', `/files/list?${qs}`);
     currentItems = data.items || [];
-    totalItems = data.total || currentItems.length;
+    totalItems = data.totalCount || currentItems.length;
 
     document.getElementById('item-count').textContent =
       totalItems + ' item' + (totalItems !== 1 ? 's' : '');
@@ -968,7 +968,7 @@ async function loadDirectory() {
     }
 
     renderFiles();
-    renderPagination(data.total, data.page, data.pageSize);
+    renderPagination(data.totalCount, data.page, data.pageSize);
   } catch (e) {
     content.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-label">${esc(e.message)}</div></div>`;
   }
