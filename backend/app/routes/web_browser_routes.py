@@ -742,8 +742,11 @@ _HTML = r"""<!DOCTYPE html>
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// State
+// Constants & State
 // ─────────────────────────────────────────────────────────────────────────────
+const BASE = '/api/v1';
+const PAGE_SIZE = 200;
+
 let token = sessionStorage.getItem('ahc_token') || '';
 let currentUser = sessionStorage.getItem('ahc_user') || '';
 let currentPath = '/';
@@ -752,32 +755,14 @@ let viewMode = localStorage.getItem('ahc_view') || 'grid';
 let sortBy = 'name';
 let sortAsc = true;
 let currentPage = 0;
-const PAGE_SIZE = 200;
 let totalItems = 0;
 let selectedUser = null;
 let currentPreviewPath = null;
 let dragCounter = 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Init
-// ─────────────────────────────────────────────────────────────────────────────
-(async function init() {
-  if (token) {
-    try {
-      await loadBrowser();
-      return;
-    } catch (e) {
-      token = ''; sessionStorage.removeItem('ahc_token');
-    }
-  }
-  showLogin();
-  loadUsers();
-})();
-
-// ─────────────────────────────────────────────────────────────────────────────
 // API helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const BASE = '/api/v1';
 
 async function api(method, path, body, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -798,6 +783,22 @@ async function api(method, path, body, opts = {}) {
   if (ct.includes('application/json')) return r.json();
   return r;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+(async function init() {
+  if (token) {
+    try {
+      await loadBrowser();
+      return;
+    } catch (e) {
+      token = ''; sessionStorage.removeItem('ahc_token');
+    }
+  }
+  showLogin();
+  loadUsers();
+})();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Views
