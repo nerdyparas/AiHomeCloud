@@ -46,6 +46,7 @@ from .routes import (
     telegram_upload_routes,
     backup_routes,
     web_upload_routes,
+    web_browser_routes,
 )
 
 from datetime import datetime, timedelta
@@ -477,6 +478,7 @@ app.include_router(telegram_routes.router)
 app.include_router(telegram_upload_routes.router)
 app.include_router(backup_routes.router)
 app.include_router(web_upload_routes.router)
+app.include_router(web_browser_routes.router)
 
 
 @app.get("/api/health")
