@@ -259,9 +259,10 @@ def _upsert_sync(nas_path: str, filename: str, ocr_text: str, added_by: str) -> 
 
 def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[dict]:
     fts_query = _normalize_query(query)
+    word = query.strip()
     with _get_conn() as conn:
         if user_role == "admin":
-            rows = conn.execute(
+            fts_rows = conn.execute(
                 """
                 SELECT path, filename, added_by, added_at,
                        snippet(doc_index, 2, '', '', '…', 10) AS snippet
@@ -272,6 +273,31 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
                 """,
                 (fts_query, limit),
             ).fetchall()
+
+            # Supplemental: single-word query → also match all docs in that user's
+            # personal folder (e.g. "paras" → /personal/Paras/...).
+            # path is UNINDEXED so FTS can't find it; a LIKE query fills the gap.
+            path_rows: list = []
+            if len(word.split()) == 1 and word.isalpha():
+                path_rows = conn.execute(
+                    """
+                    SELECT path, filename, added_by, added_at, '' AS snippet
+                    FROM doc_index
+                    WHERE LOWER(path) LIKE ?
+                    LIMIT ?
+                    """,
+                    (f"/personal/{word.lower()}/%", limit),
+                ).fetchall()
+
+            # Merge FTS results first, then path results; deduplicate by path.
+            seen: set[str] = set()
+            merged: list[dict] = []
+            for row in list(fts_rows) + list(path_rows):
+                p = row["path"]
+                if p not in seen:
+                    seen.add(p)
+                    merged.append(dict(row))
+            return merged[:limit]
         else:
             # Member scope: own personal Documents + shared Documents
             own_prefix = f"/personal/{username}/%"
@@ -288,7 +314,7 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
                 """,
                 (fts_query, own_prefix, shared_prefix, limit),
             ).fetchall()
-        return [dict(row) for row in rows]
+            return [dict(row) for row in rows]
 
 
 def _remove_sync(nas_path: str) -> None:
