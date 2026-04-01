@@ -8,6 +8,7 @@ from .bot_core import (
     logger,
     _check_allowed_and_rate, _is_admin_chat,
     _pending_uploads, _last_results,
+    _PENDING_MAX_ENTRIES,
     _storage_bar,
     _get_chat_folder_owner,
 )
@@ -497,15 +498,38 @@ async def _handle_scan(update, context) -> None:  # type: ignore[type-arg]
     if not await _is_admin_chat(chat_id):
         await update.message.reply_text("🔒 <i>Admin access required.</i>", parse_mode="HTML")
         return
-    from ..duplicate_scanner import get_duplicate_scanner
+    from ..duplicate_scanner import get_duplicate_scanner, DuplicateScanner
     scanner = get_duplicate_scanner()
     if scanner.is_scanning:
         await update.message.reply_text("⏳ <i>A scan is already in progress.</i>", parse_mode="HTML")
         return
-    _asyncio.create_task(scanner._scan_nas_for_duplicates(), name="telegram_dup_scan")
+
+    bot = context.bot
+
+    async def _run_and_notify() -> None:
+        try:
+            exact, similar = await scanner._scan_nas_for_duplicates()
+            report = DuplicateScanner._format_telegram_report(exact, similar)
+            if report:
+                await bot.send_message(chat_id=chat_id, text=report, parse_mode="HTML")
+            else:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="✅ <b>Scan complete</b> — no duplicates found.",
+                    parse_mode="HTML",
+                )
+        except Exception as exc:
+            logger.error("manual_scan_failed chat_id=%s error=%s", chat_id, exc)
+            await bot.send_message(
+                chat_id=chat_id,
+                text="❌ Scan failed. Check server logs.",
+                parse_mode="HTML",
+            )
+
+    _asyncio.create_task(_run_and_notify(), name="telegram_dup_scan")
     await update.message.reply_text(
-        "🔍 <b>Scan started</b> (exact + similar images).\n\n"
-        "Use /duplicates anytime to check results.",
+        "🔍 <b>Duplicate scan started</b> (exact + similar images).\n\n"
+        "I'll notify you here when it's done. This may take a few minutes.",
         parse_mode="HTML",
     )
 
@@ -764,10 +788,13 @@ def _sim_set_markup(idx: int, total: int):
     rows = [
         [
             InlineKeyboardButton("👁 See both", callback_data=f"dupsimboth:{idx}"),
-            InlineKeyboardButton("✅ Keep large", callback_data=f"dupsimdel:{idx}:small"),
+            InlineKeyboardButton("✅ Keep both", callback_data=f"dupsimkeepboth:{idx}"),
         ],
         [
-            InlineKeyboardButton("🔄 Keep small", callback_data=f"dupsimdel:{idx}:large"),
+            InlineKeyboardButton("🏆 Keep large", callback_data=f"dupsimdel:{idx}:small"),
+            InlineKeyboardButton("📱 Keep small", callback_data=f"dupsimdel:{idx}:large"),
+        ],
+        [
             InlineKeyboardButton("⏭ Skip", callback_data=f"dupsim:{idx + 1}"),
         ],
     ]
@@ -837,6 +864,60 @@ async def _handle_dupsimboth_callback(update, context) -> None:  # type: ignore[
         parse_mode="HTML",
         reply_markup=_sim_set_markup(idx, len(similar)),
     )
+
+
+async def _handle_dupsimkeepboth_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Mark a similar-image set as 'keep both' — whitelist the phash pair and remove from results."""
+    query = update.callback_query
+    await query.answer()
+    parts = query.data.split(":")
+    try:
+        idx = int(parts[1])
+    except (IndexError, ValueError):
+        idx = 0
+
+    similar = await _store.get_value("similar_scan_results", default=[])
+    if not similar or idx >= len(similar):
+        await query.edit_message_text("⚠️ Set no longer available.", parse_mode="HTML")
+        return
+
+    copies = similar[idx].get("copies", [])
+
+    # Record all phash pairs from this set into the whitelist so future scans skip them
+    phashes = [c.get("phash_hex", "") for c in copies if c.get("phash_hex")]
+    if len(phashes) >= 2:
+        whitelist = list(await _store.get_value("similar_phash_whitelist", default=[]))
+        existing_pairs = {(p[0], p[1]) for p in whitelist if isinstance(p, list) and len(p) == 2}
+        for a in range(len(phashes)):
+            for b in range(a + 1, len(phashes)):
+                pair = sorted([phashes[a], phashes[b]])
+                key = (pair[0], pair[1])
+                if key not in existing_pairs:
+                    whitelist.append(pair)
+                    existing_pairs.add(key)
+        await _store.set_value("similar_phash_whitelist", whitelist)
+
+    # Remove this set from results
+    def _prune(stored: list) -> list:
+        return [s for i, s in enumerate(stored) if i != idx]
+
+    await _store.atomic_update("similar_scan_results", _prune, default=[])
+    updated = await _store.get_value("similar_scan_results", default=[])
+
+    if not updated:
+        await query.edit_message_text(
+            "✅ <b>Kept both files.</b>\n\n"
+            "All similar image sets reviewed! 🎉",
+            parse_mode="HTML",
+        )
+    else:
+        next_idx = min(idx, len(updated) - 1)
+        await query.edit_message_text(
+            f"✅ <b>Kept both.</b> Won't appear in future scans unless files change.\n\n"
+            f"{_sim_set_text(updated[next_idx], next_idx, len(updated))}",
+            parse_mode="HTML",
+            reply_markup=_sim_set_markup(next_idx, len(updated)),
+        )
 
 
 async def _handle_dupsimdel_callback(update, context) -> None:  # type: ignore[type-arg]

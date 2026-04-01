@@ -219,8 +219,15 @@ def _scan_sync_similar(root: Path) -> list[dict]:
     return _scan_sync_similar_files(_collect_image_files(root))
 
 
-def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
-    """Core pHash scan over a pre-collected list of image paths."""
+def _scan_sync_similar_files(
+    images: list[Path],
+    whitelist: set[tuple[str, str]] | None = None,
+) -> list[dict]:
+    """Core pHash scan over a pre-collected list of image paths.
+
+    whitelist: set of sorted (phash_a, phash_b) tuples the user chose to keep —
+    groups where every pair is whitelisted are omitted from results.
+    """
     if not _PHASH_AVAILABLE:
         logger.info("similar_scan skipped — imagehash not installed")
         return []
@@ -235,7 +242,8 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
     logger.info("similar_scan starting images_found=%d", len(images))
 
     conn = _phash_conn()
-    entries: list[tuple[Path, int, int, int]] = []  # path, phash_int, size, width, height packed
+    # entries: (path, phash_hex, phash_int, size_bytes, width, height)
+    entries: list[tuple[Path, str, int, int, int, int]] = []
 
     try:
         for path in images:
@@ -251,7 +259,8 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
                 ).fetchone()
 
                 if row and row["mtime_ns"] == mtime_ns and row["size_bytes"] == size_bytes:
-                    phash_int = _phash_hex_to_int(row["phash_hex"])
+                    phash_hex = row["phash_hex"]
+                    phash_int = _phash_hex_to_int(phash_hex)
                     width, height = row["width"], row["height"]
                 else:
                     result = _compute_phash_sync(path)
@@ -266,7 +275,7 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
                     )
                     conn.commit()
 
-                entries.append((path, phash_int, size_bytes, width, height))
+                entries.append((path, phash_hex, phash_int, size_bytes, width, height))
             except OSError:
                 continue
     finally:
@@ -284,7 +293,7 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
 
     for i in range(n):
         for j in range(i + 1, n):
-            if _hamming(entries[i][1], entries[j][1]) <= _PHASH_HAMMING_THRESHOLD:
+            if _hamming(entries[i][2], entries[j][2]) <= _PHASH_HAMMING_THRESHOLD:
                 ri, rj = find(i), find(j)
                 if ri != rj:
                     parent[ri] = rj
@@ -298,18 +307,29 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
         if len(group_indices) < 2:
             continue
         # Sort group members by size desc (largest = highest quality)
-        group_indices.sort(key=lambda i: entries[i][2], reverse=True)
+        group_indices.sort(key=lambda i: entries[i][3], reverse=True)
         copies = []
         for i in group_indices:
-            path, _, size_bytes, width, height = entries[i]
+            path, phash_hex, _, size_bytes, width, height = entries[i]
             copies.append({
                 "path": str(path),
                 "filename": path.name,
+                "phash_hex": phash_hex,
                 "size_bytes": size_bytes,
                 "width": width,
                 "height": height,
                 "owner": _owner_from_path(path),
             })
+        # Skip groups where every pair of copies has been whitelisted by the user
+        if whitelist:
+            group_phashes = [c["phash_hex"] for c in copies]
+            all_whitelisted = all(
+                tuple(sorted([group_phashes[a], group_phashes[b]])) in whitelist
+                for a in range(len(group_phashes))
+                for b in range(a + 1, len(group_phashes))
+            )
+            if all_whitelisted:
+                continue
         similar_sets.append({"copies": copies})
 
     # Sort sets: largest primary file first
@@ -439,13 +459,20 @@ class DuplicateScanner:
                 merged.sort(key=lambda r: r["sizeBytes"], reverse=True)
                 return merged
 
+            # Load whitelist in async context before entering executor thread
+            whitelist_raw = await store.get_value("similar_phash_whitelist", default=[])
+            whitelist: set[tuple[str, str]] = {
+                (pair[0], pair[1]) for pair in whitelist_raw
+                if isinstance(pair, list) and len(pair) == 2
+            }
+
             def _similar_all() -> list[dict]:
                 # Collect images from all roots first, then do one union-find pass
                 # so cross-root near-duplicates are caught too.
                 all_images: list[Path] = []
                 for root in user_roots:
                     all_images.extend(_collect_image_files(root))
-                return _scan_sync_similar_files(all_images)
+                return _scan_sync_similar_files(all_images, whitelist=whitelist)
 
             exact = await loop.run_in_executor(None, _exact_all)
             similar = await loop.run_in_executor(None, _similar_all)
