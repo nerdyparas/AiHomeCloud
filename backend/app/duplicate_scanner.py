@@ -214,12 +214,16 @@ def _collect_image_files(root: Path) -> list[Path]:
 
 
 def _scan_sync_similar(root: Path) -> list[dict]:
-    """Blocking pHash scan. Returns near-duplicate image sets."""
+    """Blocking pHash scan of a single root. Thin wrapper around _scan_sync_similar_files."""
+    return _scan_sync_similar_files(_collect_image_files(root))
+
+
+def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
+    """Core pHash scan over a pre-collected list of image paths."""
     if not _PHASH_AVAILABLE:
         logger.info("similar_scan skipped — imagehash not installed")
         return []
 
-    images = _collect_image_files(root)
     logger.info("similar_scan starting images_found=%d", len(images))
 
     conn = _phash_conn()
@@ -378,20 +382,64 @@ class DuplicateScanner:
         return self._scanning
 
     async def _scan_nas_for_duplicates(self) -> tuple[list[dict], list[dict]]:
-        """Full scan: SHA-256 exact + pHash similar. Persists results. Returns (exact, similar)."""
+        """Full scan: SHA-256 exact + pHash similar. Persists results. Returns (exact, similar).
+
+        Scans only user data directories (personal/, family/, entertainment/) — never
+        backups/, system dirs, or SD card paths.
+        """
         if self._scanning:
             logger.info("duplicate_scan already in progress — skipping")
             return [], []
 
+        # Build list of user-data roots that actually exist
+        user_roots: list[Path] = []
+        # personal/<username>/ subdirs
+        personal_base = settings.personal_path
+        if personal_base.is_dir():
+            for user_dir in personal_base.iterdir():
+                if user_dir.is_dir() and not user_dir.name.startswith("."):
+                    user_roots.append(user_dir)
+        if settings.family_path.is_dir():
+            user_roots.append(settings.family_path)
+        if settings.entertainment_path.is_dir():
+            user_roots.append(settings.entertainment_path)
+
+        if not user_roots:
+            logger.warning("duplicate_scan: no user data roots found — aborting")
+            return [], []
+
+        logger.info("duplicate_scan roots=%s", [str(r) for r in user_roots])
+
         self._scanning = True
         try:
             loop = asyncio.get_running_loop()
-            exact = await loop.run_in_executor(
-                None, lambda: _scan_sync(settings.nas_root)
-            )
-            similar = await loop.run_in_executor(
-                None, lambda: _scan_sync_similar(settings.nas_root)
-            )
+
+            def _exact_all() -> list[dict]:
+                all_exact: list[dict] = []
+                seen_hashes: dict[str, dict] = {}
+                for root in user_roots:
+                    for entry in _scan_sync(root):
+                        h = entry["hash"]
+                        if h in seen_hashes:
+                            seen_hashes[h]["copies"].extend(entry["copies"])
+                        else:
+                            seen_hashes[h] = entry
+                            all_exact.append(entry)
+                # Re-filter: keep only sets with ≥2 copies after merge
+                merged = [e for e in all_exact if len(e["copies"]) >= 2]
+                merged.sort(key=lambda r: r["sizeBytes"], reverse=True)
+                return merged
+
+            def _similar_all() -> list[dict]:
+                # Collect images from all roots first, then do one union-find pass
+                # so cross-root near-duplicates are caught too.
+                all_images: list[Path] = []
+                for root in user_roots:
+                    all_images.extend(_collect_image_files(root))
+                return _scan_sync_similar_files(all_images)
+
+            exact = await loop.run_in_executor(None, _exact_all)
+            similar = await loop.run_in_executor(None, _similar_all)
             await store.set_value("duplicate_scan_results", exact)
             await store.set_value("similar_scan_results", similar)
             await store.set_value("duplicate_scan_ran_at", datetime.now().isoformat())
