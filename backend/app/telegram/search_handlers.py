@@ -1,7 +1,9 @@
 """Telegram bot handlers — search handlers."""
 
 import shutil
+import uuid
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .bot_core import (
@@ -32,6 +34,60 @@ try:
 except ImportError:
     psutil = None  # type: ignore[assignment]
 
+
+# ---------------------------------------------------------------------------
+# Trash helper
+# ---------------------------------------------------------------------------
+
+async def _move_to_dup_trash(path: Path, owner: str) -> None:
+    """Move *path* to the per-owner trash folder and record the item in the trash store.
+
+    Mirrors the soft-delete logic in file_routes.delete_file so that files
+    deleted through the duplicate review UI can be restored from the app.
+    Raises OSError / Exception on failure — callers should catch and report.
+    """
+    filename = path.name
+    ts = int(datetime.now(timezone.utc).timestamp())
+    trash_name = f"{ts}_{filename}"
+
+    user_trash_dir = settings.trash_dir / owner
+    user_trash_dir.mkdir(parents=True, exist_ok=True)
+
+    trash_path = user_trash_dir / trash_name
+    counter = 1
+    while trash_path.exists():
+        trash_path = user_trash_dir / f"{ts}_{counter}_{filename}"
+        counter += 1
+
+    size_bytes = path.stat().st_size if path.is_file() else 0
+    try:
+        original_path = "/" + str(path.relative_to(settings.nas_root.resolve())).replace("\\", "/")
+    except ValueError:
+        original_path = str(path)
+
+    item = {
+        "id": str(uuid.uuid4()),
+        "originalPath": original_path,
+        "trashPath": str(trash_path),
+        "filename": filename,
+        "deletedAt": datetime.now(timezone.utc).isoformat(),
+        "sizeBytes": size_bytes,
+        "deletedBy": owner,
+    }
+
+    # Record metadata before moving — roll back if move fails
+    items = await _store.get_trash_items()
+    items.append(item)
+    await _store.save_trash_items(items)
+
+    try:
+        shutil.move(str(path), str(trash_path))
+    except Exception:
+        items = [i for i in items if i["id"] != item["id"]]
+        await _store.save_trash_items(items)
+        raise
+
+    logger.info("dup_trash owner=%s file=%s trash=%s", owner, path.name, trash_path)
 
 
 async def _handle_help(update, context) -> None:  # type: ignore[type-arg]
@@ -627,11 +683,12 @@ async def _handle_dupexactdel_callback(update, context) -> None:  # type: ignore
             f"⚠️ Already gone: <code>{target_path.name}</code>", parse_mode="HTML"
         )
         return
+    owner = copies[copy_idx].get("owner", "admin")
     try:
-        target_path.unlink()
-        logger.info("dupexactdel path=%s", target_path)
-    except OSError as exc:
-        await query.edit_message_text(f"❌ Delete failed: {exc}")
+        await _move_to_dup_trash(target_path, owner)
+    except Exception as exc:
+        logger.warning("dupexactdel trash_failed path=%s error=%s", target_path, exc)
+        await query.edit_message_text(f"❌ Move to trash failed: {exc}")
         return
 
     # Remove from document index
@@ -710,16 +767,18 @@ async def _handle_dupauto_callback(update, context) -> None:  # type: ignore[typ
             # Delete the rest
             for copy in copies[1:]:
                 p = Path(copy["path"])
+                if not p.exists():
+                    deleted += 1
+                    continue
                 try:
-                    if p.exists():
-                        p.unlink()
+                    await _move_to_dup_trash(p, copy.get("owner", "admin"))
                     deleted += 1
                     try:
                         nas_rel = "/" + str(p.relative_to(settings.nas_root.resolve())).replace("\\", "/")
                         await _docidx.remove_document(nas_rel)
                     except Exception:
                         pass
-                except OSError:
+                except Exception:
                     failed += 1
         await _store.set_value("duplicate_scan_results", [])
         result_line = f"✅ <b>Auto-clean complete.</b>\n\nDeleted {deleted} file{'s' if deleted != 1 else ''}"
@@ -954,16 +1013,16 @@ async def _handle_dupsimdel_callback(update, context) -> None:  # type: ignore[t
         )
     else:
         try:
-            target_path.unlink()
-            logger.info("dupsimdel which=%s path=%s", which, target_path)
+            await _move_to_dup_trash(target_path, target_copy.get("owner", "admin"))
             # Remove from document index
             try:
                 nas_rel = "/" + str(target_path.relative_to(settings.nas_root.resolve())).replace("\\", "/")
                 await _docidx.remove_document(nas_rel)
             except Exception:
                 pass
-        except OSError as exc:
-            await query.edit_message_text(f"❌ Delete failed: {exc}")
+        except Exception as exc:
+            logger.warning("dupsimdel trash_failed path=%s error=%s", target_path, exc)
+            await query.edit_message_text(f"❌ Move to trash failed: {exc}")
             return
 
     # Remove this set from results and show next
