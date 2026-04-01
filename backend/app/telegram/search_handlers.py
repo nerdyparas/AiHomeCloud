@@ -11,6 +11,10 @@ from .bot_core import (
     _storage_bar,
     _get_chat_folder_owner,
 )
+
+_PAGE_SIZE = 20
+# Per-chat current page offset for paginated search results.
+_last_page: dict[int, int] = {}
 from ..config import settings
 from .. import store as _store
 
@@ -116,9 +120,9 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
             )
         return
 
-    # Full-text search (admin-scope — bot has unrestricted access to the index)
+    # Full-text search — fetch up to 200 results so pagination works in-memory.
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    results = await _docidx.search_documents(query=text, limit=20, user_role="admin", username="")
+    results = await _docidx.search_documents(query=text, limit=200, user_role="admin", username="")
 
     if not results:
         await update.message.reply_text(
@@ -128,26 +132,108 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
         )
         return
 
-    # Always show a numbered list so user can pick by replying with a number.
     _last_results[chat_id] = results
+    _last_page[chat_id] = 0
+    await _render_search_page(update.message, chat_id, results, offset=0, keyword=text)
+
+
+
+
+def _build_search_page_text(results: list, offset: int, keyword: str = "") -> str:
+    """Build the message text for one page of search results."""
+    total = len(results)
+    page = results[offset: offset + _PAGE_SIZE]
+    showing_to = min(offset + _PAGE_SIZE, total)
+
+    if keyword:
+        header = f"🔍 <b>{total} document{'s' if total != 1 else ''} found for '{keyword}'</b>"
+    else:
+        header = f"🔍 <b>{total} document{'s' if total != 1 else ''} found</b>"
+
+    if total > _PAGE_SIZE:
+        header += f"\n<i>Showing {offset + 1}–{showing_to}</i>"
+
     lines = []
-    for i, r in enumerate(results):
-        # Show parent folder for context (e.g. "Photos" or "Documents")
+    for i, r in enumerate(page):
+        abs_num = offset + i + 1  # 1-based absolute index
         try:
             parent = Path(r["path"]).parent.name
-            folder_hint = f"  <i>{parent}</i>" if parent not in ("personal", "family", "entertainment") else ""
+            folder_hint = (
+                f"  <i>{parent}</i>"
+                if parent not in ("personal", "family", "entertainment")
+                else ""
+            )
         except Exception:
             folder_hint = ""
-        lines.append(f"{i + 1}. <code>{r['filename']}</code>{folder_hint}")
+        lines.append(f"{abs_num}. <code>{r['filename']}</code>{folder_hint}")
 
-    await update.message.reply_text(
-        f"🔍 <b>Found {len(results)} file{'s' if len(results) != 1 else ''}</b>\n\n"
-        + "\n".join(lines)
-        + "\n\n<i>Reply with a number to receive the file.</i>",
-        parse_mode="HTML",
-    )
+    return header + "\n\n" + "\n".join(lines) + "\n\n<i>Reply with a number to receive the file.</i>"
 
 
+def _build_search_page_markup(chat_id: int, offset: int, total: int):
+    """Build Prev / Next inline keyboard for paginated results, or None."""
+    if InlineKeyboardButton is None:
+        return None
+    nav: list = []
+    if offset > 0:
+        nav.append(InlineKeyboardButton(
+            "◀ Prev 20",
+            callback_data=f"searchpage:{chat_id}:{max(0, offset - _PAGE_SIZE)}",
+        ))
+    if offset + _PAGE_SIZE < total:
+        nav.append(InlineKeyboardButton(
+            "Next 20 ▶",
+            callback_data=f"searchpage:{chat_id}:{offset + _PAGE_SIZE}",
+        ))
+    if not nav:
+        return None
+    return InlineKeyboardMarkup([nav])
+
+
+async def _render_search_page(
+    message,
+    chat_id: int,
+    results: list,
+    offset: int,
+    keyword: str = "",
+) -> None:
+    """Send a new message with one page of search results + Prev/Next buttons."""
+    text = _build_search_page_text(results, offset, keyword)
+    markup = _build_search_page_markup(chat_id, offset, len(results))
+    await message.reply_text(text, parse_mode="HTML", reply_markup=markup)
+
+
+async def _handle_search_page_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Inline keyboard callback: navigate to a different page of search results."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = query.data.split(":")
+    if len(parts) != 3:
+        await query.edit_message_text("❌ Invalid pagination data.")
+        return
+
+    try:
+        chat_id = int(parts[1])
+        offset = int(parts[2])
+    except ValueError:
+        await query.edit_message_text("❌ Invalid pagination data.")
+        return
+
+    results = _last_results.get(chat_id)
+    if not results:
+        await query.edit_message_text(
+            "⚠️ <i>Search results expired — please search again.</i>",
+            parse_mode="HTML",
+        )
+        return
+
+    offset = max(0, min(offset, len(results) - 1))
+    _last_page[chat_id] = offset
+
+    text = _build_search_page_text(results, offset)
+    markup = _build_search_page_markup(chat_id, offset, len(results))
+    await query.edit_message_text(text, parse_mode="HTML", reply_markup=markup)
 
 
 async def _send_file(update, doc: dict) -> None:

@@ -43,6 +43,7 @@ from app.telegram.search_handlers import (  # noqa: F401
     _handle_duplicates, _handle_scan,
     _handle_dupdelete_callback, _handle_dupskip_callback,
     _handle_mount,
+    _handle_search_page_callback,
 )
 
 from app.telegram.upload_handlers import (  # noqa: F401
@@ -154,6 +155,9 @@ async def start_bot() -> None:
         )
         _application.add_handler(
             CallbackQueryHandler(_handle_dupskip_callback, pattern=r"^dupskip:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_search_page_callback, pattern=r"^searchpage:")
         )
 
         await _application.initialize()
