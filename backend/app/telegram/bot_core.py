@@ -100,15 +100,14 @@ def _is_rate_limited(chat_id: int) -> bool:
     """Return True if chat_id has exceeded the per-minute command limit."""
     import time as _time
     now = _time.monotonic()
-    timestamps = _chat_timestamps.get(chat_id, [])
-    # Prune old entries
     cutoff = now - _RATE_LIMIT_WINDOW
-    timestamps = [t for t in timestamps if t > cutoff]
+    # setdefault returns the same list object every time — mutate in place so
+    # concurrent readers always see a consistent view of the same list.
+    timestamps = _chat_timestamps.setdefault(chat_id, [])
+    timestamps[:] = [t for t in timestamps if t > cutoff]
     if len(timestamps) >= _RATE_LIMIT_MAX:
-        _chat_timestamps[chat_id] = timestamps
         return True
     timestamps.append(now)
-    _chat_timestamps[chat_id] = timestamps
     return False
 
 

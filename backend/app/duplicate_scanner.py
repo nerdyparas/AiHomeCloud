@@ -229,39 +229,40 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
     conn = _phash_conn()
     entries: list[tuple[Path, int, int, int]] = []  # path, phash_int, size, width, height packed
 
-    for path in images:
-        try:
-            st = path.stat()
-            mtime_ns = int(st.st_mtime_ns)
-            size_bytes = int(st.st_size)
-            path_str = str(path)
+    try:
+        for path in images:
+            try:
+                st = path.stat()
+                mtime_ns = int(st.st_mtime_ns)
+                size_bytes = int(st.st_size)
+                path_str = str(path)
 
-            row = conn.execute(
-                "SELECT phash_hex, width, height, mtime_ns, size_bytes FROM phash_cache WHERE path = ?",
-                (path_str,),
-            ).fetchone()
+                row = conn.execute(
+                    "SELECT phash_hex, width, height, mtime_ns, size_bytes FROM phash_cache WHERE path = ?",
+                    (path_str,),
+                ).fetchone()
 
-            if row and row["mtime_ns"] == mtime_ns and row["size_bytes"] == size_bytes:
-                phash_int = _phash_hex_to_int(row["phash_hex"])
-                width, height = row["width"], row["height"]
-            else:
-                result = _compute_phash_sync(path)
-                if result is None:
-                    continue
-                phash_hex, width, height = result
-                phash_int = _phash_hex_to_int(phash_hex)
-                conn.execute(
-                    "INSERT OR REPLACE INTO phash_cache (path, phash_hex, size_bytes, width, height, mtime_ns)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
-                    (path_str, phash_hex, size_bytes, width, height, mtime_ns),
-                )
-                conn.commit()
+                if row and row["mtime_ns"] == mtime_ns and row["size_bytes"] == size_bytes:
+                    phash_int = _phash_hex_to_int(row["phash_hex"])
+                    width, height = row["width"], row["height"]
+                else:
+                    result = _compute_phash_sync(path)
+                    if result is None:
+                        continue
+                    phash_hex, width, height = result
+                    phash_int = _phash_hex_to_int(phash_hex)
+                    conn.execute(
+                        "INSERT OR REPLACE INTO phash_cache (path, phash_hex, size_bytes, width, height, mtime_ns)"
+                        " VALUES (?, ?, ?, ?, ?, ?)",
+                        (path_str, phash_hex, size_bytes, width, height, mtime_ns),
+                    )
+                    conn.commit()
 
-            entries.append((path, phash_int, size_bytes, width, height))
-        except OSError:
-            continue
-
-    conn.close()
+                entries.append((path, phash_int, size_bytes, width, height))
+            except OSError:
+                continue
+    finally:
+        conn.close()
 
     # Union-Find grouping by Hamming distance
     n = len(entries)
