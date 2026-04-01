@@ -331,7 +331,7 @@ def _check_single_sync(path: Path) -> list[dict]:
         " VALUES (?, ?, ?, ?, ?, ?)",
         (str(path), phash_hex, size_bytes, width, height, mtime_ns),
     )
-    conn.commit()
+    conn.commit()  # must commit before close so the new entry persists
 
     # Find similar cached entries
     rows = conn.execute(

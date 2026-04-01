@@ -105,7 +105,7 @@ async def _send_evening_duplicate_report() -> None:
                         await _tb_mod._application.bot.send_message(
                             chat_id=chat_id, text=msg, parse_mode="HTML"
                         )
-            logger.info("Evening duplicate report sent to %d user(s)", len(linked) if _tb_mod._application else 0)
+            logger.info("Evening duplicate report sent to %d user(s)", len(linked) if _tb_mod._application is not None else 0)
         except asyncio.CancelledError:
             break
         except Exception as exc:

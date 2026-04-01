@@ -19,6 +19,7 @@ from .bot_core import (
     _is_too_large_telegram_file_error, _is_timeout_error,
     _record_file_hash, _record_recent_file,
 )
+from ..file_sorter import _sort_file
 from ..config import settings
 from .. import store as _store
 
@@ -247,10 +248,17 @@ async def _process_upload_choice(
 
     except DuplicateFileError as dup:
         # Keep temp file on disk so /keep can proceed without re-downloading
+        if choice == "1":
+            _dup_base_dir = settings.personal_path / owner
+        elif choice == "2":
+            _dup_base_dir = settings.family_path
+        else:
+            _dup_base_dir = None  # entertainment: temp_path is already final destination
         _pending_duplicates[chat_id] = {
             "sha256": dup.sha256,
             "existing": dup.existing,
             "temp_path": dup.temp_path,
+            "base_dir": str(_dup_base_dir) if _dup_base_dir else None,
             "choice": choice,
             "pending": pending,
             "owner": owner,
@@ -329,18 +337,24 @@ async def _handle_keep(update, context) -> None:  # type: ignore[type-arg]
         await update.message.reply_text("No duplicate pending. Send a file first.", parse_mode="HTML")
         return
     temp_path = Path(dup["temp_path"])
-    dest_path = Path(dup["dest_path"])
+    base_dir_str = dup.get("base_dir")
     try:
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(temp_path), str(dest_path))
+        if base_dir_str:
+            # Private or family: sort from .inbox into the right category subfolder
+            dest_path = _sort_file(temp_path, Path(base_dir_str), check_age=False)
+            if dest_path is None:
+                raise RuntimeError("Failed to sort file into destination folder")
+        else:
+            # Entertainment: temp_path is already the final destination
+            dest_path = temp_path
         await _record_file_hash(dup["sha256"], dest_path.name, str(dest_path))
         await _record_recent_file(chat_id, dest_path.name, str(dest_path), dup.get("file_size", 0))
         await update.message.reply_text(
             f"✅ <b>Saved</b> <code>{dest_path.name}</code>", parse_mode="HTML"
         )
     except Exception as exc:
-        logger.warning("keep handler error: %s", exc)
-        await update.message.reply_text(f"❌ Save failed: {exc}", parse_mode="HTML")
+        logger.warning("keep_handler_error chat_id=%s error=%s", chat_id, exc)
+        await update.message.reply_text("❌ Save failed. Please try uploading again.", parse_mode="HTML")
 
 
 
@@ -430,7 +444,7 @@ async def _handle_empty_trash_callback(update, context) -> None:  # type: ignore
     """Handle Empty Trash inline-button press from trash warning."""
     query = update.callback_query
     await query.answer()
-    from . import store as _st
+    from .. import store as _st
     items  = await _st.get_trash_items()
     errors = 0
     for item in items:
