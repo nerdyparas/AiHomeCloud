@@ -70,6 +70,13 @@ _WA_DOC_RE = re.compile(r"^doc-\d{8}-wa\d{4}")
 # Android screenshot naming: Screenshot_YYYYMMDD-HHMMSS or Screenshot_YYYY…
 _SCREENSHOT_RE = re.compile(r"^screenshot[_\-\s]")
 
+# Pre-compiled word-boundary regex for DOC_KEYWORDS to avoid false positives.
+# Uses \b which treats underscore as a word character, so "bill_murray" won't
+# match "bill". Compile once at module load for performance.
+_DOC_KW_RE = re.compile(
+    r"(?<![a-z0-9])(" + "|".join(re.escape(kw) for kw in sorted(DOC_KEYWORDS, key=len, reverse=True)) + r")(?![a-z0-9])"
+)
+
 # Entertainment sub-folder routing (applied when base_dir is entertainment_path)
 ENTERTAINMENT_SORT_RULES: dict[str, str] = {
     ".mp4": "Movies", ".mkv": "Movies", ".avi": "Movies", ".mov": "Movies",
@@ -126,7 +133,7 @@ def _destination_folder(file_path: Path, base_dir: Path | None = None) -> str:
         if (
             _WA_DOC_RE.match(stem_lower)
             or _SCREENSHOT_RE.match(stem_lower)
-            or any(kw in stem_lower for kw in DOC_KEYWORDS)
+            or bool(_DOC_KW_RE.search(stem_lower))
         ):
             folder = "Documents"
 

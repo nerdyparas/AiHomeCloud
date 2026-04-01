@@ -85,6 +85,9 @@ async def _handle_list(update, context) -> None:  # type: ignore[type-arg]
         return
 
     _last_results[chat_id] = docs
+    if len(_last_results) > _PENDING_MAX_ENTRIES:
+        oldest = next(iter(_last_results))
+        del _last_results[oldest]
     lines = []
     for i, d in enumerate(docs, 1):
         added_by = d.get("added_by", "?")
@@ -134,6 +137,9 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
 
     _last_results[chat_id] = results
     _last_page[chat_id] = 0
+    if len(_last_results) > _PENDING_MAX_ENTRIES:
+        oldest = next(iter(_last_results))
+        del _last_results[oldest]
     await _render_search_page(update.message, chat_id, results, offset=0, keyword=text)
 
 
@@ -272,6 +278,10 @@ async def _handle_status(update, context) -> None:  # type: ignore[type-arg]
         return
 
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    if psutil is None:
+        await update.message.reply_text("⚠️ System stats unavailable (psutil not installed).")
+        return
 
     try:
         import time as _time

@@ -33,6 +33,10 @@ async def cleanup_startup_artifacts() -> dict[str, int]:
     """Remove known non-user test artifacts from NAS and document index."""
     files = _scan_test_artifacts()
 
+    # Remove from document index first so index never points to non-existent files,
+    # even if a subsequent file deletion fails.
+    removed_pattern_rows = await remove_documents_by_filename_patterns(list(_TEST_ARTIFACT_PATTERNS))
+
     deleted = 0
     for p in files:
         try:
@@ -41,7 +45,6 @@ async def cleanup_startup_artifacts() -> dict[str, int]:
         except OSError:
             logger.warning("hygiene_delete_failed path=%s", p)
 
-    removed_pattern_rows = await remove_documents_by_filename_patterns(list(_TEST_ARTIFACT_PATTERNS))
     removed_missing_rows = await remove_missing_documents()
 
     stats = {

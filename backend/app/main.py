@@ -327,7 +327,7 @@ async def lifespan(app: FastAPI):
         _supervise_telegram_bot(), name="telegram_bot_supervisor"
     )
 
-    # Nightly duplicate scan at 2:00 AM + evening Telegram report at 6:00 PM
+    # Nightly duplicate scan at 4:00 AM + evening Telegram report at 6:00 PM
     app.state.dup_scan_task = asyncio.create_task(
         _run_nightly_duplicate_scan(), name="duplicate_scan_nightly"
     )

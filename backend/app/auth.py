@@ -13,7 +13,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
-import uuid
 
 from . import store
 

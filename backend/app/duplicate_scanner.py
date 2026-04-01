@@ -37,9 +37,10 @@ from . import store
 logger = logging.getLogger("aihomecloud.duplicate_scanner")
 
 # ── tunables ─────────────────────────────────────────────────────────────────
-_MIN_SIZE_BYTES = 10 * 1024          # skip files < 10 KB (thumbnails / icons)
+_MIN_SIZE_BYTES = 1 * 1024           # skip files < 1 KB (empty/placeholder files)
 _HASH_CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB streaming reads for SHA-256
 _PHASH_HAMMING_THRESHOLD = 10        # images with distance ≤ this are "similar"
+_PHASH_MAX_IMAGES = 5_000            # union-find is O(n²) — cap to avoid multi-minute scans
 _PHASH_EXTENSIONS = frozenset({
     ".jpg", ".jpeg", ".png", ".heic", ".heif", ".bmp", ".tiff", ".tif",
 })
@@ -223,6 +224,13 @@ def _scan_sync_similar_files(images: list[Path]) -> list[dict]:
     if not _PHASH_AVAILABLE:
         logger.info("similar_scan skipped — imagehash not installed")
         return []
+
+    if len(images) > _PHASH_MAX_IMAGES:
+        logger.warning(
+            "similar_scan capped images_found=%d max=%d — only first %d scanned",
+            len(images), _PHASH_MAX_IMAGES, _PHASH_MAX_IMAGES,
+        )
+        images = images[:_PHASH_MAX_IMAGES]
 
     logger.info("similar_scan starting images_found=%d", len(images))
 

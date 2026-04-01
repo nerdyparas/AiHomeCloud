@@ -403,6 +403,10 @@ async def get_tokens() -> List[dict]:
     async with _store_lock:
         tokens = _read_json(settings.tokens_file, [])
         if not isinstance(tokens, list):
+            logger.warning(
+                "tokens_file_corrupt type=%s path=%s — all sessions invalidated",
+                type(tokens).__name__, settings.tokens_file,
+            )
             tokens = []
         _set_cached("tokens", tokens)
         return tokens
