@@ -227,6 +227,12 @@ async def _process_upload_choice(
 
         await _record_recent_file(chat_id, dest.name, str(dest), actual_bytes)
 
+        # Incremental similar-image check for new uploads (background, non-blocking)
+        asyncio.create_task(
+            _check_new_file_for_similar(context.bot, chat_id, dest),
+            name=f"phash_check_{dest.name}",
+        )
+
         await _safe_edit_text(
             status_message,
             (
@@ -439,6 +445,48 @@ async def _handle_empty_trash_callback(update, context) -> None:  # type: ignore
         )
     else:
         await query.edit_message_text("✅ <b>Trash emptied.</b>", parse_mode="HTML")
+
+# ---------------------------------------------------------------------------
+# Incremental pHash check after upload
+# ---------------------------------------------------------------------------
+
+async def _check_new_file_for_similar(bot, chat_id: int, dest_path) -> None:
+    """Background task: check newly uploaded file against cached pHashes.
+    Notifies the user if a visually similar file already exists in storage.
+    """
+    try:
+        from ..duplicate_scanner import get_duplicate_scanner
+        from ..telegram.search_handlers import _fmt_bytes, _short_path, _sim_set_markup
+        from ..config import settings as _settings
+
+        scanner = get_duplicate_scanner()
+        sets = await scanner.scan_single_file_for_similar(dest_path)
+        if not sets:
+            return
+
+        entry = sets[0]
+        copies = entry.get("copies", [])
+        # Only notify if there's at least one OTHER file (not just the one just uploaded)
+        others = [c for c in copies if c["path"] != str(dest_path)]
+        if not others:
+            return
+
+        lines = ["⚠️ <b>Similar file already exists!</b>\n"]
+        for i, c in enumerate(copies):
+            short = _short_path(c["path"], c["owner"])
+            dims = f"{c['width']}×{c['height']}" if c.get("width") and c.get("height") else ""
+            label = "📤 New" if c["path"] == str(dest_path) else f"📁 Existing {i}"
+            lines.append(
+                f"{label}: <b>{_fmt_bytes(c['size_bytes'])}</b>"
+                + (f" · {dims}" if dims else "")
+                + f"\n   <code>{short}</code>"
+            )
+        lines.append("\n<i>Use /duplicates → Review Similar to manage.</i>")
+
+        await bot.send_message(chat_id=chat_id, text="\n\n".join(lines), parse_mode="HTML")
+    except Exception as exc:
+        logger.debug("phash_check_failed dest=%s error=%s", dest_path, exc)
+
 
 # ---------------------------------------------------------------------------
 # Lifecycle

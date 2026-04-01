@@ -24,6 +24,10 @@ httptools==0.7.1
 httpx==0.28.1
 websockets==16.0
 
+# Image processing — perceptual hash for near-duplicate detection
+Pillow>=10.0.0
+imagehash>=4.3.1
+
 # Dev / test dependencies
 pytest==7.4.0
 pytest-asyncio==0.23.8

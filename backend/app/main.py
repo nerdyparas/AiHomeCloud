@@ -58,17 +58,17 @@ _BOT_MAX_RESTARTS = 5
 
 
 async def _run_nightly_duplicate_scan() -> None:
-    """Sleep until 2:00 AM then run the duplicate scanner, repeat daily."""
+    """Sleep until 4:00 AM then run the duplicate scanner (exact + similar), repeat daily."""
     while True:
         try:
             now = datetime.now()
-            target = now.replace(hour=2, minute=0, second=0, microsecond=0)
+            target = now.replace(hour=4, minute=0, second=0, microsecond=0)
             if target <= now:
                 target += timedelta(days=1)
             await asyncio.sleep((target - now).total_seconds())
             from .duplicate_scanner import get_duplicate_scanner
             await get_duplicate_scanner()._scan_nas_for_duplicates()
-            logger.info("Nightly duplicate scan complete")
+            logger.info("Nightly duplicate scan complete (exact + similar)")
         except asyncio.CancelledError:
             break
         except Exception as exc:
@@ -86,12 +86,13 @@ async def _send_evening_duplicate_report() -> None:
             await asyncio.sleep((target - now).total_seconds())
 
             from . import store as _store_mod
-            results = await _store_mod.get_value("duplicate_scan_results", default=[])
-            if not results:
+            exact = await _store_mod.get_value("duplicate_scan_results", default=[])
+            similar = await _store_mod.get_value("similar_scan_results", default=[])
+            if not exact and not similar:
                 continue
 
             from .duplicate_scanner import get_duplicate_scanner
-            msg = get_duplicate_scanner()._format_telegram_report(results)
+            msg = get_duplicate_scanner()._format_telegram_report(exact, similar)
             if msg is None:
                 continue
 

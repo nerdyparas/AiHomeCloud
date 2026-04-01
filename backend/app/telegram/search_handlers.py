@@ -390,135 +390,198 @@ async def _handle_whoami(update, context) -> None:  # type: ignore[type-arg]
 
 
 
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def _fmt_bytes(b: int) -> str:
+    if b < 1024 * 1024:
+        return f"{b / 1024:.0f} KB"
+    if b < 1024 ** 3:
+        return f"{b / (1024 * 1024):.1f} MB"
+    return f"{b / (1024 ** 3):.2f} GB"
+
+
+def _short_path(full_path: str, owner: str) -> str:
+    """Show owner/subfolder/filename without the long /srv/nas/personal/... prefix."""
+    try:
+        p = Path(full_path)
+        rel = p.relative_to(settings.nas_root)
+        parts = rel.parts
+        # personal/Owner/Subfolder/file.jpg → Owner/Subfolder/file.jpg
+        if len(parts) >= 3 and parts[0] == settings.personal_base:
+            return "/".join(parts[1:])
+        return "/".join(parts)
+    except Exception:
+        return Path(full_path).name
+
+
+def _dup_summary_text(exact: list, similar: list, ran_at: str | None) -> str:
+    date_note = f"  <i>Last scan: {ran_at[:10] if ran_at else 'never'}</i>"
+    if not exact and not similar:
+        return f"✅ <b>No duplicates found.</b>{date_note}\n\n<i>Scan runs nightly at 4 AM.</i>"
+
+    wasted = sum(r.get("sizeBytes", 0) * (len(r.get("copies", [])) - 1) for r in exact)
+    lines = [f"📊 <b>Duplicate Summary</b>{date_note}\n"]
+    if exact:
+        lines.append(f"🔴 <b>Exact copies:</b> {len(exact)} sets · {_fmt_bytes(wasted)} recoverable")
+    else:
+        lines.append("🔴 <b>Exact copies:</b> none")
+    if similar:
+        lines.append(f"🟡 <b>Similar images:</b> {len(similar)} sets (WhatsApp compressed vs originals)")
+    else:
+        lines.append("🟡 <b>Similar images:</b> none")
+    lines.append("\n<i>Scan runs nightly at 4 AM.</i>")
+    return "\n".join(lines)
+
+
+def _dup_summary_markup(exact: list, similar: list, is_admin: bool):
+    if InlineKeyboardMarkup is None:
+        return None
+    rows = []
+    review_row = []
+    if exact:
+        review_row.append(InlineKeyboardButton(
+            f"🗑 Review Exact ({len(exact)})", callback_data="dupexact:0"
+        ))
+    if similar:
+        review_row.append(InlineKeyboardButton(
+            f"📸 Review Similar ({len(similar)})", callback_data="dupsim:0"
+        ))
+    if review_row:
+        rows.append(review_row)
+    if exact and is_admin:
+        rows.append([InlineKeyboardButton("⚡ Auto-clean Exact", callback_data="dupauto:ask")])
+    if is_admin:
+        rows.append([InlineKeyboardButton("🔄 Scan Now", callback_data="dupscan:now")])
+    return InlineKeyboardMarkup(rows) if rows else None
+
+
+# ── /duplicates command ───────────────────────────────────────────────────────
+
 async def _handle_duplicates(update, context) -> None:  # type: ignore[type-arg]
-    """Show last duplicate scan results with per-set delete buttons."""
+    """Show duplicate summary with Review / Auto-clean / Scan Now buttons."""
     chat_id = update.effective_chat.id
     if not await _check_allowed_and_rate(update):
         return
-
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
-    results = await _store.get_value("duplicate_scan_results", default=[])
+    exact = await _store.get_value("duplicate_scan_results", default=[])
+    similar = await _store.get_value("similar_scan_results", default=[])
     ran_at = await _store.get_value("duplicate_scan_ran_at", default=None)
+    is_admin = await _is_admin_chat(chat_id)
 
-    if not results:
-        ran_note = f"\nLast scan: <i>{ran_at}</i>" if ran_at else ""
-        is_admin = await _is_admin_chat(chat_id)
-        admin_hint = "  Use /scan to run now." if is_admin else ""
-        await update.message.reply_text(
-            f"✅ <b>No duplicates found.</b>{ran_note}\n"
-            f"<i>Scan runs nightly at 2 AM.{admin_hint}</i>",
-            parse_mode="HTML",
-        )
-        return
-
-    ran_note = f"  <i>(scan: {ran_at[:10] if ran_at else 'unknown'})</i>"
     await update.message.reply_text(
-        f"🔍 <b>{len(results)} duplicate set{'s' if len(results) != 1 else ''} found</b>{ran_note}\n"
-        "<i>Tap a button to delete one copy permanently.</i>",
+        _dup_summary_text(exact, similar, ran_at),
         parse_mode="HTML",
+        reply_markup=_dup_summary_markup(exact, similar, is_admin),
     )
 
-    for entry in results[:10]:
-        size_bytes = entry.get("sizeBytes", 0)
-        if size_bytes < 1024 * 1024:
-            size_str = f"{size_bytes / 1024:.0f} KB"
-        elif size_bytes < 1024 ** 3:
-            size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
-        else:
-            size_str = f"{size_bytes / (1024 ** 3):.2f} GB"
 
-        filename = entry.get("filename", "unknown")
-        copies = entry.get("copies", [])
-        hash_prefix = entry.get("hash", "")[:16]
-
-        # callback_data: "dupdelete:<hash16>:<copy_idx>" — max ~28 chars (well under 64 limit)
-        buttons = [
-            [InlineKeyboardButton(
-                f"🗑 Delete {c.get('owner', f'copy {i+1}')} copy",
-                callback_data=f"dupdelete:{hash_prefix}:{i}",
-            )]
-            for i, c in enumerate(copies)
-        ]
-        buttons.append([InlineKeyboardButton("⏭ Skip", callback_data=f"dupskip:{hash_prefix}")])
-
-        await update.message.reply_text(
-            f"📄 <code>{filename}</code> — {size_str} × {len(copies)} copies\n"
-            + "\n".join(f"  • {c['owner']}: <code>{c['path']}</code>" for c in copies),
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
-
-    if len(results) > 10:
-        await update.message.reply_text(
-            f"<i>…and {len(results) - 10} more duplicate sets not shown.</i>",
-            parse_mode="HTML",
-        )
-
+# ── /scan command ─────────────────────────────────────────────────────────────
 
 async def _handle_scan(update, context) -> None:  # type: ignore[type-arg]
     """Trigger an immediate duplicate scan (admin only)."""
+    import asyncio as _asyncio
     chat_id = update.effective_chat.id
     if not await _check_allowed_and_rate(update):
         return
-
     if not await _is_admin_chat(chat_id):
-        await update.message.reply_text(
-            "🔒 <i>Admin access required to run a scan.</i>",
-            parse_mode="HTML",
-        )
+        await update.message.reply_text("🔒 <i>Admin access required.</i>", parse_mode="HTML")
         return
-
     from ..duplicate_scanner import get_duplicate_scanner
-    import asyncio
     scanner = get_duplicate_scanner()
     if scanner.is_scanning:
-        await update.message.reply_text(
-            "⏳ <i>A scan is already in progress.</i>",
-            parse_mode="HTML",
-        )
+        await update.message.reply_text("⏳ <i>A scan is already in progress.</i>", parse_mode="HTML")
         return
-
-    asyncio.create_task(scanner._scan_nas_for_duplicates(), name="telegram_dup_scan")
+    _asyncio.create_task(scanner._scan_nas_for_duplicates(), name="telegram_dup_scan")
     await update.message.reply_text(
-        "🔍 <b>Storage scan started.</b>\n\n"
-        "I'll send a summary at 6 PM, or use /duplicates to check anytime.",
+        "🔍 <b>Scan started</b> (exact + similar images).\n\n"
+        "Use /duplicates anytime to check results.",
         parse_mode="HTML",
     )
 
 
-async def _handle_dupdelete_callback(update, context) -> None:  # type: ignore[type-arg]
-    """Inline keyboard callback: permanently delete one copy from a duplicate set."""
+# ── Exact review ──────────────────────────────────────────────────────────────
+
+def _exact_set_text(entry: dict, idx: int, total: int) -> str:
+    size_str = _fmt_bytes(entry.get("sizeBytes", 0))
+    filename = entry.get("filename", "?")
+    copies = entry.get("copies", [])
+    lines = [
+        f"🔴 <b>Exact Duplicate — {idx + 1} of {total}</b>\n",
+        f"📄 <code>{filename}</code> · {size_str}\n",
+    ]
+    for i, c in enumerate(copies, 1):
+        short = _short_path(c["path"], c["owner"])
+        lines.append(f"Copy {i} · <b>{c['owner']}</b>: <code>{short}</code>")
+    return "\n".join(lines)
+
+
+def _exact_set_markup(entry: dict, idx: int, total: int):
+    if InlineKeyboardMarkup is None:
+        return None
+    hash_prefix = entry.get("hash", "")[:16]
+    copies = entry.get("copies", [])
+    rows = []
+    del_row = []
+    for i, c in enumerate(copies):
+        del_row.append(InlineKeyboardButton(
+            f"🗑 Del {c['owner']} copy", callback_data=f"dupexactdel:{hash_prefix}:{i}"
+        ))
+    rows.append(del_row)
+    nav = [InlineKeyboardButton("⏭ Skip", callback_data=f"dupexact:{idx + 1}")]
+    if idx > 0:
+        nav.insert(0, InlineKeyboardButton("◀", callback_data=f"dupexact:{idx - 1}"))
+    if idx + 1 < total:
+        nav.append(InlineKeyboardButton("▶", callback_data=f"dupexact:{idx + 1}"))
+    rows.append(nav)
+    rows.append([InlineKeyboardButton("↩ Summary", callback_data="dups:summary")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def _handle_dupexact_callback(update, context) -> None:  # type: ignore[type-arg]
     query = update.callback_query
     await query.answer()
+    parts = query.data.split(":")
+    try:
+        idx = int(parts[1])
+    except (IndexError, ValueError):
+        idx = 0
+    exact = await _store.get_value("duplicate_scan_results", default=[])
+    if not exact:
+        await query.edit_message_text("✅ No exact duplicates remain.", parse_mode="HTML")
+        return
+    idx = max(0, min(idx, len(exact) - 1))
+    await query.edit_message_text(
+        _exact_set_text(exact[idx], idx, len(exact)),
+        parse_mode="HTML",
+        reply_markup=_exact_set_markup(exact[idx], idx, len(exact)),
+    )
 
+
+async def _handle_dupexactdel_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Delete one copy from an exact-duplicate set, then show updated set."""
+    query = update.callback_query
+    await query.answer()
     chat_id = query.message.chat.id
     if not await _is_admin_chat(chat_id):
         await query.edit_message_text("🔒 Admin access required.")
         return
-
-    # "dupdelete:<hash16>:<copy_idx>"
     parts = query.data.split(":")
     if len(parts) != 3:
-        await query.edit_message_text("❌ Invalid action.")
+        await query.edit_message_text("❌ Invalid data.")
         return
-
     _, hash_prefix, idx_str = parts
     try:
         copy_idx = int(idx_str)
     except ValueError:
-        await query.edit_message_text("❌ Invalid copy index.")
+        await query.edit_message_text("❌ Invalid index.")
         return
 
-    results = await _store.get_value("duplicate_scan_results", default=[])
-    entry = next(
-        (r for r in results if r.get("hash", "").startswith(hash_prefix)),
-        None,
-    )
+    exact = await _store.get_value("duplicate_scan_results", default=[])
+    entry = next((r for r in exact if r.get("hash", "").startswith(hash_prefix)), None)
     if entry is None:
-        await query.edit_message_text("⚠️ Duplicate set no longer found (already resolved?).")
+        await query.edit_message_text("⚠️ Set already resolved.")
         return
-
     copies = entry.get("copies", [])
     if copy_idx >= len(copies):
         await query.edit_message_text("⚠️ Copy index out of range.")
@@ -527,26 +590,23 @@ async def _handle_dupdelete_callback(update, context) -> None:  # type: ignore[t
     target_path = Path(copies[copy_idx]["path"])
     if not target_path.exists():
         await query.edit_message_text(
-            f"⚠️ File already gone: <code>{target_path.name}</code>",
-            parse_mode="HTML",
+            f"⚠️ Already gone: <code>{target_path.name}</code>", parse_mode="HTML"
         )
         return
-
     try:
         target_path.unlink()
-        logger.info("telegram_dupdelete path=%s", target_path)
+        logger.info("dupexactdel path=%s", target_path)
     except OSError as exc:
         await query.edit_message_text(f"❌ Delete failed: {exc}")
         return
 
-    # Best-effort document index removal
+    # Remove from document index
     try:
         nas_rel = "/" + str(target_path.relative_to(settings.nas_root.resolve())).replace("\\", "/")
         await _docidx.remove_document(nas_rel)
     except Exception:
         pass
 
-    # Prune stored results: remove this path, drop sets with <2 copies remaining
     path_str = str(target_path)
 
     def _prune(stored: list) -> list:
@@ -558,15 +618,290 @@ async def _handle_dupdelete_callback(update, context) -> None:  # type: ignore[t
         return out
 
     await _store.atomic_update("duplicate_scan_results", _prune, default=[])
+    updated = await _store.get_value("duplicate_scan_results", default=[])
 
+    # Find current position of this set (or move to next)
+    new_idx = next(
+        (i for i, r in enumerate(updated) if r.get("hash", "").startswith(hash_prefix)), 0
+    )
+    if not updated:
+        await query.edit_message_text("✅ All exact duplicates resolved!", parse_mode="HTML")
+        return
+    new_idx = max(0, min(new_idx, len(updated) - 1))
     await query.edit_message_text(
-        f"✅ Deleted: <code>{target_path.name}</code>",
+        f"✅ Deleted <code>{target_path.name}</code>\n\n"
+        + _exact_set_text(updated[new_idx], new_idx, len(updated)),
+        parse_mode="HTML",
+        reply_markup=_exact_set_markup(updated[new_idx], new_idx, len(updated)),
+    )
+
+
+# ── Auto-clean ────────────────────────────────────────────────────────────────
+
+async def _handle_dupauto_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Auto-clean exact duplicates — ask confirmation first."""
+    query = update.callback_query
+    await query.answer()
+    chat_id = query.message.chat.id
+    if not await _is_admin_chat(chat_id):
+        await query.edit_message_text("🔒 Admin access required.")
+        return
+    action = query.data.split(":")[-1]
+
+    if action == "ask":
+        exact = await _store.get_value("duplicate_scan_results", default=[])
+        if not exact:
+            await query.edit_message_text("✅ No exact duplicates to clean.", parse_mode="HTML")
+            return
+        total_files = sum(len(r.get("copies", [])) - 1 for r in exact)
+        wasted = sum(r.get("sizeBytes", 0) * (len(r.get("copies", [])) - 1) for r in exact)
+        await query.edit_message_text(
+            f"⚠️ <b>Auto-clean Exact Duplicates</b>\n\n"
+            f"Will delete <b>{total_files} duplicate files</b> ({_fmt_bytes(wasted)}).\n"
+            f"Keeps the largest copy of each set.\n\n"
+            f"<i>This cannot be undone.</i>",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Yes, delete all", callback_data="dupauto:go"),
+                InlineKeyboardButton("❌ Cancel", callback_data="dups:summary"),
+            ]]),
+        )
+
+    elif action == "go":
+        exact = await _store.get_value("duplicate_scan_results", default=[])
+        deleted, failed = 0, 0
+        for entry in exact:
+            copies = entry.get("copies", [])
+            # Keep copy with largest path size (index 0 — already sorted largest first by scanner)
+            # Delete the rest
+            for copy in copies[1:]:
+                p = Path(copy["path"])
+                try:
+                    if p.exists():
+                        p.unlink()
+                    deleted += 1
+                    try:
+                        nas_rel = "/" + str(p.relative_to(settings.nas_root.resolve())).replace("\\", "/")
+                        await _docidx.remove_document(nas_rel)
+                    except Exception:
+                        pass
+                except OSError:
+                    failed += 1
+        await _store.set_value("duplicate_scan_results", [])
+        result_line = f"✅ <b>Auto-clean complete.</b>\n\nDeleted {deleted} file{'s' if deleted != 1 else ''}"
+        if failed:
+            result_line += f" ({failed} failed)"
+        await query.edit_message_text(result_line + ".", parse_mode="HTML")
+
+
+# ── Summary callback (from scan-complete notification or ↩ Summary button) ───
+
+async def _handle_dups_summary_callback(update, context) -> None:  # type: ignore[type-arg]
+    query = update.callback_query
+    await query.answer()
+    chat_id = query.message.chat.id
+    exact = await _store.get_value("duplicate_scan_results", default=[])
+    similar = await _store.get_value("similar_scan_results", default=[])
+    ran_at = await _store.get_value("duplicate_scan_ran_at", default=None)
+    is_admin = await _is_admin_chat(chat_id)
+    await query.edit_message_text(
+        _dup_summary_text(exact, similar, ran_at),
+        parse_mode="HTML",
+        reply_markup=_dup_summary_markup(exact, similar, is_admin),
+    )
+
+
+async def _handle_dupscan_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Inline 'Scan Now' button — admin only."""
+    import asyncio as _asyncio
+    query = update.callback_query
+    await query.answer()
+    chat_id = query.message.chat.id
+    if not await _is_admin_chat(chat_id):
+        await query.edit_message_text("🔒 Admin access required.")
+        return
+    from ..duplicate_scanner import get_duplicate_scanner
+    scanner = get_duplicate_scanner()
+    if scanner.is_scanning:
+        await query.edit_message_text("⏳ <i>A scan is already running.</i>", parse_mode="HTML")
+        return
+    _asyncio.create_task(scanner._scan_nas_for_duplicates(), name="telegram_dup_scan_inline")
+    await query.edit_message_text(
+        "🔍 <b>Scan started</b> (exact + similar images).\n\nUse /duplicates to check results.",
         parse_mode="HTML",
     )
 
 
+# ── Similar image review ──────────────────────────────────────────────────────
+
+def _sim_set_text(entry: dict, idx: int, total: int) -> str:
+    copies = entry.get("copies", [])
+    lines = [f"📸 <b>Similar Images — {idx + 1} of {total}</b>\n"]
+    for i, c in enumerate(copies):
+        short = _short_path(c["path"], c["owner"])
+        dims = f"{c['width']}×{c['height']}" if c.get("width") and c.get("height") else "unknown size"
+        label = "🏆 High res" if i == 0 else f"📱 Copy {i + 1}"
+        lines.append(
+            f"{label}: <b>{_fmt_bytes(c['size_bytes'])}</b> · {dims}\n"
+            f"   <code>{short}</code>"
+        )
+    return "\n\n".join(lines)
+
+
+def _sim_set_markup(idx: int, total: int):
+    if InlineKeyboardMarkup is None:
+        return None
+    rows = [
+        [
+            InlineKeyboardButton("👁 See both", callback_data=f"dupsimboth:{idx}"),
+            InlineKeyboardButton("✅ Keep large", callback_data=f"dupsimdel:{idx}:small"),
+        ],
+        [
+            InlineKeyboardButton("🔄 Keep small", callback_data=f"dupsimdel:{idx}:large"),
+            InlineKeyboardButton("⏭ Skip", callback_data=f"dupsim:{idx + 1}"),
+        ],
+    ]
+    nav = []
+    if idx > 0:
+        nav.append(InlineKeyboardButton("◀", callback_data=f"dupsim:{idx - 1}"))
+    if idx + 1 < total:
+        nav.append(InlineKeyboardButton("▶", callback_data=f"dupsim:{idx + 1}"))
+    if nav:
+        rows.append(nav)
+    rows.append([InlineKeyboardButton("↩ Summary", callback_data="dups:summary")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def _handle_dupsim_callback(update, context) -> None:  # type: ignore[type-arg]
+    query = update.callback_query
+    await query.answer()
+    parts = query.data.split(":")
+    try:
+        idx = int(parts[1])
+    except (IndexError, ValueError):
+        idx = 0
+    similar = await _store.get_value("similar_scan_results", default=[])
+    if not similar:
+        await query.edit_message_text("✅ No similar image sets remain.", parse_mode="HTML")
+        return
+    idx = max(0, min(idx, len(similar) - 1))
+    await query.edit_message_text(
+        _sim_set_text(similar[idx], idx, len(similar)),
+        parse_mode="HTML",
+        reply_markup=_sim_set_markup(idx, len(similar)),
+    )
+
+
+async def _handle_dupsimboth_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Send both similar files to the chat then re-show action buttons."""
+    query = update.callback_query
+    await query.answer()
+    chat_id = query.message.chat.id
+    parts = query.data.split(":")
+    try:
+        idx = int(parts[1])
+    except (IndexError, ValueError):
+        idx = 0
+    similar = await _store.get_value("similar_scan_results", default=[])
+    if not similar or idx >= len(similar):
+        await query.edit_message_text("⚠️ Set no longer available.", parse_mode="HTML")
+        return
+    copies = similar[idx].get("copies", [])
+    for c in copies:
+        p = Path(c["path"])
+        if p.exists() and p.is_file():
+            try:
+                with open(p, "rb") as fh:
+                    await context.bot.send_document(
+                        chat_id=chat_id,
+                        document=fh,
+                        filename=c["filename"],
+                        caption=f"{_fmt_bytes(c['size_bytes'])} · {c['width']}×{c['height']}",
+                    )
+            except Exception as exc:
+                logger.warning("dupsimboth send failed path=%s: %s", p, exc)
+    # Re-send action buttons as a new message
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=_sim_set_text(similar[idx], idx, len(similar)),
+        parse_mode="HTML",
+        reply_markup=_sim_set_markup(idx, len(similar)),
+    )
+
+
+async def _handle_dupsimdel_callback(update, context) -> None:  # type: ignore[type-arg]
+    """Delete 'large' or 'small' copy from a similar-image set."""
+    query = update.callback_query
+    await query.answer()
+    chat_id = query.message.chat.id
+    if not await _is_admin_chat(chat_id):
+        await query.edit_message_text("🔒 Admin access required.")
+        return
+    parts = query.data.split(":")
+    if len(parts) != 3:
+        await query.edit_message_text("❌ Invalid data.")
+        return
+    try:
+        idx = int(parts[1])
+    except ValueError:
+        await query.edit_message_text("❌ Invalid index.")
+        return
+    which = parts[2]  # "large" or "small"
+
+    similar = await _store.get_value("similar_scan_results", default=[])
+    if idx >= len(similar):
+        await query.edit_message_text("⚠️ Set no longer available.", parse_mode="HTML")
+        return
+    copies = similar[idx].get("copies", [])
+    # copies[0] = largest (highest quality), copies[-1] = smallest (most compressed)
+    target_copy = copies[0] if which == "large" else copies[-1]
+    target_path = Path(target_copy["path"])
+
+    if not target_path.exists():
+        await query.edit_message_text(
+            f"⚠️ Already gone: <code>{target_path.name}</code>", parse_mode="HTML"
+        )
+    else:
+        try:
+            target_path.unlink()
+            logger.info("dupsimdel which=%s path=%s", which, target_path)
+            # Remove from document index
+            try:
+                nas_rel = "/" + str(target_path.relative_to(settings.nas_root.resolve())).replace("\\", "/")
+                await _docidx.remove_document(nas_rel)
+            except Exception:
+                pass
+        except OSError as exc:
+            await query.edit_message_text(f"❌ Delete failed: {exc}")
+            return
+
+    # Remove this set from results and show next
+    def _prune_sim(stored: list) -> list:
+        return [s for i, s in enumerate(stored) if i != idx]
+
+    await _store.atomic_update("similar_scan_results", _prune_sim, default=[])
+    updated = await _store.get_value("similar_scan_results", default=[])
+
+    action_word = "Kept large" if which == "small" else "Kept small"
+    if not updated:
+        await query.edit_message_text(
+            f"✅ {action_word}, deleted <code>{target_path.name}</code>.\n\n"
+            "All similar image sets reviewed!",
+            parse_mode="HTML",
+        )
+        return
+    new_idx = max(0, min(idx, len(updated) - 1))
+    await query.edit_message_text(
+        f"✅ {action_word}, deleted <code>{target_path.name}</code>.\n\n"
+        + _sim_set_text(updated[new_idx], new_idx, len(updated)),
+        parse_mode="HTML",
+        reply_markup=_sim_set_markup(new_idx, len(updated)),
+    )
+
+
+# ── legacy skip callback (kept for any in-flight messages) ───────────────────
+
 async def _handle_dupskip_callback(update, context) -> None:  # type: ignore[type-arg]
-    """Inline keyboard callback: dismiss a duplicate set without deleting."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)

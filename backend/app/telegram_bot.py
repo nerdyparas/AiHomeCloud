@@ -41,7 +41,10 @@ from app.telegram.search_handlers import (  # noqa: F401
     _handle_help, _handle_list, _handle_message, _send_file,
     _handle_status, _handle_cancel, _handle_whoami, _handle_storage_cmd,
     _handle_duplicates, _handle_scan,
-    _handle_dupdelete_callback, _handle_dupskip_callback,
+    _handle_dupskip_callback,
+    _handle_dupexact_callback, _handle_dupexactdel_callback,
+    _handle_dupauto_callback, _handle_dups_summary_callback, _handle_dupscan_callback,
+    _handle_dupsim_callback, _handle_dupsimboth_callback, _handle_dupsimdel_callback,
     _handle_mount,
     _handle_search_page_callback,
 )
@@ -155,6 +158,31 @@ async def start_bot() -> None:
         )
         _application.add_handler(
             CallbackQueryHandler(_handle_dupskip_callback, pattern=r"^dupskip:")
+        )
+        # New duplicate UI callbacks
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dups_summary_callback, pattern=r"^dups:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupscan_callback, pattern=r"^dupscan:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupexact_callback, pattern=r"^dupexact:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupexactdel_callback, pattern=r"^dupexactdel:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupauto_callback, pattern=r"^dupauto:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupsim_callback, pattern=r"^dupsim:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupsimboth_callback, pattern=r"^dupsimboth:")
+        )
+        _application.add_handler(
+            CallbackQueryHandler(_handle_dupsimdel_callback, pattern=r"^dupsimdel:")
         )
         _application.add_handler(
             CallbackQueryHandler(_handle_search_page_callback, pattern=r"^searchpage:")
