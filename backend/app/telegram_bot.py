@@ -154,9 +154,6 @@ async def start_bot() -> None:
             CallbackQueryHandler(_handle_empty_trash_callback, pattern=r"^trash:empty$")
         )
         _application.add_handler(
-            CallbackQueryHandler(_handle_dupdelete_callback, pattern=r"^dupdelete:")
-        )
-        _application.add_handler(
             CallbackQueryHandler(_handle_dupskip_callback, pattern=r"^dupskip:")
         )
         # New duplicate UI callbacks
