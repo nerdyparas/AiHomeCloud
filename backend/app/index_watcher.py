@@ -25,20 +25,25 @@ StateMap = dict[str, FileSignature]
 
 
 def _iter_document_roots() -> list[Path]:
-    """Return all Documents roots under shared and personal user folders."""
-    roots: list[Path] = []
+    """Return all roots to watch: full personal user dirs, family, and entertainment.
 
-    family_docs = settings.family_path / "Documents"
-    if family_docs.is_dir():
-        roots.append(family_docs)
+    We index the entire user folder (not just Documents/) so that files dumped
+    anywhere — Photos/, Videos/, root of personal folder, etc. — are discovered
+    and their content made searchable.
+    """
+    roots: list[Path] = []
 
     personal_base = settings.personal_path
     if personal_base.is_dir():
         for user_dir in personal_base.iterdir():
-            if user_dir.is_dir():
-                docs = user_dir / "Documents"
-                if docs.is_dir():
-                    roots.append(docs)
+            if user_dir.is_dir() and not user_dir.name.startswith("."):
+                roots.append(user_dir)
+
+    if settings.family_path.is_dir():
+        roots.append(settings.family_path)
+
+    if settings.entertainment_path.is_dir():
+        roots.append(settings.entertainment_path)
 
     return roots
 

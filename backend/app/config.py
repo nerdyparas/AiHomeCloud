@@ -141,10 +141,10 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 25 * 1024 * 1024 * 1024  # 25 GB (0 = unlimited)
 
     # ── Document indexing / OCR ────────────────────────────────────────────────
-    # Disabled by default — requires tesseract + language packs (~500 MB).
-    # Enable via AHC_OCR_ENABLED=true to allow full-text search of documents.
-    ocr_enabled: bool = False
-    ocr_languages: str = "eng"                 # AHC_OCR_LANGUAGES — tesseract lang codes ('+' separated)
+    # Enabled by default — tesseract (images) + pdftotext (PDFs) must be installed.
+    # Disable via AHC_OCR_ENABLED=false if tools are not available.
+    ocr_enabled: bool = True
+    ocr_languages: str = "eng+hin"             # AHC_OCR_LANGUAGES — tesseract lang codes ('+' separated)
     document_index_pool_size: int = 3          # AHC_DOCUMENT_INDEX_POOL_SIZE — SQLite connection pool
     document_index_cache_ttl: int = 300        # AHC_DOCUMENT_INDEX_CACHE_TTL — search cache TTL (seconds)
     document_index_interval: int = 20          # AHC_DOCUMENT_INDEX_INTERVAL — watcher polling interval (seconds)

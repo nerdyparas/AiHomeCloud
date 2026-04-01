@@ -284,9 +284,9 @@ def _search_sync(query: str, limit: int, user_role: str, username: str) -> list[
                     SELECT path, filename, added_by, added_at, '' AS snippet
                     FROM doc_index
                     WHERE LOWER(path) LIKE ?
-                    LIMIT ?
+                    LIMIT 50
                     """,
-                    (f"/personal/{word.lower()}/%", limit),
+                    (f"/personal/{word.lower()}/%",),
                 ).fetchall()
 
             # Merge FTS results first, then path results; deduplicate by path.

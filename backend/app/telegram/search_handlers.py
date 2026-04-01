@@ -118,7 +118,7 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
 
     # Full-text search (admin-scope — bot has unrestricted access to the index)
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    results = await _docidx.search_documents(query=text, limit=5, user_role="admin", username="")
+    results = await _docidx.search_documents(query=text, limit=20, user_role="admin", username="")
 
     if not results:
         await update.message.reply_text(
@@ -128,16 +128,20 @@ async def _handle_message(update, context) -> None:  # type: ignore[type-arg]
         )
         return
 
-    if len(results) == 1:
-        _last_results[chat_id] = results
-        await _send_file(update, results[0])
-        return
-
-    # 2-5 results → numbered list
+    # Always show a numbered list so user can pick by replying with a number.
     _last_results[chat_id] = results
-    lines = [f"{i + 1}. <code>{r['filename']}</code>" for i, r in enumerate(results)]
+    lines = []
+    for i, r in enumerate(results):
+        # Show parent folder for context (e.g. "Photos" or "Documents")
+        try:
+            parent = Path(r["path"]).parent.name
+            folder_hint = f"  <i>{parent}</i>" if parent not in ("personal", "family", "entertainment") else ""
+        except Exception:
+            folder_hint = ""
+        lines.append(f"{i + 1}. <code>{r['filename']}</code>{folder_hint}")
+
     await update.message.reply_text(
-        f"🔍 <b>Found {len(results)} files</b>\n\n"
+        f"🔍 <b>Found {len(results)} file{'s' if len(results) != 1 else ''}</b>\n\n"
         + "\n".join(lines)
         + "\n\n<i>Reply with a number to receive the file.</i>",
         parse_mode="HTML",
