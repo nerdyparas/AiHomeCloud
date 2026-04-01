@@ -266,15 +266,8 @@ async def test_handle_message_search_no_results():
 
 
 @pytest.mark.asyncio
-async def test_handle_message_search_single_result_sends_file(tmp_path):
-    """Search returning 1 result → file is sent directly."""
-    nas = tmp_path / "nas"
-    doc_dir = nas / "personal" / "alice" / "Documents"
-    doc_dir.mkdir(parents=True)
-    doc = doc_dir / "invoice.pdf"
-    doc.write_bytes(b"%PDF-1.4 test")
-    settings.nas_root = nas
-
+async def test_handle_message_search_single_result_shows_list(tmp_path):
+    """Search returning 1 result → numbered list shown (user replies '1' to get file)."""
     import app.telegram_bot as tb
     tb._last_results.clear()
     result = [{"path": "/personal/alice/Documents/invoice.pdf", "filename": "invoice.pdf", "added_by": "alice"}]
@@ -283,9 +276,11 @@ async def test_handle_message_search_single_result_sends_file(tmp_path):
         update = _make_update(text="invoice", chat_id=42)
         await tb._handle_message(update, _make_context())
 
-    update.message.reply_document.assert_called_once()
-    kw = update.message.reply_document.call_args
-    assert kw.kwargs.get("filename") == "invoice.pdf" or "invoice.pdf" in str(kw)
+    # Should show a numbered list, not send the file directly
+    update.message.reply_document.assert_not_called()
+    msg = update.message.reply_text.call_args[0][0]
+    assert "1." in msg
+    assert "invoice.pdf" in msg
 
 
 @pytest.mark.asyncio

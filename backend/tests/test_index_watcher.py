@@ -14,18 +14,20 @@ def _setup_nas(tmp_path: Path) -> Path:
 
 
 def test_scan_documents_sync_only_indexable(tmp_path):
+    """Watcher indexes all dirs under user/family/entertainment, skipping non-indexable types."""
     nas = _setup_nas(tmp_path)
+    (nas / "family" / "Other").mkdir(parents=True)
 
     good1 = nas / "family" / "Documents" / "a.pdf"
     good2 = nas / "personal" / "alice" / "Documents" / "b.jpg"
-    skip1 = nas / "family" / "Documents" / "movie.mp4"
-    skip2 = nas / "family" / "Other" / "notes.txt"
-    skip2.parent.mkdir(parents=True)
+    # notes.txt in family/Other is now indexed — watcher covers full family/ tree
+    good3 = nas / "family" / "Other" / "notes.txt"
+    skip1 = nas / "family" / "Documents" / "movie.mp4"  # non-indexable extension
 
     good1.write_text("pdf")
     good2.write_text("jpg")
+    good3.write_text("text note")
     skip1.write_text("video")
-    skip2.write_text("outside documents")
 
     from app.index_watcher import _scan_documents_sync
 
@@ -33,8 +35,8 @@ def test_scan_documents_sync_only_indexable(tmp_path):
     keys = set(state.keys())
     assert str(good1.resolve()) in keys
     assert str(good2.resolve()) in keys
-    assert str(skip1.resolve()) not in keys
-    assert str(skip2.resolve()) not in keys
+    assert str(good3.resolve()) in keys   # now indexed — outside Documents/ is fine
+    assert str(skip1.resolve()) not in keys  # .mp4 is never indexed
 
 
 @pytest.mark.asyncio
