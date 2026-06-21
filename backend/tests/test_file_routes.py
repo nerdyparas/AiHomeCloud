@@ -445,3 +445,107 @@ async def test_upload_stream_requires_auth(client: AsyncClient):
         headers={"Content-Type": "application/octet-stream"},
     )
     assert response.status_code in (401, 403)
+
+
+# ── HTTP Range request tests ───────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_download_full_advertises_accept_ranges(authenticated_client, tmp_path):
+    """Full download response includes Accept-Ranges: bytes."""
+    from app.config import settings
+    f = settings.nas_root / "shared" / "range_test.bin"
+    f.write_bytes(b"A" * 1024)
+    resp = await authenticated_client.get("/api/v1/files/download?path=/shared/range_test.bin")
+    assert resp.status_code == 200
+    assert resp.headers.get("accept-ranges") == "bytes"
+    assert resp.headers.get("content-length") == "1024"
+    assert len(resp.content) == 1024
+
+
+@pytest.mark.asyncio
+async def test_download_range_returns_206(authenticated_client, tmp_path):
+    """Range request returns 206 with correct slice."""
+    from app.config import settings
+    payload = bytes(range(256)) * 4  # 1024 bytes, predictable content
+    f = settings.nas_root / "shared" / "range_slice.bin"
+    f.write_bytes(payload)
+    resp = await authenticated_client.get(
+        "/api/v1/files/download?path=/shared/range_slice.bin",
+        headers={"Range": "bytes=0-9"},
+    )
+    assert resp.status_code == 206
+    assert resp.headers["content-range"] == "bytes 0-9/1024"
+    assert resp.headers["content-length"] == "10"
+    assert resp.headers["accept-ranges"] == "bytes"
+    assert resp.content == payload[0:10]
+
+
+@pytest.mark.asyncio
+async def test_download_range_open_ended(authenticated_client, tmp_path):
+    """bytes=N- returns from N to end of file."""
+    from app.config import settings
+    payload = b"0123456789"
+    f = settings.nas_root / "shared" / "range_open.bin"
+    f.write_bytes(payload)
+    resp = await authenticated_client.get(
+        "/api/v1/files/download?path=/shared/range_open.bin",
+        headers={"Range": "bytes=5-"},
+    )
+    assert resp.status_code == 206
+    assert resp.headers["content-range"] == "bytes 5-9/10"
+    assert resp.content == b"56789"
+
+
+@pytest.mark.asyncio
+async def test_download_range_suffix(authenticated_client, tmp_path):
+    """bytes=-N returns the last N bytes."""
+    from app.config import settings
+    payload = b"0123456789"
+    f = settings.nas_root / "shared" / "range_suffix.bin"
+    f.write_bytes(payload)
+    resp = await authenticated_client.get(
+        "/api/v1/files/download?path=/shared/range_suffix.bin",
+        headers={"Range": "bytes=-4"},
+    )
+    assert resp.status_code == 206
+    assert resp.headers["content-range"] == "bytes 6-9/10"
+    assert resp.content == b"6789"
+
+
+@pytest.mark.asyncio
+async def test_download_range_out_of_bounds_returns_416(authenticated_client, tmp_path):
+    """Range beyond file size returns 416 Range Not Satisfiable."""
+    from app.config import settings
+    f = settings.nas_root / "shared" / "range_416.bin"
+    f.write_bytes(b"hello")
+    resp = await authenticated_client.get(
+        "/api/v1/files/download?path=/shared/range_416.bin",
+        headers={"Range": "bytes=10-20"},
+    )
+    assert resp.status_code == 416
+    assert "bytes */5" in resp.headers.get("content-range", "")
+
+
+@pytest.mark.asyncio
+async def test_download_range_invalid_unit_returns_416(authenticated_client, tmp_path):
+    """Non-bytes range unit returns 416."""
+    from app.config import settings
+    f = settings.nas_root / "shared" / "range_unit.bin"
+    f.write_bytes(b"hello world")
+    resp = await authenticated_client.get(
+        "/api/v1/files/download?path=/shared/range_unit.bin",
+        headers={"Range": "items=0-5"},
+    )
+    assert resp.status_code == 416
+
+
+@pytest.mark.asyncio
+async def test_download_content_disposition_inline(authenticated_client, tmp_path):
+    """Download response uses inline Content-Disposition (not attachment) for streaming."""
+    from app.config import settings
+    f = settings.nas_root / "shared" / "inline_test.mp4"
+    f.write_bytes(b"fake video data")
+    resp = await authenticated_client.get("/api/v1/files/download?path=/shared/inline_test.mp4")
+    assert resp.status_code == 200
+    cd = resp.headers.get("content-disposition", "")
+    assert cd.startswith("inline;"), f"Expected inline disposition, got: {cd!r}"

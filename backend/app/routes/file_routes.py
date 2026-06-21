@@ -6,6 +6,7 @@ External storage must be mounted at nas_root; SD card fallback is blocked.
 
 import asyncio
 import mimetypes
+from urllib.parse import quote
 import os
 import shutil
 import uuid
@@ -14,9 +15,8 @@ from functools import partial
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
-from fastapi.responses import FileResponse
 from starlette.requests import Request
-from starlette.responses import StreamingResponse
+from starlette.responses import Response, StreamingResponse
 
 from ..auth import get_current_user
 from ..audit import audit_log
@@ -640,15 +640,15 @@ async def download_file(
     user: dict = Depends(get_current_user),
 ):
     """
-    Download a file from the NAS.
-    Returns the raw file with appropriate Content-Disposition header.
+    Download or stream a file from the NAS.
+    Supports HTTP Range requests (RFC 7233) for video/audio seeking and resumable downloads.
+    Responds with 206 Partial Content for range requests, 200 OK for full file.
     """
     _require_external_storage()
     resolved = _safe_resolve(path)
 
     if not resolved.exists():
         from ..document_index import remove_document
-
         await remove_document(path)
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
     if resolved.is_dir():
@@ -657,30 +657,92 @@ async def download_file(
     mime, _ = mimetypes.guess_type(resolved.name)
     file_size = resolved.stat().st_size
 
-    # For files > 1 MB, use streaming response to avoid loading the full file
-    # into memory before sending. For small files, FileResponse is fine.
-    if file_size > 1_048_576:
-        async def _stream_file():
+    ascii_name = resolved.name.encode("ascii", errors="replace").decode("ascii")
+    utf8_name = quote(resolved.name.encode("utf-8"), safe="")
+    content_disposition = (
+        'inline; filename="' + ascii_name + '"; filename*=UTF-8\'\'' + utf8_name
+    )
+
+    range_header = request.headers.get("Range")
+
+    if range_header:
+        try:
+            if not range_header.startswith("bytes="):
+                raise ValueError("unsupported range unit")
+            # Take the first range spec only (multi-range not supported)
+            range_spec = range_header[6:].split(",")[0].strip()
+            start_str, _, end_str = range_spec.partition("-")
+            start_str = start_str.strip()
+            end_str = end_str.strip()
+
+            if start_str == "" and end_str == "":
+                raise ValueError("empty range spec")
+            elif start_str == "":
+                # suffix range: bytes=-N means last N bytes
+                start = max(0, file_size - int(end_str))
+                end = file_size - 1
+            elif end_str == "":
+                # open-ended: bytes=N- means from N to EOF
+                start = int(start_str)
+                end = file_size - 1
+            else:
+                start = int(start_str)
+                end = int(end_str)
+
+            if start < 0 or end >= file_size or start > end:
+                raise ValueError("range out of bounds")
+
+        except (ValueError, IndexError):
+            return Response(
+                status_code=416,
+                headers={
+                    "Content-Range": f"bytes */{file_size}",
+                    "Accept-Ranges": "bytes",
+                },
+            )
+
+        content_length = end - start + 1
+
+        def _range_stream():
+            _remaining = content_length
             with open(resolved, "rb") as fh:
-                while True:
-                    chunk = fh.read(262_144)  # 256 KB chunks
-                    if not chunk:
+                fh.seek(start)
+                while _remaining > 0:
+                    data = fh.read(min(262_144, _remaining))
+                    if not data:
                         break
-                    yield chunk
+                    _remaining -= len(data)
+                    yield data
 
         return StreamingResponse(
-            _stream_file(),
+            _range_stream(),
+            status_code=206,
             media_type=mime or "application/octet-stream",
             headers={
-                "Content-Disposition": f'attachment; filename="{resolved.name}"',
-                "Content-Length": str(file_size),
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Content-Length": str(content_length),
+                "Content-Disposition": content_disposition,
+                "Accept-Ranges": "bytes",
             },
         )
 
-    return FileResponse(
-        path=str(resolved),
-        filename=resolved.name,
+    # No Range header — stream the full file
+    def _full_stream():
+        with open(resolved, "rb") as fh:
+            while True:
+                data = fh.read(262_144)
+                if not data:
+                    break
+                yield data
+
+    return StreamingResponse(
+        _full_stream(),
         media_type=mime or "application/octet-stream",
+        headers={
+            "Content-Length": str(file_size),
+            "Content-Disposition": content_disposition,
+            "Accept-Ranges": "bytes",
+        },
     )
 
 
