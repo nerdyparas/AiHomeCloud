@@ -9,8 +9,8 @@ DELETE /api/v1/telegram/linked/{id}          -- unlink a Telegram account
 """
 
 import asyncio
+import getpass
 import logging
-import os
 import platform
 import re
 import shutil
@@ -428,7 +428,11 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
         data_dir = str(settings.data_dir / "telegram-bot-api")
         Path(data_dir).mkdir(parents=True, exist_ok=True)
 
-        service_user = os.getenv("USER", "aihomecloud")
+        # Must match the account this backend process itself runs as (the
+        # data directory it's about to write into is owned by that account) —
+        # NOT $USER, which reflects whatever shell launched this process and
+        # previously caused the generated unit to run as the wrong user.
+        service_user = getpass.getuser()
 
         # Write API credentials to a 0600 EnvironmentFile instead of inlining
         # them into the systemd ExecStart line (which is world-readable in the
