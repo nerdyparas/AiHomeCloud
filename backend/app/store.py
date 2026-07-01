@@ -187,6 +187,8 @@ async def add_user(
         "pin": pin,
         "is_admin": is_admin,
         "icon_emoji": icon_emoji,
+        "avatar": "",
+        "avatar_version": 0,
     }
     users.append(user)
     await save_users(users)
@@ -238,6 +240,18 @@ async def update_user_profile(
                 u["name"] = name.strip()
             if icon_emoji is not None:
                 u["icon_emoji"] = icon_emoji.strip()
+            await save_users(users)
+            return True
+    return False
+
+
+async def set_user_avatar(user_id: str, avatar: str) -> bool:
+    """Set (or clear, with "") a user's avatar filename and bump its version. Returns False if not found."""
+    users = await get_users()
+    for u in users:
+        if u["id"] == user_id:
+            u["avatar"] = avatar
+            u["avatar_version"] = int(u.get("avatar_version", 0)) + 1
             await save_users(users)
             return True
     return False

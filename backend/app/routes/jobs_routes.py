@@ -30,4 +30,5 @@ async def get_job_status(job_id: str, user: dict = Depends(get_current_user)):
         "startedAt": job.started_at.isoformat(),
         "result": job.result,
         "error": job.error,
+        "progress": job.progress,
     }

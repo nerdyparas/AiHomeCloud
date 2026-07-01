@@ -31,6 +31,7 @@ class Job:
     user_id: str = ""
     result: Any = None
     error: str | None = None
+    progress: Any = None  # {"current": int, "total": int} for long-running jobs
 
 
 _jobs: dict[str, Job] = {}
@@ -156,6 +157,7 @@ def update_job(
     status: JobStatus | None = None,
     result: Any = None,
     error: str | None = None,
+    progress: Any = None,
 ) -> Job | None:
     _load_jobs()
     job = _jobs.get(job_id)
@@ -168,6 +170,8 @@ def update_job(
         job.result = result
     if error is not None:
         job.error = error
+    if progress is not None:
+        job.progress = progress
 
     # Persist whenever a job reaches a terminal state.
     if job.status in (JobStatus.completed, JobStatus.failed):

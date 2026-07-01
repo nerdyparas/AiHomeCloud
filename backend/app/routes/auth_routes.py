@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Dict, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 
 from ..limiter import limiter
 
@@ -72,18 +72,28 @@ router = APIRouter(prefix="/api/v1", tags=["auth"])
 
 def _wipe_stale_nas_dirs() -> None:
     """Remove app-managed top-level dirs from NAS root on first-time setup.
-    Wipes stale data from previous installations so the new user starts fresh.
+    Only wipes dirs that are genuinely empty — refuses to touch any dir that
+    contains existing files so a re-pair or lost-users.json cannot destroy data.
     Runs in an executor — never blocks the event loop.
     """
     import shutil
+    dirs_to_check = []
     for dirname in ("personal", "family", "entertainment"):
         d = settings.nas_root / dirname
         if d.exists():
-            try:
-                shutil.rmtree(d)
-                logger.info("First-time setup: wiped stale NAS dir %s", d)
-            except Exception as e:
-                logger.warning("Could not wipe stale NAS dir %s: %s", d, e)
+            if any(d.rglob("*")):
+                logger.warning(
+                    "First-user setup: refusing to wipe non-empty NAS dir %s — "
+                    "existing data detected; this is not a fresh installation.", d
+                )
+                return  # abort entire wipe — at least one dir has data
+            dirs_to_check.append(d)
+    for d in dirs_to_check:
+        try:
+            shutil.rmtree(d)
+            logger.info("First-time setup: wiped empty NAS dir %s", d)
+        except Exception as e:
+            logger.warning("Could not wipe stale NAS dir %s: %s", d, e)
 
 
 async def _bg_wipe_stale_nas_dirs() -> None:
@@ -238,6 +248,8 @@ async def list_user_names():
                 "name": u["name"],
                 "has_pin": bool(u.get("pin")),
                 "icon_emoji": u.get("icon_emoji", ""),
+                "avatar": u.get("avatar", ""),
+                "avatar_version": int(u.get("avatar_version", 0)),
             }
             for u in users
         ]
@@ -444,6 +456,8 @@ async def get_my_profile(user: dict = Depends(get_current_user)):
         "icon_emoji": found.get("icon_emoji", ""),
         "has_pin": bool(found.get("pin")),
         "is_admin": found.get("is_admin", False),
+        "avatar": found.get("avatar", ""),
+        "avatar_version": int(found.get("avatar_version", 0)),
     }
 
 
@@ -477,6 +491,101 @@ async def update_my_profile(
     )
     if not updated:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+
+async def _avatar_jpeg_from_bytes(raw: bytes) -> bytes:
+    """Downscale arbitrary image bytes to a <=256px JPEG. Raises if not an image."""
+    import asyncio
+    import io
+    from PIL import Image, ImageOps
+
+    def _make() -> bytes:
+        with Image.open(io.BytesIO(raw)) as img:
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((256, 256), Image.Resampling.LANCZOS)  # ponytail: max-edge, not square-cropped
+            buf = io.BytesIO()
+            img.convert("RGB").save(buf, format="JPEG", quality=85, optimize=True)
+            return buf.getvalue()
+
+    return await asyncio.get_running_loop().run_in_executor(None, _make)
+
+
+@router.post("/users/avatar")
+@limiter.limit("10/minute")
+async def set_my_avatar(
+    request: Request,
+    file: UploadFile | None = File(None),
+    source_path: str | None = Form(None),
+    user: dict = Depends(get_current_user),
+):
+    """Set the caller's avatar from an uploaded image OR an existing NAS file path."""
+    from .file_routes import (
+        _authorize_path,
+        _generate_image_thumbnail,
+        _require_external_storage,
+        _safe_resolve,
+    )
+
+    user_id = user.get("sub", "")
+    if (file is None) == (source_path is None):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide exactly one of file or source_path")
+
+    _require_external_storage()
+
+    if source_path is not None:
+        resolved = _safe_resolve(source_path)
+        await _authorize_path(resolved, user)  # user may only pick files they can access
+        if not resolved.is_file():
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source file not found")
+        try:
+            data = await _generate_image_thumbnail(resolved, 256)
+        except Exception:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Source file is not an image")
+    else:
+        raw = await file.read()
+        try:
+            data = await _avatar_jpeg_from_bytes(raw)
+        except Exception:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Uploaded file is not an image")
+
+    settings.avatars_dir.mkdir(parents=True, exist_ok=True)
+    (settings.avatars_dir / f"{user_id}.jpg").write_bytes(data)
+    await store.set_user_avatar(user_id, f"{user_id}.jpg")
+    found = await store.find_user(user_id)
+    return {
+        "avatar": f"{user_id}.jpg",
+        "avatarVersion": int(found.get("avatar_version", 0)) if found else 0,
+        "path": f"/.avatars/{user_id}.jpg",
+    }
+
+
+@router.delete("/users/avatar", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_avatar(user: dict = Depends(get_current_user)):
+    """Remove the caller's avatar (reverts the client to initials)."""
+    user_id = user.get("sub", "")
+    try:
+        (settings.avatars_dir / f"{user_id}.jpg").unlink(missing_ok=True)
+    except OSError:
+        pass
+    await store.set_user_avatar(user_id, "")
+
+
+@router.get("/users/avatar/{filename}")
+@limiter.limit("120/minute")
+async def get_user_avatar(request: Request, filename: str):
+    """Public: serve a user's avatar JPEG. Unauthenticated because the login profile
+    picker (which shows these) runs before any token exists — user names are already
+    public via /auth/users/names. Only serves basenames inside avatars_dir (no traversal)."""
+    from fastapi.responses import FileResponse
+
+    safe = Path(filename).name  # strip any path components
+    if not safe.endswith(".jpg"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    path = settings.avatars_dir / safe
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No avatar")
+    return FileResponse(path, media_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT)

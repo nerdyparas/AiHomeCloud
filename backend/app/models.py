@@ -86,6 +86,8 @@ class FamilyUser(BaseModel):
     folder_size_gb: float = Field(alias="folderSizeGB")
     avatar_color: str = Field(alias="avatarColor")  # hex string e.g. "FFE8A84C"
     icon_emoji: str = Field(default="", alias="iconEmoji")
+    avatar: str = Field(default="")
+    avatar_version: int = Field(default=0, alias="avatarVersion")
 
     model_config = {"populate_by_name": True}
 

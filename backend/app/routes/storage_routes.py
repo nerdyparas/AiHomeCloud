@@ -82,12 +82,33 @@ async def scan_devices(request: Request, user: dict = Depends(get_current_user))
 
 # ── Smart-activate helpers ───────────────────────────────────────────────────
 
+# Positive identity marker written to the NAS root once a drive has been
+# explicitly activated. Blind auto-mount requires this marker before adopting
+# an unknown drive, so an unrelated ext4 USB stick is never silently taken over.
+_NAS_MARKER_NAME = ".ahc_nas_marker"
+_NAS_MARKER_CONTENT = "aihomecloud-nas-v1"
+
+
+def _write_nas_marker() -> None:
+    """Stamp the NAS root with the AHC identity marker (best-effort)."""
+    try:
+        (settings.nas_root / _NAS_MARKER_NAME).write_text(_NAS_MARKER_CONTENT)
+    except Exception:
+        logger.warning("Could not write NAS marker at %s", settings.nas_root, exc_info=True)
+
+
+def _has_nas_marker() -> bool:
+    """Return True if the currently-mounted NAS root carries the AHC marker."""
+    return (settings.nas_root / _NAS_MARKER_NAME).exists()
+
+
 async def _post_mount_setup(partition_path: str, disk: dict, display_name: str) -> None:
     """After a successful mount: create dirs, persist storage state, start services."""
     nas_root = str(settings.nas_root)
     settings.personal_path.mkdir(parents=True, exist_ok=True)
     settings.family_path.mkdir(parents=True, exist_ok=True)
     settings.entertainment_path.mkdir(parents=True, exist_ok=True)
+    _write_nas_marker()
     await store.save_storage_state({
         "activeDevice": partition_path,
         "mountedAt": nas_root,
@@ -653,6 +674,10 @@ async def try_auto_remount():
             # Fall through to blind scan below
         else:
             if await _do_mount_device(device_path, state):
+                # Saved device is trusted (previously activated) — ensure the
+                # identity marker is present for legacy drives so future blind
+                # scans recognise it.
+                _write_nas_marker()
                 return
             logger.error("Auto-remount: all attempts failed for saved device %s", device_path)
             await store.clear_storage_state()
@@ -667,6 +692,17 @@ async def try_auto_remount():
 
     logger.info("Auto-remount: found candidate %s — attempting mount", candidate)
     if await _do_mount_device(candidate):
+        # Blind-scan adopts an UNKNOWN drive — require a positive identity
+        # marker before keeping it, so an unrelated ext4 USB stick is never
+        # silently adopted as the NAS root.
+        if not _has_nas_marker():
+            logger.warning(
+                "Auto-remount: %s mounted but has no AHC NAS marker — "
+                "unmounting and skipping (not an AiHomeCloud drive)", candidate,
+            )
+            await run_command(["sudo", "-n", "umount", str(settings.nas_root)], timeout=30)
+            await store.clear_storage_state()
+            return
         logger.info("Auto-remount: blind-scan mount of %s succeeded", candidate)
     else:
         logger.error("Auto-remount: blind-scan mount of %s failed", candidate)

@@ -4,6 +4,7 @@ Telegram Bot configuration endpoints -- admin only.
 GET    /api/v1/telegram/config               -- return current config (token masked) + bot status
 POST   /api/v1/telegram/config               -- save token, restart bot
 POST   /api/v1/telegram/setup-local-api      -- background job: build local server from source + activate 2 GB mode
+GET    /api/v1/telegram/linked                -- list linked accounts (chat_id + resolved folder owner)
 DELETE /api/v1/telegram/linked/{id}          -- unlink a Telegram account
 """
 
@@ -57,6 +58,11 @@ class SetupLocalApiIn(BaseModel):
     api_id: int
     api_hash: str
     bot_token: str = ""   # optional -- save/update token at same time
+
+
+class TelegramLinkedAccount(BaseModel):
+    chat_id: int
+    owner: str
 
 
 # ---------------------------------------------------------------------------
@@ -423,6 +429,29 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
         Path(data_dir).mkdir(parents=True, exist_ok=True)
 
         service_user = os.getenv("USER", "aihomecloud")
+
+        # Write API credentials to a 0600 EnvironmentFile instead of inlining
+        # them into the systemd ExecStart line (which is world-readable in the
+        # unit file and visible in `ps`). The unit references the env vars.
+        env_path = "/var/lib/aihomecloud/telegram-bot-api.env"
+        env_content = (
+            f"AHC_TG_API_ID={api_id}\n"
+            f"AHC_TG_API_HASH={api_hash}\n"
+        )
+        tmp_env = Path("/tmp/telegram-bot-api.env")  # nosec B108 -- transient, chmod'd to 600 on dest
+        tmp_env.write_text(env_content)
+        rc, _, err = await run_command(
+            ["sudo", "-n", "cp", str(tmp_env), env_path],
+            timeout=30,
+        )
+        tmp_env.unlink(missing_ok=True)
+        if rc != 0:
+            update_job(job_id, status=_JobStatus.failed,
+                       error=f"Failed to write API credentials.\n{err[:300]}")
+            return
+        await run_command(["sudo", "-n", "chown", f"{service_user}:{service_user}", env_path], timeout=30)
+        await run_command(["sudo", "-n", "chmod", "600", env_path], timeout=30)
+
         service_content = (
             "[Unit]\n"
             "Description=Telegram Local Bot API Server\n"
@@ -432,9 +461,10 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             f"User={service_user}\n"
             "Restart=always\n"
             "RestartSec=5\n"
+            f"EnvironmentFile={env_path}\n"
             f"ExecStart={_BINARY_PATH}"
-            f" --api-id={api_id}"
-            f" --api-hash={api_hash}"
+            " --api-id=$AHC_TG_API_ID"
+            " --api-hash=$AHC_TG_API_HASH"
             f" --http-port={_SERVICE_PORT}"
             f" --dir={data_dir}"
             " --local\n"
@@ -563,6 +593,17 @@ async def _activate_local_api(api_id: int, api_hash: str) -> None:
 # ---------------------------------------------------------------------------
 # Linked / pending account management
 # ---------------------------------------------------------------------------
+
+@router.get("/linked", response_model=list[TelegramLinkedAccount])
+async def get_linked_accounts(user: dict = Depends(require_admin)):
+    """Return all linked Telegram accounts with their resolved folder owner (admin only)."""
+    ids = await _store.get_value("telegram_linked_ids", default=[])
+    owners = await _store.get_value("telegram_chat_folder_owners", default={})
+    return [
+        TelegramLinkedAccount(chat_id=int(cid), owner=owners.get(str(cid), "unknown"))
+        for cid in ids
+    ]
+
 
 @router.delete("/linked/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def unlink_account(chat_id: int, user: dict = Depends(require_admin)):

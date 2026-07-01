@@ -189,7 +189,7 @@ async def start_bot() -> None:
             CallbackQueryHandler(_handle_search_page_callback, pattern=r"^searchpage:")
         )
 
-        await _application.initialize()
+        await asyncio.wait_for(_application.initialize(), timeout=15)
         await _application.start()
         await _application.updater.start_polling(
             drop_pending_updates=True,

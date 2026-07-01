@@ -18,13 +18,18 @@ Reuses existing API endpoints:
   GET /browse/raw                  → inline file serving with query-param token (media preview)
 """
 
+import base64
+import hashlib
+import hmac
+import json
 import logging
 import mimetypes
+import time
 
-import jwt as pyjwt
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
+from ..auth import get_current_user
 from ..config import settings
 from .file_routes import _safe_resolve
 
@@ -35,21 +40,88 @@ _STREAM_THRESHOLD = 1 * 1024 * 1024  # 1 MB
 _CHUNK = 256 * 1024                   # 256 KB
 
 
-# ── Raw file proxy (used for inline media preview with query-param token) ────
+# ── Short-lived, path-scoped media tokens ───────────────────────────────────
+#
+# Instead of leaking a long-lived full-access JWT as a URL query param (which
+# lands in access logs, browser history, Referer headers, and every <img>/
+# <video> src), media previews use a 60-second HMAC token scoped to one path.
+
+_MEDIA_TOKEN_TTL = 60  # seconds
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+def _make_media_token(path: str, exp: int) -> str:
+    payload = json.dumps({"path": path, "exp": exp}, separators=(",", ":")).encode()
+    sig = hmac.new(
+        settings.jwt_secret.encode(),
+        f"{path}|{exp}".encode(),
+        hashlib.sha256,
+    ).digest()
+    return f"{_b64url(payload)}.{_b64url(sig)}"
+
+
+def _verify_media_token(token: str, path: str) -> bool:
+    try:
+        payload_b64, sig_b64 = token.split(".", 1)
+        payload = json.loads(_b64url_decode(payload_b64))
+        exp = int(payload["exp"])
+        tok_path = payload["path"]
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return False
+
+    if exp <= int(time.time()):
+        return False
+    if tok_path != path:
+        return False
+
+    expected = hmac.new(
+        settings.jwt_secret.encode(),
+        f"{tok_path}|{exp}".encode(),
+        hashlib.sha256,
+    ).digest()
+    try:
+        provided = _b64url_decode(sig_b64)
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(expected, provided)
+
+
+@router.get("/api/v1/files/media-token")
+async def media_token(
+    path: str = Query(..., description="NAS path to mint a media token for"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Mint a short-lived (60s), path-scoped, HMAC-signed token for inline media
+    preview. Requires a normal Bearer JWT. The returned token is only valid for
+    the exact *path* requested and expires quickly, so it is safe to embed in a
+    URL query param (unlike the full-access JWT).
+    """
+    exp = int(time.time()) + _MEDIA_TOKEN_TTL
+    return {"token": _make_media_token(path, exp), "expires_in": _MEDIA_TOKEN_TTL}
+
+
+# ── Raw file proxy (used for inline media preview with a short-lived token) ──
 
 @router.get("/browse/raw")
 async def browse_raw(
     path: str = Query(..., description="NAS path to serve inline"),
-    token: str = Query(..., description="Bearer JWT token"),
+    token: str = Query(..., description="Short-lived path-scoped media token"),
 ):
     """
     Serve a NAS file inline for use as an <img>, <video>, <audio>, or <iframe> src.
-    Accepts the JWT via *token* query param so the browser can reference it directly.
+    Accepts a short-lived, path-scoped media token (see /api/v1/files/media-token)
+    rather than a long-lived JWT, so nothing sensitive leaks into the URL.
     """
-    # Validate token
-    try:
-        pyjwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-    except pyjwt.PyJWTError:
+    if not _verify_media_token(token, path):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     resolved = _safe_resolve(path)
@@ -1007,11 +1079,17 @@ function makeCard(item) {
   card.className = 'file-card';
   const isImg = isImage(item.mimeType);
   card.innerHTML = `
-    ${isImg ? `<img class="file-thumb" src="${rawUrl(item.path)}" loading="lazy" onerror="this.outerHTML='<div class=\\"file-icon\\">${fileIcon(item)}</div>'">` : `<div class="file-icon">${fileIcon(item)}</div>`}
+    ${isImg ? `<img class="file-thumb" loading="lazy" onerror="this.outerHTML='<div class=\\"file-icon\\">${fileIcon(item)}</div>'">` : `<div class="file-icon">${fileIcon(item)}</div>`}
     <div class="file-name">${esc(item.name)}</div>
     <div class="file-meta">${item.isDirectory ? '' : fmtSize(item.sizeBytes)}</div>
     ${!item.isDirectory ? '<div class="download-badge">⬇</div>' : ''}
   `;
+  if (isImg) {
+    const img = card.querySelector('img.file-thumb');
+    rawUrl(item.path).then(u => { if (img) img.src = u; }).catch(() => {
+      if (img) img.outerHTML = '<div class="file-icon">' + fileIcon(item) + '</div>';
+    });
+  }
   card.onclick = () => onItemClick(item);
   return card;
 }
@@ -1021,7 +1099,7 @@ function makeRow(item) {
   row.className = 'file-row';
   const isImg = isImage(item.mimeType);
   row.innerHTML = `
-    ${isImg ? `<img class="row-thumb" src="${rawUrl(item.path)}" loading="lazy" onerror="this.outerHTML='<div class=\\"row-icon\\">${fileIcon(item)}</div>'">` : `<div class="row-icon">${fileIcon(item)}</div>`}
+    ${isImg ? `<img class="row-thumb" loading="lazy" onerror="this.outerHTML='<div class=\\"row-icon\\">${fileIcon(item)}</div>'">` : `<div class="row-icon">${fileIcon(item)}</div>`}
     <div class="row-name">${esc(item.name)}</div>
     <div class="row-size">${item.isDirectory ? '—' : fmtSize(item.sizeBytes)}</div>
     <div class="row-date">${fmtDate(item.modified)}</div>
@@ -1029,6 +1107,12 @@ function makeRow(item) {
       ${!item.isDirectory ? `<button class="dl-btn" title="Download" onclick="event.stopPropagation();downloadFile('${item.path.replace(/'/g, "\\'")}','${esc(item.name).replace(/'/g, "\\'")}')">⬇</button>` : ''}
     </div>
   `;
+  if (isImg) {
+    const img = row.querySelector('img.row-thumb');
+    rawUrl(item.path).then(u => { if (img) img.src = u; }).catch(() => {
+      if (img) img.outerHTML = '<div class="row-icon">' + fileIcon(item) + '</div>';
+    });
+  }
   row.onclick = () => onItemClick(item);
   return row;
 }
@@ -1052,7 +1136,7 @@ function onItemClick(item) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Preview modal
 // ─────────────────────────────────────────────────────────────────────────────
-function openPreview(item) {
+async function openPreview(item) {
   currentPreviewPath = item.path;
   document.getElementById('modal-filename').textContent = item.name;
   const body = document.getElementById('modal-body');
@@ -1060,7 +1144,15 @@ function openPreview(item) {
   document.getElementById('modal-overlay').classList.add('visible');
 
   const m = item.mimeType || '';
-  const url = rawUrl(item.path);
+  let url = '';
+  if (isImage(m) || isVideo(m) || isAudio(m) || m === 'application/pdf') {
+    try {
+      url = await rawUrl(item.path);
+    } catch (e) {
+      body.innerHTML = `<div class="empty-state"><div>Could not load file</div></div>`;
+      return;
+    }
+  }
 
   if (isImage(m)) {
     body.innerHTML = `<img class="preview-img" src="${url}" alt="${esc(item.name)}">`;
@@ -1272,8 +1364,16 @@ function logout() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-function rawUrl(path) {
-  return '/browse/raw?path=' + encodeURIComponent(path) + '&token=' + encodeURIComponent(token);
+async function rawUrl(path) {
+  // Mint a short-lived, path-scoped media token (Bearer-authenticated) and use
+  // that in the URL instead of the long-lived JWT, which must never appear in a
+  // URL (access logs, history, Referer, src attributes).
+  const r = await fetch('/api/v1/files/media-token?path=' + encodeURIComponent(path), {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (!r.ok) throw new Error('media-token failed');
+  const data = await r.json();
+  return '/browse/raw?path=' + encodeURIComponent(path) + '&token=' + encodeURIComponent(data.token);
 }
 
 function esc(s) {

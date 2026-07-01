@@ -14,9 +14,11 @@ is indexed with an empty ocr_text — never fails permanently.
 
 import asyncio
 import logging
+import os
 import queue
 import shutil
 import sqlite3
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +29,11 @@ from .config import settings
 from .subprocess_runner import run_command
 
 logger = logging.getLogger("aihomecloud.document_index")
+
+# Keep tesseract single-threaded so N parallel OCR workers map cleanly to N cores. Multi-threaded
+# tesseract × several concurrent workers oversubscribes the CPU, slowing each run enough to hit the
+# OCR timeout (→ empty results). Set before any subprocess is spawned.
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 # OCR tool availability flags — set at startup
 ocr_pdftotext_available: bool = False
@@ -134,6 +141,29 @@ async def close_db() -> None:
 # OCR helpers — async, never raise
 # ---------------------------------------------------------------------------
 
+async def _downscaled_for_ocr(file_path: Path, max_edge: int = 2200) -> Path:
+    """Return a temp downscaled PNG for faster OCR (tesseract time scales with pixel count), or the
+    original path if the image is already small or can't be processed. Caller deletes temp files."""
+    def _make() -> Path:
+        try:
+            from PIL import Image, ImageOps
+            with Image.open(file_path) as img:
+                img = ImageOps.exif_transpose(img)
+                if max(img.size) <= max_edge:
+                    return file_path
+                img.thumbnail((max_edge, max_edge))
+                fd, tmp_name = tempfile.mkstemp(suffix=".png", prefix="ahc_ocr_")
+                os.close(fd)
+                tmp = Path(tmp_name)
+                img.convert("RGB").save(tmp, format="PNG")
+                return tmp
+        except Exception:
+            return file_path
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _make)
+
+
 async def _extract_text(file_path: Path) -> str:
     """Return searchable text for *file_path*. Returns '' on any failure.
 
@@ -175,11 +205,19 @@ async def _extract_text(file_path: Path) -> str:
             )
         return ""
 
-    # Images: tesseract OCR
+    # Images: tesseract OCR (downscale large images first — OCR time scales with pixel count)
     if ext in (".jpg", ".jpeg", ".png", ".heic", ".heif", ".tiff", ".tif", ".bmp"):
-        rc, stdout, stderr = await run_command(
-            ["tesseract", str(file_path), "stdout", "-l", settings.ocr_languages], timeout=60
-        )
+        ocr_target = await _downscaled_for_ocr(file_path)
+        try:
+            rc, stdout, stderr = await run_command(
+                ["tesseract", str(ocr_target), "stdout", "-l", settings.ocr_languages], timeout=180
+            )
+        finally:
+            if ocr_target != file_path:
+                try:
+                    ocr_target.unlink()
+                except OSError:
+                    pass
         if rc == 0:
             return stdout[:100_000]
         if stderr == "not_found":
@@ -370,6 +408,18 @@ def _remove_missing_sync() -> int:
 # ---------------------------------------------------------------------------
 # Public async API
 # ---------------------------------------------------------------------------
+
+def _nas_paths_with_ocr_sync() -> set:
+    with _get_conn() as conn:
+        return {row[0] for row in conn.execute("SELECT path FROM doc_index WHERE length(ocr_text) > 0")}
+
+
+async def nas_paths_with_ocr() -> set:
+    """NAS paths already indexed with NON-EMPTY OCR text — used to skip well-indexed files (and thus
+    re-OCR only new files + prior failures/empties) on a manual re-scan."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _nas_paths_with_ocr_sync)
+
 
 async def index_document(path: str, filename: str, added_by: str) -> None:
     """

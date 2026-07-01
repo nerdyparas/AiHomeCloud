@@ -16,6 +16,27 @@ from .document_index import (
 
 logger = logging.getLogger("aihomecloud.index_watcher")
 
+# Thermal-adaptive OCR parallelism: up to OCR_MAX_WORKERS concurrent OCR tasks, but fall back to a
+# single worker when the CPU is hot (>= OCR_TEMP_LIMIT_C) to protect the SBC.
+OCR_MAX_WORKERS = 3
+OCR_TEMP_LIMIT_C = 75.0
+_thermal_zone_path: "str | None" = None
+
+
+def _read_cpu_temp_c() -> "float | None":
+    """Best-effort CPU temperature in °C from the board's thermal zone; None if unavailable."""
+    global _thermal_zone_path
+    try:
+        if _thermal_zone_path is None:
+            from .board import find_thermal_zone
+            _thermal_zone_path = find_thermal_zone() or ""
+        if _thermal_zone_path:
+            with open(_thermal_zone_path) as f:
+                return int(f.read().strip()) / 1000.0
+    except Exception:
+        return None
+    return None
+
 # Polling interval in seconds. Keep moderate to reduce IO on ARM hardware.
 _DEFAULT_INTERVAL_SECONDS = 20
 
@@ -91,8 +112,11 @@ def _diff_states(previous: StateMap, current: StateMap) -> tuple[list[str], list
     return changed_or_added, removed
 
 
-async def sync_once(previous_state: StateMap | None) -> StateMap:
-    """Run one reconciliation pass and return the new state."""
+async def sync_once(previous_state: StateMap | None, on_progress=None, should_cancel=None, redo_paths=None) -> StateMap:
+    """Run one reconciliation pass and return the new state.
+
+    on_progress(current, total) is invoked (throttled) while indexing, for progress UIs.
+    """
     loop = asyncio.get_running_loop()
     current_state = await loop.run_in_executor(None, _scan_documents_sync)
 
@@ -103,10 +127,33 @@ async def sync_once(previous_state: StateMap | None) -> StateMap:
     for abs_path in removed:
         await remove_document(abs_path)
 
-    # Index new/changed files.
-    for abs_path in changed_or_added:
+    # Index new/changed files with thermal-adaptive parallel OCR (fall back to 1 worker when hot).
+    # redo_paths forces re-indexing of specific files even if unchanged (e.g. entries with empty OCR).
+    to_index = set(changed_or_added)
+    if redo_paths:
+        to_index |= {p for p in redo_paths if p in current_state}
+    pending = list(to_index)
+    total = len(pending)
+    if on_progress is not None:
+        on_progress(0, total)
+
+    async def _index_one(abs_path: str) -> None:
         p = Path(abs_path)
         await index_document(str(p), p.name, _added_by_for_path(p))
+
+    done = 0
+    pos = 0
+    while pos < total:
+        if should_cancel is not None and should_cancel():
+            break
+        temp = _read_cpu_temp_c()
+        workers = 1 if (temp is not None and temp >= OCR_TEMP_LIMIT_C) else OCR_MAX_WORKERS
+        batch = pending[pos:pos + workers]
+        await asyncio.gather(*[_index_one(ap) for ap in batch])
+        pos += len(batch)
+        done += len(batch)
+        if on_progress is not None:
+            on_progress(done, total)
 
     if changed_or_added or removed:
         logger.info(

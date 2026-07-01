@@ -5,28 +5,37 @@ External storage must be mounted at nas_root; SD card fallback is blocked.
 """
 
 import asyncio
+import hashlib
+import io
+import logging
 import mimetypes
 from urllib.parse import quote
 import os
 import shutil
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from functools import partial
 from pathlib import Path
 
+from PIL import Image, ImageOps
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
 from ..audit import audit_log
 from ..config import settings
 from ..models import CreateFolderRequest, FileItem, FileListResponse, RenameRequest
 from .. import store
+from ..job_store import JobStatus, create_job, update_job
 from ..file_sorter import _destination_folder
 from ..events import file_event_bus, FileEvent
 from ..limiter import limiter
 from .event_routes import emit_upload_complete
+
+logger = logging.getLogger("aihomecloud.files")
 
 # Larger write buffer for uploads — 2 MB (fewer syscalls on ARM)
 _UPLOAD_WRITE_BUF = 2 * 1024 * 1024
@@ -37,6 +46,16 @@ import time as _time
 _scan_cache: dict[str, tuple] = {}
 _SCAN_TTL = 7.0        # seconds
 _SCAN_CACHE_MAX = 500  # maximum entries; prevents unbounded growth on busy NAS
+
+_THUMB_IMAGE_EXTS: frozenset[str] = frozenset({
+    ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tiff", ".tif", ".gif"
+})
+_THUMB_VIDEO_EXTS: frozenset[str] = frozenset({
+    ".mp4", ".mov", ".m4v", ".3gp", ".mkv", ".avi", ".webm"
+})
+_THUMB_FFMPEG: str = "/usr/bin/ffmpeg"
+_THUMB_MAX_AGE: int = 86400
+
 
 
 def _invalidate_scan_cache(dir_path: str) -> None:
@@ -140,6 +159,40 @@ def _safe_resolve(raw_path: str) -> Path:
     return resolved
 
 
+async def _resolve_identity(user: dict) -> tuple[str, bool]:
+    """Resolve the authenticated principal to (personal_folder_name, is_admin).
+
+    Paired-device tokens carry no personal folder and are admin-level. A valid
+    JWT whose user has since been deleted is rejected.
+    """
+    if user.get("type") == "device":
+        return "", True
+    found = await store.find_user(user.get("sub", ""))
+    if not found:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
+    return found.get("name", ""), bool(found.get("is_admin", False))
+
+
+async def _authorize_path(resolved: Path, user: dict) -> None:
+    """Enforce that ``/personal/<name>/`` subtrees are private to their owner.
+
+    Shared scopes (family, sync, entertainment, …) stay open to every
+    authenticated user; only the ``/personal/<name>/`` tree is owner-restricted
+    (admins and paired devices bypass). Must be called AFTER ``_safe_resolve``.
+    """
+    rel_parts = resolved.relative_to(settings.nas_root.resolve()).parts
+    if len(rel_parts) < 2 or rel_parts[0] != "personal":
+        return  # shared location — no per-user restriction
+    owner = rel_parts[1]
+    name, is_admin = await _resolve_identity(user)
+    if is_admin or Path(name).name == owner:
+        return
+    raise HTTPException(
+        status.HTTP_403_FORBIDDEN,
+        "Access to another user's personal files is not allowed",
+    )
+
+
 def _file_item(p: Path, rel_prefix: str) -> dict:
     """Convert a Path into a FileItem-compatible dict."""
     stat = p.stat()
@@ -223,6 +276,7 @@ async def list_files(
     """List files and folders at the given NAS path."""
     _require_external_storage()
     resolved = _safe_resolve(path)
+    await _authorize_path(resolved, user)
 
     if not resolved.exists():
         resolved.mkdir(parents=True, exist_ok=True)
@@ -261,6 +315,7 @@ async def create_folder(request: Request, body: CreateFolderRequest, user: dict 
     """Create a new directory."""
     _require_external_storage()
     resolved = _safe_resolve(body.path)
+    await _authorize_path(resolved, user)
     if resolved.exists():
         raise HTTPException(status.HTTP_409_CONFLICT, "Folder already exists")
     resolved.mkdir(parents=True, exist_ok=True)
@@ -278,6 +333,7 @@ async def delete_file(
     """Soft-delete: move file/directory to the per-user trash folder."""
     _require_external_storage()
     resolved = _safe_resolve(path)
+    await _authorize_path(resolved, user)
     if not resolved.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
 
@@ -374,6 +430,7 @@ async def rename_file(request: Request, body: RenameRequest, user: dict = Depend
             )
 
     resolved = _safe_resolve(body.old_path)
+    await _authorize_path(resolved, user)
     if not resolved.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
 
@@ -410,11 +467,62 @@ async def rename_file(request: Request, body: RenameRequest, user: dict = Depend
             await index_documents_under_path(str(new_path), added_by)
 
 
+def _extract_capture_epoch(file_path: Path):
+    """Return the media's embedded capture time (epoch seconds), or None."""
+    suffix = file_path.suffix.lower()
+    if suffix in (".jpg", ".jpeg", ".png", ".webp", ".tiff", ".tif", ".heic", ".heif"):
+        try:
+            from PIL import Image
+
+            with Image.open(file_path) as img:
+                exif = img.getexif()
+                try:
+                    exif_ifd = exif.get_ifd(0x8769)
+                except Exception:
+                    exif_ifd = {}
+                for src, tag in ((exif_ifd, 36867), (exif_ifd, 36868), (exif, 306)):
+                    raw = src.get(tag)
+                    if raw:
+                        return datetime.strptime(str(raw).strip(), "%Y:%m:%d %H:%M:%S").timestamp()
+        except Exception:
+            return None
+        return None
+    if suffix in (".mp4", ".mov", ".m4v", ".3gp", ".mkv", ".avi", ".webm"):
+        if not shutil.which("ffprobe"):
+            return None
+        try:
+            out = subprocess.run(
+                ["ffprobe", "-v", "quiet", "-show_entries", "format_tags=creation_time",
+                 "-of", "default=nw=1:nk=1", str(file_path)],
+                capture_output=True, text=True, timeout=15,
+            ).stdout.strip()
+            if out:
+                return datetime.fromisoformat(out.replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return None
+    return None
+
+
+def _apply_capture_time(file_path: Path, fallback_epoch=None) -> None:
+    """Best-effort: set the file mtime to its capture time so listings group/sort by when the
+    media was taken. Prefers the embedded EXIF/ffprobe date; falls back to the client-supplied
+    original date (e.g. phone MediaStore date); else leaves the upload time. Never raises."""
+    try:
+        ts = _extract_capture_epoch(file_path)
+        if ts is None and fallback_epoch and float(fallback_epoch) > 0:
+            ts = float(fallback_epoch)
+        if ts:
+            os.utime(file_path, (ts, ts))
+    except Exception:
+        pass
+
+
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
-@limiter.limit("20/minute")
+@limiter.limit("120/minute")
 async def upload_file(
     request: Request,
     path: str = Query("", description="Destination directory (NAS-absolute). If empty, falls back to user's .inbox/ for auto-sorting."),
+    original_date: float | None = Query(None, description="Client-supplied original capture time (epoch seconds), used when the file has no embedded date."),
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ):
@@ -438,6 +546,7 @@ async def upload_file(
     use_inbox = True
     if path and path.strip():
         resolved_dir = _safe_resolve(path)
+        await _authorize_path(resolved_dir, user)
         if resolved_dir.is_dir():
             dest_dir = resolved_dir
             use_inbox = False
@@ -463,7 +572,7 @@ async def upload_file(
     dest_file = dest_dir / safe_name
     # Final safety check: ensure resolved path is still within NAS root
     resolved_dest = dest_file.resolve()
-    if not str(resolved_dest).startswith(str(settings.nas_root.resolve())):
+    if not resolved_dest.is_relative_to(settings.nas_root.resolve()):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
     total = 0
@@ -496,6 +605,9 @@ async def upload_file(
     # Rename from .uploading to final path atomically
     uploading_dest.rename(resolved_dest)
 
+    # Preserve the media's original capture time (best-effort; falls back to upload time).
+    _apply_capture_time(resolved_dest, original_date)
+
     # Fire-and-forget notifications so the upload response returns immediately.
     user_name = user.get("sub", "unknown")
     asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
@@ -522,11 +634,12 @@ async def upload_file(
 
 
 @router.post("/upload-stream", status_code=status.HTTP_201_CREATED)
-@limiter.limit("20/minute")
+@limiter.limit("120/minute")
 async def upload_file_stream(
     request: Request,
     filename: str = Query(..., min_length=1, max_length=512),
     path: str = Query("", description="Destination directory (NAS-absolute). Empty → user .inbox/."),
+    original_date: float | None = Query(None, description="Client-supplied original capture time (epoch seconds)."),
     user: dict = Depends(get_current_user),
 ):
     """
@@ -548,6 +661,7 @@ async def upload_file_stream(
     use_inbox = True
     if path and path.strip():
         resolved_dir = _safe_resolve(path)
+        await _authorize_path(resolved_dir, user)
         if resolved_dir.is_dir():
             dest_dir = resolved_dir
             use_inbox = False
@@ -567,7 +681,7 @@ async def upload_file_stream(
             )
 
     resolved_dest = (dest_dir / safe_name).resolve()
-    if not str(resolved_dest).startswith(str(settings.nas_root.resolve())):
+    if not resolved_dest.is_relative_to(settings.nas_root.resolve()):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
 
     total = 0
@@ -598,6 +712,9 @@ async def upload_file_stream(
 
     # Bug fix 2: rename is a syscall — run it off the event loop.
     await loop.run_in_executor(None, uploading_dest.rename, resolved_dest)
+
+    # Preserve the media's original capture time (best-effort; falls back to upload time).
+    _apply_capture_time(resolved_dest, original_date)
 
     user_name = user.get("sub", "unknown")
     asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
@@ -646,6 +763,7 @@ async def download_file(
     """
     _require_external_storage()
     resolved = _safe_resolve(path)
+    await _authorize_path(resolved, user)
 
     if not resolved.exists():
         from ..document_index import remove_document
@@ -747,7 +865,7 @@ async def download_file(
 
 
 @router.get("/search")
-@limiter.limit("30/minute")
+@limiter.limit("120/minute")
 async def search_files(
     request: Request,
     q: str = Query(..., min_length=1, max_length=200, description="Full-text search query"),
@@ -760,9 +878,12 @@ async def search_files(
     """
     from ..document_index import search_documents
 
-    username = user.get("sub", "")
-    user_role = "admin" if user.get("is_admin") or user.get("type") == "device" else "member"
-    results = await search_documents(query=q, limit=limit, user_role=user_role, username=username)
+    # The JWT carries only the user id (sub) — resolve the real personal-folder
+    # name and admin flag from the store, else members match nothing of their own
+    # and admins are wrongly treated as members.
+    name, is_admin = await _resolve_identity(user)
+    user_role = "admin" if is_admin else "member"
+    results = await search_documents(query=q, limit=limit, user_role=user_role, username=name)
     return {"results": results, "query": q, "count": len(results)}
 
 
@@ -779,6 +900,7 @@ async def sort_now(
     """
     _require_external_storage()
     resolved = _safe_resolve(path)
+    await _authorize_path(resolved, user)
     if not resolved.exists() or not resolved.is_dir():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Directory not found")
 
@@ -815,3 +937,190 @@ async def storage_roots(user: dict = Depends(get_current_user)):
                 "model": dev.model or "",
             })
     return {"roots": roots}
+
+
+def _thumb_cache_path(resolved: Path, mtime: float, size: int) -> Path:
+    """Return the on-disk cache path for a thumbnail."""
+    key = hashlib.sha256(f"{resolved}\x00{mtime}\x00{size}".encode()).hexdigest()
+    return settings.data_dir / "thumb_cache" / f"{key}.jpg"
+
+
+async def _generate_image_thumbnail(resolved: Path, size: int) -> bytes:
+    """Generate a JPEG thumbnail from an image using Pillow."""
+    def _make() -> bytes:
+        with Image.open(resolved) as img:
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((size, size), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            img.convert("RGB").save(buf, format="JPEG", quality=80, optimize=True)
+            return buf.getvalue()
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _make)
+
+
+async def _generate_video_thumbnail(resolved: Path, size: int) -> bytes:
+    """Generate a JPEG thumbnail by grabbing a single frame with ffmpeg."""
+    def _grab(seek: str) -> bytes:
+        proc = subprocess.run(
+            [
+                _THUMB_FFMPEG,
+                "-ss", seek,
+                "-i", str(resolved),
+                "-frames:v", "1",
+                "-vf", f"scale='min({size},iw)':-2",
+                "-f", "mjpeg",
+                "-",
+            ],
+            capture_output=True,
+            timeout=15,
+        )
+        if proc.returncode != 0 or not proc.stdout:
+            return b""
+        return proc.stdout
+
+    def _make() -> bytes:
+        # Short clips or odd keyframe layouts yield nothing at 1s — fall back to frame 0.
+        for seek in ("1", "0"):
+            out = _grab(seek)
+            if out:
+                return out
+        raise RuntimeError("ffmpeg thumbnail failed")
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _make)
+
+
+@router.get("/thumbnail")
+@limiter.limit("120/minute")
+async def thumbnail(
+    request: Request,
+    path: str = Query(..., description="NAS path to the image or video"),
+    size: int = Query(256, description="Max thumbnail edge in pixels"),
+    user: dict = Depends(get_current_user),
+):
+    """Return a small cached JPEG thumbnail for an image or video file."""
+    _require_external_storage()
+    resolved = _safe_resolve(path)
+    await _authorize_path(resolved, user)
+
+    if not resolved.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    if resolved.is_dir():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot thumbnail a directory")
+
+    size = max(64, min(512, size))
+    suffix = resolved.suffix.lower()
+    src_stat = resolved.stat()
+    cache_path = _thumb_cache_path(resolved, src_stat.st_mtime, size)
+
+    try:
+        if cache_path.exists() and cache_path.stat().st_mtime >= src_stat.st_mtime:
+            data = cache_path.read_bytes()
+            return Response(
+                data,
+                media_type="image/jpeg",
+                headers={"Cache-Control": f"private, max-age={_THUMB_MAX_AGE}"},
+            )
+    except Exception:
+        pass
+
+    try:
+        if suffix in _THUMB_IMAGE_EXTS:
+            data = await _generate_image_thumbnail(resolved, size)
+        elif suffix in _THUMB_VIDEO_EXTS:
+            data = await _generate_video_thumbnail(resolved, size)
+        else:
+            raise HTTPException(
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                "Unsupported file type for thumbnail",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Thumbnail generation failed for %s: %s", path, exc)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Thumbnail not available")
+
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cache_path.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(cache_path)
+    except Exception as exc:
+        logger.error("Failed to write thumbnail cache %s: %s", cache_path, exc)
+
+    return Response(
+        data,
+        media_type="image/jpeg",
+        headers={"Cache-Control": f"private, max-age={_THUMB_MAX_AGE}"},
+    )
+
+
+# Job IDs requested to cancel — the reindex loop checks this cooperatively between files.
+_reindex_cancels: set[str] = set()
+
+
+@router.post("/reindex", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("6/hour")
+async def reindex_storage(request: Request, user: dict = Depends(require_admin)):
+    """Admin: re-scan NAS storage and rebuild the search index to match the filesystem.
+
+    The filesystem is the source of truth — this prunes index rows whose files are gone, then
+    (re)indexes every supported file under the watched roots (documents + OCR text for images),
+    so search reflects exactly what's on disk. Runs in the background; poll
+    `GET /api/v1/jobs/{jobId}` for status (`running` -> `completed`/`failed`, with
+    `result={indexed, pruned}`).
+    """
+    job = create_job(user_id=user.get("sub", ""))
+
+    async def _run() -> None:
+        try:
+            update_job(job.id, status=JobStatus.running, progress={"current": 0, "total": 0})
+            from pathlib import Path as _Path
+            from ..document_index import remove_missing_documents, nas_paths_with_ocr, _to_nas_path
+            from ..index_watcher import (
+                sync_once, _load_persisted_state, _save_persisted_state, _scan_documents_sync,
+            )
+            pruned = await remove_missing_documents()
+
+            def _progress(current: int, total: int) -> None:
+                update_job(job.id, progress={"current": current, "total": total})
+
+            # Re-OCR files that are NEW or indexed with EMPTY text (e.g. a prior OCR timeout), while
+            # skipping files that already have good OCR — so re-scan actually FIXES gaps efficiently.
+            loop = asyncio.get_running_loop()
+            well = await nas_paths_with_ocr()
+            current_files = await loop.run_in_executor(None, _scan_documents_sync)
+            redo = {ap for ap in current_files if _to_nas_path(_Path(ap)) not in well}
+
+            new_state = await sync_once(
+                _load_persisted_state(),
+                on_progress=_progress,
+                should_cancel=lambda: job.id in _reindex_cancels,
+                redo_paths=redo,
+            )
+            if job.id in _reindex_cancels:
+                _reindex_cancels.discard(job.id)
+                # Don't persist partial state — leave un-indexed files "new" for the next scan.
+                update_job(job.id, status=JobStatus.failed, error="cancelled")
+            else:
+                _save_persisted_state(new_state)
+                update_job(
+                    job.id,
+                    status=JobStatus.completed,
+                    result={"indexed": len(new_state), "pruned": pruned},
+                )
+        except Exception as exc:  # surface any failure as a failed job, never crash the worker
+            _reindex_cancels.discard(job.id)
+            logger.error("reindex_failed error=%s", exc)
+            update_job(job.id, status=JobStatus.failed, error=str(exc))
+
+    asyncio.create_task(_run())
+    return {"jobId": job.id, "status": "running"}
+
+
+@router.post("/reindex/cancel")
+async def cancel_reindex(request: Request, jobId: str = Query(...), user: dict = Depends(require_admin)):
+    """Admin: request cancellation of a running re-scan (stops after the current batch of files)."""
+    _reindex_cancels.add(jobId)
+    return {"cancelled": jobId}

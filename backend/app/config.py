@@ -190,6 +190,12 @@ class Settings(BaseSettings):
         return self.nas_root / self.entertainment_dir
 
     @property
+    def avatars_dir(self) -> Path:
+        # Shared (NOT under personal/) so every family member's device can render
+        # the profile picker — _authorize_path treats non-personal paths as readable.
+        return self.nas_root / ".avatars"
+
+    @property
     def users_file(self) -> Path:
         return self.data_dir / "users.json"
 
