@@ -33,12 +33,24 @@ from ..job_store import JobStatus, create_job, update_job
 from ..file_sorter import _destination_folder
 from ..events import file_event_bus, FileEvent
 from ..limiter import limiter
+from ..ingest import (
+    BLOCKED_EXTENSIONS,
+    Destination,
+    IngestMode,
+    IngestSizeError,
+    IngestStallError,
+    Scope,
+    _apply_capture_time,
+    _authorize_path,
+    _extract_capture_epoch,
+    _require_external_storage,
+    _resolve_identity,
+    _safe_resolve,
+    ingest,
+)
 from .event_routes import emit_upload_complete
 
 logger = logging.getLogger("aihomecloud.files")
-
-# Larger write buffer for uploads — 2 MB (fewer syscalls on ARM)
-_UPLOAD_WRITE_BUF = 2 * 1024 * 1024
 
 # Short-lived scandir result cache.  Key: "<resolved_dir>|<sort_by>|<sort_dir>|<page>|<page_size>"
 # Value: (result_tuple, expires_at_monotonic)
@@ -82,14 +94,11 @@ def _calc_dir_size(path: Path) -> int:
     return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
-# Executables and dangerous file types that must never be uploaded to the NAS.
-BLOCKED_EXTENSIONS: frozenset[str] = frozenset({
-    ".sh", ".bash", ".zsh", ".fish",
-    ".py", ".rb", ".pl", ".php",
-    ".elf", ".bin", ".exe",
-    ".apk", ".so", ".ko",
-    ".deb", ".rpm",
-})
+# BLOCKED_EXTENSIONS, _require_external_storage, _safe_resolve, _resolve_identity,
+# and _authorize_path now live in ..ingest (imported above) so both this module
+# and the ingest core share one copy. Re-exported at module level (via the import
+# above) for existing external importers: trash_routes.py, web_browser_routes.py,
+# auth_routes.py, telegram_upload_routes.py.
 
 
 def _is_documents_scoped(path: Path) -> bool:
@@ -103,94 +112,29 @@ def _is_document_file(path: Path) -> bool:
     return _is_documents_scoped(path) and is_indexable_document_path(path)
 
 
-def _require_external_storage() -> None:
-    """
-    Verify that external storage (USB / NVMe) is mounted at nas_root.
-    If nas_root is just a directory on the SD card, reject file operations
-    so users don't accidentally browse OS files.
-    """
-    if settings.skip_mount_check:
-        return
-    nas = settings.nas_root
-    if not nas.is_mount():
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "No external storage mounted. Please connect a USB or NVMe drive.",
+def _destination_from_dir(resolved_dir: Path) -> Destination:
+    """Convert an already-authorized, already-resolved NAS directory into an
+    ingest Destination that writes to that EXACT directory (MIRROR — no
+    auto-sort, matching pre-unification behavior for direct-path uploads).
+
+    `raw_dir` carries the resolved directory through untouched rather than
+    reconstructing a path from a fixed scope enum — some callers (tests,
+    admin tools) upload to arbitrary non-bucket directories under nas_root,
+    and re-deriving the path from `scope` would silently redirect them.
+    `scope` is best-effort, used only to pick the right dedup-index bucket:
+    PERSONAL for anything under personal/<owner>/ (so dedup respects the
+    owner boundary), FAMILY for everything else (family/entertainment/or
+    any other shared directory)."""
+    rel_parts = resolved_dir.relative_to(settings.nas_root.resolve()).parts
+    if not rel_parts:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot upload to NAS root")
+    if rel_parts[0] == "personal" and len(rel_parts) > 1:
+        return Destination(
+            scope=Scope.PERSONAL, owner=rel_parts[1], raw_dir=resolved_dir, mode=IngestMode.MIRROR,
         )
-
-
-def _safe_resolve(raw_path: str) -> Path:
-    """
-    Resolve a NAS-relative path (e.g. /srv/nas/family/Photos) to an
-    absolute filesystem path, ensuring it stays within nas_root.
-    """
-    # Reject null bytes early — they can confuse OS path operations
-    if "\x00" in raw_path:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
-
-    # Reject excessively long paths before touching the filesystem
-    if len(raw_path) > 4096:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Path too long")
-
-    # raw_path from the app looks like /srv/nas/family/...
-    # Strip the nas_root prefix if present so we don't double it.
-    nas_prefix = str(settings.nas_root)
-    if raw_path.startswith(nas_prefix):
-        boundary = len(nas_prefix)
-        if len(raw_path) == boundary or raw_path[boundary] in ("/", "\\"):
-            raw_path = raw_path[boundary:]
-
-    candidate = settings.nas_root / raw_path.lstrip("/")
-
-    # Reject symlinks — they could point outside the NAS root
-    if candidate.is_symlink():
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Symbolic links are not allowed")
-
-    try:
-        resolved = candidate.resolve()
-    except (OSError, ValueError):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
-
-    nas_resolved = settings.nas_root.resolve()
-    try:
-        resolved.relative_to(nas_resolved)
-    except ValueError:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
-    return resolved
-
-
-async def _resolve_identity(user: dict) -> tuple[str, bool]:
-    """Resolve the authenticated principal to (personal_folder_name, is_admin).
-
-    Paired-device tokens carry no personal folder and are admin-level. A valid
-    JWT whose user has since been deleted is rejected.
-    """
-    if user.get("type") == "device":
-        return "", True
-    found = await store.find_user(user.get("sub", ""))
-    if not found:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
-    return found.get("name", ""), bool(found.get("is_admin", False))
-
-
-async def _authorize_path(resolved: Path, user: dict) -> None:
-    """Enforce that ``/personal/<name>/`` subtrees are private to their owner.
-
-    Shared scopes (family, sync, entertainment, …) stay open to every
-    authenticated user; only the ``/personal/<name>/`` tree is owner-restricted
-    (admins and paired devices bypass). Must be called AFTER ``_safe_resolve``.
-    """
-    rel_parts = resolved.relative_to(settings.nas_root.resolve()).parts
-    if len(rel_parts) < 2 or rel_parts[0] != "personal":
-        return  # shared location — no per-user restriction
-    owner = rel_parts[1]
-    name, is_admin = await _resolve_identity(user)
-    if is_admin or Path(name).name == owner:
-        return
-    raise HTTPException(
-        status.HTTP_403_FORBIDDEN,
-        "Access to another user's personal files is not allowed",
-    )
+    if rel_parts[0] == "entertainment":
+        return Destination(scope=Scope.ENTERTAINMENT, raw_dir=resolved_dir, mode=IngestMode.MIRROR)
+    return Destination(scope=Scope.FAMILY, raw_dir=resolved_dir, mode=IngestMode.MIRROR)
 
 
 def _file_item(p: Path, rel_prefix: str) -> dict:
@@ -528,12 +472,11 @@ async def upload_file(
 ):
     """
     Upload a file via multipart form data.
-    When *path* points to a valid NAS directory the file is written there directly.
-    When *path* is empty the file lands in the user's personal .inbox/ directory
-    where the InboxWatcher will auto-sort it into Photos/Videos/Documents/Others.
+    When *path* points to a valid NAS directory the file is written there directly
+    (no auto-sort). When *path* is empty the file is synchronously classified into
+    Photos/Videos/Documents/Others under the user's personal folder — sorting
+    happens at ingest time, not via a best-effort background watcher.
     """
-    _require_external_storage()
-    # Device-type tokens (pairing) cannot upload files
     if user.get("type") == "device":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Device tokens cannot upload files")
 
@@ -542,94 +485,49 @@ async def upload_file(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User not found")
     safe_username = Path(user_record["name"]).name
 
-    # Determine destination: honour explicit path when it resolves to a NAS directory.
-    use_inbox = True
     if path and path.strip():
         resolved_dir = _safe_resolve(path)
         await _authorize_path(resolved_dir, user)
-        if resolved_dir.is_dir():
-            dest_dir = resolved_dir
-            use_inbox = False
-    if use_inbox:
-        dest_dir = settings.personal_path / safe_username / ".inbox"
-    dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = (
+            _destination_from_dir(resolved_dir)
+            if resolved_dir.is_dir()
+            else Destination(scope=Scope.PERSONAL, owner=safe_username, mode=IngestMode.SORTED)
+        )
+    else:
+        dest = Destination(scope=Scope.PERSONAL, owner=safe_username, mode=IngestMode.SORTED)
 
-    # Sanitize filename: strip path separators to prevent directory traversal
-    raw_name = file.filename or "upload"
-    safe_name = Path(raw_name).name  # strips any directory components
-    if not safe_name or safe_name in (".", ".."):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
-
-    # Block executable and dangerous file types — check ALL suffixes, not just last
-    all_suffixes = [s.lower() for s in Path(safe_name).suffixes]
-    for ext in all_suffixes:
-        if ext in BLOCKED_EXTENSIONS:
-            raise HTTPException(
-                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                f"File type '{ext}' is not allowed for security reasons.",
-            )
-
-    dest_file = dest_dir / safe_name
-    # Final safety check: ensure resolved path is still within NAS root
-    resolved_dest = dest_file.resolve()
-    if not resolved_dest.is_relative_to(settings.nas_root.resolve()):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
-
-    total = 0
-    max_bytes = settings.max_upload_bytes
-    loop = asyncio.get_running_loop()
-
-    # Write to .uploading temp path so the file sorter skips in-progress uploads.
-    uploading_dest = resolved_dest.with_name(resolved_dest.name + ".uploading")
-
-    # Use buffered I/O and write in the thread pool to avoid blocking the event loop.
-    fd = open(uploading_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
-    try:
+    async def _chunks():
         while chunk := await file.read(settings.upload_chunk_size):
-            total += len(chunk)
-            if max_bytes and total > max_bytes:
-                fd.close()
-                uploading_dest.unlink(missing_ok=True)
-                raise HTTPException(
-                    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    f"File exceeds maximum upload size of {max_bytes // (1024*1024)} MB",
-                )
-            await loop.run_in_executor(None, fd.write, chunk)
-    except Exception:
-        fd.close()
-        uploading_dest.unlink(missing_ok=True)
-        raise
-    finally:
-        fd.close()
+            yield chunk
 
-    # Rename from .uploading to final path atomically
-    uploading_dest.rename(resolved_dest)
+    try:
+        result = await ingest(
+            _chunks(), filename=file.filename or "upload", dest=dest, user=user,
+            original_date=original_date,
+        )
+    except IngestStallError:
+        raise HTTPException(status.HTTP_408_REQUEST_TIMEOUT, "Upload stalled — no data received")
+    except IngestSizeError as e:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(e))
 
-    # Preserve the media's original capture time (best-effort; falls back to upload time).
-    _apply_capture_time(resolved_dest, original_date)
-
-    # Fire-and-forget notifications so the upload response returns immediately.
+    safe_name = result.path.name
     user_name = user.get("sub", "unknown")
-    asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
-    _invalidate_scan_cache(str(dest_dir))
+    asyncio.create_task(_post_upload_notify(safe_name, user_name, str(result.path)))
+    _invalidate_scan_cache(str(result.path.parent))
 
-    # Direct uploads to Documents bypass .inbox; index them immediately.
-    if not use_inbox and _is_document_file(resolved_dest):
+    if _is_document_file(result.path):
         from ..document_index import index_document
 
         asyncio.create_task(
-            index_document(str(resolved_dest), safe_name, user_name),
+            index_document(str(result.path), safe_name, user_name),
             name=f"index_upload_{safe_name}",
         )
 
-    # When written directly to a folder (not .inbox), no auto-sort will happen.
-    sorted_to = None if not use_inbox else _destination_folder(resolved_dest)
-
     return {
         "name": safe_name,
-        "path": "/" + str(resolved_dest.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
-        "sizeBytes": total,
-        "sortedTo": sorted_to,
+        "path": "/" + str(result.path.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
+        "sizeBytes": result.bytes_written,
+        "sortedTo": result.sorted_to,
     }
 
 
@@ -649,7 +547,6 @@ async def upload_file_stream(
     directly from the TCP socket to the destination file with zero intermediate copies.
     Use this endpoint for large files (>1 GB) from the web portal.
     """
-    _require_external_storage()
     if user.get("type") == "device":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Device tokens cannot upload files")
 
@@ -658,81 +555,44 @@ async def upload_file_stream(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User not found")
     safe_username = Path(user_record["name"]).name
 
-    use_inbox = True
     if path and path.strip():
         resolved_dir = _safe_resolve(path)
         await _authorize_path(resolved_dir, user)
-        if resolved_dir.is_dir():
-            dest_dir = resolved_dir
-            use_inbox = False
-    if use_inbox:
-        dest_dir = settings.personal_path / safe_username / ".inbox"
-    dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = (
+            _destination_from_dir(resolved_dir)
+            if resolved_dir.is_dir()
+            else Destination(scope=Scope.PERSONAL, owner=safe_username, mode=IngestMode.SORTED)
+        )
+    else:
+        dest = Destination(scope=Scope.PERSONAL, owner=safe_username, mode=IngestMode.SORTED)
 
-    safe_name = Path(filename).name
-    if not safe_name or safe_name in (".", ".."):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid filename")
-
-    for ext in [s.lower() for s in Path(safe_name).suffixes]:
-        if ext in BLOCKED_EXTENSIONS:
-            raise HTTPException(
-                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                f"File type '{ext}' is not allowed for security reasons.",
-            )
-
-    resolved_dest = (dest_dir / safe_name).resolve()
-    if not resolved_dest.is_relative_to(settings.nas_root.resolve()):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Path outside NAS root")
-
-    total = 0
-    max_bytes = settings.max_upload_bytes
-    loop = asyncio.get_running_loop()
-    uploading_dest = resolved_dest.with_name(resolved_dest.name + ".uploading")
-
-    fd = open(uploading_dest, "wb", buffering=_UPLOAD_WRITE_BUF)
-    wrote_ok = False
     try:
-        async for chunk in request.stream():
-            if not chunk:
-                continue
-            total += len(chunk)
-            if max_bytes and total > max_bytes:
-                raise HTTPException(
-                    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    f"File exceeds maximum upload size of {max_bytes // (1024 * 1024)} MB",
-                )
-            await loop.run_in_executor(None, fd.write, chunk)
-        wrote_ok = True
-    finally:
-        # Bug fix 1 & 3: close exactly once, in run_in_executor so it never
-        # blocks the event loop (flush + close can stall on USB3/HDD under load).
-        await loop.run_in_executor(None, fd.close)
-        if not wrote_ok:
-            uploading_dest.unlink(missing_ok=True)
+        result = await ingest(
+            request.stream(), filename=filename, dest=dest, user=user,
+            original_date=original_date,
+        )
+    except IngestStallError:
+        raise HTTPException(status.HTTP_408_REQUEST_TIMEOUT, "Upload stalled — no data received")
+    except IngestSizeError as e:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(e))
 
-    # Bug fix 2: rename is a syscall — run it off the event loop.
-    await loop.run_in_executor(None, uploading_dest.rename, resolved_dest)
-
-    # Preserve the media's original capture time (best-effort; falls back to upload time).
-    _apply_capture_time(resolved_dest, original_date)
-
+    safe_name = result.path.name
     user_name = user.get("sub", "unknown")
-    asyncio.create_task(_post_upload_notify(safe_name, user_name, str(resolved_dest)))
-    _invalidate_scan_cache(str(dest_dir))
+    asyncio.create_task(_post_upload_notify(safe_name, user_name, str(result.path)))
+    _invalidate_scan_cache(str(result.path.parent))
 
-    if not use_inbox and _is_document_file(resolved_dest):
+    if _is_document_file(result.path):
         from ..document_index import index_document
         asyncio.create_task(
-            index_document(str(resolved_dest), safe_name, user_name),
+            index_document(str(result.path), safe_name, user_name),
             name=f"index_upload_{safe_name}",
         )
 
-    sorted_to = None if not use_inbox else _destination_folder(resolved_dest)
     return {
         "name": safe_name,
-        "path": "/" + str(resolved_dest.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
-        "sizeBytes": total,
-        "sortedTo": sorted_to,
+        "path": "/" + str(result.path.relative_to(settings.nas_root.resolve())).replace("\\", "/"),
+        "sizeBytes": result.bytes_written,
+        "sortedTo": result.sorted_to,
     }
 
 
