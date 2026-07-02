@@ -59,8 +59,10 @@ async def network_status(_user: dict = Depends(get_current_user)):
                         pass
                 break
 
+    wifi = await get_wifi_status()
+
     return NetworkStatus(
-        wifiEnabled=False,
+        wifiEnabled=bool(wifi.get("wifiEnabled")),
         wifiConnected=False,
         wifiSsid=None,
         wifiIp=None,
