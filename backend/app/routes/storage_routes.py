@@ -45,7 +45,9 @@ from .storage_helpers import (
     find_partition,
     is_os_partition,
     list_block_devices,
+    mount_nas_device,
     start_nas_services,
+    unmount_nas_device,
 )
 
 logger = logging.getLogger("aihomecloud.storage")
@@ -133,11 +135,11 @@ async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str
 
         # Step 1a: Wipe existing GPT/MBR signatures (non-fatal if it fails)
         logger.warning("SMART-ACTIVATE: wiping signatures on %s", disk_path)
-        await run_command(["sudo", "-n", "sgdisk", "-Z", disk_path], timeout=30)
+        await run_command(["sgdisk", "-Z", disk_path], timeout=30)
 
         # Step 1b: Create new GPT with one Linux-data partition spanning the whole disk
         rc, _, stderr = await run_command(
-            ["sudo", "-n", "sgdisk", "-n", "1:0:0", "-t", "1:8300", disk_path],
+            ["sgdisk", "-n", "1:0:0", "-t", "1:8300", disk_path],
             timeout=30,
         )
         if rc != 0:
@@ -151,7 +153,7 @@ async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str
         # Step 3: Format as ext4
         logger.warning("SMART-ACTIVATE: formatting %s as ext4", partition_path)
         rc, _, stderr = await run_command(
-            ["sudo", "-n", "mkfs.ext4", "-F", "-L", "AiHomeCloud", partition_path],
+            ["mkfs.ext4", "-F", "-L", "AiHomeCloud", partition_path],
             timeout=600,
         )
         if rc != 0:
@@ -160,10 +162,7 @@ async def _smart_format_and_mount(job_id: str, disk_name: str, display_name: str
 
         # Step 4: Mount
         settings.nas_root.mkdir(parents=True, exist_ok=True)
-        rc, _, stderr = await run_command(
-            ["sudo", "-n", "mount", partition_path, nas_root],
-            timeout=30,
-        )
+        rc, _, stderr = await mount_nas_device(partition_path)
         if rc != 0:
             update_job(job_id, status=JobStatus.failed, error=f"Mount failed: {stderr}")
             return
@@ -246,9 +245,7 @@ async def smart_activate(
             return {"action": "mounted", "display_name": display}
 
         settings.nas_root.mkdir(parents=True, exist_ok=True)
-        rc, _, stderr = await run_command(
-            ["sudo", "-n", "mount", partition_dev, nas_root], timeout=30
-        )
+        rc, _, stderr = await mount_nas_device(partition_dev)
         if rc != 0:
             raise HTTPException(500, f"Could not activate drive: {stderr}")
         await _post_mount_setup(partition_dev, disk, display)
@@ -341,7 +338,7 @@ async def format_device(
             logger.warning("FORMATTING %s as ext4 (label=%s)", req.device, req.label)
 
             rc, _, stderr = await run_command([
-                "sudo", "-n", "mkfs.ext4", "-F", "-L", req.label, req.device
+                "mkfs.ext4", "-F", "-L", req.label, req.device
             ], timeout=600)
 
             if rc != 0:
@@ -406,7 +403,7 @@ async def mount_device(
     settings.nas_root.mkdir(parents=True, exist_ok=True)
 
     # Mount
-    rc, _, stderr = await run_command(["sudo", "-n", "mount", req.device, nas_root])
+    rc, _, stderr = await mount_nas_device(req.device)
     if rc != 0:
         raise HTTPException(500, f"Mount failed: {stderr}")
 
@@ -484,7 +481,7 @@ async def eject_device(
                 logger.info("Ejected USB device %s via sysfs", disk_name)
             except Exception:
                 # Try udisksctl as fallback
-                rc, _, stderr = await run_command(["sudo", "-n", "udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
+                rc, _, stderr = await run_command(["udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
                 if rc == 0:
                     logger.info("Ejected USB device %s via udisksctl", disk_name)
                 else:
@@ -494,7 +491,7 @@ async def eject_device(
                     )
         else:
             # Try udisksctl as fallback
-            rc, _, stderr = await run_command(["sudo", "-n", "udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
+            rc, _, stderr = await run_command(["udisksctl", "power-off", "-b", f"/dev/{disk_name}"])
             if rc == 0:
                 logger.info("Ejected USB device %s via udisksctl", disk_name)
             else:
@@ -611,9 +608,7 @@ async def _do_mount_device(device_path: str, state_hint: dict | None = None) -> 
             logger.info("Mount: retrying after 3s (attempt %d)…", attempt + 1)
             await asyncio.sleep(3)
 
-        rc, _, stderr = await run_command(
-            ["sudo", "-n", "mount", device_path, nas_root], timeout=30
-        )
+        rc, _, stderr = await mount_nas_device(device_path)
         if rc == 0:
             logger.info("Mount: successfully mounted %s at %s", device_path, nas_root)
             settings.personal_path.mkdir(parents=True, exist_ok=True)
@@ -700,7 +695,7 @@ async def try_auto_remount():
                 "Auto-remount: %s mounted but has no AHC NAS marker — "
                 "unmounting and skipping (not an AiHomeCloud drive)", candidate,
             )
-            await run_command(["sudo", "-n", "umount", str(settings.nas_root)], timeout=30)
+            await unmount_nas_device()
             await store.clear_storage_state()
             return
         logger.info("Auto-remount: blind-scan mount of %s succeeded", candidate)

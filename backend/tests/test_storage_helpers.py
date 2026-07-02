@@ -28,6 +28,8 @@ from app.routes.storage_helpers import (
     ensure_dlna_started_and_enabled,
     check_open_handles,
     do_unmount,
+    mount_nas_device,
+    unmount_nas_device,
 )
 
 
@@ -586,21 +588,63 @@ async def test_do_unmount_force_ignores_blockers():
 
 
 @pytest.mark.asyncio
-async def test_do_unmount_lazy_fallback():
-    call_count = 0
-
-    async def _mock_run_command(cmd, *args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        if "umount" in cmd and "-l" not in cmd:
-            return (1, "", "device busy")
-        return (0, "", "")
-
+async def test_do_unmount_propagates_unmount_service_failure():
+    """
+    ProtectSystem=strict + ReadWritePaths=/srv/nas puts aihomecloud.service in
+    its own private mount namespace (confirmed live via /proc/<pid>/mountinfo:
+    the sandboxed side shows `master:N` — a one-way, host->sandbox slave mount
+    — vs `shared:N` on the real host mount). A umount syscall made directly by
+    this process can therefore never affect the real, system-wide mount table.
+    do_unmount() now delegates to unmount_nas_device(), which asks systemd
+    (PID 1, host namespace) to run a small unsandboxed oneshot unit
+    (ahc-umount.service) via `systemctl start`, authorized for the
+    aihomecloud user through a scoped polkit rule rather than sudo. The
+    normal-then-lazy-unmount retry itself now lives inside that unit's shell
+    script (ahc-umount-nas.sh: `umount X || umount -l X`), not in Python, so
+    it's no longer unit-testable at this level — this test instead verifies
+    do_unmount() correctly surfaces a failure when the unmount service
+    ultimately fails (both attempts exhausted).
+    """
     with patch("app.routes.storage_helpers.store") as mock_store, \
          patch("app.routes.storage_helpers.stop_nas_services", new_callable=AsyncMock), \
          patch("app.routes.storage_helpers.check_open_handles", new_callable=AsyncMock, return_value=[]), \
-         patch("app.routes.storage_helpers.run_command", side_effect=_mock_run_command):
+         patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
         mock_store.get_storage_state = AsyncMock(return_value={"activeDevice": "/dev/sda1"})
         mock_store.clear_storage_state = AsyncMock()
-        result = await do_unmount()
-        assert result == "/dev/sda1"
+        mock_cmd.return_value = (1, "", "device busy")
+        with pytest.raises(HTTPException) as exc_info:
+            await do_unmount()
+        assert exc_info.value.status_code == 500
+
+
+@pytest.mark.asyncio
+async def test_unmount_nas_device_starts_host_namespace_unit():
+    """unmount_nas_device() must go through the ahc-umount.service escape,
+    never a direct umount subprocess call (see docstring above for why)."""
+    with patch("app.routes.storage_helpers.run_command", new_callable=AsyncMock) as mock_cmd:
+        mock_cmd.return_value = (0, "", "")
+        rc, _, _ = await unmount_nas_device()
+        assert rc == 0
+        mock_cmd.assert_called_once_with(
+            ["systemctl", "start", "ahc-umount.service"], timeout=30
+        )
+
+
+@pytest.mark.asyncio
+async def test_mount_nas_device_escapes_path_and_starts_templated_unit():
+    """mount_nas_device() must systemd-escape the device path into the
+    templated ahc-mount@.service instance name, then start it via systemctl —
+    same host-namespace-escape reasoning as unmount_nas_device()."""
+
+    async def _mock_run_command(cmd, *args, **kwargs):
+        if cmd[0] == "systemd-escape":
+            return (0, "dev-sda1\n", "")
+        return (0, "", "")
+
+    with patch("app.routes.storage_helpers.run_command", side_effect=_mock_run_command) as mock_cmd:
+        rc, _, _ = await mount_nas_device("/dev/sda1")
+        assert rc == 0
+        mock_cmd.assert_any_call(["systemd-escape", "--path", "/dev/sda1"])
+        mock_cmd.assert_any_call(
+            ["systemctl", "start", "ahc-mount@dev-sda1.service"], timeout=30
+        )

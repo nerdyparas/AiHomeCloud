@@ -8,7 +8,7 @@ Used internally by storage_routes.py endpoint handlers.
 import json
 import logging
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from fastapi import HTTPException
 
@@ -18,6 +18,34 @@ from .. import store
 from ..subprocess_runner import run_command
 
 logger = logging.getLogger("aihomecloud.storage")
+
+# ── Host-namespace mount/umount escape ──────────────────────────────────────
+#
+# The aihomecloud.service unit runs under ProtectSystem=strict + ReadWritePaths=
+# /srv/nas, which systemd implements via a private mount namespace: /srv/nas is
+# bind-mounted in as a SLAVE of the host's mount (propagation is one-way,
+# host -> sandbox only). A mount/umount syscall made directly by this process
+# only affects its own private namespace view and can never change the real,
+# system-wide mount table — confirmed via /proc/<pid>/mountinfo showing
+# `master:N` on the sandboxed side vs `shared:N` on the host side. Storage
+# eject/mount therefore cannot be done as a direct subprocess call; instead we
+# ask systemd (PID 1, which lives in the host's namespace) to run two small,
+# unsandboxed oneshot units on our behalf via `systemctl start` — authorized
+# for the aihomecloud user via a scoped polkit rule, not full sudo.
+
+
+async def mount_nas_device(device_path: str) -> Tuple[int, str, str]:
+    """Mount *device_path* at the NAS root, in the HOST mount namespace."""
+    rc_esc, escaped, err_esc = await run_command(["systemd-escape", "--path", device_path])
+    if rc_esc != 0:
+        return rc_esc, "", f"systemd-escape failed: {err_esc}"
+    unit = f"ahc-mount@{escaped.strip()}.service"
+    return await run_command(["systemctl", "start", unit], timeout=30)
+
+
+async def unmount_nas_device() -> Tuple[int, str, str]:
+    """Unmount the NAS root, in the HOST mount namespace."""
+    return await run_command(["systemctl", "start", "ahc-umount.service"], timeout=30)
 
 _DLNA_SERVICE_CANDIDATES: tuple[str, ...] = ("minidlna", "minidlnad")
 
@@ -303,7 +331,7 @@ async def stop_nas_services():
         services.append(dlna_svc)
     for svc in services:
         try:
-            await run_command(["sudo", "-n", "systemctl", "stop", svc])
+            await run_command(["systemctl", "stop", svc])
         except Exception:
             pass
 
@@ -316,7 +344,7 @@ async def start_nas_services():
         services.append(dlna_svc)
     for svc in services:
         try:
-            await run_command(["sudo", "-n", "systemctl", "start", svc])
+            await run_command(["systemctl", "start", svc])
         except Exception:
             pass
 
@@ -347,8 +375,8 @@ async def ensure_dlna_started_and_enabled() -> bool:
         logger.info("DLNA service unit not found (tried: %s)", ", ".join(_DLNA_SERVICE_CANDIDATES))
         return False
 
-    await run_command(["sudo", "-n", "systemctl", "enable", dlna_svc], timeout=15)
-    rc, _, err = await run_command(["sudo", "-n", "systemctl", "start", dlna_svc], timeout=15)
+    await run_command(["systemctl", "enable", dlna_svc], timeout=15)
+    rc, _, err = await run_command(["systemctl", "start", dlna_svc], timeout=15)
     if rc != 0:
         logger.warning("Failed to start DLNA service %s: %s", dlna_svc, err)
         return False
@@ -421,7 +449,6 @@ async def do_unmount(force: bool = False) -> str:
         raise HTTPException(400, "No device is currently mounted")
 
     device_path = storage_state["activeDevice"]
-    nas_root = str(settings.nas_root)
 
     if not force:
         blockers = await check_open_handles()
@@ -447,17 +474,14 @@ async def do_unmount(force: bool = False) -> str:
     except Exception:
         pass
 
-    rc, _, stderr = await run_command(["sudo", "-n", "umount", nas_root])
+    rc, _, stderr = await unmount_nas_device()
     if rc != 0:
-        logger.warning("Normal unmount failed, trying lazy unmount: %s", stderr)
-        rc2, _, stderr2 = await run_command(["sudo", "-n", "umount", "-l", nas_root])
-        if rc2 != 0:
-            raise HTTPException(
-                500,
-                f"Unmount failed (files may be in use): {stderr2}",
-            )
+        raise HTTPException(
+            500,
+            f"Unmount failed (files may be in use): {stderr}",
+        )
 
     await store.clear_storage_state()
 
-    logger.info("Unmounted %s from %s", device_path, nas_root)
+    logger.info("Unmounted %s from %s", device_path, settings.nas_root)
     return device_path

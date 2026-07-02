@@ -213,10 +213,13 @@ async def disable_local_api(user: dict = Depends(require_admin)):
     except Exception as exc:
         logger.warning("Telegram bot restart after disabling local API: %s", exc)
 
-    rc, _, err = await run_command(["sudo", "-n", "systemctl", "stop", _SERVICE_NAME], timeout=30)
+    # No sudo: _SERVICE_NAME is authorized via a scoped polkit rule (see
+    # 52-aihomecloud-power-and-services.rules), not sudoers -- NoNewPrivileges
+    # =yes on this systemd unit blocks sudo escalation entirely.
+    rc, _, err = await run_command(["systemctl", "stop", _SERVICE_NAME], timeout=30)
     if rc != 0:
         logger.warning("Failed to stop %s: %s", _SERVICE_NAME, err[:300])
-    await run_command(["sudo", "-n", "systemctl", "disable", _SERVICE_NAME], timeout=30)
+    await run_command(["systemctl", "disable", _SERVICE_NAME], timeout=30)
 
 
 # ---------------------------------------------------------------------------
@@ -559,15 +562,15 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
 
         # Step 4 — Enable and start service.
         _progress("Starting local API server\u2026")
-        await run_command(["sudo", "-n", "systemctl", "daemon-reload"], timeout=30)
+        await run_command(["systemctl", "daemon-reload"], timeout=30)
         rc, _, err = await run_command(
-            ["sudo", "-n", "systemctl", "enable", "--now", _SERVICE_NAME],
+            ["systemctl", "enable", "--now", _SERVICE_NAME],
             timeout=30,
         )
         if rc != 0:
             # Fallback: try just starting if enable fails (sudoers might lack enable).
             rc, _, err = await run_command(
-                ["sudo", "-n", "systemctl", "start", _SERVICE_NAME],
+                ["systemctl", "start", _SERVICE_NAME],
                 timeout=30,
             )
             if rc != 0:

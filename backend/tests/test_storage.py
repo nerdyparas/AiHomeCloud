@@ -467,10 +467,19 @@ async def test_smart_activate_ext4_partition_mounts_without_format(
     TASK-DRIVE-06: State A — disk already has ext4 partition.
     smart-activate must mount it directly without calling mkfs.ext4.
     """
-    mount_calls = []
+    # Mounting now goes through mount_nas_device() (imported into
+    # storage_routes from storage_helpers), which asks systemd to run an
+    # unsandboxed oneshot unit rather than calling `mount` as a direct
+    # subprocess — see the docstring on
+    # test_do_unmount_propagates_unmount_service_failure in
+    # test_storage_helpers.py for why (aihomecloud.service's private mount
+    # namespace can't affect the real host mount table on its own). Format
+    # (mkfs) is unaffected by that and still goes through run_command
+    # directly, so it's still assertable there.
+    run_commands = []
 
     async def _mock_run_command(cmd, **kwargs):
-        mount_calls.append(cmd)
+        run_commands.append(cmd)
         return 0, "", ""
 
     with patch(
@@ -483,6 +492,9 @@ async def test_smart_activate_ext4_partition_mounts_without_format(
         "app.routes.storage_routes.run_command",
         new=AsyncMock(side_effect=_mock_run_command),
     ), patch(
+        "app.routes.storage_routes.mount_nas_device",
+        new=AsyncMock(return_value=(0, "", "")),
+    ) as mock_mount, patch(
         "app.routes.storage_routes._post_mount_setup",
         new=AsyncMock(),
     ), patch(
@@ -499,8 +511,8 @@ async def test_smart_activate_ext4_partition_mounts_without_format(
     assert data["action"] == "mounted", f"Expected mounted, got {data}"
     assert "display_name" in data
 
-    cmd_strings = [" ".join(c) for c in mount_calls]
-    assert any("mount" in s for s in cmd_strings), "mount must be called"
+    assert mock_mount.called, "mount_nas_device must be called"
+    cmd_strings = [" ".join(c) for c in run_commands]
     assert not any("mkfs" in s for s in cmd_strings), "mkfs must NOT be called for ext4 disk"
 
 

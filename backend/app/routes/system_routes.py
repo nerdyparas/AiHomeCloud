@@ -114,8 +114,13 @@ async def shutdown_device(user: dict = Depends(require_admin)):
                     logger.warning("Failed to stop %s: %s", unit, err)
 
     # 2. Schedule poweroff after a short delay so the response is delivered.
+    # `systemctl poweroff` (not sudo /usr/sbin/shutdown) so the request goes
+    # through systemd-logind over D-Bus, authorized by the scoped
+    # org.freedesktop.login1.power-off polkit rule for this service account
+    # rather than needing sudo (which NoNewPrivileges=yes on this unit
+    # blocks outright, regardless of sudoers).
     logger.info("Shutdown requested by user %s", user.get("sub", "unknown"))
-    asyncio.create_task(_deferred_power_command(["sudo", "-n", "/usr/sbin/shutdown", "-h", "now"]))
+    asyncio.create_task(_deferred_power_command(["systemctl", "poweroff"]))
     return {"status": "shutting_down"}
 
 
@@ -123,7 +128,7 @@ async def shutdown_device(user: dict = Depends(require_admin)):
 async def reboot_device(user: dict = Depends(require_admin)):
     """Reboot the device.  Response is sent before the OS restarts."""
     logger.info("Reboot requested by user %s", user.get("sub", "unknown"))
-    asyncio.create_task(_deferred_power_command(["sudo", "-n", "/usr/sbin/reboot"]))
+    asyncio.create_task(_deferred_power_command(["systemctl", "reboot"]))
     return {"status": "rebooting"}
 
 
@@ -136,6 +141,11 @@ async def _deferred_power_command(cmd: list[str]) -> None:
 
 
 async def _systemctl_stop(unit: str) -> tuple[bool, str]:
-    """Run `systemctl stop <unit>` via centralized runner."""
-    rc, _, stderr = await run_command(["sudo", "-n", "systemctl", "stop", unit], timeout=15)
+    """Run `systemctl stop <unit>` via centralized runner.
+
+    No sudo: authorized via the scoped polkit rule for this specific,
+    allowlisted set of NAS-adjacent units (see 50-aihomecloud-storage.rules /
+    52-aihomecloud-power-and-services.rules).
+    """
+    rc, _, stderr = await run_command(["systemctl", "stop", unit], timeout=15)
     return rc == 0, stderr

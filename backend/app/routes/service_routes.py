@@ -29,8 +29,13 @@ ALLOWED_SERVICES: frozenset[str] = frozenset(SERVICE_UNITS.keys())
 
 
 async def _systemctl(action: str, unit: str) -> tuple[bool, str]:
-    """Run `systemctl <action> <unit>` via centralized runner."""
-    rc, _, stderr = await run_command(["sudo", "-n", "systemctl", action, unit], timeout=15)
+    """Run `systemctl <action> <unit>` via centralized runner.
+
+    No sudo: `unit` is always one of ALLOWED_SERVICES' fixed underlying
+    systemd names, authorized via a scoped polkit rule rather than sudo
+    (which NoNewPrivileges=yes on this service blocks outright).
+    """
+    rc, _, stderr = await run_command(["systemctl", action, unit], timeout=15)
     return rc == 0, stderr
 
 
