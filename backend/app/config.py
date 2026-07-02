@@ -172,6 +172,12 @@ class Settings(BaseSettings):
     telegram_local_api_enabled: bool = False   # True when local server is running
     telegram_local_api_url: str = "http://127.0.0.1:8081"  # local server address
     telegram_download_timeout: int = 600  # AHC_TELEGRAM_DOWNLOAD_TIMEOUT — seconds for file transfers
+    # Separate from telegram_download_timeout above: that one bounds each individual
+    # socket operation (connect/read/write/pool), which does NOT catch a connection that
+    # trickles bytes slowly enough to keep resetting the per-op timer. This bounds the gap
+    # between actual bytes landing on disk — a download that stalls for this long is killed
+    # and cleaned up instead of hanging indefinitely with no self-recovery.
+    telegram_stall_timeout: int = 60  # AHC_TELEGRAM_STALL_TIMEOUT — seconds of zero progress before abort
 
 
     # ── Data (JSON-file-based persistence for users, services, etc.) ─────────

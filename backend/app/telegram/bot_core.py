@@ -310,11 +310,63 @@ async def _upload_progress_heartbeat(message, filename: str, size_text: str, tar
         )
 
 
+class DownloadStallError(Exception):
+    """Raised when a Telegram file download shows no byte progress for the stall window."""
+
+
+_DOWNLOAD_STALL_POLL_INTERVAL_SECONDS = 5
+
+
 async def _download_to_path(bot, file_id: str, dest_path: Path) -> Path:
-    """Download a Telegram file to *dest_path*."""
-    telegram_file = await bot.get_file(file_id)
+    """Download a Telegram file to *dest_path* via a `.uploading` temp + atomic rename,
+    with a watchdog that aborts the download if its on-disk size stops growing.
+
+    This is the fix for a real incident: python-telegram-bot's configured connect/read/
+    write/pool timeouts only bound each individual socket operation, which does NOT catch
+    a connection that trickles bytes slowly enough to keep resetting the per-op timer —
+    a download can hang with zero actual progress well past its own configured timeout,
+    with no self-recovery (previously only diagnosable by manually sampling the process's
+    /proc/<pid>/io byte counters). This polls the temp file's actual size on disk instead —
+    the same signal, built in, applied to every download automatically.
+    """
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    await telegram_file.download_to_drive(custom_path=str(dest_path))
+    temp_path = dest_path.with_name(dest_path.name + ".uploading")
+    temp_path.unlink(missing_ok=True)
+
+    telegram_file = await bot.get_file(file_id)
+    download_task = asyncio.ensure_future(
+        telegram_file.download_to_drive(custom_path=str(temp_path))
+    )
+
+    last_size = 0
+    stalled_for = 0
+    try:
+        while True:
+            done, _pending = await asyncio.wait(
+                {download_task}, timeout=_DOWNLOAD_STALL_POLL_INTERVAL_SECONDS,
+            )
+            if download_task in done:
+                await download_task  # propagate any download exception
+                break
+            current_size = temp_path.stat().st_size if temp_path.exists() else 0
+            if current_size > last_size:
+                last_size = current_size
+                stalled_for = 0
+            else:
+                stalled_for += _DOWNLOAD_STALL_POLL_INTERVAL_SECONDS
+                if stalled_for >= settings.telegram_stall_timeout:
+                    download_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await download_task
+                    raise DownloadStallError(
+                        f"Download stall timeout — no progress for {stalled_for}s "
+                        f"(stuck at {current_size} bytes)"
+                    )
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+    temp_path.rename(dest_path)
     return dest_path
 
 
