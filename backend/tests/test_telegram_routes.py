@@ -112,6 +112,39 @@ class TestSaveTelegramConfig:
             assert resp.status_code == 422
 
 
+class TestGetLinkedAccounts:
+    @pytest.mark.asyncio
+    async def test_get_linked_with_owners(self, authenticated_client):
+        with patch("app.routes.telegram_routes._store") as mock_store:
+            mock_store.get_value = AsyncMock(side_effect=[
+                [12345, 67890],
+                {"12345": "paras", "67890": "chai"},
+            ])
+            resp = await authenticated_client.get("/api/v1/telegram/linked")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data == [
+                {"chat_id": 12345, "owner": "paras"},
+                {"chat_id": 67890, "owner": "chai"},
+            ]
+
+    @pytest.mark.asyncio
+    async def test_get_linked_missing_owner_defaults_unknown(self, authenticated_client):
+        with patch("app.routes.telegram_routes._store") as mock_store:
+            mock_store.get_value = AsyncMock(side_effect=[[12345], {}])
+            resp = await authenticated_client.get("/api/v1/telegram/linked")
+            assert resp.status_code == 200
+            assert resp.json() == [{"chat_id": 12345, "owner": "unknown"}]
+
+    @pytest.mark.asyncio
+    async def test_get_linked_empty(self, authenticated_client):
+        with patch("app.routes.telegram_routes._store") as mock_store:
+            mock_store.get_value = AsyncMock(side_effect=[[], {}])
+            resp = await authenticated_client.get("/api/v1/telegram/linked")
+            assert resp.status_code == 200
+            assert resp.json() == []
+
+
 class TestUnlinkAccount:
     @pytest.mark.asyncio
     async def test_unlink(self, authenticated_client):
@@ -123,6 +156,58 @@ class TestUnlinkAccount:
             # Verify the ID was removed
             call_args = mock_store.set_value.call_args
             assert 12345 not in call_args[0][1]
+
+
+class TestCancelSetupLocalApi:
+    @pytest.mark.asyncio
+    async def test_cancel_marks_job_id(self, authenticated_client):
+        from app.routes.telegram_routes import _setup_cancels
+        _setup_cancels.clear()
+        resp = await authenticated_client.post("/api/v1/telegram/setup-local-api/cancel?job_id=abc123")
+        assert resp.status_code == 200
+        assert resp.json() == {"cancelled": "abc123"}
+        assert "abc123" in _setup_cancels
+        _setup_cancels.clear()
+
+
+class TestCheckCancelled:
+    def test_not_cancelled_returns_false(self):
+        from app.routes.telegram_routes import _check_cancelled, _setup_cancels
+        _setup_cancels.clear()
+        assert _check_cancelled("nope") is False
+
+    def test_cancelled_marks_job_failed_and_clears_flag(self):
+        from app.routes.telegram_routes import _check_cancelled, _setup_cancels
+        with patch("app.routes.telegram_routes.update_job") as mock_update, \
+             patch("app.routes.telegram_routes._cleanup_build") as mock_cleanup:
+            _setup_cancels.clear()
+            _setup_cancels.add("job1")
+            assert _check_cancelled("job1") is True
+            assert "job1" not in _setup_cancels
+            mock_update.assert_called_once()
+            mock_cleanup.assert_called_once()
+
+
+class TestDisableLocalApi:
+    @pytest.mark.asyncio
+    async def test_disable_updates_config_and_stops_service(self, authenticated_client):
+        with patch("app.routes.telegram_routes._store") as mock_store, \
+             patch("app.routes.telegram_routes.settings") as mock_settings, \
+             patch("app.routes.telegram_routes.run_command", new_callable=AsyncMock) as mock_run:
+            mock_store.get_value = AsyncMock(return_value={"bot_token": "X", "local_api_enabled": True})
+            mock_store.set_value = AsyncMock()
+            mock_run.return_value = (0, "", "")
+            with patch.dict("sys.modules", {"app.telegram_bot": MagicMock(
+                stop_bot=AsyncMock(),
+                start_bot=AsyncMock(),
+            )}):
+                resp = await authenticated_client.post("/api/v1/telegram/local-api/disable")
+                assert resp.status_code == 204
+                saved_call = mock_store.set_value.call_args[0][1]
+                assert saved_call["local_api_enabled"] is False
+                assert mock_settings.telegram_local_api_enabled is False
+                stop_calls = [c for c in mock_run.call_args_list if "stop" in c[0][0]]
+                assert len(stop_calls) == 1
 
 
 class TestPendingApprovals:

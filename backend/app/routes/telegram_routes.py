@@ -189,6 +189,36 @@ async def setup_local_api(body: SetupLocalApiIn, user: dict = Depends(require_ad
     return {"job_id": job.id}
 
 
+@router.post("/setup-local-api/cancel")
+async def cancel_setup_local_api(job_id: str, user: dict = Depends(require_admin)):
+    """Admin: request cancellation of a running 2 GB mode setup.
+    Cooperative -- takes effect at the next checkpoint, not immediately.
+    A step already in progress (e.g. mid-compile) cannot be interrupted."""
+    _setup_cancels.add(job_id)
+    return {"cancelled": job_id}
+
+
+@router.post("/local-api/disable", status_code=status.HTTP_204_NO_CONTENT)
+async def disable_local_api(user: dict = Depends(require_admin)):
+    """Admin: turn off 2 GB mode. Restarts the bot in normal cloud-API mode
+    and stops the now-unused local telegram-bot-api systemd service."""
+    saved: dict = await _store.get_value(_STORE_KEY, default={})
+    await _store.set_value(_STORE_KEY, {**saved, "local_api_enabled": False})
+    settings.telegram_local_api_enabled = False  # type: ignore[misc]
+
+    try:
+        from ..telegram_bot import stop_bot, start_bot
+        await stop_bot()
+        await start_bot()
+    except Exception as exc:
+        logger.warning("Telegram bot restart after disabling local API: %s", exc)
+
+    rc, _, err = await run_command(["sudo", "-n", "systemctl", "stop", _SERVICE_NAME], timeout=30)
+    if rc != 0:
+        logger.warning("Failed to stop %s: %s", _SERVICE_NAME, err[:300])
+    await run_command(["sudo", "-n", "systemctl", "disable", _SERVICE_NAME], timeout=30)
+
+
 # ---------------------------------------------------------------------------
 # Background job -- local API server (build from source)
 # ---------------------------------------------------------------------------
@@ -201,6 +231,11 @@ _BUILD_DEPS = ["cmake", "g++", "libssl-dev", "zlib1g-dev", "gperf"]
 
 # Prevents two concurrent invocations from clobbering the shared _BUILD_DIR.
 _build_lock = asyncio.Lock()
+
+# Job IDs requested to cancel — the setup job checks this cooperatively between
+# steps (mirrors _reindex_cancels in file_routes.py). Can't interrupt a step
+# already in progress (e.g. mid-compile) -- takes effect at the next checkpoint.
+_setup_cancels: set[str] = set()
 
 # Pre-built binaries published as GitHub Release assets.
 # The setup job tries downloading before falling back to source compilation.
@@ -293,6 +328,18 @@ def _cleanup_build() -> None:
         pass
 
 
+def _check_cancelled(job_id: str) -> bool:
+    """If cancellation was requested for this job, mark it failed and return True.
+    Caller must return immediately when this returns True. Only takes effect
+    between steps -- can't interrupt a step already in progress (e.g. mid-compile)."""
+    if job_id not in _setup_cancels:
+        return False
+    _setup_cancels.discard(job_id)
+    update_job(job_id, status=_JobStatus.failed, error="Cancelled by user")
+    _cleanup_build()
+    return True
+
+
 async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
     """Build telegram-bot-api from source and activate 2 GB file mode."""
 
@@ -319,6 +366,9 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                        result={"message": "2 GB mode activated!"})
             return
 
+        if _check_cancelled(job_id):
+            return
+
         # Step 2 — Check if binary already exists (previous build).
         binary_exists = Path(_BINARY_PATH).exists()
 
@@ -332,6 +382,9 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                 _progress("Pre-built binary downloaded \u2014 skipping compilation\u2026")
             else:
                 _progress(fallback_reason)
+
+        if _check_cancelled(job_id):
+            return
 
         if not binary_exists:
             # 2a — Verify build dependencies are installed.
@@ -358,6 +411,9 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                     ))
                     return
 
+            if _check_cancelled(job_id):
+                return
+
             # 2b — Clone source code.
             _progress("Downloading source code\u2026")
             _cleanup_build()
@@ -371,6 +427,9 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
             if rc != 0:
                 update_job(job_id, status=_JobStatus.failed,
                            error=f"Failed to download source code.\n{err[:400]}")
+                return
+
+            if _check_cancelled(job_id):
                 return
 
             # 2c — Configure CMake.
@@ -389,6 +448,9 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                 _cleanup_build()
                 return
 
+            if _check_cancelled(job_id):
+                return
+
             # 2d — Compile (the long step — 20–40 min on ARM).
             _progress("Compiling \u2014 this takes 20\u201340 minutes on your device\u2026")
             rc, _, err = await run_command(
@@ -400,6 +462,9 @@ async def _run_local_api_setup(job_id: str, api_id: int, api_hash: str) -> None:
                 update_job(job_id, status=_JobStatus.failed,
                            error=f"Compilation failed.\n{err[:400]}")
                 _cleanup_build()
+                return
+
+            if _check_cancelled(job_id):
                 return
 
             # 2e — Install binary.
